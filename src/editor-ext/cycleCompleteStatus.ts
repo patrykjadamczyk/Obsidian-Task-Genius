@@ -8,6 +8,7 @@ import {
 import TaskProgressBarPlugin from "..";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import { getTasksAPI } from "../utils";
+import { priorityChangeAnnotation } from "./priorityPicker";
 
 /**
  * Creates an editor extension that cycles through task statuses when a user clicks on a task marker
@@ -236,7 +237,10 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
-	if (tr.annotation(taskStatusChangeAnnotation)) {
+	if (
+		tr.annotation(taskStatusChangeAnnotation) ||
+		tr.annotation(priorityChangeAnnotation)
+	) {
 		return tr;
 	}
 

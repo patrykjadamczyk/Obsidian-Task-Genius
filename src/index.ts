@@ -4,6 +4,8 @@ import {
 	HoverPopover,
 	MarkdownRenderer,
 	Plugin,
+	Editor,
+	Menu,
 } from "obsidian";
 import { taskProgressBarExtension } from "./editor-ext/widget";
 import { updateProgressBarInElement } from "./components/readModeWidget";
@@ -18,10 +20,17 @@ import { autoCompleteParentExtension } from "./editor-ext/autoCompleteParent";
 import { taskStatusSwitcherExtension } from "./editor-ext/taskStatusSwitcher";
 import { cycleCompleteStatusExtension } from "./editor-ext/cycleCompleteStatus";
 import {
+	priorityPickerExtension,
+	TASK_PRIORITIES,
+	LETTER_PRIORITIES,
+	priorityChangeAnnotation,
+} from "./editor-ext/priorityPicker";
+import {
 	cycleTaskStatusForward,
 	cycleTaskStatusBackward,
 } from "./commands/taskCycleCommands";
 import { moveTaskCommand } from "./commands/taskMover";
+import { datePickerExtension } from "./editor-ext/datePicker";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -132,6 +141,18 @@ export default class TaskProgressBarPlugin extends Plugin {
 			});
 		});
 
+		// Add priority picker extension
+		if (this.settings.enablePriorityPicker) {
+			this.registerEditorExtension([
+				priorityPickerExtension(this.app, this),
+			]);
+		}
+
+		// Add date picker extension
+		if (this.settings.enableDatePicker) {
+			this.registerEditorExtension([datePickerExtension(this.app, this)]);
+		}
+
 		// Add command for cycling task status forward
 		this.addCommand({
 			id: "cycle-task-status-forward",
@@ -150,6 +171,42 @@ export default class TaskProgressBarPlugin extends Plugin {
 			},
 		});
 
+		// Add priority keyboard shortcuts commands
+		if (this.settings.enablePriorityKeyboardShortcuts) {
+			// Emoji priority commands
+			Object.entries(TASK_PRIORITIES).forEach(([key, priority]) => {
+				if (key !== "none") {
+					this.addCommand({
+						id: `set-priority-${key}`,
+						name: `Set ${priority.text}`,
+						editorCallback: (editor) => {
+							this.setPriorityAtCursor(editor, priority.emoji);
+						},
+					});
+				}
+			});
+
+			// Letter priority commands
+			Object.entries(LETTER_PRIORITIES).forEach(([key, priority]) => {
+				this.addCommand({
+					id: `set-priority-letter-${key}`,
+					name: `Set priority ${key}`,
+					editorCallback: (editor) => {
+						this.setPriorityAtCursor(editor, `[#${key}]`);
+					},
+				});
+			});
+
+			// Remove priority command
+			this.addCommand({
+				id: "remove-priority",
+				name: "Remove priority",
+				editorCallback: (editor) => {
+					this.removePriorityAtCursor(editor);
+				},
+			});
+		}
+
 		// Add command for moving tasks
 		this.addCommand({
 			id: "move-task-to-file",
@@ -158,6 +215,65 @@ export default class TaskProgressBarPlugin extends Plugin {
 				return moveTaskCommand(checking, editor, this);
 			},
 		});
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor) => {
+				if (this.settings.enablePriorityKeyboardShortcuts) {
+					menu.addItem((item) => {
+						item.setTitle("Set priority");
+						item.setIcon("list-ordered");
+						// @ts-ignore
+						const submenu = item.setSubmenu() as Menu;
+						// Emoji priority commands
+						Object.entries(TASK_PRIORITIES).forEach(
+							([key, priority]) => {
+								if (key !== "none") {
+									submenu.addItem((item) => {
+										item.setTitle(`Set ${priority.text}`);
+										item.setIcon("arrow-big-up-dash");
+										item.onClick(() => {
+											this.setPriorityAtCursor(
+												editor,
+												priority.emoji
+											);
+										});
+									});
+								}
+							}
+						);
+
+						submenu.addSeparator();
+
+						// Letter priority commands
+						Object.entries(LETTER_PRIORITIES).forEach(
+							([key, priority]) => {
+								submenu.addItem((item) => {
+									item.setTitle(`Set priority ${key}`);
+									item.setIcon("a-arrow-up");
+									item.onClick(() => {
+										this.setPriorityAtCursor(
+											editor,
+											`[#${key}]`
+										);
+									});
+								});
+							}
+						);
+
+						// Remove priority command
+						submenu.addItem((item) => {
+							item.setTitle("Remove Priority");
+							item.setIcon("list-x");
+							// @ts-ignore
+							item.setWarning(true);
+							item.onClick(() => {
+								this.removePriorityAtCursor(editor);
+							});
+						});
+					});
+				}
+			})
+		);
 
 		this.app.workspace.onLayoutReady(() => {
 			if (this.settings.autoCompleteParent) {
@@ -186,5 +302,80 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	// Helper method to set priority at cursor position
+	setPriorityAtCursor(editor: Editor, priority: string) {
+		const cursor = editor.getCursor();
+		const line = editor.getLine(cursor.line);
+		const lineStart = editor.posToOffset({ line: cursor.line, ch: 0 });
+
+		// Check if this line has a task
+		const taskRegex =
+			/^([\s|\t]*[-*+] \[.\].*?)(?:🔺|⏫|🔼|🔽|⏬️|\[#[A-C]\])?(\s*)$/;
+		const match = line.match(taskRegex);
+
+		if (match) {
+			// Find the priority position
+			const priorityRegex = /(?:🔺|⏫|🔼|🔽|⏬️|\[#[A-C]\])/;
+			const priorityMatch = line.match(priorityRegex);
+
+			// Replace any existing priority or add the new priority
+			// @ts-ignore
+			const cm = editor.cm as EditorView;
+			if (priorityMatch) {
+				// Replace existing priority
+				cm.dispatch({
+					changes: {
+						from: lineStart + (priorityMatch.index || 0),
+						to:
+							lineStart +
+							(priorityMatch.index || 0) +
+							(priorityMatch[0]?.length || 0),
+						insert: priority,
+					},
+					annotations: [priorityChangeAnnotation.of(true)],
+				});
+			} else {
+				// Add new priority after task text
+				const taskTextEnd = lineStart + match[1].length;
+				cm.dispatch({
+					changes: {
+						from: taskTextEnd,
+						to: taskTextEnd,
+						insert: ` ${priority}`,
+					},
+					annotations: [priorityChangeAnnotation.of(true)],
+				});
+			}
+		}
+	}
+
+	// Helper method to remove priority at cursor position
+	removePriorityAtCursor(editor: Editor) {
+		const cursor = editor.getCursor();
+		const line = editor.getLine(cursor.line);
+		const lineStart = editor.posToOffset({ line: cursor.line, ch: 0 });
+
+		// Check if this line has a task with priority
+		const priorityRegex = /(?:🔺|⏫|🔼|🔽|⏬️|\[#[A-C]\])/;
+		const match = line.match(priorityRegex);
+
+		if (match) {
+			// Remove the priority
+			// @ts-ignore
+			const cm = editor.cm as EditorView;
+			cm.dispatch({
+				changes: {
+					from: lineStart + (match.index || 0),
+					to:
+						lineStart +
+						(match.index || 0) +
+						(match[0]?.length || 0),
+					insert: "",
+				},
+				annotations: [priorityChangeAnnotation.of(true)],
+			});
+		}
 	}
 }
