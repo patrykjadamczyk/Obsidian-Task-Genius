@@ -50,6 +50,13 @@ export interface TaskProgressBarSettings {
 	taskStatusMarks: Record<string, string>;
 	excludeMarksFromCycle: string[];
 
+	// Priority picker settings
+	enablePriorityPicker: boolean;
+	enablePriorityKeyboardShortcuts: boolean;
+
+	// Date picker settings
+	enableDatePicker: boolean;
+
 	// Cycle complete status settings
 	enableCycleCompleteStatus: boolean;
 	alwaysCycleNewTasks: boolean;
@@ -107,6 +114,13 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		DONE: "x",
 	},
 	excludeMarksFromCycle: [],
+
+	// Priority picker settings
+	enablePriorityPicker: false,
+	enablePriorityKeyboardShortcuts: false,
+
+	// Date picker settings
+	enableDatePicker: false,
 
 	// Cycle complete status settings
 	enableCycleCompleteStatus: true,
@@ -814,7 +828,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Initial render of the task states list
 		refreshTaskStatesList();
 
-		this.containerEl.createEl("h2", { text: "Say Thank You" });
+		this.addPriorityPickerSettings();
+		this.addDatePickerSettings();
+
+		new Setting(containerEl).setName("Say Thank You").setHeading();
 
 		new Setting(containerEl)
 			.setName("Donate")
@@ -824,6 +841,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.addButton((bt) => {
 				bt.buttonEl.outerHTML = `<a href="https://www.buymeacoffee.com/boninall"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00"></a>`;
 			});
+
+		// Add Priority Picker Settings
 	}
 
 	showNumberToProgressbar() {
@@ -1023,5 +1042,68 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					this.display();
 				});
 			});
+	}
+
+	addPriorityPickerSettings() {
+		const { containerEl } = this;
+
+		new Setting(containerEl)
+			.setName("Priority Picker Settings")
+			.setDesc(
+				"Toggle to enable priority picker dropdown for emoji and letter format priorities."
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Enable priority picker")
+			.setDesc(
+				"Toggle to enable priority picker dropdown for emoji and letter format priorities."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enablePriorityPicker)
+					.onChange(async (value) => {
+						this.plugin.settings.enablePriorityPicker = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Enable priority keyboard shortcuts")
+			.setDesc(
+				"Toggle to enable keyboard shortcuts for setting task priorities."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.enablePriorityKeyboardShortcuts
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.enablePriorityKeyboardShortcuts =
+							value;
+						this.applySettingsUpdate();
+					})
+			);
+	}
+
+	addDatePickerSettings() {
+		const { containerEl } = this;
+
+		new Setting(containerEl)
+			.setName("Date Picker Settings")
+			.setDesc("Toggle to enable date picker dropdown for task dates.")
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName("Enable date picker")
+			.setDesc("Toggle to enable date picker dropdown for task dates.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableDatePicker)
+					.onChange(async (value) => {
+						this.plugin.settings.enableDatePicker = value;
+						this.applySettingsUpdate();
+					})
+			);
 	}
 }
