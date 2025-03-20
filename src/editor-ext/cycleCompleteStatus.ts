@@ -93,6 +93,11 @@ function findTaskStatusChanges(
 				return;
 			}
 
+			if (insertedText.includes("[[") || insertedText.includes("]]")) {
+				console.log("Link detected, skipping");
+				return;
+			}
+
 			// Get the position context
 			const pos = fromB;
 			const originalLine = tr.startState.doc.lineAt(pos);
@@ -104,8 +109,6 @@ function findTaskStatusChanges(
 			const taskRegex = /^[\s|\t]*([-*+]|\d+\.)\s+\[(.)]/;
 			const match = originalLineText.match(taskRegex);
 			const newMatch = newLineText.match(taskRegex);
-
-			console.log(newMatch, match, insertedText, newLineText);
 
 			// Handle pasted task content
 			if (newMatch && !match && insertedText === newLineText) {
