@@ -6,6 +6,7 @@ import {
 	setIcon,
 	TFile,
 } from "obsidian";
+import { getTasksAPI } from "../utils";
 
 // This component replaces standard checkboxes with custom text marks in reading view
 export function applyTaskTextMarks({
@@ -30,6 +31,8 @@ export function applyTaskTextMarks({
 		const checkbox = taskItem.querySelector(
 			".task-list-item-checkbox"
 		) as HTMLInputElement;
+
+		console.log(checkbox);
 		if (!checkbox) continue;
 
 		// Get the current task mark
@@ -83,6 +86,8 @@ class TaskTextMark extends Component {
 				this.originalCheckbox.nextSibling
 			);
 
+			console.log(this.markEl);
+
 			// Register click handler for status cycling
 			this.registerDomEvent(this.markEl, "click", (e) => {
 				e.preventDefault();
@@ -102,7 +107,7 @@ class TaskTextMark extends Component {
 			);
 
 			// Register click handler on the cloned checkbox
-			newCheckbox.addEventListener("click", (e) => {
+			this.registerDomEvent(newCheckbox, "click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
 				this.debounceCycleTaskStatus();
@@ -144,13 +149,41 @@ class TaskTextMark extends Component {
 	cycleTaskStatus() {
 		// Get the section info to locate the task in the file
 		const sectionInfo = this.ctx.getSectionInfo(this.taskItem);
-		if (!sectionInfo) return;
+
+		// Remove TypeScript errors by simplifying debug logging
+		console.log("Section info:", sectionInfo);
 
 		const file = this.ctx.sourcePath
 			? this.plugin.app.vault.getFileByPath(this.ctx.sourcePath)
 			: null;
 		if (!file || !(file instanceof TFile)) return;
 
+		// Fallback for callouts - check if we're in a callout and sectionInfo is not available
+		let calloutInfo = null;
+		if (!sectionInfo) {
+			// Check if containerEl exists and has cmView (for callouts)
+			// @ts-ignore - TypeScript doesn't know about containerEl and cmView properties
+			if (this.ctx.containerEl?.cmView) {
+				// @ts-ignore - Accessing dynamic properties
+				const cmView = this.ctx.containerEl.cmView;
+				console.log(cmView);
+				// Check if this is a callout
+				if (cmView.widget.clazz === "cm-callout") {
+					calloutInfo = {
+						lineStart: 0, // We'll calculate relative position
+						start: cmView.widget.start,
+						end: cmView.widget.end,
+						text: cmView.widget.text,
+					};
+					console.log("Found callout info:", calloutInfo);
+				}
+			}
+
+			// If we couldn't get callout info either, we can't proceed
+			if (!calloutInfo) return;
+		}
+
+		console.log("Section info:", sectionInfo);
 		// Get cycle configuration from plugin settings
 		const cycle = this.plugin.settings.taskStatusCycle || [];
 		const marks = this.plugin.settings.taskStatusMarks || {};
@@ -175,39 +208,103 @@ class TaskTextMark extends Component {
 		const nextIndex = (currentIndex + 1) % remainingCycle.length;
 		const nextState = remainingCycle[nextIndex];
 		const nextMark = marks[nextState] || " ";
+		// Check if next state is DONE and Tasks plugin is available
+		const tasksApi = getTasksAPI(this.plugin);
+		const isDoneState = nextState === "DONE" && tasksApi;
+		const isCurrentDone = currentState === "DONE";
+
+		console.log(isDoneState, calloutInfo);
 
 		// Update the underlying file using the process method for atomic operations
 		this.plugin.app.vault.process(file, (content) => {
 			const lines = content.split("\n");
+			let actualLineIndex: number;
+			let taskLine: string;
 
-			// Get the relative line number from the taskItem's data-line attribute
-			const dataLine = parseInt(
-				this.taskItem.getAttribute("data-line") || "0"
-			);
+			if (sectionInfo) {
+				// Standard method using sectionInfo
+				// Get the relative line number from the taskItem's data-line attribute
+				const dataLine = parseInt(
+					this.taskItem.getAttribute("data-line") || "0"
+				);
 
-			// Calculate the actual line in the file by adding the relative line to section start
-			const actualLineIndex = sectionInfo.lineStart + dataLine;
-			const taskLine = lines[actualLineIndex];
+				// Calculate the actual line in the file by adding the relative line to section start
+				actualLineIndex = sectionInfo.lineStart + dataLine;
+				taskLine = lines[actualLineIndex];
+			} else if (calloutInfo) {
+				// Get the line number from the task item's data-line attribute
+				const dataLine = parseInt(
+					this.taskItem
+						.querySelector("input")
+						?.getAttribute("data-line") || "0"
+				);
+
+				// Calculate actual line number by adding data-line to lines before callout
+				const contentBeforeCallout = content.substring(
+					0,
+					calloutInfo.start
+				);
+				const linesBefore = contentBeforeCallout.split("\n").length - 1;
+				actualLineIndex = linesBefore + dataLine;
+				console.log(actualLineIndex);
+				taskLine = lines[actualLineIndex];
+			} else {
+				return content; // Can't proceed without location info
+			}
 
 			console.log(`Task at line ${actualLineIndex}:`, taskLine);
 
-			// Find the task marker pattern and replace it
-			const updatedLine = taskLine.replace(
-				/(\s*[-*+]\s*\[)(.)(])/,
-				`$1${nextMark}$3`
-			);
+			if (isDoneState) {
+				// Use Tasks API to toggle the task
+				const updatedContent = tasksApi.executeToggleTaskDoneCommand(
+					taskLine,
+					file.path
+				);
 
-			if (updatedLine !== taskLine) {
-				lines[actualLineIndex] = updatedLine;
+				// Handle potential multi-line result (recurring tasks might create new lines)
+				const updatedLines = updatedContent.split("\n");
 
-				// Update the UI immediately without waiting for file change event
+				if (updatedLines.length === 1) {
+					// Simple replacement
+					lines[actualLineIndex] = updatedContent;
+				} else {
+					// Handle multi-line result (like recurring tasks)
+					lines.splice(actualLineIndex, 1, ...updatedLines);
+				}
+
+				// Update the UI immediately
 				this.currentMark = nextMark;
 				this.triggerMarkUpdate(nextMark);
-				// Update the original checkbox checked state if appropriate
-				const completedMarks =
-					this.plugin.settings.taskStatuses.completed.split("|");
-				this.originalCheckbox.checked =
-					completedMarks.includes(nextMark);
+				this.originalCheckbox.checked = true;
+			} else {
+				// Use the original logic for other status changes
+				let updatedLine = taskLine;
+
+				if (isCurrentDone) {
+					// Remove completion date if switching from DONE state
+					updatedLine = updatedLine.replace(
+						/\s+✅\s+\d{4}-\d{2}-\d{2}/,
+						""
+					);
+				}
+
+				updatedLine = updatedLine.replace(
+					/(\s*[-*+]\s*\[)(.)(])/,
+					`$1${nextMark}$3`
+				);
+
+				if (updatedLine !== taskLine) {
+					lines[actualLineIndex] = updatedLine;
+
+					// Update the UI immediately without waiting for file change event
+					this.currentMark = nextMark;
+					this.triggerMarkUpdate(nextMark);
+					// Update the original checkbox checked state if appropriate
+					const completedMarks =
+						this.plugin.settings.taskStatuses.completed.split("|");
+					this.originalCheckbox.checked =
+						completedMarks.includes(nextMark);
+				}
 			}
 
 			return lines.join("\n");
