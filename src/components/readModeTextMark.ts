@@ -159,7 +159,13 @@ class TaskTextMark extends Component {
 		if (!file || !(file instanceof TFile)) return;
 
 		// Fallback for callouts - check if we're in a callout and sectionInfo is not available
-		let calloutInfo = null;
+		interface CalloutInfo {
+			lineStart: number;
+			start: number;
+			end: number;
+			text: string;
+		}
+		let calloutInfo: CalloutInfo | null = null;
 		if (!sectionInfo) {
 			// Check if containerEl exists and has cmView (for callouts)
 			// @ts-ignore - TypeScript doesn't know about containerEl and cmView properties
