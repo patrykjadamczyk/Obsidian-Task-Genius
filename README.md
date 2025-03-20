@@ -14,7 +14,7 @@ A plugin for comprehensive task management in Obsidian, including task progress 
 - **Conditional Display**: Hide progress bars based on tags, folders, or metadata
 - **Progress Statistics**: View task completion counts and percentages
 
-![example](./media/example.gif)
+![example](./media/example.webp)
 
 # Usage
 
