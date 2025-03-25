@@ -7,6 +7,8 @@ import {
 	FuzzyMatch,
 	SuggestModal,
 	MetadataCache,
+	MarkdownView,
+	MarkdownFileInfo,
 } from "obsidian";
 import TaskProgressBarPlugin from "..";
 import { buildIndentString } from "../utils";
@@ -509,10 +511,11 @@ export class BlockSelectionModal extends SuggestModal<{
 export function moveTaskCommand(
 	checking: boolean,
 	editor: Editor,
+	ctx: MarkdownView | MarkdownFileInfo,
 	plugin: TaskProgressBarPlugin
 ): boolean {
 	// Get the current file
-	const currentFile = plugin.app.workspace.getActiveFile();
+	const currentFile = ctx.file;
 
 	if (checking) {
 		// If checking, return true if we're in a markdown file and cursor is on a task line
@@ -523,8 +526,8 @@ export function moveTaskCommand(
 		const cursor = editor.getCursor();
 		const line = editor.getLine(cursor.line);
 
-		// Check if line is a task (contains "- [ ]")
-		return line.match(/^\s*- \[[ x]\]/i) !== null;
+		// Check if line is a task with any of the supported list markers (-, 1., *)
+		return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
 	}
 
 	// Execute the command
