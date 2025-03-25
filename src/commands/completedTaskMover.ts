@@ -12,7 +12,7 @@ import {
 	moment,
 } from "obsidian";
 import TaskProgressBarPlugin from "..";
-import { buildIndentString } from "../utils";
+import { buildIndentString, getTabSize } from "../utils";
 
 /**
  * Modal for selecting a target file to move completed tasks to
@@ -330,16 +330,24 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 				// Only include direct children that are completed
 				const completedDirectChildren = new Set<number>();
 
-				// First identify all direct completed children
-				childTasks.forEach((task) => {
-					// Check if this is a direct child (exactly one level deeper)
-					const isDirectChild =
-						task.indent === currentIndent + this.getTabSize();
+				// Determine the minimum indentation level of direct children
+				let minChildIndent = Number.MAX_SAFE_INTEGER;
+				for (const task of childTasks) {
+					if (
+						task.indent > currentIndent &&
+						task.indent < minChildIndent
+					) {
+						minChildIndent = task.indent;
+					}
+				}
 
+				// Now identify all direct children using the calculated indentation
+				for (const task of childTasks) {
+					const isDirectChild = task.indent === minChildIndent;
 					if (isDirectChild && task.isCompleted) {
 						completedDirectChildren.add(task.index);
 					}
-				});
+				}
 
 				// Include all identified direct completed children and their subtasks
 				resultLines.length = 0; // Clear resultLines before rebuilding
@@ -412,8 +420,13 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 	}
 
 	private getTabSize(): number {
-		// Get tab size from Obsidian settings or use default
-		return 2; // This is simplified, could get actual tab size from settings
+		// Use the utility function to get tab size
+		return getTabSize(this.app);
+	}
+
+	private getIndentation(line: string): number {
+		const match = line.match(/^(\s*)/);
+		return match ? match[1].length : 0;
 	}
 
 	private removeCompletedTasksFromCurrentFile() {
@@ -442,11 +455,6 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 
 		// Clear the lines to remove
 		this.plugin.linesToRemove = [];
-	}
-
-	private getIndentation(line: string): number {
-		const match = line.match(/^(\s*)/);
-		return match ? match[1].length : 0;
 	}
 
 	// Method to reset indentation for new files
@@ -554,6 +562,18 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		this.metadataCache = app.metadataCache;
 		this.moveMode = moveMode;
 		this.setPlaceholder("Select a block to insert after");
+	}
+
+	// Add getIndentation method
+	private getIndentation(line: string): number {
+		const match = line.match(/^(\s*)/);
+		return match ? match[1].length : 0;
+	}
+
+	// Add getTabSize method
+	private getTabSize(): number {
+		// Use the utility function to get tab size
+		return getTabSize(this.app);
 	}
 
 	async getSuggestions(
@@ -860,16 +880,24 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 				// Only include direct children that are completed
 				const completedDirectChildren = new Set<number>();
 
-				// First identify all direct completed children
-				childTasks.forEach((task) => {
-					// Check if this is a direct child (exactly one level deeper)
-					const isDirectChild =
-						task.indent === currentIndent + this.getTabSize();
+				// Determine the minimum indentation level of direct children
+				let minChildIndent = Number.MAX_SAFE_INTEGER;
+				for (const task of childTasks) {
+					if (
+						task.indent > currentIndent &&
+						task.indent < minChildIndent
+					) {
+						minChildIndent = task.indent;
+					}
+				}
 
+				// Now identify all direct children using the calculated indentation
+				for (const task of childTasks) {
+					const isDirectChild = task.indent === minChildIndent;
 					if (isDirectChild && task.isCompleted) {
 						completedDirectChildren.add(task.index);
 					}
-				});
+				}
 
 				// Include all identified direct completed children and their subtasks
 				resultLines.length = 0; // Clear resultLines before rebuilding
@@ -941,11 +969,6 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		return -1;
 	}
 
-	private getTabSize(): number {
-		// Get tab size from Obsidian settings or use default
-		return 2; // This is simplified, could get actual tab size from settings
-	}
-
 	private removeCompletedTasksFromSourceFile() {
 		if (
 			!this.plugin.linesToRemove ||
@@ -1012,11 +1035,6 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 				}
 			})
 			.join("\n");
-	}
-
-	private getIndentation(line: string): number {
-		const match = line.match(/^(\s*)/);
-		return match ? match[1].length : 0;
 	}
 
 	// Add marker to task (version, date, or custom)
