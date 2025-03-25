@@ -246,11 +246,41 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 			if (this.moveMode === "allCompleted") {
 				// Only include completed tasks (and their children)
 				const completedTasks = new Set<number>();
+				const tasksToInclude = new Set<number>();
+				const parentTasksToPreserve = new Set<number>();
 
 				// First identify all completed tasks
 				childTasks.forEach((task) => {
 					if (task.isCompleted) {
 						completedTasks.add(task.index);
+						tasksToInclude.add(task.index);
+
+						// Add all parent tasks up to the root task
+						let currentTask = task;
+						let parentIndex = this.findParentTaskIndex(
+							currentTask.index,
+							currentTask.indent,
+							childTasks
+						);
+
+						while (parentIndex !== -1) {
+							tasksToInclude.add(parentIndex);
+							// Only mark parent tasks for removal if they're completed
+							const parentTask = childTasks.find(
+								(t) => t.index === parentIndex
+							);
+							if (!parentTask) break;
+
+							if (!parentTask.isCompleted) {
+								parentTasksToPreserve.add(parentIndex);
+							}
+
+							parentIndex = this.findParentTaskIndex(
+								parentTask.index,
+								parentTask.indent,
+								childTasks
+							);
+						}
 					}
 				});
 
@@ -262,17 +292,35 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 						childTasks
 					);
 					if (parentIndex !== -1 && completedTasks.has(parentIndex)) {
-						completedTasks.add(task.index);
+						tasksToInclude.add(task.index);
 					}
 				});
 
-				// Add the selected items to results
-				childTasks.forEach((task) => {
-					if (completedTasks.has(task.index)) {
+				// Add the selected items to results, sorting by index to maintain order
+				const tasksByIndex = [...tasksToInclude].sort((a, b) => a - b);
+
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add child tasks in order
+				for (const taskIndex of tasksByIndex) {
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					// Add marker to parent tasks that are preserved
+					if (parentTasksToPreserve.has(taskIndex)) {
+						resultLines.push(this.addMarkerToTask(task.line));
+					} else {
 						resultLines.push(task.line);
-						linesToRemove.push(task.index);
 					}
-				});
+
+					// Only add to linesToRemove if it's completed or a child of completed
+					if (!parentTasksToPreserve.has(taskIndex)) {
+						linesToRemove.push(taskIndex);
+					}
+				}
 
 				// If parent task is completed, add it to lines to remove
 				if (this.isCompletedTaskMark(parentTaskMark)) {
@@ -280,16 +328,51 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 				}
 			} else if (this.moveMode === "directChildren") {
 				// Only include direct children that are completed
+				const completedDirectChildren = new Set<number>();
+
+				// First identify all direct completed children
 				childTasks.forEach((task) => {
 					// Check if this is a direct child (exactly one level deeper)
 					const isDirectChild =
 						task.indent === currentIndent + this.getTabSize();
 
 					if (isDirectChild && task.isCompleted) {
-						resultLines.push(task.line);
-						linesToRemove.push(task.index);
+						completedDirectChildren.add(task.index);
 					}
 				});
+
+				// Include all identified direct completed children and their subtasks
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add direct completed children in order
+				const sortedChildIndices = [...completedDirectChildren].sort(
+					(a, b) => a - b
+				);
+				for (const taskIndex of sortedChildIndices) {
+					// Add the direct completed child
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					resultLines.push(task.line);
+					linesToRemove.push(taskIndex);
+
+					// Add all its subtasks (regardless of completion status)
+					let i =
+						childTasks.findIndex((t) => t.index === taskIndex) + 1;
+					const taskIndent = task.indent;
+
+					while (i < childTasks.length) {
+						const subtask = childTasks[i];
+						if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
+
+						resultLines.push(subtask.line);
+						linesToRemove.push(subtask.index);
+						i++;
+					}
+				}
 
 				// If parent task is completed, add it to lines to remove
 				if (this.isCompletedTaskMark(parentTaskMark)) {
@@ -693,11 +776,41 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 			if (this.moveMode === "allCompleted") {
 				// Only include completed tasks (and their children)
 				const completedTasks = new Set<number>();
+				const tasksToInclude = new Set<number>();
+				const parentTasksToPreserve = new Set<number>();
 
 				// First identify all completed tasks
 				childTasks.forEach((task) => {
 					if (task.isCompleted) {
 						completedTasks.add(task.index);
+						tasksToInclude.add(task.index);
+
+						// Add all parent tasks up to the root task
+						let currentTask = task;
+						let parentIndex = this.findParentTaskIndex(
+							currentTask.index,
+							currentTask.indent,
+							childTasks
+						);
+
+						while (parentIndex !== -1) {
+							tasksToInclude.add(parentIndex);
+							// Only mark parent tasks for removal if they're completed
+							const parentTask = childTasks.find(
+								(t) => t.index === parentIndex
+							);
+							if (!parentTask) break;
+
+							if (!parentTask.isCompleted) {
+								parentTasksToPreserve.add(parentIndex);
+							}
+
+							parentIndex = this.findParentTaskIndex(
+								parentTask.index,
+								parentTask.indent,
+								childTasks
+							);
+						}
 					}
 				});
 
@@ -709,17 +822,35 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 						childTasks
 					);
 					if (parentIndex !== -1 && completedTasks.has(parentIndex)) {
-						completedTasks.add(task.index);
+						tasksToInclude.add(task.index);
 					}
 				});
 
-				// Add the selected items to results
-				childTasks.forEach((task) => {
-					if (completedTasks.has(task.index)) {
+				// Add the selected items to results, sorting by index to maintain order
+				const tasksByIndex = [...tasksToInclude].sort((a, b) => a - b);
+
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add child tasks in order
+				for (const taskIndex of tasksByIndex) {
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					// Add marker to parent tasks that are preserved
+					if (parentTasksToPreserve.has(taskIndex)) {
+						resultLines.push(this.addMarkerToTask(task.line));
+					} else {
 						resultLines.push(task.line);
-						linesToRemove.push(task.index);
 					}
-				});
+
+					// Only add to linesToRemove if it's completed or a child of completed
+					if (!parentTasksToPreserve.has(taskIndex)) {
+						linesToRemove.push(taskIndex);
+					}
+				}
 
 				// If parent task is completed, add it to lines to remove
 				if (this.isCompletedTaskMark(parentTaskMark)) {
@@ -727,16 +858,51 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 				}
 			} else if (this.moveMode === "directChildren") {
 				// Only include direct children that are completed
+				const completedDirectChildren = new Set<number>();
+
+				// First identify all direct completed children
 				childTasks.forEach((task) => {
 					// Check if this is a direct child (exactly one level deeper)
 					const isDirectChild =
 						task.indent === currentIndent + this.getTabSize();
 
 					if (isDirectChild && task.isCompleted) {
-						resultLines.push(task.line);
-						linesToRemove.push(task.index);
+						completedDirectChildren.add(task.index);
 					}
 				});
+
+				// Include all identified direct completed children and their subtasks
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add direct completed children in order
+				const sortedChildIndices = [...completedDirectChildren].sort(
+					(a, b) => a - b
+				);
+				for (const taskIndex of sortedChildIndices) {
+					// Add the direct completed child
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					resultLines.push(task.line);
+					linesToRemove.push(taskIndex);
+
+					// Add all its subtasks (regardless of completion status)
+					let i =
+						childTasks.findIndex((t) => t.index === taskIndex) + 1;
+					const taskIndent = task.indent;
+
+					while (i < childTasks.length) {
+						const subtask = childTasks[i];
+						if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
+
+						resultLines.push(subtask.line);
+						linesToRemove.push(subtask.index);
+						i++;
+					}
+				}
 
 				// If parent task is completed, add it to lines to remove
 				if (this.isCompletedTaskMark(parentTaskMark)) {
