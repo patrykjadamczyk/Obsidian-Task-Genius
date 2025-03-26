@@ -60,6 +60,18 @@ export interface TaskProgressBarSettings {
 	// Cycle complete status settings
 	enableCycleCompleteStatus: boolean;
 	alwaysCycleNewTasks: boolean;
+
+	// Completed task mover settings
+	completedTaskMover: {
+		enableCompletedTaskMover: boolean;
+		taskMarkerType: "version" | "date" | "custom";
+		versionMarker: string;
+		dateMarker: string;
+		customMarker: string;
+		completeAllMovedTasks: boolean;
+		treatAbandonedAsCompleted: boolean;
+		withCurrentFileLink: boolean;
+	};
 }
 
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
@@ -125,6 +137,18 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Cycle complete status settings
 	enableCycleCompleteStatus: true,
 	alwaysCycleNewTasks: false,
+
+	// Completed task mover settings
+	completedTaskMover: {
+		enableCompletedTaskMover: false,
+		taskMarkerType: "version",
+		versionMarker: "version 1.0",
+		dateMarker: "archived on {{date}}",
+		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
+		completeAllMovedTasks: false,
+		treatAbandonedAsCompleted: false,
+		withCurrentFileLink: false,
+	},
 };
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
@@ -831,6 +855,172 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		this.addPriorityPickerSettings();
 		this.addDatePickerSettings();
 
+		// Add Completed Task Mover settings
+		new Setting(containerEl).setName("Completed Task Mover").setHeading();
+
+		new Setting(containerEl)
+			.setName("Enable completed task mover")
+			.setDesc(
+				"Toggle this to enable commands for moving completed tasks to another file."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.completedTaskMover
+							.enableCompletedTaskMover
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.completedTaskMover.enableCompletedTaskMover =
+							value;
+						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
+					})
+			);
+
+		if (this.plugin.settings.completedTaskMover.enableCompletedTaskMover) {
+			new Setting(containerEl)
+				.setName("Task marker type")
+				.setDesc("Choose what type of marker to add to moved tasks")
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("version", "Version marker")
+						.addOption("date", "Date marker")
+						.addOption("custom", "Custom marker")
+						.setValue(
+							this.plugin.settings.completedTaskMover
+								.taskMarkerType
+						)
+						.onChange(
+							async (value: "version" | "date" | "custom") => {
+								this.plugin.settings.completedTaskMover.taskMarkerType =
+									value;
+								this.applySettingsUpdate();
+
+								setTimeout(() => {
+									this.display();
+								}, 200);
+							}
+						);
+				});
+
+			// Show specific settings based on marker type
+			const markerType =
+				this.plugin.settings.completedTaskMover.taskMarkerType;
+
+			if (markerType === "version") {
+				new Setting(containerEl)
+					.setName("Version marker text")
+					.setDesc(
+						"Text to append to tasks when moved (e.g., 'version 1.0')"
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("version 1.0")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.versionMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.versionMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			} else if (markerType === "date") {
+				new Setting(containerEl)
+					.setName("Date marker text")
+					.setDesc(
+						"Text to append to tasks when moved (e.g., 'archived on 2023-12-31')"
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("archived on {{date}}")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.dateMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.dateMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			} else if (markerType === "custom") {
+				new Setting(containerEl)
+					.setName("Custom marker text")
+					.setDesc(
+						"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}})"
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("moved {{DATE:YYYY-MM-DD HH:mm}}")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.customMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.customMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			}
+
+			new Setting(containerEl)
+				.setName("Treat abandoned tasks as completed")
+				.setDesc(
+					"If enabled, abandoned tasks will be treated as completed."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.treatAbandonedAsCompleted
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.treatAbandonedAsCompleted =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName("Complete all moved tasks")
+				.setDesc(
+					"If enabled, all moved tasks will be marked as completed."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.completeAllMovedTasks
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.completeAllMovedTasks =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName("With current file link")
+				.setDesc(
+					"A link to the current file will be added to the parent task of the moved tasks."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.withCurrentFileLink
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.withCurrentFileLink =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+		}
+
 		new Setting(containerEl).setName("Say Thank You").setHeading();
 
 		new Setting(containerEl)
@@ -841,8 +1031,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.addButton((bt) => {
 				bt.buttonEl.outerHTML = `<a href="https://www.buymeacoffee.com/boninall"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00"></a>`;
 			});
-
-		// Add Priority Picker Settings
 	}
 
 	showNumberToProgressbar() {

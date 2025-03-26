@@ -30,6 +30,7 @@ import {
 	cycleTaskStatusBackward,
 } from "./commands/taskCycleCommands";
 import { moveTaskCommand } from "./commands/taskMover";
+import { moveCompletedTasksCommand } from "./commands/completedTaskMover";
 import { datePickerExtension } from "./editor-ext/datePicker";
 
 class TaskProgressBarPopover extends HoverPopover {
@@ -110,6 +111,8 @@ export const showPopoverWithProgressBar = (
 
 export default class TaskProgressBarPlugin extends Plugin {
 	settings: TaskProgressBarSettings;
+	// Used for completed task mover to track which lines should be removed
+	linesToRemove: number[] = [];
 
 	async onload() {
 		await this.loadSettings();
@@ -195,9 +198,57 @@ export default class TaskProgressBarPlugin extends Plugin {
 			id: "move-task-to-file",
 			name: "Move task to another file",
 			editorCheckCallback: (checking, editor, ctx) => {
-				return moveTaskCommand(checking, editor, this);
+				return moveTaskCommand(checking, editor, ctx, this);
 			},
 		});
+
+		// Add commands for moving completed tasks
+		if (this.settings.completedTaskMover.enableCompletedTaskMover) {
+			// Command for moving all completed subtasks and their children
+			this.addCommand({
+				id: "move-completed-subtasks-to-file",
+				name: "Move all completed subtasks to another file",
+				editorCheckCallback: (checking, editor, ctx) => {
+					return moveCompletedTasksCommand(
+						checking,
+						editor,
+						ctx,
+						this,
+						"allCompleted"
+					);
+				},
+			});
+
+			// Command for moving direct completed children
+			this.addCommand({
+				id: "move-direct-completed-subtasks-to-file",
+				name: "Move direct completed subtasks to another file",
+				editorCheckCallback: (checking, editor, ctx) => {
+					return moveCompletedTasksCommand(
+						checking,
+						editor,
+						ctx,
+						this,
+						"directChildren"
+					);
+				},
+			});
+
+			// Command for moving all subtasks (completed and uncompleted)
+			this.addCommand({
+				id: "move-all-subtasks-to-file",
+				name: "Move all subtasks to another file",
+				editorCheckCallback: (checking, editor, ctx) => {
+					return moveCompletedTasksCommand(
+						checking,
+						editor,
+						ctx,
+						this,
+						"all"
+					);
+				},
+			});
+		}
 
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {

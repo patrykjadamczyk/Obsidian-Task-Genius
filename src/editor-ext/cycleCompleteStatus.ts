@@ -247,11 +247,17 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
+	if (tr.isUserEvent("set") && tr.changes.length > 1) {
+		return tr;
+	}
+
 	// Check if any task statuses were changed in this transaction
 	const taskStatusChanges = findTaskStatusChanges(tr, !!getTasksAPI(plugin));
 	if (taskStatusChanges.length === 0) {
 		return tr;
 	}
+
+	console.log(taskStatusChanges, tr);
 
 	if (
 		taskStatusChanges.length === 1 &&
