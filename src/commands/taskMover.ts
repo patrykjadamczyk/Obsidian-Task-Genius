@@ -142,7 +142,7 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 			this.removeTaskFromCurrentFile();
 
 			// Open the new file
-			this.app.workspace.getLeaf().openFile(newFile);
+			this.app.workspace.getLeaf(true).openFile(newFile);
 
 			new Notice(`Task moved to ${fileName}`);
 		} catch (error) {
@@ -396,7 +396,7 @@ export class BlockSelectionModal extends SuggestModal<{
 			this.removeTaskFromSourceFile();
 
 			// Open the target file
-			this.app.workspace.getLeaf().openFile(this.targetFile);
+			// this.app.workspace.getLeaf().openFile(this.targetFile);
 
 			new Notice(`Task moved to ${this.targetFile.path}`);
 		} catch (error) {

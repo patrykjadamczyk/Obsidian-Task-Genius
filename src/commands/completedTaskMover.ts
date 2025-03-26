@@ -151,7 +151,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 			this.removeCompletedTasksFromCurrentFile();
 
 			// Open the new file
-			this.app.workspace.getLeaf().openFile(newFile);
+			this.app.workspace.getLeaf(true).openFile(newFile);
 
 			new Notice(`Completed tasks moved to ${fileName}`);
 		} catch (error) {
@@ -174,7 +174,10 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 		const parentTaskMark = parentTaskMatch ? parentTaskMatch[1] : "";
 
 		// Clone parent task with marker
-		const parentTaskWithMarker = this.addMarkerToTask(currentLine);
+		let parentTaskWithMarker = this.addMarkerToTask(currentLine, true);
+
+		// Complete parent task if setting is enabled
+		parentTaskWithMarker = this.completeTaskIfNeeded(parentTaskWithMarker);
 
 		// Include the current line and completed child tasks
 		const resultLines: string[] = [parentTaskWithMarker];
@@ -193,7 +196,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 					break;
 				}
 
-				resultLines.push(line);
+				resultLines.push(this.completeTaskIfNeeded(line));
 				linesToRemove.push(i);
 			}
 
@@ -311,9 +314,13 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 
 					// Add marker to parent tasks that are preserved
 					if (parentTasksToPreserve.has(taskIndex)) {
-						resultLines.push(this.addMarkerToTask(task.line));
+						let taskLine = this.addMarkerToTask(task.line, false);
+						// Complete the task if setting is enabled
+						taskLine = this.completeTaskIfNeeded(taskLine);
+						resultLines.push(taskLine);
 					} else {
-						resultLines.push(task.line);
+						// Complete the task if setting is enabled
+						resultLines.push(this.completeTaskIfNeeded(task.line));
 					}
 
 					// Only add to linesToRemove if it's completed or a child of completed
@@ -364,7 +371,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 					const task = childTasks.find((t) => t.index === taskIndex);
 					if (!task) continue;
 
-					resultLines.push(task.line);
+					resultLines.push(this.completeTaskIfNeeded(task.line));
 					linesToRemove.push(taskIndex);
 
 					// Add all its subtasks (regardless of completion status)
@@ -376,7 +383,9 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 						const subtask = childTasks[i];
 						if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
 
-						resultLines.push(subtask.line);
+						resultLines.push(
+							this.completeTaskIfNeeded(subtask.line)
+						);
 						linesToRemove.push(subtask.index);
 						i++;
 					}
@@ -484,29 +493,66 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 	}
 
 	// Add marker to task (version, date, or custom)
-	private addMarkerToTask(taskLine: string): string {
-		const { taskMarkerType, versionMarker, dateMarker, customMarker } =
-			this.plugin.settings.completedTaskMover;
+	private addMarkerToTask(taskLine: string, isRoot = false): string {
+		const {
+			taskMarkerType,
+			versionMarker,
+			dateMarker,
+			customMarker,
+			withCurrentFileLink,
+		} = this.plugin.settings.completedTaskMover;
+
+		// Extract blockid if exists
+		const blockidMatch = taskLine.match(/^(.*?)(?:\s+^[a-zA-Z0-9]{6}$)?$/);
+		if (!blockidMatch) return taskLine;
+
+		const mainContent = blockidMatch[1].trim();
+		const blockid = blockidMatch[2]?.trim();
+
+		// Create base task line with marker
+		let markedTaskLine = mainContent;
 
 		// Basic check to ensure the task line doesn't already have this marker
 		if (
-			taskLine.includes(versionMarker) ||
-			taskLine.includes(dateMarker) ||
-			taskLine.includes(this.processCustomMarker(customMarker))
+			!mainContent.includes(versionMarker) &&
+			!mainContent.includes(dateMarker) &&
+			!mainContent.includes(this.processCustomMarker(customMarker))
 		) {
-			return taskLine;
+			switch (taskMarkerType) {
+				case "version":
+					markedTaskLine = `${mainContent} ${versionMarker}`;
+					break;
+				case "date":
+					markedTaskLine = `${mainContent} ${this.processDateMarker(
+						dateMarker
+					)}`;
+					break;
+				case "custom":
+					markedTaskLine = `${mainContent} ${this.processCustomMarker(
+						customMarker
+					)}`;
+					break;
+				default:
+					markedTaskLine = mainContent;
+			}
 		}
 
-		switch (taskMarkerType) {
-			case "version":
-				return `${taskLine} ${versionMarker}`;
-			case "date":
-				return `${taskLine} ${dateMarker}`;
-			case "custom":
-				return `${taskLine} ${this.processCustomMarker(customMarker)}`;
-			default:
-				return taskLine;
+		// Add link to the current file if setting is enabled and this is a root task
+		if (withCurrentFileLink && isRoot) {
+			const currentFile = this.currentFile;
+			const link = this.app.fileManager.generateMarkdownLink(
+				currentFile,
+				currentFile.path
+			);
+			markedTaskLine = `${markedTaskLine} from ${link}`;
 		}
+
+		// Add back the blockid if it exists
+		if (blockid) {
+			markedTaskLine = `${markedTaskLine} ${blockid}`;
+		}
+
+		return markedTaskLine;
 	}
 
 	// Process custom marker with date variables
@@ -517,6 +563,13 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 		});
 	}
 
+	// Process date marker with {{date}} placeholder
+	private processDateMarker(marker: string): string {
+		return marker.replace(/\{\{date\}\}/g, () => {
+			return moment().format("YYYY-MM-DD");
+		});
+	}
+
 	// Check if a task mark represents a completed task
 	private isCompletedTaskMark(mark: string): boolean {
 		const completedMarks =
@@ -524,7 +577,40 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 				"x",
 				"X",
 			];
+
+		// If treatAbandonedAsCompleted is enabled, also consider abandoned tasks as completed
+		if (this.plugin.settings.completedTaskMover.treatAbandonedAsCompleted) {
+			const abandonedMarks =
+				this.plugin.settings.taskStatuses.abandoned?.split("|") || [
+					"-",
+				];
+			return (
+				completedMarks.includes(mark) || abandonedMarks.includes(mark)
+			);
+		}
+
 		return completedMarks.includes(mark);
+	}
+
+	// Complete tasks if the setting is enabled
+	private completeTaskIfNeeded(taskLine: string): string {
+		// If completeAllMovedTasks is not enabled, return the original line
+		if (!this.plugin.settings.completedTaskMover.completeAllMovedTasks) {
+			return taskLine;
+		}
+
+		// Check if it's a task line with checkbox
+		const taskMatch = taskLine.match(/^(\s*(?:-|\d+\.|\*)\s+\[)(.)(].*)$/);
+		if (!taskMatch) {
+			return taskLine; // Not a task line, return as is
+		}
+
+		// Get the completion symbol (first character in completed status)
+		const completedMark =
+			this.plugin.settings.taskStatuses.completed?.split("|")[0] || "x";
+
+		// Replace the current mark with the completed mark
+		return `${taskMatch[1]}${completedMark}${taskMatch[3]}`;
 	}
 }
 
@@ -595,6 +681,12 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 			level: 0,
 		});
 
+		blocks.push({
+			id: "end",
+			text: "End of file",
+			level: 0,
+		});
+
 		// Add headings
 		if (fileCache && fileCache.headings) {
 			for (const heading of fileCache.headings) {
@@ -636,7 +728,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 	) {
 		const indent = "  ".repeat(block.level);
 
-		if (block.id === "beginning") {
+		if (block.id === "beginning" || block.id === "end") {
 			el.createEl("div", { text: block.text });
 		} else {
 			el.createEl("div", { text: `${indent}${block.text}` });
@@ -668,6 +760,8 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 
 			if (block.id === "beginning") {
 				insertPosition = 0;
+			} else if (block.id === "end") {
+				insertPosition = lines.length;
 			} else {
 				// Extract line number from block id
 				const lineMatch = block.id.match(/-(\d+)$/);
@@ -702,7 +796,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 			this.removeCompletedTasksFromSourceFile();
 
 			// Open the target file
-			this.app.workspace.getLeaf().openFile(this.targetFile);
+			// this.app.workspace.getLeaf().openFile(this.targetFile);
 
 			new Notice(`Completed tasks moved to ${this.targetFile.path}`);
 		} catch (error) {
@@ -724,7 +818,10 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		const parentTaskMark = parentTaskMatch ? parentTaskMatch[1] : "";
 
 		// Clone parent task with marker
-		const parentTaskWithMarker = this.addMarkerToTask(currentLine);
+		let parentTaskWithMarker = this.addMarkerToTask(currentLine, true);
+
+		// Complete parent task if setting is enabled
+		parentTaskWithMarker = this.completeTaskIfNeeded(parentTaskWithMarker);
 
 		// Include the current line and completed child tasks
 		const resultLines: string[] = [parentTaskWithMarker];
@@ -743,7 +840,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 					break;
 				}
 
-				resultLines.push(line);
+				resultLines.push(this.completeTaskIfNeeded(line));
 				linesToRemove.push(i);
 			}
 
@@ -861,9 +958,13 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 
 					// Add marker to parent tasks that are preserved
 					if (parentTasksToPreserve.has(taskIndex)) {
-						resultLines.push(this.addMarkerToTask(task.line));
+						let taskLine = this.addMarkerToTask(task.line, false);
+						// Complete the task if setting is enabled
+						taskLine = this.completeTaskIfNeeded(taskLine);
+						resultLines.push(taskLine);
 					} else {
-						resultLines.push(task.line);
+						// Complete the task if setting is enabled
+						resultLines.push(this.completeTaskIfNeeded(task.line));
 					}
 
 					// Only add to linesToRemove if it's completed or a child of completed
@@ -914,7 +1015,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 					const task = childTasks.find((t) => t.index === taskIndex);
 					if (!task) continue;
 
-					resultLines.push(task.line);
+					resultLines.push(this.completeTaskIfNeeded(task.line));
 					linesToRemove.push(taskIndex);
 
 					// Add all its subtasks (regardless of completion status)
@@ -926,7 +1027,9 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 						const subtask = childTasks[i];
 						if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
 
-						resultLines.push(subtask.line);
+						resultLines.push(
+							this.completeTaskIfNeeded(subtask.line)
+						);
 						linesToRemove.push(subtask.index);
 						i++;
 					}
@@ -1038,29 +1141,109 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 	}
 
 	// Add marker to task (version, date, or custom)
-	private addMarkerToTask(taskLine: string): string {
-		const { taskMarkerType, versionMarker, dateMarker, customMarker } =
-			this.plugin.settings.completedTaskMover;
+	private addMarkerToTask(taskLine: string, isRoot = false): string {
+		const {
+			taskMarkerType,
+			versionMarker,
+			dateMarker,
+			customMarker,
+			withCurrentFileLink,
+		} = this.plugin.settings.completedTaskMover;
+
+		// Extract blockid if exists
+		const blockidMatch = taskLine.match(/^(.*?)(?:\s+^[a-zA-Z0-9]{6}$)?$/);
+		if (!blockidMatch) return taskLine;
+
+		const mainContent = blockidMatch[1].trim();
+		const blockid = blockidMatch[2]?.trim();
+
+		// Create base task line with marker
+		let markedTaskLine = mainContent;
 
 		// Basic check to ensure the task line doesn't already have this marker
 		if (
-			taskLine.includes(versionMarker) ||
-			taskLine.includes(dateMarker) ||
-			taskLine.includes(this.processCustomMarker(customMarker))
+			!mainContent.includes(versionMarker) &&
+			!mainContent.includes(dateMarker) &&
+			!mainContent.includes(this.processCustomMarker(customMarker))
 		) {
+			switch (taskMarkerType) {
+				case "version":
+					markedTaskLine = `${mainContent} ${versionMarker}`;
+					break;
+				case "date":
+					markedTaskLine = `${mainContent} ${this.processDateMarker(
+						dateMarker
+					)}`;
+					break;
+				case "custom":
+					markedTaskLine = `${mainContent} ${this.processCustomMarker(
+						customMarker
+					)}`;
+					break;
+				default:
+					markedTaskLine = mainContent;
+			}
+		}
+
+		// Add link to the current file if setting is enabled and this is a root task
+		if (withCurrentFileLink && isRoot) {
+			const currentFile = this.sourceFile;
+			const link = this.app.fileManager.generateMarkdownLink(
+				currentFile,
+				currentFile.path
+			);
+			markedTaskLine = `${markedTaskLine} from ${link}`;
+		}
+
+		// Add back the blockid if it exists
+		if (blockid) {
+			markedTaskLine = `${markedTaskLine} ${blockid}`;
+		}
+
+		return markedTaskLine;
+	}
+
+	// Check if a task mark represents a completed task
+	private isCompletedTaskMark(mark: string): boolean {
+		const completedMarks =
+			this.plugin.settings.taskStatuses.completed?.split("|") || [
+				"x",
+				"X",
+			];
+
+		// If treatAbandonedAsCompleted is enabled, also consider abandoned tasks as completed
+		if (this.plugin.settings.completedTaskMover.treatAbandonedAsCompleted) {
+			const abandonedMarks =
+				this.plugin.settings.taskStatuses.abandoned?.split("|") || [
+					"-",
+				];
+			return (
+				completedMarks.includes(mark) || abandonedMarks.includes(mark)
+			);
+		}
+
+		return completedMarks.includes(mark);
+	}
+
+	// Complete tasks if the setting is enabled
+	private completeTaskIfNeeded(taskLine: string): string {
+		// If completeAllMovedTasks is not enabled, return the original line
+		if (!this.plugin.settings.completedTaskMover.completeAllMovedTasks) {
 			return taskLine;
 		}
 
-		switch (taskMarkerType) {
-			case "version":
-				return `${taskLine} ${versionMarker}`;
-			case "date":
-				return `${taskLine} ${this.processDateMarker(dateMarker)}`;
-			case "custom":
-				return `${taskLine} ${this.processCustomMarker(customMarker)}`;
-			default:
-				return taskLine;
+		// Check if it's a task line with checkbox
+		const taskMatch = taskLine.match(/^(\s*(?:-|\d+\.|\*)\s+\[)(.)(].*)$/);
+		if (!taskMatch) {
+			return taskLine; // Not a task line, return as is
 		}
+
+		// Get the completion symbol (first character in completed status)
+		const completedMark =
+			this.plugin.settings.taskStatuses.completed?.split("|")[0] || "x";
+
+		// Replace the current mark with the completed mark
+		return `${taskMatch[1]}${completedMark}${taskMatch[3]}`;
 	}
 
 	// Process custom marker with date variables
@@ -1071,20 +1254,11 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		});
 	}
 
+	// Process date marker with {{date}} placeholder
 	private processDateMarker(marker: string): string {
 		return marker.replace(/\{\{date\}\}/g, () => {
 			return moment().format("YYYY-MM-DD");
 		});
-	}
-
-	// Check if a task mark represents a completed task
-	private isCompletedTaskMark(mark: string): boolean {
-		const completedMarks =
-			this.plugin.settings.taskStatuses.completed?.split("|") || [
-				"x",
-				"X",
-			];
-		return completedMarks.includes(mark);
 	}
 }
 

@@ -68,6 +68,9 @@ export interface TaskProgressBarSettings {
 		versionMarker: string;
 		dateMarker: string;
 		customMarker: string;
+		completeAllMovedTasks: boolean;
+		treatAbandonedAsCompleted: boolean;
+		withCurrentFileLink: boolean;
 	};
 }
 
@@ -142,6 +145,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		versionMarker: "version 1.0",
 		dateMarker: "archived on {{date}}",
 		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
+		completeAllMovedTasks: false,
+		treatAbandonedAsCompleted: false,
+		withCurrentFileLink: false,
 	},
 };
 
@@ -962,6 +968,57 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							})
 					);
 			}
+
+			new Setting(containerEl)
+				.setName("Treat abandoned tasks as completed")
+				.setDesc(
+					"If enabled, abandoned tasks will be treated as completed."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.treatAbandonedAsCompleted
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.treatAbandonedAsCompleted =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName("Complete all moved tasks")
+				.setDesc(
+					"If enabled, all moved tasks will be marked as completed."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.completeAllMovedTasks
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.completeAllMovedTasks =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName("With current file link")
+				.setDesc(
+					"A link to the current file will be added to the parent task of the moved tasks."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.withCurrentFileLink
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.withCurrentFileLink =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
 		}
 
 		new Setting(containerEl).setName("Say Thank You").setHeading();
