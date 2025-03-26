@@ -48,7 +48,9 @@ export function handleParentTaskUpdateTransaction(
 		return tr;
 	}
 
-	console.log(taskStatusChangeInfo);
+	if (tr.isUserEvent("input.paste")) {
+		return tr;
+	}
 
 	// Check if the changed task has a parent task
 	const { doc, lineNumber } = taskStatusChangeInfo;

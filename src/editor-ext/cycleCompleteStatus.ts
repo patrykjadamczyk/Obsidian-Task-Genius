@@ -37,7 +37,6 @@ function getTaskStatusConfig(plugin: TaskProgressBarPlugin) {
 		marks: plugin.settings.taskStatusMarks,
 	};
 }
-
 /**
  * Finds a task status change event in the transaction
  * @param tr The transaction to check
@@ -73,6 +72,54 @@ function findTaskStatusChanges(
 		} | null;
 	}[] = [];
 
+	// Check if this is a multi-line indentation change (increase or decrease)
+	// If so, return empty array
+	let isMultiLineIndentationChange = false;
+	if (tr.changes.length > 1) {
+		const changes: {
+			fromA: number;
+			toA: number;
+			fromB: number;
+			toB: number;
+			text: string;
+		}[] = [];
+		tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+			changes.push({
+				fromA,
+				toA,
+				fromB,
+				toB,
+				text: inserted.toString(),
+			});
+		});
+
+		// Check if all changes are on different lines and are just indentation changes
+		if (changes.length > 1) {
+			const allIndentChanges = changes.every(
+				(change) =>
+					change.text === "\t" ||
+					change.text === "    " ||
+					(change.text === "" &&
+						(tr.startState.doc.sliceString(
+							change.fromA,
+							change.toA
+						) === "\t" ||
+							tr.startState.doc.sliceString(
+								change.fromA,
+								change.toA
+							) === "    "))
+			);
+
+			if (allIndentChanges) {
+				isMultiLineIndentationChange = true;
+			}
+		}
+	}
+
+	if (isMultiLineIndentationChange) {
+		return [];
+	}
+
 	// Check each change in the transaction
 	tr.changes.iterChanges(
 		(
@@ -95,6 +142,10 @@ function findTaskStatusChanges(
 
 			if (insertedText.includes("[[") || insertedText.includes("]]")) {
 				console.log("Link detected, skipping");
+				return;
+			}
+
+			if (fromB > tr.startState.doc.length) {
 				return;
 			}
 
