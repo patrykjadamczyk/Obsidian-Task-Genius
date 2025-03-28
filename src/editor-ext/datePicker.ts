@@ -123,7 +123,7 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 		public readonly plugin: TaskProgressBarPlugin;
 		decorations: DecorationSet = Decoration.none;
 		private lastUpdate: number = 0;
-		private readonly updateThreshold: number = 50;
+		private readonly updateThreshold: number = 30; // Reduced threshold for quicker updates
 
 		// Date matcher
 		private readonly dateMatch = new MatchDecorator({
@@ -163,16 +163,27 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 		}
 
 		update(update: ViewUpdate): void {
+			// More aggressive updates to handle content changes
 			if (
 				update.docChanged ||
 				update.viewportChanged ||
-				!update.state.field(editorLivePreviewField)
+				update.selectionSet ||
+				update.transactions.some((tr) =>
+					tr.annotation(dateChangeAnnotation)
+				)
 			) {
 				// Throttle updates to avoid performance issues with large documents
 				const now = Date.now();
 				if (now - this.lastUpdate > this.updateThreshold) {
 					this.lastUpdate = now;
-					this.updateDecorations(update.view);
+					this.updateDecorations(update.view, update);
+				} else {
+					// Schedule an update in the near future to ensure rendering
+					setTimeout(() => {
+						if (this.view) {
+							this.updateDecorations(this.view);
+						}
+					}, this.updateThreshold);
 				}
 			}
 		}
@@ -185,9 +196,23 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 			// Only apply in live preview mode
 			if (!this.isLivePreview(view.state)) return;
 
-			// Since we don't currently have a priorityFormat setting, just use both
-			// Keep approach simple for now, using only the emoji priorities
-			this.decorations = this.dateMatch.createDeco(view);
+			// Check if we can incrementally update, otherwise do a full recreation
+			if (update && !update.docChanged && this.decorations.size > 0) {
+				try {
+					this.decorations = this.dateMatch.updateDeco(
+						update,
+						this.decorations
+					);
+				} catch (e) {
+					console.warn(
+						"Error updating date decorations, recreating all",
+						e
+					);
+					this.decorations = this.dateMatch.createDeco(view);
+				}
+			} else {
+				this.decorations = this.dateMatch.createDeco(view);
+			}
 		}
 
 		isLivePreview(state: EditorView["state"]): boolean {
@@ -199,55 +224,75 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 			decorationFrom: number,
 			decorationTo: number
 		) {
-			const syntaxNode = syntaxTree(view.state).resolveInner(
-				decorationFrom + 1
-			);
-			const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
+			// Skip checking in code blocks or frontmatter
+			try {
+				const syntaxNode = syntaxTree(view.state).resolveInner(
+					decorationFrom + 1
+				);
+				const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
 
-			if (nodeProps) {
-				const props = nodeProps.split(" ");
-				if (
-					props.includes("hmd-codeblock") ||
-					props.includes("hmd-frontmatter")
-				) {
-					return false;
+				if (nodeProps) {
+					const props = nodeProps.split(" ");
+					if (
+						props.includes("hmd-codeblock") ||
+						props.includes("hmd-frontmatter")
+					) {
+						return false;
+					}
 				}
+
+				const selection = view.state.selection;
+
+				// Avoid rendering over selected text
+				const overlap = selection.ranges.some((r) => {
+					return !(r.to <= decorationFrom || r.from >= decorationTo);
+				});
+
+				return !overlap && this.isLivePreview(view.state);
+			} catch (e) {
+				// If error in checking, default to not rendering to avoid breaking the editor
+				console.warn("Error checking if date should render", e);
+				return false;
 			}
-
-			const selection = view.state.selection;
-
-			const overlap = selection.ranges.some((r) => {
-				return !(r.to <= decorationFrom || r.from >= decorationTo);
-			});
-
-			return !overlap && this.isLivePreview(view.state);
 		}
 	}
 
 	const DatePickerViewPluginSpec: PluginSpec<DatePickerViewPluginValue> = {
 		decorations: (plugin) => {
-			return plugin.decorations.update({
-				filter: (
-					rangeFrom: number,
-					rangeTo: number,
-					deco: Decoration
-				) => {
-					const widget = deco.spec?.widget;
-					if ((widget as any).error) {
-						return false;
-					}
-
-					const selection = plugin.view.state.selection;
-
-					for (const range of selection.ranges) {
-						if (!(range.to <= rangeFrom || range.from >= rangeTo)) {
+			try {
+				return plugin.decorations.update({
+					filter: (
+						rangeFrom: number,
+						rangeTo: number,
+						deco: Decoration
+					) => {
+						const widget = deco.spec?.widget;
+						if ((widget as any).error) {
 							return false;
 						}
-					}
 
-					return true;
-				},
-			});
+						const selection = plugin.view.state.selection;
+
+						// Remove decorations when cursor is inside them
+						for (const range of selection.ranges) {
+							if (
+								!(
+									range.to <= rangeFrom ||
+									range.from >= rangeTo
+								)
+							) {
+								return false;
+							}
+						}
+
+						return true;
+					},
+				});
+			} catch (e) {
+				// If error in filtering, return current decorations to avoid breaking the editor
+				console.warn("Error filtering date decorations", e);
+				return plugin.decorations;
+			}
 		},
 	};
 
