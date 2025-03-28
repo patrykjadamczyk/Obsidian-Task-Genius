@@ -56,7 +56,7 @@ export interface TaskProgressBarSettings {
 
 	// Date picker settings
 	enableDatePicker: boolean;
-
+	dateMark: string;
 	// Cycle complete status settings
 	enableCycleCompleteStatus: boolean;
 	alwaysCycleNewTasks: boolean;
@@ -133,7 +133,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Date picker settings
 	enableDatePicker: false,
-
+	dateMark: "📅,📆,⏳,🛫",
 	// Cycle complete status settings
 	enableCycleCompleteStatus: true,
 	alwaysCycleNewTasks: false,
@@ -1293,5 +1293,17 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("Date mark")
+			.setDesc("List to support date picker in the editor")
+			.addText((text) => {
+				text.setPlaceholder("e.g. 📅, 📆, ⏳, 🛫")
+					.setValue(this.plugin.settings.dateMark)
+					.onChange(async (value) => {
+						this.plugin.settings.dateMark = value;
+						this.applySettingsUpdate();
+					});
+			});
 	}
 }

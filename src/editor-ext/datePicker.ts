@@ -18,7 +18,7 @@ import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 export const dateChangeAnnotation = Annotation.define();
 
 // Basic date format detector for Obsidian format like 📅 2023-12-31
-const DATE_REGEX = /📅 (\d{4}-\d{2}-\d{2})/g;
+const DATE_REGEX = /\d{4}-\d{2}-\d{2}/g;
 
 class DatePickerWidget extends WidgetType {
 	constructor(
@@ -27,7 +27,8 @@ class DatePickerWidget extends WidgetType {
 		readonly view: EditorView,
 		readonly from: number,
 		readonly to: number,
-		readonly currentDate: string
+		readonly currentDate: string,
+		readonly dateMark: string
 	) {
 		super();
 	}
@@ -48,9 +49,10 @@ class DatePickerWidget extends WidgetType {
 			},
 		});
 
-		const dateText = document.createElement("span");
-		dateText.classList.add(`task-date`);
-		dateText.textContent = this.currentDate;
+		const dateText = createSpan({
+			cls: "task-date",
+			text: this.currentDate,
+		});
 
 		// Handle click to show date menu
 		dateText.addEventListener("click", (e) => {
@@ -78,11 +80,15 @@ class DatePickerWidget extends WidgetType {
 				item.onClick(() => {
 					const date = moment().add(amount, unit);
 					const formattedDate = date.format("YYYY-MM-DD");
-					this.setDate(`📅 ${formattedDate}`);
+					this.setDate(`${this.dateMark} ${formattedDate}`);
 				});
 			});
 		};
 
+		menu.addItem((item: MenuItem) => {
+			item.setTitle("From now");
+			item.setDisabled(true);
+		});
 		// Add all date options
 		addDateOption(1, "days", "Tomorrow");
 		addDateOption(2, "days", "In 2 days");
@@ -127,7 +133,12 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 
 		// Date matcher
 		private readonly dateMatch = new MatchDecorator({
-			regexp: DATE_REGEX,
+			regexp: new RegExp(
+				`(${plugin.settings.dateMark
+					.split(",")
+					.join("|")}) \\d{4}-\\d{2}-\\d{2}`,
+				"g"
+			),
 			decorate: (
 				add,
 				from: number,
@@ -149,7 +160,8 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 							view,
 							from,
 							to,
-							match[0]
+							match[0],
+							match[1]
 						),
 					})
 				);
