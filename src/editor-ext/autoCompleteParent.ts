@@ -403,6 +403,29 @@ function completeParentTask(
 		return tr;
 	}
 
+	// If the parent is already marked as completed, don't modify it again
+	const currentStatus = taskMarkerMatch[2];
+	if (currentStatus === "x" || currentStatus === "X") {
+		return tr;
+	}
+
+	// Check if there's already a pending change for this parent task in this transaction
+	let alreadyChanging = false;
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		const checkboxStart = parentLineText.indexOf("[") + 1;
+		const markerStart = parentLine.from + checkboxStart;
+
+		// Check if any change in the transaction affects the checkbox character
+		if (markerStart >= fromB && markerStart < toB) {
+			alreadyChanging = true;
+		}
+	});
+
+	// If the task is already being changed in this transaction, don't add another change
+	if (alreadyChanging) {
+		return tr;
+	}
+
 	// Calculate the position where we need to insert 'x'
 	// Find the exact position of the checkbox character
 	const checkboxStart = parentLineText.indexOf("[") + 1;
@@ -526,6 +549,31 @@ function markParentAsInProgress(
 		/^[\s|\t]*([-*+]|\d+\.)\s\[(.)\]/
 	);
 	if (!taskMarkerMatch) {
+		return tr;
+	}
+
+	// Get current status
+	const currentStatus = taskMarkerMatch[2];
+
+	// If the status is already the in-progress marker we want to set, don't change it
+	if (currentStatus === taskStatusCycle[0]) {
+		return tr;
+	}
+
+	// Check if there's already a pending change for this parent task in this transaction
+	let alreadyChanging = false;
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		const checkboxStart = parentLineText.indexOf("[") + 1;
+		const markerStart = parentLine.from + checkboxStart;
+
+		// Check if any change in the transaction affects the checkbox character
+		if (markerStart >= fromB && markerStart < toB) {
+			alreadyChanging = true;
+		}
+	});
+
+	// If the task is already being changed in this transaction, don't add another change
+	if (alreadyChanging) {
 		return tr;
 	}
 
