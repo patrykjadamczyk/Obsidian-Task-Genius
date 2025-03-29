@@ -2,6 +2,7 @@ import { App, PluginSettingTab, Setting, Modal } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
 import { TaskFilterOptions } from "./editor-ext/filterTasks";
+import { t } from "./translations/helper";
 
 export interface TaskProgressBarSettings {
 	showProgressBar: boolean;
@@ -213,13 +214,15 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Task Genius")
 			.setDesc(
-				"Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features."
+				t(
+					"Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features."
+				)
 			)
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Show progress bar")
-			.setDesc("Toggle this to show the progress bar.")
+			.setName(t("Show progress bar"))
+			.setDesc(t("Toggle this to show the progress bar."))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.showProgressBar)
@@ -230,9 +233,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Support hover to show progress info")
+			.setName(t("Support hover to show progress info"))
 			.setDesc(
-				"Toggle this to allow this plugin to show progress info when hovering over the progress bar."
+				t(
+					"Toggle this to allow this plugin to show progress info when hovering over the progress bar."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -247,9 +252,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Add progress bar to non-task bullet")
+			.setName(t("Add progress bar to non-task bullet"))
 			.setDesc(
-				"Toggle this to allow adding progress bars to regular list items (non-task bullets)."
+				t(
+					"Toggle this to allow adding progress bars to regular list items (non-task bullets)."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -264,9 +271,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Add progress bar to Heading")
+			.setName(t("Add progress bar to Heading"))
 			.setDesc(
-				"Toggle this to allow this plugin to add progress bar for Task below the headings."
+				t(
+					"Toggle this to allow this plugin to add progress bar for Task below the headings."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -279,9 +288,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Enable heading progress bars")
+			.setName(t("Enable heading progress bars"))
 			.setDesc(
-				"Add progress bars to headings to show progress of all tasks under that heading."
+				t(
+					"Add progress bars to headings to show progress of all tasks under that heading."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -293,9 +304,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Auto complete parent task")
+			.setName(t("Auto complete parent task"))
 			.setDesc(
-				"Toggle this to allow this plugin to auto complete parent task when all child tasks are completed."
+				t(
+					"Toggle this to allow this plugin to auto complete parent task when all child tasks are completed."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -307,9 +320,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Mark parent as 'In Progress' when partially complete")
+			.setName(t("Mark parent as 'In Progress' when partially complete"))
 			.setDesc(
-				"When some but not all child tasks are completed, mark the parent task as 'In Progress'. Only works when 'Auto complete parent' is enabled."
+				t(
+					"When some but not all child tasks are completed, mark the parent task as 'In Progress'. Only works when 'Auto complete parent' is enabled."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -327,8 +342,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		this.showNumberToProgressbar();
 
 		new Setting(containerEl)
-			.setName("Count sub children level of current Task")
-			.setDesc("Toggle this to allow this plugin to count sub tasks.")
+			.setName(t("Count sub children level of current Task"))
+			.setDesc(t("Toggle this to allow this plugin to count sub tasks."))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.countSubLevel)
@@ -340,9 +355,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Task Status Settings
 		new Setting(containerEl)
-			.setName("Task Status Settings")
+			.setName(t("Task Status Settings"))
 			.setDesc(
-				"Select a predefined task status collection or customize your own"
+				t(
+					"Select a predefined task status collection or customize your own"
+				)
 			)
 			.setHeading()
 			.addDropdown((dropdown) => {
@@ -454,9 +471,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Completed task markers")
+			.setName(t("Completed task markers"))
 			.setDesc(
-				'Characters in square brackets that represent completed tasks. Example: "x|X"'
+				t(
+					'Characters in square brackets that represent completed tasks. Example: "x|X"'
+				)
 			)
 			.addText((text) =>
 				text
@@ -470,9 +489,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Planned task markers")
+			.setName(t("Planned task markers"))
 			.setDesc(
-				'Characters in square brackets that represent planned tasks. Example: "?"'
+				t(
+					'Characters in square brackets that represent planned tasks. Example: "?"'
+				)
 			)
 			.addText((text) =>
 				text
@@ -486,9 +507,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("In progress task markers")
+			.setName(t("In progress task markers"))
 			.setDesc(
-				'Characters in square brackets that represent tasks in progress. Example: ">|/"'
+				t(
+					'Characters in square brackets that represent tasks in progress. Example: ">|/"'
+				)
 			)
 			.addText((text) =>
 				text
@@ -502,9 +525,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Abandoned task markers")
+			.setName(t("Abandoned task markers"))
 			.setDesc(
-				'Characters in square brackets that represent abandoned tasks. Example: "-"'
+				t(
+					'Characters in square brackets that represent abandoned tasks. Example: "-"'
+				)
 			)
 			.addText((text) =>
 				text
@@ -520,7 +545,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Not started task markers")
 			.setDesc(
-				'Characters in square brackets that represent not started tasks. Default is space " "'
+				t(
+					'Characters in square brackets that represent not started tasks. Default is space " "'
+				)
 			)
 			.addText((text) =>
 				text
@@ -534,9 +561,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Count other statuses as")
+			.setName(t("Count other statuses as"))
 			.setDesc(
-				'Select the status to count other statuses as. Default is "Not Started".'
+				t(
+					'Select the status to count other statuses as. Default is "Not Started".'
+				)
 			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("notStarted", "Not Started");
@@ -548,14 +577,16 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Task Counting Settings
 		new Setting(containerEl)
-			.setName("Task Counting Settings")
-			.setDesc("Toggle this to allow this plugin to count sub tasks.")
+			.setName(t("Task Counting Settings"))
+			.setDesc(t("Toggle this to allow this plugin to count sub tasks."))
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Exclude specific task markers")
+			.setName(t("Exclude specific task markers"))
 			.setDesc(
-				'Specify task markers to exclude from counting. Example: "?|/"'
+				t(
+					'Specify task markers to exclude from counting. Example: "?|/"'
+				)
 			)
 			.addText((text) =>
 				text
@@ -568,8 +599,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Only count specific task markers")
-			.setDesc("Toggle this to only count specific task markers")
+			.setName(t("Only count specific task markers"))
+			.setDesc(t("Toggle this to only count specific task markers"))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.useOnlyCountMarks)
@@ -585,9 +616,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		if (this.plugin.settings.useOnlyCountMarks) {
 			new Setting(containerEl)
-				.setName("Specific task markers to count")
+				.setName(t("Specific task markers to count"))
 				.setDesc(
-					'Specify which task markers to count. Example: "x|X|>"'
+					t('Specify which task markers to count. Example: "x|X|>|/"')
 				)
 				.addText((text) =>
 					text
@@ -606,13 +637,15 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(containerEl)
-			.setName("Conditional Progress Bar Display")
+			.setName(t("Conditional Progress Bar Display"))
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Hide progress bars based on conditions")
+			.setName(t("Hide progress bars based on conditions"))
 			.setDesc(
-				"Toggle this to enable hiding progress bars based on tags, folders, or metadata."
+				t(
+					"Toggle this to enable hiding progress bars based on tags, folders, or metadata."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -632,9 +665,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		if (this.plugin.settings.hideProgressBarBasedOnConditions) {
 			new Setting(containerEl)
-				.setName("Hide by tags")
+				.setName(t("Hide by tags"))
 				.setDesc(
-					'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"'
+					t(
+						'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"'
+					)
 				)
 				.addText((text) =>
 					text
@@ -647,9 +682,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName("Hide by folders")
+				.setName(t("Hide by folders"))
 				.setDesc(
-					'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"'
+					t(
+						'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"'
+					)
 				)
 				.addText((text) =>
 					text
@@ -662,9 +699,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName("Hide by metadata")
+				.setName(t("Hide by metadata"))
 				.setDesc(
-					'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"'
+					t(
+						'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"'
+					)
 				)
 				.addText((text) =>
 					text
@@ -680,12 +719,16 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 		}
 
-		this.containerEl.createEl("h2", { text: "Task Status Switcher" });
+		new Setting(containerEl)
+			.setName(t("Task Status Switcher"))
+			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable task status switcher")
+			.setName(t("Enable task status switcher"))
 			.setDesc(
-				"Enable/disable the ability to cycle through task states by clicking."
+				t(
+					"Enable/disable the ability to cycle through task states by clicking."
+				)
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -697,9 +740,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Enable custom task marks")
+			.setName(t("Enable custom task marks"))
 			.setDesc(
-				"Replace default checkboxes with styled text marks that follow your task status cycle when clicked."
+				t(
+					"Replace default checkboxes with styled text marks that follow your task status cycle when clicked."
+				)
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -711,9 +756,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Enable cycle complete status")
+			.setName(t("Enable cycle complete status"))
 			.setDesc(
-				"Enable/disable the ability to automatically cycle through task states when pressing a mark."
+				t(
+					"Enable/disable the ability to automatically cycle through task states when pressing a mark."
+				)
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -725,9 +772,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Always cycle new tasks")
+			.setName(t("Always cycle new tasks"))
 			.setDesc(
-				"When enabled, newly inserted tasks will immediately cycle to the next status. When disabled, newly inserted tasks with valid marks will keep their original mark."
+				t(
+					"When enabled, newly inserted tasks will immediately cycle to the next status. When disabled, newly inserted tasks with valid marks will keep their original mark."
+				)
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -739,9 +788,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Task Status Cycle and Marks")
+			.setName(t("Task Status Cycle and Marks"))
 			.setDesc(
-				"Define task states and their corresponding marks. The order from top to bottom defines the cycling sequence."
+				t(
+					"Define task states and their corresponding marks. The order from top to bottom defines the cycling sequence."
+				)
 			);
 
 		// Create a container for the task states list
@@ -890,7 +941,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			const addButtonContainer = taskStatesContainer.createDiv();
 			new Setting(addButtonContainer).addButton((button) => {
 				button
-					.setButtonText("Add Status")
+					.setButtonText(t("Add Status"))
 					.setCta()
 					.onClick(() => {
 						// Add a new status to the cycle with a default mark
@@ -911,12 +962,16 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		this.addQuickCaptureSettings();
 
 		// Add Completed Task Mover settings
-		new Setting(containerEl).setName("Completed Task Mover").setHeading();
+		new Setting(containerEl)
+			.setName(t("Completed Task Mover"))
+			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable completed task mover")
+			.setName(t("Enable completed task mover"))
 			.setDesc(
-				"Toggle this to enable commands for moving completed tasks to another file."
+				t(
+					"Toggle this to enable commands for moving completed tasks to another file."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -937,8 +992,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		if (this.plugin.settings.completedTaskMover.enableCompletedTaskMover) {
 			new Setting(containerEl)
-				.setName("Task marker type")
-				.setDesc("Choose what type of marker to add to moved tasks")
+				.setName(t("Task marker type"))
+				.setDesc(t("Choose what type of marker to add to moved tasks"))
 				.addDropdown((dropdown) => {
 					dropdown
 						.addOption("version", "Version marker")
@@ -967,9 +1022,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 			if (markerType === "version") {
 				new Setting(containerEl)
-					.setName("Version marker text")
+					.setName(t("Version marker text"))
 					.setDesc(
-						"Text to append to tasks when moved (e.g., 'version 1.0')"
+						t(
+							"Text to append to tasks when moved (e.g., 'version 1.0')"
+						)
 					)
 					.addText((text) =>
 						text
@@ -986,9 +1043,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					);
 			} else if (markerType === "date") {
 				new Setting(containerEl)
-					.setName("Date marker text")
+					.setName(t("Date marker text"))
 					.setDesc(
-						"Text to append to tasks when moved (e.g., 'archived on 2023-12-31')"
+						t(
+							"Text to append to tasks when moved (e.g., 'archived on 2023-12-31')"
+						)
 					)
 					.addText((text) =>
 						text
@@ -1005,9 +1064,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					);
 			} else if (markerType === "custom") {
 				new Setting(containerEl)
-					.setName("Custom marker text")
+					.setName(t("Custom marker text"))
 					.setDesc(
-						"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}})"
+						t(
+							"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}}"
+						)
 					)
 					.addText((text) =>
 						text
@@ -1025,9 +1086,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			}
 
 			new Setting(containerEl)
-				.setName("Treat abandoned tasks as completed")
+				.setName(t("Treat abandoned tasks as completed"))
 				.setDesc(
-					"If enabled, abandoned tasks will be treated as completed."
+					t(
+						"If enabled, abandoned tasks will be treated as completed."
+					)
 				)
 				.addToggle((toggle) => {
 					toggle.setValue(
@@ -1042,9 +1105,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 
 			new Setting(containerEl)
-				.setName("Complete all moved tasks")
+				.setName(t("Complete all moved tasks"))
 				.setDesc(
-					"If enabled, all moved tasks will be marked as completed."
+					t(
+						"If enabled, all moved tasks will be marked as completed."
+					)
 				)
 				.addToggle((toggle) => {
 					toggle.setValue(
@@ -1059,9 +1124,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 
 			new Setting(containerEl)
-				.setName("With current file link")
+				.setName(t("With current file link"))
 				.setDesc(
-					"A link to the current file will be added to the parent task of the moved tasks."
+					t(
+						"A link to the current file will be added to the parent task of the moved tasks."
+					)
 				)
 				.addToggle((toggle) => {
 					toggle.setValue(
@@ -1079,12 +1146,14 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Add task filter settings
 		this.addTaskFilterSettings();
 
-		new Setting(containerEl).setName("Say Thank You").setHeading();
+		new Setting(containerEl).setName(t("Say Thank You")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Donate")
+			.setName(t("Donate"))
 			.setDesc(
-				"If you like this plugin, consider donating to support continued development:"
+				t(
+					"If you like this plugin, consider donating to support continued development:"
+				)
 			)
 			.addButton((bt) => {
 				bt.buttonEl.outerHTML = `<a href="https://www.buymeacoffee.com/boninall"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00"></a>`;
@@ -1093,9 +1162,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	showNumberToProgressbar() {
 		new Setting(this.containerEl)
-			.setName("Add number to the Progress Bar")
+			.setName(t("Add number to the Progress Bar"))
 			.setDesc(
-				"Toggle this to allow this plugin to add tasks number to progress bar."
+				t(
+					"Toggle this to allow this plugin to add tasks number to progress bar."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -1112,9 +1183,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		if (this.plugin.settings.addNumberToProgressBar) {
 			new Setting(this.containerEl)
-				.setName("Show percentage")
+				.setName(t("Show percentage"))
 				.setDesc(
-					"Toggle this to allow this plugin to show percentage in the progress bar."
+					t(
+						"Toggle this to allow this plugin to show percentage in the progress bar."
+					)
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -1131,9 +1204,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 			if (this.plugin.settings.showPercentage) {
 				new Setting(this.containerEl)
-					.setName("Customize progress text")
+					.setName(t("Customize progress text"))
 					.setDesc(
-						"Toggle this to customize text representation for different progress percentage ranges."
+						t(
+							"Toggle this to customize text representation for different progress percentage ranges."
+						)
 					)
 					.addToggle((toggle) =>
 						toggle
@@ -1160,9 +1235,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	addProgressRangesSettings() {
 		new Setting(this.containerEl)
-			.setName("Progress Ranges")
+			.setName(t("Progress Ranges"))
 			.setDesc(
-				"Define progress ranges and their corresponding text representations."
+				t(
+					"Define progress ranges and their corresponding text representations."
+				)
 			)
 			.setHeading();
 
@@ -1195,8 +1272,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		});
 
 		new Setting(this.containerEl)
-			.setName("Add new range")
-			.setDesc("Add a new progress percentage range with custom text");
+			.setName(t("Add new range"))
+			.setDesc(t("Add a new progress percentage range with custom text"));
 
 		// Add a new range
 		const newRangeSetting = new Setting(this.containerEl);
@@ -1205,7 +1282,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		newRangeSetting
 			.addText((text) =>
 				text
-					.setPlaceholder("Min percentage (0-100)")
+					.setPlaceholder(t("Min percentage (0-100)"))
 					.setValue("")
 					.onChange(async (value) => {
 						// This will be handled when the user clicks the Add button
@@ -1213,7 +1290,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Max percentage (0-100)")
+					.setPlaceholder(t("Max percentage (0-100)"))
 					.setValue("")
 					.onChange(async (value) => {
 						// This will be handled when the user clicks the Add button
@@ -1221,7 +1298,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Text template (use {{PROGRESS}})")
+					.setPlaceholder(t("Text template (use {{PROGRESS}})"))
 					.setValue("")
 					.onChange(async (value) => {
 						// This will be handled when the user clicks the Add button
@@ -1261,10 +1338,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Reset to defaults
 		new Setting(this.containerEl)
-			.setName("Reset to defaults")
-			.setDesc("Reset progress ranges to default values")
+			.setName(t("Reset to defaults"))
+			.setDesc(t("Reset progress ranges to default values"))
 			.addButton((button) => {
-				button.setButtonText("Reset").onClick(async () => {
+				button.setButtonText(t("Reset")).onClick(async () => {
 					this.plugin.settings.progressRanges = [
 						{ min: 0, max: 20, text: "Just started {{PROGRESS}}%" },
 						{
@@ -1294,16 +1371,20 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 
 		new Setting(containerEl)
-			.setName("Priority Picker Settings")
+			.setName(t("Priority Picker Settings"))
 			.setDesc(
-				"Toggle to enable priority picker dropdown for emoji and letter format priorities."
+				t(
+					"Toggle to enable priority picker dropdown for emoji and letter format priorities."
+				)
 			)
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable priority picker")
+			.setName(t("Enable priority picker"))
 			.setDesc(
-				"Toggle to enable priority picker dropdown for emoji and letter format priorities."
+				t(
+					"Toggle to enable priority picker dropdown for emoji and letter format priorities."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -1315,9 +1396,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Enable priority keyboard shortcuts")
+			.setName(t("Enable priority keyboard shortcuts"))
 			.setDesc(
-				"Toggle to enable keyboard shortcuts for setting task priorities."
+				t(
+					"Toggle to enable keyboard shortcuts for setting task priorities."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -1333,12 +1416,14 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	}
 
 	addDatePickerSettings() {
-		new Setting(this.containerEl).setName("Date picker").setHeading();
+		new Setting(this.containerEl).setName(t("Date picker")).setHeading();
 
 		new Setting(this.containerEl)
-			.setName("Enable date picker")
+			.setName(t("Enable date picker"))
 			.setDesc(
-				"Toggle this to enable date picker for tasks. This will add a calendar icon near your tasks which you can click to select a date."
+				t(
+					"Toggle this to enable date picker for tasks. This will add a calendar icon near your tasks which you can click to select a date."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -1351,9 +1436,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Date mark setting
 		new Setting(this.containerEl)
-			.setName("Date mark")
+			.setName(t("Date mark"))
 			.setDesc(
-				"Emoji mark to identify dates. You can use multiple emoji separated by commas."
+				t(
+					"Emoji mark to identify dates. You can use multiple emoji separated by commas."
+				)
 			)
 			.addText((text) =>
 				text
@@ -1366,12 +1453,14 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	}
 
 	addQuickCaptureSettings() {
-		new Setting(this.containerEl).setName("Quick capture").setHeading();
+		new Setting(this.containerEl).setName(t("Quick capture")).setHeading();
 
 		new Setting(this.containerEl)
-			.setName("Enable quick capture")
+			.setName(t("Enable quick capture"))
 			.setDesc(
-				"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel."
+				t(
+					"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel."
+				)
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -1392,9 +1481,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		if (!this.plugin.settings.quickCapture.enableQuickCapture) return;
 
 		new Setting(this.containerEl)
-			.setName("Target file")
+			.setName(t("Target file"))
 			.setDesc(
-				"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'"
+				t(
+					"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'"
+				)
 			)
 			.addText((text) =>
 				text
@@ -1406,8 +1497,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(this.containerEl)
-			.setName("Placeholder text")
-			.setDesc("Placeholder text to display in the capture panel")
+			.setName(t("Placeholder text"))
+			.setDesc(t("Placeholder text to display in the capture panel"))
 			.addText((text) =>
 				text
 					.setValue(this.plugin.settings.quickCapture.placeholder)
@@ -1418,9 +1509,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(this.containerEl)
-			.setName("Append to file")
+			.setName(t("Append to file"))
 			.setDesc(
-				"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content."
+				t(
+					"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content."
+				)
 			)
 			.addDropdown((dropdown) =>
 				dropdown
@@ -1439,11 +1532,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	addTaskFilterSettings() {
 		const containerEl = this.containerEl;
 
-		new Setting(containerEl).setName("Task Filter").setHeading();
+		new Setting(containerEl).setName(t("Task Filter")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Enable Task Filter")
-			.setDesc("Toggle this to enable the task filter panel")
+			.setName(t("Enable Task Filter"))
+			.setDesc(t("Toggle this to enable the task filter panel"))
 			.addToggle((toggle) => {
 				toggle
 					.setValue(this.plugin.settings.taskFilter.enableTaskFilter)
@@ -1456,9 +1549,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Preset filters section
 		new Setting(containerEl)
-			.setName("Preset Filters")
+			.setName(t("Preset Filters"))
 			.setDesc(
-				"Create and manage preset filters for quick access to commonly used task filters."
+				t(
+					"Create and manage preset filters for quick access to commonly used task filters."
+				)
 			);
 
 		// Add a container for the preset filters
@@ -1703,10 +1798,10 @@ class PresetFilterModal extends Modal {
 		contentEl.empty();
 
 		// Set modal title
-		this.titleEl.setText("Edit Filter: " + this.preset.name);
+		this.titleEl.setText(t("Edit Filter: ") + this.preset.name);
 
 		// Create form for filter options
-		new Setting(contentEl).setName("Filter name").addText((text) => {
+		new Setting(contentEl).setName(t("Filter name")).addText((text) => {
 			text.setValue(this.preset.name).onChange((value) => {
 				this.preset.name = value;
 			});
@@ -1714,15 +1809,15 @@ class PresetFilterModal extends Modal {
 
 		// Task status section
 		new Setting(contentEl)
-			.setName("Task Status")
-			.setDesc("Include or exclude tasks based on their status");
+			.setName(t("Task Status"))
+			.setDesc(t("Include or exclude tasks based on their status"));
 
 		const statusOptions = [
-			{ id: "includeCompleted", name: "Include Completed Tasks" },
-			{ id: "includeInProgress", name: "Include In Progress Tasks" },
-			{ id: "includeAbandoned", name: "Include Abandoned Tasks" },
-			{ id: "includeNotStarted", name: "Include Not Started Tasks" },
-			{ id: "includePlanned", name: "Include Planned Tasks" },
+			{ id: "includeCompleted", name: t("Include Completed Tasks") },
+			{ id: "includeInProgress", name: t("Include In Progress Tasks") },
+			{ id: "includeAbandoned", name: t("Include Abandoned Tasks") },
+			{ id: "includeNotStarted", name: t("Include Not Started Tasks") },
+			{ id: "includePlanned", name: t("Include Planned Tasks") },
 		];
 
 		for (const option of statusOptions) {
@@ -1737,13 +1832,15 @@ class PresetFilterModal extends Modal {
 
 		// Related tasks section
 		new Setting(contentEl)
-			.setName("Related Tasks")
-			.setDesc("Include parent, child, and sibling tasks in the filter");
+			.setName(t("Related Tasks"))
+			.setDesc(
+				t("Include parent, child, and sibling tasks in the filter")
+			);
 
 		const relatedOptions = [
-			{ id: "includeParentTasks", name: "Include Parent Tasks" },
-			{ id: "includeChildTasks", name: "Include Child Tasks" },
-			{ id: "includeSiblingTasks", name: "Include Sibling Tasks" },
+			{ id: "includeParentTasks", name: t("Include Parent Tasks") },
+			{ id: "includeChildTasks", name: t("Include Child Tasks") },
+			{ id: "includeSiblingTasks", name: t("Include Sibling Tasks") },
 		];
 
 		for (const option of relatedOptions) {
@@ -1758,15 +1855,19 @@ class PresetFilterModal extends Modal {
 
 		// Advanced filter section
 		new Setting(contentEl)
-			.setName("Advanced Filter")
+			.setName(t("Advanced Filter"))
 			.setDesc(
-				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'"
+				t(
+					"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'"
+				)
 			);
 
 		new Setting(contentEl)
-			.setName("Filter query")
+			.setName(t("Filter query"))
 			.setDesc(
-				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'"
+				t(
+					"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'"
+				)
 			)
 			.addText((text) => {
 				text.setValue(this.preset.options.advancedFilterQuery).onChange(
@@ -1777,9 +1878,11 @@ class PresetFilterModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName("Filter out tasks")
+			.setName(t("Filter out tasks"))
 			.setDesc(
-				"If enabled, tasks that match the query will be hidden, otherwise they will be shown"
+				t(
+					"If enabled, tasks that match the query will be hidden, otherwise they will be shown"
+				)
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -1793,7 +1896,7 @@ class PresetFilterModal extends Modal {
 		new Setting(contentEl)
 			.addButton((button) => {
 				button
-					.setButtonText("Save")
+					.setButtonText(t("Save"))
 					.setCta()
 					.onClick(() => {
 						this.onSave();
@@ -1801,7 +1904,7 @@ class PresetFilterModal extends Modal {
 					});
 			})
 			.addButton((button) => {
-				button.setButtonText("Cancel").onClick(() => {
+				button.setButtonText(t("Cancel")).onClick(() => {
 					this.close();
 				});
 			});

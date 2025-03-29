@@ -18,7 +18,7 @@ import {
 } from "./markdownEditor";
 import TaskProgressBarPlugin from "../index";
 import { saveCapture } from "../utils/fileUtils";
-
+import { t } from "../translations/helper";
 // Effect to toggle the quick capture panel
 export const toggleQuickCapture = StateEffect.define<boolean>();
 
@@ -217,7 +217,7 @@ function createQuickCapturePanel(view: EditorView): Panel {
 	// "Capture to" label
 	headerContainer.createEl("span", {
 		cls: "quick-capture-title",
-		text: "Capture to",
+		text: t("Capture to"),
 	});
 
 	// Create the target file element (contenteditable)
@@ -316,7 +316,7 @@ function createQuickCapturePanel(view: EditorView): Panel {
 
 	const submitButton = buttonContainer.createEl("button", {
 		cls: "quick-capture-submit mod-cta",
-		text: "Capture",
+		text: t("Capture"),
 	});
 	submitButton.addEventListener("click", () => {
 		handleSubmit(view, app, markdownEditor, options, selectedTargetPath);
@@ -324,7 +324,7 @@ function createQuickCapturePanel(view: EditorView): Panel {
 
 	const cancelButton = buttonContainer.createEl("button", {
 		cls: "quick-capture-cancel mod-destructive",
-		text: "Cancel",
+		text: t("Cancel"),
 	});
 	cancelButton.addEventListener("click", () => {
 		view.dispatch({
@@ -375,7 +375,7 @@ export function quickCaptureExtension(app: App, plugin: TaskProgressBarPlugin) {
 				plugin.settings.quickCapture?.targetFile || "Quick Capture.md",
 			placeholder:
 				plugin.settings.quickCapture?.placeholder ||
-				"Capture thoughts, tasks, or ideas...",
+				t("Capture thoughts, tasks, or ideas..."),
 			appendToFile:
 				plugin.settings.quickCapture?.appendToFile ?? "append",
 		}),

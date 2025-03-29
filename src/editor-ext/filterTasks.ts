@@ -3,6 +3,7 @@ import {
 	DropdownComponent,
 	ItemView,
 	Keymap,
+	MarkdownFileInfo,
 	MarkdownView,
 	Menu,
 	Setting,
@@ -27,7 +28,7 @@ import {
 	parseAdvancedFilterQuery,
 	evaluateFilterNode,
 } from "../utils/filterUtils";
-
+import { t } from "../translations/helper";
 // Effect to toggle the filter panel
 export const toggleTaskFilter = StateEffect.define<boolean>();
 
@@ -84,7 +85,11 @@ export const actionButtonState = StateField.define<boolean>({
 					editorInfoField
 				) as unknown as ItemView;
 				const editor = tr.state.field(editorEditorField);
-				if (view && editor) {
+				if (
+					view &&
+					editor &&
+					(view as unknown as MarkdownFileInfo)?.file
+				) {
 					// @ts-ignore
 					if (view.filterAction) {
 						return true;
@@ -122,8 +127,8 @@ export const actionButtonState = StateField.define<boolean>({
 							menu.addItem((item) => {
 								item.setTitle(
 									editor.state.field(taskFilterState)
-										? "Hide filter panel"
-										: "Show filter panel"
+										? t("Hide filter panel")
+										: t("Show filter panel")
 								).onClick(() => {
 									editor?.dispatch({
 										effects: toggleTaskFilter.of(
@@ -172,6 +177,11 @@ export const actionButtonState = StateField.define<boolean>({
 							menu.showAtMouseEvent(event);
 						}
 					);
+					plugin.register(() => {
+						filterAction.detach();
+						// @ts-ignore
+						view.filterAction = null;
+					});
 
 					// @ts-ignore
 					view.filterAction = filterAction;
@@ -301,7 +311,6 @@ function checkFilterChanges(view: EditorView, plugin: TaskProgressBarPlugin) {
 	// Return whether there are any changes from default
 	return !isDefault;
 }
-
 function filterPanelDisplay(
 	view: EditorView,
 	dom: HTMLElement,
@@ -325,7 +334,7 @@ function filterPanelDisplay(
 
 	headerContainer.createEl("span", {
 		cls: "task-filter-title",
-		text: "Filter Tasks",
+		text: t("Filter Tasks"),
 	});
 
 	// Create the filter options section
@@ -344,11 +353,11 @@ function filterPanelDisplay(
 
 	if (presetFilters.length > 0) {
 		new Setting(presetContainer)
-			.setName("Preset filters")
-			.setDesc("Select a saved filter preset to apply")
+			.setName(t("Preset filters"))
+			.setDesc(t("Select a saved filter preset to apply"))
 			.addDropdown((dropdown) => {
 				// Add an empty option
-				dropdown.addOption("", "Select a preset...");
+				dropdown.addOption("", t("Select a preset..."));
 				d = dropdown;
 				// Add each preset as an option
 				presetFilters.forEach((preset) => {
@@ -404,9 +413,11 @@ function filterPanelDisplay(
 
 	// Text input for advanced filter
 	new Setting(advancedSection)
-		.setName("Query")
+		.setName(t("Query"))
 		.setDesc(
-			"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Supports >, <, =, >=, <=, != for PRIORITY and DATE."
+			t(
+				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Supports >, <, =, >=, <=, != for PRIORITY and DATE."
+			)
 		)
 		.addText((text) => {
 			queryInput = text;
@@ -451,9 +462,11 @@ function filterPanelDisplay(
 		});
 
 	new Setting(advancedSection)
-		.setName("Filter out tasks")
+		.setName(t("Filter out tasks"))
 		.setDesc(
-			"If true, tasks that match the query will be hidden, otherwise they will be shown"
+			t(
+				"If true, tasks that match the query will be hidden, otherwise they will be shown"
+			)
 		)
 		.addToggle((toggle) => {
 			toggle
@@ -474,14 +487,14 @@ function filterPanelDisplay(
 		cls: "task-filter-section",
 	});
 
-	new Setting(statusSection).setName("Task Status").setHeading();
+	new Setting(statusSection).setName(t("Task Status")).setHeading();
 
 	const statuses = [
-		{ id: "Completed", label: "Completed" },
-		{ id: "InProgress", label: "In Progress" },
-		{ id: "Abandoned", label: "Abandoned" },
-		{ id: "NotStarted", label: "Not Started" },
-		{ id: "Planned", label: "Planned" },
+		{ id: "Completed", label: t("Completed") },
+		{ id: "InProgress", label: t("In Progress") },
+		{ id: "Abandoned", label: t("Abandoned") },
+		{ id: "NotStarted", label: t("Not Started") },
+		{ id: "Planned", label: t("Planned") },
 	];
 
 	// Store status toggles for updating when preset is selected
@@ -510,13 +523,15 @@ function filterPanelDisplay(
 		cls: "task-filter-section",
 	});
 
-	new Setting(relatedSection).setName("Include Related Tasks").setHeading();
+	new Setting(relatedSection)
+		.setName(t("Include Related Tasks"))
+		.setHeading();
 
 	// Parent/Child task inclusion options
 	const relatedOptions = [
-		{ id: "ParentTasks", label: "Parent Tasks" },
-		{ id: "ChildTasks", label: "Child Tasks" },
-		{ id: "SiblingTasks", label: "Sibling Tasks" },
+		{ id: "ParentTasks", label: t("Parent Tasks") },
+		{ id: "ChildTasks", label: t("Child Tasks") },
+		{ id: "SiblingTasks", label: t("Sibling Tasks") },
 	];
 
 	// Store related toggles for updating when preset is selected
@@ -549,13 +564,13 @@ function filterPanelDisplay(
 	new Setting(dom)
 		.addButton((button) => {
 			button.setCta();
-			button.setButtonText("Apply").onClick(() => {
+			button.setButtonText(t("Apply")).onClick(() => {
 				applyTaskFilters(view, plugin);
 			});
 		})
 		.addButton((button) => {
 			button.setCta();
-			button.setButtonText("Save").onClick(() => {
+			button.setButtonText(t("Save")).onClick(() => {
 				// Check if there are any changes to save
 				if (checkFilterChanges(view, plugin)) {
 					// Get current active filters from state
@@ -565,7 +580,7 @@ function filterPanelDisplay(
 						id:
 							Date.now().toString() +
 							Math.random().toString(36).substr(2, 9),
-						name: "New Preset",
+						name: t("New Preset"),
 						options: { ...currentActiveFilters },
 					};
 
@@ -575,15 +590,15 @@ function filterPanelDisplay(
 					);
 					plugin.saveSettings();
 
-					new Notice("Preset saved");
+					new Notice(t("Preset saved"));
 				} else {
-					new Notice("No changes to save");
+					new Notice(t("No changes to save"));
 				}
 			});
 		})
 		.addButton((button) => {
 			button.buttonEl.toggleClass("mod-destructive", true);
-			button.setButtonText("Reset").onClick(() => {
+			button.setButtonText(t("Reset")).onClick(() => {
 				resetTaskFilters(view);
 
 				if (queryInput && queryInput.inputEl) {
@@ -608,7 +623,7 @@ function filterPanelDisplay(
 		})
 		.addButton((button) => {
 			button.buttonEl.toggleClass("mod-destructive", true);
-			button.setButtonText("Close").onClick(() => {
+			button.setButtonText(t("Close")).onClick(() => {
 				view.dispatch({ effects: toggleTaskFilter.of(false) });
 			});
 		});

@@ -27,3 +27,10 @@ data.json
 
 # cursorrules
 .cursorrules
+
+# env
+.env
+
+# translations
+scripts
+translation-templates
