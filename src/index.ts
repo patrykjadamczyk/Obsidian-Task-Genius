@@ -7,7 +7,7 @@ import {
 	Editor,
 	Menu,
 } from "obsidian";
-import { taskProgressBarExtension } from "./editor-ext/widget";
+import { taskProgressBarExtension } from "./editor-ext/progressBarWidget";
 import { updateProgressBarInElement } from "./components/readModeWidget";
 import { applyTaskTextMarks } from "./components/readModeTextMark";
 import {

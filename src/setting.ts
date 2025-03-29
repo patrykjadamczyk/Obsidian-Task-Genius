@@ -6,6 +6,7 @@ import { TaskFilterOptions } from "./editor-ext/filterTasks";
 export interface TaskProgressBarSettings {
 	showProgressBar: boolean;
 	addTaskProgressBarToHeading: boolean;
+	addProgressBarToNonTaskBullet: boolean;
 	enableHeadingProgressBar: boolean;
 	addNumberToProgressBar: boolean;
 	showPercentage: boolean;
@@ -97,6 +98,7 @@ export interface TaskProgressBarSettings {
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	showProgressBar: false,
 	addTaskProgressBarToHeading: false,
+	addProgressBarToNonTaskBullet: false,
 	enableHeadingProgressBar: false,
 	addNumberToProgressBar: false,
 	autoCompleteParent: false,
@@ -239,6 +241,23 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					)
 					.onChange(async (value) => {
 						this.plugin.settings.supportHoverToShowProgressInfo =
+							value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Add progress bar to non-task bullet")
+			.setDesc(
+				"Toggle this to allow adding progress bars to regular list items (non-task bullets)."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.addProgressBarToNonTaskBullet
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.addProgressBarToNonTaskBullet =
 							value;
 						this.applySettingsUpdate();
 					})
