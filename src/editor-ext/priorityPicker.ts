@@ -14,39 +14,39 @@ import TaskProgressBarPlugin from "..";
 import { Annotation } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
-
+import { t } from "../translations/helper";
 export const priorityChangeAnnotation = Annotation.define();
 
 // Priority definitions
 export const TASK_PRIORITIES = {
 	highest: {
 		emoji: "🔺",
-		text: "Highest priority",
+		text: t("Highest priority"),
 		regex: "🔺",
 	},
 	high: {
 		emoji: "⏫",
-		text: "High priority",
+		text: t("High priority"),
 		regex: "⏫",
 	},
 	medium: {
 		emoji: "🔼",
-		text: "Medium priority",
+		text: t("Medium priority"),
 		regex: "🔼",
 	},
 	none: {
 		emoji: "",
-		text: "No priority",
+		text: t("No priority"),
 		regex: "",
 	},
 	low: {
 		emoji: "🔽",
-		text: "Low priority",
+		text: t("Low priority"),
 		regex: "🔽",
 	},
 	lowest: {
 		emoji: "⏬️",
-		text: "Lowest priority",
+		text: t("Lowest priority"),
 		regex: "⏬️",
 	},
 };
@@ -54,15 +54,15 @@ export const TASK_PRIORITIES = {
 // Task plugin format priorities
 export const LETTER_PRIORITIES = {
 	A: {
-		text: "Priority A",
+		text: t("Priority A"),
 		regex: "\\[#A\\]",
 	},
 	B: {
-		text: "Priority B",
+		text: t("Priority B"),
 		regex: "\\[#B\\]",
 	},
 	C: {
-		text: "Priority C",
+		text: t("Priority C"),
 		regex: "\\[#C\\]",
 	},
 };
@@ -103,7 +103,7 @@ class PriorityWidget extends WidgetType {
 		const wrapper = createEl("span", {
 			cls: "priority-widget",
 			attr: {
-				"aria-label": "Task Priority",
+				"aria-label": t("Task Priority"),
 			},
 		});
 
@@ -181,7 +181,7 @@ class PriorityWidget extends WidgetType {
 			Object.entries(TASK_PRIORITIES).forEach(([key, priority]) => {
 				if (key === "none") {
 					menu.addItem((item) => {
-						item.setTitle("Remove Priority");
+						item.setTitle(t("Remove Priority"));
 						item.onClick(() => {
 							this.removePriority();
 						});

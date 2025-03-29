@@ -14,7 +14,7 @@ import TaskProgressBarPlugin from "..";
 import { Annotation } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
-
+import { t } from "../translations/helper";
 export const dateChangeAnnotation = Annotation.define();
 
 class DatePickerWidget extends WidgetType {
@@ -87,20 +87,20 @@ class DatePickerWidget extends WidgetType {
 			item.setDisabled(true);
 		});
 		// Add all date options
-		addDateOption(1, "days", "Tomorrow");
-		addDateOption(2, "days", "In 2 days");
-		addDateOption(3, "days", "In 3 days");
-		addDateOption(5, "days", "In 5 days");
-		addDateOption(1, "weeks", "In 1 week");
-		addDateOption(10, "days", "In 10 days");
-		addDateOption(2, "weeks", "In 2 weeks");
-		addDateOption(1, "months", "In 1 month");
-		addDateOption(2, "months", "In 2 months");
-		addDateOption(3, "months", "In 3 months");
-		addDateOption(6, "months", "In 6 months");
-		addDateOption(1, "years", "In 1 year");
-		addDateOption(5, "years", "In 5 years");
-		addDateOption(10, "years", "In 10 years");
+		addDateOption(1, "days", t("Tomorrow"));
+		addDateOption(2, "days", t("In 2 days"));
+		addDateOption(3, "days", t("In 3 days"));
+		addDateOption(5, "days", t("In 5 days"));
+		addDateOption(1, "weeks", t("In 1 week"));
+		addDateOption(10, "days", t("In 10 days"));
+		addDateOption(2, "weeks", t("In 2 weeks"));
+		addDateOption(1, "months", t("In 1 month"));
+		addDateOption(2, "months", t("In 2 months"));
+		addDateOption(3, "months", t("In 3 months"));
+		addDateOption(6, "months", t("In 6 months"));
+		addDateOption(1, "years", t("In 1 year"));
+		addDateOption(5, "years", t("In 5 years"));
+		addDateOption(10, "years", t("In 10 years"));
 
 		menu.showAtMouseEvent(e);
 	}
