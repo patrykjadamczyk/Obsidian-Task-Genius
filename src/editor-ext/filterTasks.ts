@@ -1,5 +1,6 @@
 import {
 	App,
+	DropdownComponent,
 	Keymap,
 	Setting,
 	TextComponent,
@@ -25,6 +26,13 @@ import {
 // Effect to toggle the filter panel
 export const toggleTaskFilter = StateEffect.define<boolean>();
 
+// Effect to update active filter options
+export const updateActiveFilters = StateEffect.define<TaskFilterOptions>();
+
+// Effect to update hidden task ranges
+export const updateHiddenTaskRanges =
+	StateEffect.define<Array<{ from: number; to: number }>>();
+
 // Define a state field to track whether the panel is open
 export const taskFilterState = StateField.define<boolean>({
 	create: () => false,
@@ -42,6 +50,43 @@ export const taskFilterState = StateField.define<boolean>({
 		showPanel.from(field, (active) =>
 			active ? createTaskFilterPanel : null
 		),
+});
+
+// Define a state field to track active filters for each editor view
+export const activeFiltersState = StateField.define<TaskFilterOptions>({
+	create: () => ({ ...DEFAULT_FILTER_OPTIONS }),
+	update(value, tr) {
+		for (let e of tr.effects) {
+			if (e.is(updateActiveFilters)) {
+				value = e.value;
+			}
+		}
+		return value;
+	},
+});
+
+// Define a state field to track hidden task ranges for each editor view
+export const hiddenTaskRangesState = StateField.define<
+	Array<{ from: number; to: number }>
+>({
+	create: () => [],
+	update(value, tr) {
+		// Update if there's an explicit update effect
+		for (let e of tr.effects) {
+			if (e.is(updateHiddenTaskRanges)) {
+				return e.value;
+			}
+		}
+
+		// Otherwise, map ranges through document changes
+		if (tr.docChanged) {
+			value = value.map((range) => ({
+				from: tr.changes.mapPos(range.from),
+				to: tr.changes.mapPos(range.to),
+			}));
+		}
+		return value;
+	},
 });
 
 // Interface for filter options
@@ -100,11 +145,6 @@ export const taskFilterOptions = Facet.define<
 	},
 });
 
-// Store the currently active filters
-let activeFilters: TaskFilterOptions = { ...DEFAULT_FILTER_OPTIONS };
-// Store the active hidden task ranges
-let hiddenTaskRanges: Array<{ from: number; to: number }> = [];
-
 // Helper function to get filter option value safely with proper typing
 function getFilterOption(
 	options: TaskFilterOptions,
@@ -129,7 +169,8 @@ export interface Task {
 }
 
 function checkFilterChanges(view: EditorView, plugin: TaskProgressBarPlugin) {
-	const options = view.state.facet(taskFilterOptions);
+	// Get active filters from the state instead of the facet
+	const options = view.state.field(activeFiltersState);
 
 	// Check if current filter options are the same as default options
 	const isDefault = Object.keys(DEFAULT_FILTER_OPTIONS).every((key) => {
@@ -149,6 +190,9 @@ function filterPanelDisplay(
 	options: TaskFilterOptions,
 	plugin: TaskProgressBarPlugin
 ) {
+	// Get current active filters from state
+	let activeFilters = view.state.field(activeFiltersState);
+
 	const debounceFilter = debounce(
 		(view: EditorView, plugin: TaskProgressBarPlugin) => {
 			applyTaskFilters(view, plugin);
@@ -178,6 +222,8 @@ function filterPanelDisplay(
 
 	const presetFilters = plugin.settings.taskFilter.presetTaskFilters || [];
 
+	let d: DropdownComponent | null = null;
+
 	if (presetFilters.length > 0) {
 		new Setting(presetContainer)
 			.setName("Preset filters")
@@ -185,7 +231,7 @@ function filterPanelDisplay(
 			.addDropdown((dropdown) => {
 				// Add an empty option
 				dropdown.addOption("", "Select a preset...");
-
+				d = dropdown;
 				// Add each preset as an option
 				presetFilters.forEach((preset) => {
 					dropdown.addOption(preset.id, preset.name);
@@ -200,6 +246,12 @@ function filterPanelDisplay(
 						if (selectedPreset) {
 							// Apply the preset's filter options
 							activeFilters = { ...selectedPreset.options };
+							// Update state with new active filters
+							view.dispatch({
+								effects: updateActiveFilters.of({
+									...activeFilters,
+								}),
+							});
 
 							// Update the UI to reflect the selected options
 							updateFilterUI();
@@ -207,6 +259,19 @@ function filterPanelDisplay(
 							// Apply the filters
 							applyTaskFilters(view, plugin);
 						}
+					} else {
+						// Reset to default options
+						activeFilters = { ...DEFAULT_FILTER_OPTIONS };
+						// Update state with new active filters
+						view.dispatch({
+							effects: updateActiveFilters.of({
+								...activeFilters,
+							}),
+						}); // Update the UI to reflect the selected options
+						updateFilterUI();
+
+						// Apply the filters
+						applyTaskFilters(view, plugin);
 					}
 				});
 			});
@@ -231,6 +296,10 @@ function filterPanelDisplay(
 				getFilterOption(options, "advancedFilterQuery")
 			).onChange((value) => {
 				activeFilters.advancedFilterQuery = value;
+				// Update state with new active filters
+				view.dispatch({
+					effects: updateActiveFilters.of({ ...activeFilters }),
+				});
 				debounceFilter(view, plugin);
 			});
 
@@ -238,9 +307,21 @@ function filterPanelDisplay(
 				if (event.key === "Enter") {
 					if (Keymap.isModEvent(event)) {
 						activeFilters.filterOutTasks = true;
+						// Update state with new active filters
+						view.dispatch({
+							effects: updateActiveFilters.of({
+								...activeFilters,
+							}),
+						});
 						debounceFilter(view, plugin);
 					} else {
 						activeFilters.filterOutTasks = false;
+						// Update state with new active filters
+						view.dispatch({
+							effects: updateActiveFilters.of({
+								...activeFilters,
+							}),
+						});
 						debounceFilter(view, plugin);
 					}
 				} else if (event.key === "Escape") {
@@ -261,6 +342,10 @@ function filterPanelDisplay(
 				.setValue(getFilterOption(options, "filterOutTasks"))
 				.onChange((value: boolean) => {
 					activeFilters.filterOutTasks = value;
+					// Update state with new active filters
+					view.dispatch({
+						effects: updateActiveFilters.of({ ...activeFilters }),
+					});
 					debounceFilter(view, plugin);
 				});
 		});
@@ -292,6 +377,10 @@ function filterPanelDisplay(
 				.setValue(getFilterOption(options, propName))
 				.onChange((value: boolean) => {
 					(activeFilters as any)[propName] = value;
+					// Update state with new active filters
+					view.dispatch({
+						effects: updateActiveFilters.of({ ...activeFilters }),
+					});
 					applyTaskFilters(view, plugin);
 				});
 		});
@@ -325,6 +414,12 @@ function filterPanelDisplay(
 					.setValue(getFilterOption(options, propName))
 					.onChange((value: boolean) => {
 						(activeFilters as any)[propName] = value;
+						// Update state with new active filters
+						view.dispatch({
+							effects: updateActiveFilters.of({
+								...activeFilters,
+							}),
+						});
 						debounceFilter(view, plugin);
 					});
 			});
@@ -341,13 +436,18 @@ function filterPanelDisplay(
 		.addButton((button) => {
 			button.setCta();
 			button.setButtonText("Save").onClick(() => {
+				// Check if there are any changes to save
 				if (checkFilterChanges(view, plugin)) {
+					// Get current active filters from state
+					const currentActiveFilters =
+						view.state.field(activeFiltersState);
+
 					const newPreset = {
 						id:
 							Date.now().toString() +
 							Math.random().toString(36).substr(2, 9),
 						name: "New Preset",
-						options: { ...activeFilters },
+						options: { ...currentActiveFilters },
 					};
 
 					// Add to settings
@@ -371,8 +471,20 @@ function filterPanelDisplay(
 					queryInput.inputEl.value = "";
 				}
 
-				// Reset UI
+				activeFilters = { ...DEFAULT_FILTER_OPTIONS };
+				// Update state with new active filters
+				view.dispatch({
+					effects: updateActiveFilters.of({
+						...activeFilters,
+					}),
+				}); // Update the UI to reflect the selected options
 				updateFilterUI();
+				if (d) {
+					d.setValue("");
+				}
+
+				// Apply the filters
+				applyTaskFilters(view, plugin);
 			});
 		})
 		.addButton((button) => {
@@ -384,6 +496,7 @@ function filterPanelDisplay(
 
 	// Function to update UI elements when a preset is selected
 	function updateFilterUI() {
+		const activeFilters = view.state.field(activeFiltersState);
 		// Update query input
 		if (queryInput) {
 			queryInput.setValue(activeFilters.advancedFilterQuery);
@@ -426,9 +539,12 @@ function createTaskFilterPanel(view: EditorView): Panel {
 	});
 
 	const plugin = view.state.facet(pluginFacet);
-	const options = view.state.facet(taskFilterOptions);
 
-	const { focusInput } = filterPanelDisplay(view, dom, options, plugin);
+	// Use the activeFiltersState instead of the taskFilterOptions
+	// This ensures we're showing the actual current state for this editor
+	const activeFilters = view.state.field(activeFiltersState);
+
+	const { focusInput } = filterPanelDisplay(view, dom, activeFilters, plugin);
 
 	return {
 		dom,
@@ -451,14 +567,17 @@ function createTaskFilterPanel(view: EditorView): Panel {
 
 // Apply the current task filters
 function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
-	// Clear existing hidden ranges
-	hiddenTaskRanges = [];
+	// Get current active filters from state
+	const activeFilters = view.state.field(activeFiltersState);
 
 	// Find tasks in the document
 	const tasks = findAllTasks(view, plugin.settings.taskStatuses);
 
 	// Build a map of matching tasks for quick lookup
 	const matchingTaskIds = new Set<number>();
+
+	// Calculate new hidden task ranges
+	let hiddenTaskRanges: Array<{ from: number; to: number }> = [];
 
 	// First identify tasks that match the filter directly
 	tasks.forEach((task, index) => {
@@ -539,20 +658,27 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 		to: task.to,
 	}));
 
+	// Update hidden ranges in the state
+	view.dispatch({
+		effects: updateHiddenTaskRanges.of(hiddenTaskRanges),
+	});
+
 	// Apply decorations to hide filtered tasks
-	applyHiddenTaskDecorations(view);
+	applyHiddenTaskDecorations(view, hiddenTaskRanges);
 }
 
 // Reset all task filters
 function resetTaskFilters(view: EditorView) {
-	// Reset active filters to defaults
-	activeFilters = { ...DEFAULT_FILTER_OPTIONS };
+	// Reset active filters to defaults in state
+	view.dispatch({
+		effects: [
+			updateActiveFilters.of({ ...DEFAULT_FILTER_OPTIONS }),
+			updateHiddenTaskRanges.of([]),
+		],
+	});
 
-	// Clear hidden ranges
-	hiddenTaskRanges = [];
-
-	// Remove all task-hiding decorations
-	applyHiddenTaskDecorations(view);
+	// Apply decorations to hide filtered tasks
+	applyHiddenTaskDecorations(view, []);
 }
 
 // Find all tasks in the document and build the task hierarchy
@@ -818,9 +944,12 @@ function hasMatchingDescendant(
 }
 
 // Apply decorations to hide filtered tasks
-function applyHiddenTaskDecorations(view: EditorView) {
+function applyHiddenTaskDecorations(
+	view: EditorView,
+	ranges: Array<{ from: number; to: number }> = []
+) {
 	// Create decorations for hidden tasks
-	const decorations = hiddenTaskRanges.map((range) => {
+	const decorations = ranges.map((range) => {
 		return Decoration.replace({
 			inclusive: true,
 			block: true,
@@ -882,8 +1011,36 @@ export const pluginFacet = Facet.define<
 export function taskFilterExtension(plugin: TaskProgressBarPlugin) {
 	return [
 		taskFilterState,
+		activeFiltersState,
+		hiddenTaskRangesState,
 		filterTasksField,
 		taskFilterOptions.of(DEFAULT_FILTER_OPTIONS),
 		pluginFacet.of(plugin),
 	];
+}
+
+/**
+ * Gets the active filter options for a specific editor view
+ * @param view The editor view to get active filters for
+ * @returns The active filter options for the view
+ */
+export function getActiveFiltersForView(view: EditorView): TaskFilterOptions {
+	if (view.state.field(activeFiltersState, false)) {
+		return view.state.field(activeFiltersState);
+	}
+	return { ...DEFAULT_FILTER_OPTIONS };
+}
+
+/**
+ * Gets the hidden task ranges for a specific editor view
+ * @param view The editor view to get hidden ranges for
+ * @returns The array of hidden task ranges
+ */
+export function getHiddenTaskRangesForView(
+	view: EditorView
+): Array<{ from: number; to: number }> {
+	if (view.state.field(hiddenTaskRangesState, false)) {
+		return view.state.field(hiddenTaskRangesState);
+	}
+	return [];
 }
