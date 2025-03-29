@@ -1,12 +1,34 @@
-import { App, Constructor, Scope, TFile, WorkspaceLeaf } from "obsidian";
+import { App, Scope, TFile, WorkspaceLeaf } from "obsidian";
 import { MarkdownScrollableEditView, WidgetEditorView } from "obsidian-typings";
 
-import { EditorSelection, Extension, Prec } from "@codemirror/state";
+import { EditorSelection, Prec } from "@codemirror/state";
 import { EditorView, keymap, placeholder, ViewUpdate } from "@codemirror/view";
 
 import { around } from "monkey-around";
 
-function resolveEditorPrototype(app: App) {
+/**
+ * Creates an embeddable markdown editor
+ * @param app The Obsidian app instance
+ * @param container The container element
+ * @param options Editor options
+ * @returns A configured markdown editor
+ */
+export function createEmbeddableMarkdownEditor(
+	app: App,
+	container: HTMLElement,
+	options: Partial<MarkdownEditorProps>
+): EmbeddableMarkdownEditor {
+	// Get the editor class
+	const EditorClass = resolveEditorPrototype(app);
+
+	// Create the editor instance
+	return new EmbeddableMarkdownEditor(app, EditorClass, container, options);
+}
+
+/**
+ * Resolves the markdown editor prototype from the app
+ */
+function resolveEditorPrototype(app: App): any {
 	// Create a temporary editor to resolve the prototype of ScrollableMarkdownEditor
 	const widgetEditorView = app.embedRegistry.embedByExtension.md(
 		{ app, containerEl: document.createElement("div") },
@@ -24,7 +46,8 @@ function resolveEditorPrototype(app: App) {
 	// Unload to remove the temporary editor
 	widgetEditorView.unload();
 
-	return MarkdownEditor.constructor as Constructor<MarkdownScrollableEditView>;
+	// Return the constructor, using 'any' type to bypass the abstract class check
+	return MarkdownEditor.constructor;
 }
 
 interface MarkdownEditorProps {
@@ -60,170 +83,218 @@ const defaultProperties: MarkdownEditorProps = {
 	onChange: () => {},
 };
 
-export class EmbeddableMarkdownEditor
-	extends resolveEditorPrototype(app)
-	implements MarkdownScrollableEditView
-{
+/**
+ * A markdown editor that can be embedded in any container
+ */
+export class EmbeddableMarkdownEditor {
 	options: MarkdownEditorProps;
 	initial_value: string;
 	scope: Scope;
+	editor: MarkdownScrollableEditView;
+
+	// Expose commonly accessed properties
+	get editorEl(): HTMLElement {
+		return this.editor.editorEl;
+	}
+	get containerEl(): HTMLElement {
+		return this.editor.containerEl;
+	}
+	get activeCM(): EditorView {
+		return this.editor.activeCM;
+	}
+	get app(): App {
+		return this.editor.app;
+	}
+	get owner(): any {
+		return this.editor.owner;
+	}
+	get _loaded(): boolean {
+		return this.editor._loaded;
+	}
 
 	/**
 	 * Construct the editor
-	 * @remark Takes 5ms to fully construct and attach
 	 * @param app - Reference to App instance
+	 * @param EditorClass - The editor class constructor
 	 * @param container - Container element to add the editor to
-	 * @param options - Options for controling the initial state of the editor
+	 * @param options - Options for controlling the initial state of the editor
 	 */
 	constructor(
 		app: App,
+		EditorClass: any,
 		container: HTMLElement,
 		options: Partial<MarkdownEditorProps>
 	) {
-		super(app, container, {
+		// Create the editor with the app instance
+		this.editor = new EditorClass(app, container, {
 			app,
-			// This mocks the MarkdownView functions, which is required for proper functioning of scrolling
+			// This mocks the MarkdownView functions, required for proper scrolling
 			onMarkdownScroll: () => {},
 			getMode: () => "source",
 		});
+
+		// Store user options
 		this.options = { ...defaultProperties, ...options };
 		this.initial_value = this.options.value!;
-		this.scope = new Scope(this.app.scope);
-		// NOTE: Hotkeys take precedence over CM keymap, so scope is introduced to allow for specific hotkeys to be overwritten
-		//   In this case, since Mod+Enter is linked to the "Open link in new leaf" command, but it is also the default user action for submitting the editor,
-		//      the scope is used to prevent the hotkey from executing (by returning `true`)
-		// TODO: It is also possible to allow both behaviours to coexist:
-		//     1) Fetch the command via hotkeyManager
-		//     2) Execute the command callback
-		//     3) Return the result of the callback (callback returns false if callback could not execute)
-		//     		(In this case, if cursor is not on a link token, the callback will return false, and onEnter will be applied)
-		this.scope.register(["Mod"], "Enter", (e, ctx) => {
-			return true;
-		});
+		this.scope = new Scope(app.scope);
 
-		// Since the commands expect that this is a MarkdownView (with editMode as the Editor itself),
-		//   we need to mock this by setting both the editMode and editor to this instance and its containing view respectively
-		this.owner.editMode = this;
-		this.owner.editor = this.editor;
+		// Prevent Mod+Enter default behavior
+		this.scope.register(["Mod"], "Enter", () => true);
 
+		// Set up the editor relationship for commands to work
+		if (this.owner) {
+			this.owner.editMode = this;
+			this.owner.editor = this.editor.editor;
+		}
+
+		// Set initial content
 		this.set(options.value || "", false);
+
+		// Prevent active leaf changes while focused
 		this.register(
-			around(this.app.workspace, {
+			around(app.workspace, {
 				setActiveLeaf:
-					(
-						oldMethod: (
-							leaf: WorkspaceLeaf,
-							params?: { focus?: boolean }
-						) => void
-					) =>
-					(leaf: WorkspaceLeaf, params: { focus?: boolean }) => {
-						// If the editor is currently focused, prevent the workspace setting the focus to a workspaceLeaf instead
-						if (!this.activeCM.hasFocus)
-							oldMethod.call(this.app.workspace, leaf, params);
+					(oldMethod: any) =>
+					(leaf: WorkspaceLeaf, ...args: any[]) => {
+						if (!this.activeCM?.hasFocus) {
+							oldMethod.call(app.workspace, leaf, ...args);
+						}
 					},
 			})
 		);
 
-		// Execute onBlur when the editor loses focus
-		// NOTE: Apparently Chrome does a weird thing where removing an element from the DOM triggers a blur event
-		//		 (Hence why the ._loaded check is necessary)
-		if (this.options.onBlur !== defaultProperties.onBlur) {
-			this.editor?.cm.contentDOM.addEventListener("blur", () => {
-				this.app.keymap.popScope(this.scope);
+		// Set up blur event handler
+		if (
+			this.options.onBlur !== defaultProperties.onBlur &&
+			this.editor.editor?.cm?.contentDOM
+		) {
+			this.editor.editor.cm.contentDOM.addEventListener("blur", () => {
+				app.keymap.popScope(this.scope);
 				if (this._loaded) this.options.onBlur(this);
 			});
 		}
 
-		// Whenever the editor is focused, set the activeEditor to the mocked view (this.owner)
-		// This allows for the editorCommands to actually work
-		this.editor?.cm.contentDOM.addEventListener("focusin", (e) => {
-			this.app.keymap.pushScope(this.scope);
-			this.app.workspace.activeEditor = this.owner;
-		});
+		// Set up focus event handler
+		if (this.editor.editor?.cm?.contentDOM) {
+			this.editor.editor.cm.contentDOM.addEventListener("focusin", () => {
+				app.keymap.pushScope(this.scope);
+				app.workspace.activeEditor = this.owner;
+			});
+		}
 
-		if (options.cls) this.editorEl.classList.add(options.cls);
-		if (options.cursorLocation) {
-			this.editor?.cm.dispatch({
+		// Apply custom class if provided
+		if (options.cls && this.editorEl) {
+			this.editorEl.classList.add(options.cls);
+		}
+
+		// Set cursor position if specified
+		if (options.cursorLocation && this.editor.editor?.cm) {
+			this.editor.editor.cm.dispatch({
 				selection: EditorSelection.range(
 					options.cursorLocation.anchor,
 					options.cursorLocation.head
 				),
 			});
 		}
-	}
 
-	get value() {
-		return this.editor?.cm.state.doc.toString() || "";
-	}
+		// Override the buildLocalExtensions method to add our custom extensions
+		const originalBuildLocalExtensions =
+			this.editor.buildLocalExtensions.bind(this.editor);
+		this.editor.buildLocalExtensions = () => {
+			const extensions = originalBuildLocalExtensions();
 
-	onUpdate(update: ViewUpdate, changed: boolean) {
-		super.onUpdate(update, changed);
-		if (changed) this.options.onChange(update);
-	}
+			// Add placeholder if configured
+			if (this.options.placeholder) {
+				extensions.push(placeholder(this.options.placeholder));
+			}
 
-	/**
-	 * Loads the CM extensions for rendering Markdown and handling user inputs
-	 * Note that other plugins will not be able to send updates to these extensions to change configurations
-	 */
-	buildLocalExtensions(): Extension[] {
-		const extensions = super.buildLocalExtensions();
-		if (this.options.placeholder)
-			extensions.push(placeholder(this.options.placeholder));
-
-		/* Editor extension for handling specific user inputs */
-		extensions.push(
-			EditorView.domEventHandlers({
-				paste: (event) => {
-					this.options.onPaste(event, this);
-				},
-			})
-		);
-		extensions.push(
-			Prec.highest(
-				keymap.of([
-					{
-						key: "Enter",
-						run: (cm) => this.options.onEnter(this, false, false),
-						shift: (cm) => this.options.onEnter(this, false, true),
+			// Add paste event handler
+			extensions.push(
+				EditorView.domEventHandlers({
+					paste: (event) => {
+						this.options.onPaste(event, this);
 					},
-					{
-						key: "Mod-Enter",
-						run: (cm) => this.options.onEnter(this, true, false),
-						shift: (cm) => this.options.onEnter(this, true, true),
-					},
-					{
-						key: "Escape",
-						run: (cm) => {
-							this.options.onEscape(this);
-							return true;
+				})
+			);
+
+			// Add keyboard handlers
+			extensions.push(
+				Prec.highest(
+					keymap.of([
+						{
+							key: "Enter",
+							run: () => this.options.onEnter(this, false, false),
+							shift: () =>
+								this.options.onEnter(this, false, true),
 						},
-						preventDefault: true,
-					},
-				])
-			)
-		);
+						{
+							key: "Mod-Enter",
+							run: () => this.options.onEnter(this, true, false),
+							shift: () => this.options.onEnter(this, true, true),
+						},
+						{
+							key: "Escape",
+							run: () => {
+								this.options.onEscape(this);
+								return true;
+							},
+							preventDefault: true,
+						},
+					])
+				)
+			);
 
-		/* Additional Editor extensions (renderers, ...) */
+			return extensions;
+		};
 
-		return extensions;
+		// Override onUpdate to call our onChange handler
+		const originalOnUpdate = this.editor.onUpdate.bind(this.editor);
+		this.editor.onUpdate = (update: ViewUpdate, changed: boolean) => {
+			originalOnUpdate(update, changed);
+			if (changed) this.options.onChange(update);
+		};
 	}
 
-	/**
-	 * Ensure that the editor is properly destroyed when the view is closed
-	 */
+	// Get the current editor value
+	get value(): string {
+		return this.editor.editor?.cm?.state.doc.toString() || "";
+	}
+
+	// Set content in the editor
+	set(content: string, focus: boolean = false): void {
+		this.editor.set(content, focus);
+	}
+
+	// Register cleanup callback
+	register(cb: any): void {
+		this.editor.register(cb);
+	}
+
+	// Clean up method that ensures proper destruction
 	destroy(): void {
-		if (this._loaded) this.unload();
+		if (this._loaded && typeof this.editor.unload === "function") {
+			this.editor.unload();
+		}
+
 		this.app.keymap.popScope(this.scope);
 		this.app.workspace.activeEditor = null;
 		this.containerEl.empty();
-		super.destroy();
+
+		this.editor.destroy();
 	}
 
-	/**
-	 * When removing as a component, destroy will also get invoked
-	 */
-	onunload() {
-		super.onunload();
+	// Unload handler
+	onunload(): void {
+		if (typeof this.editor.onunload === "function") {
+			this.editor.onunload();
+		}
 		this.destroy();
+	}
+
+	// Required method for MarkdownScrollableEditView compatibility
+	unload(): void {
+		if (typeof this.editor.unload === "function") {
+			this.editor.unload();
+		}
 	}
 }

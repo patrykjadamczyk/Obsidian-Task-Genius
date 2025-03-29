@@ -18,7 +18,10 @@ import {
 	Panel,
 	keymap,
 } from "@codemirror/view";
-import { EmbeddableMarkdownEditor } from "./markdownEditor";
+import {
+	createEmbeddableMarkdownEditor,
+	EmbeddableMarkdownEditor,
+} from "./markdownEditor";
 import TaskProgressBarPlugin from "../index";
 import { saveCapture } from "../utils/fileUtils";
 
@@ -248,7 +251,7 @@ function createQuickCapturePanel(view: EditorView): Panel {
 
 	// Create an instance of the embedded markdown editor
 	setTimeout(() => {
-		markdownEditor = new EmbeddableMarkdownEditor(app, editorDiv, {
+		markdownEditor = createEmbeddableMarkdownEditor(app, editorDiv, {
 			placeholder: options.placeholder,
 
 			onEnter: (editor, mod, shift) => {

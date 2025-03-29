@@ -1,5 +1,8 @@
 import { App, Modal, Setting, TFile, Notice } from "obsidian";
-import { EmbeddableMarkdownEditor } from "../editor-ext/markdownEditor";
+import {
+	createEmbeddableMarkdownEditor,
+	EmbeddableMarkdownEditor,
+} from "../editor-ext/markdownEditor";
 import TaskProgressBarPlugin from "../index";
 import { saveCapture } from "../utils/fileUtils";
 import { FileSuggest } from "../editor-ext/quickCapture";
@@ -42,7 +45,7 @@ export class QuickCaptureModal extends Modal {
 
 		// Create the markdown editor with our EmbeddableMarkdownEditor
 		setTimeout(() => {
-			this.markdownEditor = new EmbeddableMarkdownEditor(
+			this.markdownEditor = createEmbeddableMarkdownEditor(
 				this.app,
 				editorContainer,
 				{

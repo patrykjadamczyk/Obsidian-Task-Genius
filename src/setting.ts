@@ -80,6 +80,12 @@ export interface TaskProgressBarSettings {
 		placeholder: string;
 		appendToFile: "append" | "prepend" | "replace";
 	};
+
+	// Task filter settings
+	taskFilter: {
+		enableTaskFilter: boolean;
+		keyboardShortcut: string;
+	};
 }
 
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
@@ -164,6 +170,12 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		targetFile: "Quick Capture.md",
 		placeholder: "Capture thoughts, tasks, or ideas...",
 		appendToFile: "append",
+	},
+
+	// Task filter settings
+	taskFilter: {
+		enableTaskFilter: true,
+		keyboardShortcut: "Alt-f",
 	},
 };
 
@@ -1038,6 +1050,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 		}
 
+		// Add task filter settings
+		this.addTaskFilterSettings();
+
 		new Setting(containerEl).setName("Say Thank You").setHeading();
 
 		new Setting(containerEl)
@@ -1393,5 +1408,24 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					})
 			);
+	}
+
+	addTaskFilterSettings() {
+		const containerEl = this.containerEl;
+
+		containerEl.createEl("h2", { text: "Task Filter" });
+
+		new Setting(containerEl)
+			.setName("Enable Task Filter")
+			.setDesc("Toggle this to enable the task filter panel")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.taskFilter.enableTaskFilter)
+					.onChange(async (value) => {
+						this.plugin.settings.taskFilter.enableTaskFilter =
+							value;
+						this.applySettingsUpdate();
+					});
+			});
 	}
 }

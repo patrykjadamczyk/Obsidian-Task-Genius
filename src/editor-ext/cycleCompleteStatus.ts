@@ -308,19 +308,14 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
+	if (tr.isUserEvent("input.paste")) {
+		return tr;
+	}
+
 	// Check if any task statuses were changed in this transaction
 	const taskStatusChanges = findTaskStatusChanges(tr, !!getTasksAPI(plugin));
 	if (taskStatusChanges.length === 0) {
 		return tr;
-	}
-
-	if (
-		taskStatusChanges.length === 1 &&
-		taskStatusChanges[0].tasksInfo?.isTaskChange
-	) {
-		if (tr.isUserEvent("input.paste")) {
-			return tr;
-		}
 	}
 
 	// Get the task cycle and marks from plugin settings

@@ -17,9 +17,6 @@ import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 
 export const dateChangeAnnotation = Annotation.define();
 
-// Basic date format detector for Obsidian format like 📅 2023-12-31
-const DATE_REGEX = /\d{4}-\d{2}-\d{2}/g;
-
 class DatePickerWidget extends WidgetType {
 	constructor(
 		readonly app: App,

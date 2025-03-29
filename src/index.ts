@@ -37,6 +37,11 @@ import {
 	toggleQuickCapture,
 	quickCaptureState,
 } from "./editor-ext/quickCapture";
+import {
+	taskFilterExtension,
+	toggleTaskFilter,
+	taskFilterState,
+} from "./editor-ext/filterTasks";
 import { QuickCaptureModal } from "./components/QuickCaptureModal";
 import { MarkdownView } from "obsidian";
 import { Notice } from "obsidian";
@@ -152,6 +157,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.registerEditorExtension([
 				quickCaptureExtension(this.app, this),
 			]);
+		}
+
+		// Add task filter extension
+		if (this.settings.taskFilter.enableTaskFilter) {
+			this.registerEditorExtension([taskFilterExtension(this)]);
 		}
 
 		// Add command for cycling task status forward
@@ -425,6 +435,23 @@ export default class TaskProgressBarPlugin extends Plugin {
 					// No active markdown view, show a floating capture window instead
 					// Create a simple modal with capture functionality
 					new QuickCaptureModal(this.app, this).open();
+				}
+			},
+		});
+
+		// Add command for toggling task filter
+		this.addCommand({
+			id: "toggle-task-filter",
+			name: "Toggle task filter panel",
+			editorCallback: (editor, ctx) => {
+				const view = editor.cm as EditorView;
+
+				if (view) {
+					view.dispatch({
+						effects: toggleTaskFilter.of(
+							!view.state.field(taskFilterState)
+						),
+					});
 				}
 			},
 		});
