@@ -11,13 +11,7 @@ import {
 	editorInfoField,
 } from "obsidian";
 import { StateField, StateEffect, Facet } from "@codemirror/state";
-import {
-	EditorView,
-	showPanel,
-	ViewUpdate,
-	Panel,
-	keymap,
-} from "@codemirror/view";
+import { EditorView, showPanel, ViewUpdate, Panel } from "@codemirror/view";
 import {
 	createEmbeddableMarkdownEditor,
 	EmbeddableMarkdownEditor,
@@ -372,21 +366,6 @@ export const pluginFacet = Facet.define<
 	combine: (values) => values[0],
 });
 
-// Key binding to toggle the quick capture panel
-const quickCaptureKeymap = [
-	{
-		key: "Alt-c",
-		run: (view: EditorView) => {
-			view.dispatch({
-				effects: toggleQuickCapture.of(
-					!view.state.field(quickCaptureState)
-				),
-			});
-			return true;
-		},
-	},
-];
-
 // Create the extension to enable quick capture in an editor
 export function quickCaptureExtension(app: App, plugin: TaskProgressBarPlugin) {
 	return [
@@ -402,6 +381,5 @@ export function quickCaptureExtension(app: App, plugin: TaskProgressBarPlugin) {
 		}),
 		appFacet.of(app),
 		pluginFacet.of(plugin),
-		keymap.of(quickCaptureKeymap),
 	];
 }
