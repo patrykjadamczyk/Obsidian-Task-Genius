@@ -60,7 +60,6 @@ export interface TaskFilterOptions {
 
 	// Advanced search query
 	advancedFilterQuery: string;
-	useAdvancedFilter: boolean;
 
 	// Filter out/in tasks
 	filterOutTasks: boolean;
@@ -79,7 +78,6 @@ export const DEFAULT_FILTER_OPTIONS: TaskFilterOptions = {
 	includeSiblingTasks: false, // Default to false for backward compatibility
 
 	advancedFilterQuery: "",
-	useAdvancedFilter: false,
 
 	filterOutTasks: false,
 };
@@ -130,6 +128,21 @@ export interface Task {
 	tags: string[]; // All tags found in the task
 }
 
+function checkFilterChanges(view: EditorView, plugin: TaskProgressBarPlugin) {
+	const options = view.state.facet(taskFilterOptions);
+
+	// Check if current filter options are the same as default options
+	const isDefault = Object.keys(DEFAULT_FILTER_OPTIONS).every((key) => {
+		return (
+			options[key as keyof TaskFilterOptions] ===
+			DEFAULT_FILTER_OPTIONS[key as keyof TaskFilterOptions]
+		);
+	});
+
+	// Return whether there are any changes from default
+	return !isDefault;
+}
+
 function filterPanelDisplay(
 	view: EditorView,
 	dom: HTMLElement,
@@ -157,6 +170,47 @@ function filterPanelDisplay(
 	const filterOptionsDiv = dom.createEl("div", {
 		cls: "task-filter-options",
 	});
+
+	// Add preset filter selector
+	const presetContainer = filterOptionsDiv.createEl("div", {
+		cls: "task-filter-preset-container",
+	});
+
+	const presetFilters = plugin.settings.taskFilter.presetTaskFilters || [];
+
+	if (presetFilters.length > 0) {
+		new Setting(presetContainer)
+			.setName("Preset filters")
+			.setDesc("Select a saved filter preset to apply")
+			.addDropdown((dropdown) => {
+				// Add an empty option
+				dropdown.addOption("", "Select a preset...");
+
+				// Add each preset as an option
+				presetFilters.forEach((preset) => {
+					dropdown.addOption(preset.id, preset.name);
+				});
+
+				dropdown.onChange((selectedId) => {
+					if (selectedId) {
+						// Find the selected preset
+						const selectedPreset = presetFilters.find(
+							(p) => p.id === selectedId
+						);
+						if (selectedPreset) {
+							// Apply the preset's filter options
+							activeFilters = { ...selectedPreset.options };
+
+							// Update the UI to reflect the selected options
+							updateFilterUI();
+
+							// Apply the filters
+							applyTaskFilters(view, plugin);
+						}
+					}
+				});
+			});
+	}
 
 	// Add Advanced Filter Query Input
 	const advancedSection = filterOptionsDiv.createEl("div", {
@@ -226,10 +280,14 @@ function filterPanelDisplay(
 		{ id: "Planned", label: "Planned" },
 	];
 
+	// Store status toggles for updating when preset is selected
+	const statusToggles: Record<string, any> = {};
+
 	for (const status of statuses) {
 		const propName = `include${status.id}` as keyof TaskFilterOptions;
 
 		new Setting(statusSection).setName(status.label).addToggle((toggle) => {
+			statusToggles[propName] = toggle;
 			toggle
 				.setValue(getFilterOption(options, propName))
 				.onChange((value: boolean) => {
@@ -253,12 +311,16 @@ function filterPanelDisplay(
 		{ id: "SiblingTasks", label: "Sibling Tasks" },
 	];
 
+	// Store related toggles for updating when preset is selected
+	const relatedToggles: Record<string, any> = {};
+
 	for (const option of relatedOptions) {
 		const propName = `include${option.id}` as keyof TaskFilterOptions;
 
 		new Setting(relatedSection)
 			.setName(option.label)
 			.addToggle((toggle) => {
+				relatedToggles[propName] = toggle;
 				toggle
 					.setValue(getFilterOption(options, propName))
 					.onChange((value: boolean) => {
@@ -268,11 +330,36 @@ function filterPanelDisplay(
 			});
 	}
 
+	// Action buttons
 	new Setting(dom)
 		.addButton((button) => {
 			button.setCta();
 			button.setButtonText("Apply").onClick(() => {
 				debounceFilter(view, plugin);
+			});
+		})
+		.addButton((button) => {
+			button.setCta();
+			button.setButtonText("Save").onClick(() => {
+				if (checkFilterChanges(view, plugin)) {
+					const newPreset = {
+						id:
+							Date.now().toString() +
+							Math.random().toString(36).substr(2, 9),
+						name: "New Preset",
+						options: { ...activeFilters },
+					};
+
+					// Add to settings
+					plugin.settings.taskFilter.presetTaskFilters.push(
+						newPreset
+					);
+					plugin.saveSettings();
+
+					new Notice("Preset saved");
+				} else {
+					new Notice("No changes to save");
+				}
 			});
 		})
 		.addButton((button) => {
@@ -283,6 +370,9 @@ function filterPanelDisplay(
 				if (queryInput && queryInput.inputEl) {
 					queryInput.inputEl.value = "";
 				}
+
+				// Reset UI
+				updateFilterUI();
 			});
 		})
 		.addButton((button) => {
@@ -291,6 +381,34 @@ function filterPanelDisplay(
 				view.dispatch({ effects: toggleTaskFilter.of(false) });
 			});
 		});
+
+	// Function to update UI elements when a preset is selected
+	function updateFilterUI() {
+		// Update query input
+		if (queryInput) {
+			queryInput.setValue(activeFilters.advancedFilterQuery);
+		}
+
+		// Update status toggles
+		for (const status of statuses) {
+			const propName = `include${status.id}` as keyof TaskFilterOptions;
+			if (statusToggles[propName]) {
+				statusToggles[propName].setValue(
+					(activeFilters as any)[propName]
+				);
+			}
+		}
+
+		// Update related toggles
+		for (const option of relatedOptions) {
+			const propName = `include${option.id}` as keyof TaskFilterOptions;
+			if (relatedToggles[propName]) {
+				relatedToggles[propName].setValue(
+					(activeFilters as any)[propName]
+				);
+			}
+		}
+	}
 
 	const focusInput = () => {
 		if (queryInput && queryInput.inputEl) {

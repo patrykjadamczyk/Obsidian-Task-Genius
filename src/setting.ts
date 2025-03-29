@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, Modal } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
+import { TaskFilterOptions } from "./editor-ext/filterTasks";
 
 export interface TaskProgressBarSettings {
 	showProgressBar: boolean;
@@ -85,6 +86,11 @@ export interface TaskProgressBarSettings {
 	taskFilter: {
 		enableTaskFilter: boolean;
 		keyboardShortcut: string;
+		presetTaskFilters: Array<{
+			id: string;
+			name: string;
+			options: TaskFilterOptions;
+		}>;
 	};
 }
 
@@ -176,6 +182,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	taskFilter: {
 		enableTaskFilter: true,
 		keyboardShortcut: "Alt-f",
+		presetTaskFilters: [],
 	},
 };
 
@@ -1413,7 +1420,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	addTaskFilterSettings() {
 		const containerEl = this.containerEl;
 
-		containerEl.createEl("h2", { text: "Task Filter" });
+		new Setting(containerEl).setName("Task Filter").setHeading();
 
 		new Setting(containerEl)
 			.setName("Enable Task Filter")
@@ -1427,5 +1434,362 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					});
 			});
+
+		// Preset filters section
+		new Setting(containerEl)
+			.setName("Preset Filters")
+			.setDesc(
+				"Create and manage preset filters for quick access to commonly used task filters."
+			);
+
+		// Add a container for the preset filters
+		const presetFiltersContainer = containerEl.createDiv({
+			cls: "preset-filters-container",
+		});
+
+		// Function to refresh the preset filters list
+		const refreshPresetFiltersList = () => {
+			// Clear the container
+			presetFiltersContainer.empty();
+
+			// Get current preset filters
+			const presetFilters =
+				this.plugin.settings.taskFilter.presetTaskFilters;
+
+			if (presetFilters.length === 0) {
+				presetFiltersContainer.createEl("div", {
+					cls: "no-presets-message",
+					text: "No preset filters created yet. Click 'Add New Preset' to create one.",
+				});
+			}
+
+			// Add each preset filter in the list
+			presetFilters.forEach((preset, index) => {
+				const presetRow = presetFiltersContainer.createDiv({
+					cls: "preset-filter-row",
+				});
+
+				// Create the setting
+				const presetSetting = new Setting(presetRow)
+					.setName(`Preset #${index + 1}`)
+					.addText((text) => {
+						text.setValue(preset.name)
+							.setPlaceholder("Preset name")
+							.onChange((value) => {
+								preset.name = value;
+								this.applySettingsUpdate();
+							});
+					});
+
+				// Add buttons for editing, removing
+				presetSetting.addExtraButton((button) => {
+					button
+						.setIcon("pencil")
+						.setTooltip("Edit Filter")
+						.onClick(() => {
+							// Show modal to edit filter options
+							new PresetFilterModal(this.app, preset, () => {
+								this.applySettingsUpdate();
+								refreshPresetFiltersList();
+							}).open();
+						});
+				});
+
+				presetSetting.addExtraButton((button) => {
+					button
+						.setIcon("trash")
+						.setTooltip("Remove")
+						.onClick(() => {
+							// Remove the preset
+							presetFilters.splice(index, 1);
+							this.applySettingsUpdate();
+							refreshPresetFiltersList();
+						});
+				});
+			});
+
+			// Add button to add new preset
+			const addButtonContainer = presetFiltersContainer.createDiv();
+			new Setting(addButtonContainer)
+				.addButton((button) => {
+					button
+						.setButtonText("Add New Preset")
+						.setCta()
+						.onClick(() => {
+							// Add a new preset with default options
+							const newPreset = {
+								id: this.generateUniqueId(),
+								name: "New Filter",
+								options: {
+									includeCompleted: true,
+									includeInProgress: true,
+									includeAbandoned: true,
+									includeNotStarted: true,
+									includePlanned: true,
+									includeParentTasks: true,
+									includeChildTasks: true,
+									includeSiblingTasks: false,
+									advancedFilterQuery: "",
+									filterOutTasks: false,
+								},
+							};
+
+							this.plugin.settings.taskFilter.presetTaskFilters.push(
+								newPreset
+							);
+							this.applySettingsUpdate();
+
+							// Open the edit modal for the new preset
+							new PresetFilterModal(this.app, newPreset, () => {
+								this.applySettingsUpdate();
+								refreshPresetFiltersList();
+							}).open();
+
+							refreshPresetFiltersList();
+						});
+				})
+				.addButton((button) => {
+					button
+						.setButtonText("Reset to Default Presets")
+						.onClick(() => {
+							// Show confirmation modal
+							const modal = new Modal(this.app);
+							modal.titleEl.setText("Reset to Default Presets");
+
+							const content = modal.contentEl.createDiv();
+							content.setText(
+								"This will replace all your current presets with the default set. Are you sure?"
+							);
+
+							const buttonContainer = modal.contentEl.createDiv();
+							buttonContainer.addClass("modal-button-container");
+
+							const cancelButton =
+								buttonContainer.createEl("button");
+							cancelButton.setText("Cancel");
+							cancelButton.addEventListener("click", () => {
+								modal.close();
+							});
+
+							const confirmButton =
+								buttonContainer.createEl("button");
+							confirmButton.setText("Reset");
+							confirmButton.addClass("mod-warning");
+							confirmButton.addEventListener("click", () => {
+								this.createDefaultPresetFilters();
+								refreshPresetFiltersList();
+								modal.close();
+							});
+
+							modal.open();
+						});
+				});
+		};
+
+		// Initial render of the preset filters list
+		refreshPresetFiltersList();
+	}
+
+	// Generate a unique ID for preset filters
+	generateUniqueId(): string {
+		return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+	}
+
+	// Create default preset filters
+	createDefaultPresetFilters() {
+		// Clear existing presets if any
+		this.plugin.settings.taskFilter.presetTaskFilters = [];
+
+		// Add default presets
+		const defaultPresets = [
+			{
+				id: this.generateUniqueId(),
+				name: "Incomplete Tasks",
+				options: {
+					includeCompleted: false,
+					includeInProgress: true,
+					includeAbandoned: false,
+					includeNotStarted: true,
+					includePlanned: true,
+					includeParentTasks: true,
+					includeChildTasks: true,
+					includeSiblingTasks: false,
+					advancedFilterQuery: "",
+					filterOutTasks: false,
+				},
+			},
+			{
+				id: this.generateUniqueId(),
+				name: "In Progress Tasks",
+				options: {
+					includeCompleted: false,
+					includeInProgress: true,
+					includeAbandoned: false,
+					includeNotStarted: false,
+					includePlanned: false,
+					includeParentTasks: true,
+					includeChildTasks: true,
+					includeSiblingTasks: false,
+					advancedFilterQuery: "",
+					filterOutTasks: false,
+				},
+			},
+			{
+				id: this.generateUniqueId(),
+				name: "Completed Tasks",
+				options: {
+					includeCompleted: true,
+					includeInProgress: false,
+					includeAbandoned: false,
+					includeNotStarted: false,
+					includePlanned: false,
+					includeParentTasks: false,
+					includeChildTasks: true,
+					includeSiblingTasks: false,
+					advancedFilterQuery: "",
+					filterOutTasks: false,
+				},
+			},
+			{
+				id: this.generateUniqueId(),
+				name: "All Tasks",
+				options: {
+					includeCompleted: true,
+					includeInProgress: true,
+					includeAbandoned: true,
+					includeNotStarted: true,
+					includePlanned: true,
+					includeParentTasks: true,
+					includeChildTasks: true,
+					includeSiblingTasks: true,
+					advancedFilterQuery: "",
+					filterOutTasks: false,
+				},
+			},
+		];
+
+		// Add default presets to settings
+		this.plugin.settings.taskFilter.presetTaskFilters = defaultPresets;
+		this.applySettingsUpdate();
+	}
+}
+
+class PresetFilterModal extends Modal {
+	constructor(app: App, private preset: any, private onSave: () => void) {
+		super(app);
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		// Set modal title
+		this.titleEl.setText("Edit Filter: " + this.preset.name);
+
+		// Create form for filter options
+		new Setting(contentEl).setName("Filter name").addText((text) => {
+			text.setValue(this.preset.name).onChange((value) => {
+				this.preset.name = value;
+			});
+		});
+
+		// Task status section
+		new Setting(contentEl)
+			.setName("Task Status")
+			.setDesc("Include or exclude tasks based on their status");
+
+		const statusOptions = [
+			{ id: "includeCompleted", name: "Include Completed Tasks" },
+			{ id: "includeInProgress", name: "Include In Progress Tasks" },
+			{ id: "includeAbandoned", name: "Include Abandoned Tasks" },
+			{ id: "includeNotStarted", name: "Include Not Started Tasks" },
+			{ id: "includePlanned", name: "Include Planned Tasks" },
+		];
+
+		for (const option of statusOptions) {
+			new Setting(contentEl).setName(option.name).addToggle((toggle) => {
+				toggle
+					.setValue(this.preset.options[option.id])
+					.onChange((value) => {
+						this.preset.options[option.id] = value;
+					});
+			});
+		}
+
+		// Related tasks section
+		new Setting(contentEl)
+			.setName("Related Tasks")
+			.setDesc("Include parent, child, and sibling tasks in the filter");
+
+		const relatedOptions = [
+			{ id: "includeParentTasks", name: "Include Parent Tasks" },
+			{ id: "includeChildTasks", name: "Include Child Tasks" },
+			{ id: "includeSiblingTasks", name: "Include Sibling Tasks" },
+		];
+
+		for (const option of relatedOptions) {
+			new Setting(contentEl).setName(option.name).addToggle((toggle) => {
+				toggle
+					.setValue(this.preset.options[option.id])
+					.onChange((value) => {
+						this.preset.options[option.id] = value;
+					});
+			});
+		}
+
+		// Advanced filter section
+		new Setting(contentEl)
+			.setName("Advanced Filter")
+			.setDesc(
+				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'"
+			);
+
+		new Setting(contentEl)
+			.setName("Filter query")
+			.setDesc(
+				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'"
+			)
+			.addText((text) => {
+				text.setValue(this.preset.options.advancedFilterQuery).onChange(
+					(value) => {
+						this.preset.options.advancedFilterQuery = value;
+					}
+				);
+			});
+
+		new Setting(contentEl)
+			.setName("Filter out tasks")
+			.setDesc(
+				"If enabled, tasks that match the query will be hidden, otherwise they will be shown"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.preset.options.filterOutTasks)
+					.onChange((value) => {
+						this.preset.options.filterOutTasks = value;
+					});
+			});
+
+		// Save and cancel buttons
+		new Setting(contentEl)
+			.addButton((button) => {
+				button
+					.setButtonText("Save")
+					.setCta()
+					.onClick(() => {
+						this.onSave();
+						this.close();
+					});
+			})
+			.addButton((button) => {
+				button.setButtonText("Cancel").onClick(() => {
+					this.close();
+				});
+			});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
 	}
 }
