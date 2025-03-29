@@ -72,6 +72,16 @@ export interface TaskProgressBarSettings {
 		treatAbandonedAsCompleted: boolean;
 		withCurrentFileLink: boolean;
 	};
+
+	// Quick capture settings
+	quickCapture: {
+		enableQuickCapture: boolean;
+		targetFile: string;
+		entryPrefix: string;
+		placeholder: string;
+		appendToFile: boolean;
+		dateFormat: string;
+	};
 }
 
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
@@ -148,6 +158,16 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		completeAllMovedTasks: false,
 		treatAbandonedAsCompleted: false,
 		withCurrentFileLink: false,
+	},
+
+	// Quick capture settings
+	quickCapture: {
+		enableQuickCapture: false,
+		targetFile: "Quick Capture.md",
+		entryPrefix: "- ",
+		placeholder: "Capture thoughts, tasks, or ideas...",
+		appendToFile: true,
+		dateFormat: "YYYY-MM-DD",
 	},
 };
 
@@ -854,6 +874,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		this.addPriorityPickerSettings();
 		this.addDatePickerSettings();
+		this.addQuickCaptureSettings();
 
 		// Add Completed Task Mover settings
 		new Setting(containerEl).setName("Completed Task Mover").setHeading();
@@ -1275,16 +1296,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	}
 
 	addDatePickerSettings() {
-		const { containerEl } = this;
+		new Setting(this.containerEl).setName("Date picker").setHeading();
 
-		new Setting(containerEl)
-			.setName("Date Picker Settings")
-			.setDesc("Toggle to enable date picker dropdown for task dates.")
-			.setHeading();
-
-		new Setting(containerEl)
+		new Setting(this.containerEl)
 			.setName("Enable date picker")
-			.setDesc("Toggle to enable date picker dropdown for task dates.")
+			.setDesc(
+				"Toggle this to enable date picker for tasks. This will add a calendar icon near your tasks which you can click to select a date."
+			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.enableDatePicker)
@@ -1294,16 +1312,114 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
+		// Date mark setting
+		new Setting(this.containerEl)
 			.setName("Date mark")
-			.setDesc("List to support date picker in the editor")
-			.addText((text) => {
-				text.setPlaceholder("e.g. 📅, 📆, ⏳, 🛫")
+			.setDesc(
+				"Emoji mark to identify dates. You can use multiple emoji separated by commas."
+			)
+			.addText((text) =>
+				text
 					.setValue(this.plugin.settings.dateMark)
 					.onChange(async (value) => {
 						this.plugin.settings.dateMark = value;
 						this.applySettingsUpdate();
-					});
-			});
+					})
+			);
+	}
+
+	addQuickCaptureSettings() {
+		new Setting(this.containerEl).setName("Quick capture").setHeading();
+
+		new Setting(this.containerEl)
+			.setName("Enable quick capture")
+			.setDesc(
+				"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.quickCapture.enableQuickCapture
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.enableQuickCapture =
+							value;
+						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
+					})
+			);
+
+		if (!this.plugin.settings.quickCapture.enableQuickCapture) return;
+
+		new Setting(this.containerEl)
+			.setName("Target file")
+			.setDesc(
+				"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'"
+			)
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.quickCapture.targetFile)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.targetFile = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(this.containerEl)
+			.setName("Entry prefix")
+			.setDesc(
+				"Prefix to add before each captured entry. Use '- ' for bullet points, '- [ ] ' for tasks, etc."
+			)
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.quickCapture.entryPrefix)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.entryPrefix = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(this.containerEl)
+			.setName("Placeholder text")
+			.setDesc("Placeholder text to display in the capture panel")
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.quickCapture.placeholder)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.placeholder = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(this.containerEl)
+			.setName("Append to file")
+			.setDesc(
+				"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.quickCapture.appendToFile)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.appendToFile = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(this.containerEl)
+			.setName("Date format")
+			.setDesc(
+				"Format for dates when using {{date}} in your entries. Uses tokens: YYYY (year), MM (month), DD (day), HH (hour), mm (minute), ss (second)"
+			)
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.quickCapture.dateFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.dateFormat = value;
+						this.applySettingsUpdate();
+					})
+			);
 	}
 }

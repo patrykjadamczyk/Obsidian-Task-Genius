@@ -32,6 +32,14 @@ import {
 import { moveTaskCommand } from "./commands/taskMover";
 import { moveCompletedTasksCommand } from "./commands/completedTaskMover";
 import { datePickerExtension } from "./editor-ext/datePicker";
+import {
+	quickCaptureExtension,
+	toggleQuickCapture,
+	quickCaptureState,
+} from "./editor-ext/quickCapture";
+import { QuickCaptureModal } from "./components/QuickCaptureModal";
+import { MarkdownView } from "obsidian";
+import { Notice } from "obsidian";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -137,6 +145,13 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add date picker extension
 		if (this.settings.enableDatePicker) {
 			this.registerEditorExtension([datePickerExtension(this.app, this)]);
+		}
+
+		// Add quick capture extension
+		if (this.settings.quickCapture.enableQuickCapture) {
+			this.registerEditorExtension([
+				quickCaptureExtension(this.app, this),
+			]);
 		}
 
 		// Add command for cycling task status forward
@@ -339,6 +354,79 @@ export default class TaskProgressBarPlugin extends Plugin {
 					ctx: ctx,
 				});
 			});
+		});
+
+		// Add command for toggling quick capture panel in editor
+		this.addCommand({
+			id: "toggle-quick-capture",
+			name: "Toggle quick capture panel",
+			editorCallback: (editor) => {
+				const editorView = editor.cm as EditorView;
+
+				try {
+					// Check if the state field exists
+					const stateField =
+						editorView.state.field(quickCaptureState);
+
+					// Toggle the quick capture panel
+					editorView.dispatch({
+						effects: toggleQuickCapture.of(!stateField),
+					});
+				} catch (e) {
+					// Field doesn't exist, create it with value true (to show panel)
+					editorView.dispatch({
+						effects: toggleQuickCapture.of(true),
+					});
+				}
+			},
+		});
+
+		// Add a global command for quick capture from anywhere
+		this.addCommand({
+			id: "global-quick-capture",
+			name: "Quick capture (Global)",
+			callback: () => {
+				// Get the active leaf if available
+				const activeLeaf =
+					this.app.workspace.getActiveViewOfType(MarkdownView);
+
+				if (activeLeaf && activeLeaf.editor) {
+					// If we're in a markdown editor, use the editor command
+					const editorView = activeLeaf.editor.cm as EditorView;
+
+					// Import necessary functions dynamically to avoid circular dependencies
+
+					try {
+						// Show the quick capture panel
+						editorView.dispatch({
+							effects: toggleQuickCapture.of(true),
+						});
+					} catch (e) {
+						// No quick capture state found, try to add the extension first
+						// This is a simplified approach and might not work in all cases
+						this.registerEditorExtension([
+							quickCaptureExtension(this.app, this),
+						]);
+
+						// Try again after registering the extension
+						setTimeout(() => {
+							try {
+								editorView.dispatch({
+									effects: toggleQuickCapture.of(true),
+								});
+							} catch (e) {
+								new Notice(
+									"Could not open quick capture panel in the current editor"
+								);
+							}
+						}, 100);
+					}
+				} else {
+					// No active markdown view, show a floating capture window instead
+					// Create a simple modal with capture functionality
+					new QuickCaptureModal(this.app, this).open();
+				}
+			},
 		});
 	}
 
