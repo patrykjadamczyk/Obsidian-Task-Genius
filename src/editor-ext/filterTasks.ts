@@ -1,14 +1,19 @@
 import {
 	App,
 	DropdownComponent,
+	ItemView,
 	Keymap,
+	MarkdownView,
+	Menu,
 	Setting,
 	TextComponent,
+	View,
 	debounce,
+	editorEditorField,
 	editorInfoField,
 	moment,
 } from "obsidian";
-import { StateField, StateEffect, Facet } from "@codemirror/state";
+import { StateField, StateEffect, Facet, EditorState } from "@codemirror/state";
 import {
 	EditorView,
 	showPanel,
@@ -60,6 +65,120 @@ export const activeFiltersState = StateField.define<TaskFilterOptions>({
 			if (e.is(updateActiveFilters)) {
 				value = e.value;
 			}
+		}
+		return value;
+	},
+});
+
+export const actionButtonState = StateField.define<boolean>({
+	create: (state: EditorState) => {
+		// Initialize as false, will be set to true once action button is added
+		return false;
+	},
+	update(value, tr) {
+		// Check if this is the first time we're loading
+		if (!value) {
+			setTimeout(() => {
+				// Get the editor view from the transaction state
+				const view = tr.state.field(
+					editorInfoField
+				) as unknown as ItemView;
+				const editor = tr.state.field(editorEditorField);
+				console.log(view, editor, editor.state.field(taskFilterState));
+				if (view && editor) {
+					// @ts-ignore
+					if (view.filterAction) {
+						return true;
+					}
+					const plugin = tr.state.facet(pluginFacet);
+					// Add preset menu action button to the markdown view
+					const filterAction = view.addAction(
+						"filter",
+						"task-filter-presets",
+						(event) => {
+							// Create dropdown menu for filter presets
+							const menu = new Menu();
+
+							const activeFilters =
+								getActiveFiltersForView(editor);
+
+							if (
+								activeFilters &&
+								checkFilterChanges(editor, plugin)
+							) {
+								menu.addItem((item) => {
+									item.setTitle("Reset").onClick(() => {
+										editor?.dispatch({
+											effects: updateActiveFilters.of(
+												DEFAULT_FILTER_OPTIONS
+											),
+										});
+										applyTaskFilters(editor, plugin);
+										editor.dispatch({
+											effects: toggleTaskFilter.of(false),
+										});
+									});
+								});
+							}
+							menu.addItem((item) => {
+								item.setTitle(
+									editor.state.field(taskFilterState)
+										? "Hide filter panel"
+										: "Show filter panel"
+								).onClick(() => {
+									editor?.dispatch({
+										effects: toggleTaskFilter.of(
+											!editor.state.field(taskFilterState)
+										),
+									});
+								});
+							});
+
+							menu.addSeparator();
+
+							// Add presets from plugin settings
+							if (
+								plugin &&
+								plugin.settings.taskFilter.presetTaskFilters
+							) {
+								plugin.settings.taskFilter.presetTaskFilters.forEach(
+									(preset) => {
+										menu.addItem((item) => {
+											item.setTitle(preset.name).onClick(
+												() => {
+													// Apply the selected preset
+													if (editor) {
+														editor.dispatch({
+															effects:
+																updateActiveFilters.of(
+																	{
+																		...preset.options,
+																	}
+																),
+														});
+														// Apply filters immediately
+														applyTaskFilters(
+															editor,
+															plugin
+														);
+													}
+												}
+											);
+										});
+									}
+								);
+							}
+
+							// Show the menu
+							menu.showAtMouseEvent(event);
+						}
+					);
+
+					// @ts-ignore
+					view.filterAction = filterAction;
+				}
+			}, 0);
+			return true;
 		}
 		return value;
 	},
@@ -1012,6 +1131,7 @@ export function taskFilterExtension(plugin: TaskProgressBarPlugin) {
 		taskFilterState,
 		activeFiltersState,
 		hiddenTaskRangesState,
+		actionButtonState,
 		filterTasksField,
 		taskFilterOptions.of(DEFAULT_FILTER_OPTIONS),
 		pluginFacet.of(plugin),
