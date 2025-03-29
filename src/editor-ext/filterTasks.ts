@@ -84,7 +84,6 @@ export const actionButtonState = StateField.define<boolean>({
 					editorInfoField
 				) as unknown as ItemView;
 				const editor = tr.state.field(editorEditorField);
-				console.log(view, editor, editor.state.field(taskFilterState));
 				if (view && editor) {
 					// @ts-ignore
 					if (view.filterAction) {

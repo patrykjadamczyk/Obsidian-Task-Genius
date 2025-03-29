@@ -930,7 +930,7 @@ settings:
 	margin-top: 10px;
 	padding: 8px;
 	border-radius: 5px;
-	background-color: var(--background-secondary-alt);
+	border: 1px solid var(--background-modifier-border);
 }
 
 .preset-filter-row {
@@ -943,7 +943,7 @@ settings:
 }
 
 .preset-filter-row:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--background-secondary-alt);
 }
 
 .no-presets-message {
