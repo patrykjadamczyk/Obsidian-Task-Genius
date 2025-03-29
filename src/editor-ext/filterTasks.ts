@@ -170,7 +170,7 @@ export interface Task {
 
 function checkFilterChanges(view: EditorView, plugin: TaskProgressBarPlugin) {
 	// Get active filters from the state instead of the facet
-	const options = view.state.field(activeFiltersState);
+	const options = getActiveFiltersForView(view);
 
 	// Check if current filter options are the same as default options
 	const isDefault = Object.keys(DEFAULT_FILTER_OPTIONS).every((key) => {
@@ -191,7 +191,7 @@ function filterPanelDisplay(
 	plugin: TaskProgressBarPlugin
 ) {
 	// Get current active filters from state
-	let activeFilters = view.state.field(activeFiltersState);
+	let activeFilters = getActiveFiltersForView(view);
 
 	const debounceFilter = debounce(
 		(view: EditorView, plugin: TaskProgressBarPlugin) => {
@@ -439,8 +439,7 @@ function filterPanelDisplay(
 				// Check if there are any changes to save
 				if (checkFilterChanges(view, plugin)) {
 					// Get current active filters from state
-					const currentActiveFilters =
-						view.state.field(activeFiltersState);
+					const currentActiveFilters = getActiveFiltersForView(view);
 
 					const newPreset = {
 						id:
@@ -496,7 +495,7 @@ function filterPanelDisplay(
 
 	// Function to update UI elements when a preset is selected
 	function updateFilterUI() {
-		const activeFilters = view.state.field(activeFiltersState);
+		const activeFilters = getActiveFiltersForView(view);
 		// Update query input
 		if (queryInput) {
 			queryInput.setValue(activeFilters.advancedFilterQuery);
@@ -542,7 +541,7 @@ function createTaskFilterPanel(view: EditorView): Panel {
 
 	// Use the activeFiltersState instead of the taskFilterOptions
 	// This ensures we're showing the actual current state for this editor
-	const activeFilters = view.state.field(activeFiltersState);
+	const activeFilters = getActiveFiltersForView(view);
 
 	const { focusInput } = filterPanelDisplay(view, dom, activeFilters, plugin);
 
@@ -568,7 +567,7 @@ function createTaskFilterPanel(view: EditorView): Panel {
 // Apply the current task filters
 function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 	// Get current active filters from state
-	const activeFilters = view.state.field(activeFiltersState);
+	const activeFilters = getActiveFiltersForView(view);
 
 	// Find tasks in the document
 	const tasks = findAllTasks(view, plugin.settings.taskStatuses);
