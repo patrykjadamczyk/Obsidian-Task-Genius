@@ -14,39 +14,39 @@ import TaskProgressBarPlugin from "..";
 import { Annotation } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
-
+import { t } from "../translations/helper";
 export const priorityChangeAnnotation = Annotation.define();
 
 // Priority definitions
 export const TASK_PRIORITIES = {
 	highest: {
 		emoji: "🔺",
-		text: "Highest priority",
+		text: t("Highest priority"),
 		regex: "🔺",
 	},
 	high: {
 		emoji: "⏫",
-		text: "High priority",
+		text: t("High priority"),
 		regex: "⏫",
 	},
 	medium: {
 		emoji: "🔼",
-		text: "Medium priority",
+		text: t("Medium priority"),
 		regex: "🔼",
 	},
 	none: {
 		emoji: "",
-		text: "No priority",
+		text: t("No priority"),
 		regex: "",
 	},
 	low: {
 		emoji: "🔽",
-		text: "Low priority",
+		text: t("Low priority"),
 		regex: "🔽",
 	},
 	lowest: {
 		emoji: "⏬️",
-		text: "Lowest priority",
+		text: t("Lowest priority"),
 		regex: "⏬️",
 	},
 };
@@ -54,15 +54,15 @@ export const TASK_PRIORITIES = {
 // Task plugin format priorities
 export const LETTER_PRIORITIES = {
 	A: {
-		text: "Priority A",
+		text: t("Priority A"),
 		regex: "\\[#A\\]",
 	},
 	B: {
-		text: "Priority B",
+		text: t("Priority B"),
 		regex: "\\[#B\\]",
 	},
 	C: {
-		text: "Priority C",
+		text: t("Priority C"),
 		regex: "\\[#C\\]",
 	},
 };
@@ -103,7 +103,7 @@ class PriorityWidget extends WidgetType {
 		const wrapper = createEl("span", {
 			cls: "priority-widget",
 			attr: {
-				"aria-label": "Task Priority",
+				"aria-label": t("Task Priority"),
 			},
 		});
 
@@ -181,7 +181,7 @@ class PriorityWidget extends WidgetType {
 			Object.entries(TASK_PRIORITIES).forEach(([key, priority]) => {
 				if (key === "none") {
 					menu.addItem((item) => {
-						item.setTitle("Remove Priority");
+						item.setTitle(t("Remove Priority"));
 						item.onClick(() => {
 							this.removePriority();
 						});
@@ -233,7 +233,7 @@ export function priorityPickerExtension(
 		public readonly plugin: TaskProgressBarPlugin;
 		decorations: DecorationSet = Decoration.none;
 		private lastUpdate: number = 0;
-		private readonly updateThreshold: number = 50;
+		private readonly updateThreshold: number = 30; // Reduced threshold for quicker updates
 
 		// Emoji priorities matcher
 		private readonly emojiMatch = new MatchDecorator({
@@ -306,12 +306,26 @@ export function priorityPickerExtension(
 		}
 
 		update(update: ViewUpdate): void {
-			if (update.docChanged || update.viewportChanged) {
+			if (
+				update.docChanged ||
+				update.viewportChanged ||
+				update.selectionSet ||
+				update.transactions.some((tr) =>
+					tr.annotation(priorityChangeAnnotation)
+				)
+			) {
 				// Throttle updates to avoid performance issues with large documents
 				const now = Date.now();
 				if (now - this.lastUpdate > this.updateThreshold) {
 					this.lastUpdate = now;
-					this.updateDecorations(update.view);
+					this.updateDecorations(update.view, update);
+				} else {
+					// Schedule an update in the near future to ensure rendering
+					setTimeout(() => {
+						if (this.view) {
+							this.updateDecorations(this.view);
+						}
+					}, this.updateThreshold);
 				}
 			}
 		}
@@ -324,13 +338,54 @@ export function priorityPickerExtension(
 			// Only apply in live preview mode
 			if (!this.isLivePreview(view.state)) return;
 
-			// Since we don't currently have a priorityFormat setting, just use both
-			// Keep approach simple for now, using only the emoji priorities
-			this.decorations = this.emojiMatch.createDeco(view);
+			try {
+				// Use incremental update when possible for better performance
+				if (update && !update.docChanged && this.decorations.size > 0) {
+					// Try to update emoji decorations
+					const emojiDecos = this.emojiMatch.updateDeco(
+						update,
+						this.decorations
+					);
+					if (emojiDecos.size > 0) {
+						this.decorations = emojiDecos;
+						return;
+					}
 
-			// If no emoji priorities found, check for letter priorities
-			if (this.decorations.size === 0) {
-				this.decorations = this.letterMatch.createDeco(view);
+					// If no emoji decorations, try letter format
+					const letterDecos = this.letterMatch.updateDeco(
+						update,
+						this.decorations
+					);
+					this.decorations = letterDecos;
+				} else {
+					// Create new decorations from scratch
+					// First try emoji priorities
+					const emojiDecos = this.emojiMatch.createDeco(view);
+					if (emojiDecos.size > 0) {
+						this.decorations = emojiDecos;
+						return;
+					}
+
+					// If no emoji priorities found, check for letter priorities
+					this.decorations = this.letterMatch.createDeco(view);
+				}
+			} catch (e) {
+				console.warn(
+					"Error updating priority decorations, regenerating all",
+					e
+				);
+				// Fall back to recreating all decorations
+				try {
+					const emojiDecos = this.emojiMatch.createDeco(view);
+					if (emojiDecos.size > 0) {
+						this.decorations = emojiDecos;
+						return;
+					}
+					this.decorations = this.letterMatch.createDeco(view);
+				} catch (e2) {
+					console.error("Failed to create priority decorations", e2);
+					// Keep existing decorations to avoid breaking the editor
+				}
 			}
 		}
 
@@ -343,55 +398,80 @@ export function priorityPickerExtension(
 			decorationFrom: number,
 			decorationTo: number
 		) {
-			const syntaxNode = syntaxTree(view.state).resolveInner(
-				decorationFrom + 1
-			);
-			const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
+			try {
+				const syntaxNode = syntaxTree(view.state).resolveInner(
+					decorationFrom + 1
+				);
+				const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
 
-			if (nodeProps) {
-				const props = nodeProps.split(" ");
-				if (
-					props.includes("hmd-codeblock") ||
-					props.includes("hmd-frontmatter")
-				) {
-					return false;
+				if (nodeProps) {
+					const props = nodeProps.split(" ");
+					if (
+						props.includes("hmd-codeblock") ||
+						props.includes("hmd-frontmatter")
+					) {
+						return false;
+					}
 				}
+
+				const selection = view.state.selection;
+
+				const overlap = selection.ranges.some((r) => {
+					return !(r.to <= decorationFrom || r.from >= decorationTo);
+				});
+
+				return !overlap && this.isLivePreview(view.state);
+			} catch (e) {
+				// If an error occurs, default to not rendering to avoid breaking the editor
+				console.warn("Error checking if priority should render", e);
+				return false;
 			}
-
-			const selection = view.state.selection;
-
-			const overlap = selection.ranges.some((r) => {
-				return !(r.to <= decorationFrom || r.from >= decorationTo);
-			});
-
-			return !overlap && this.isLivePreview(view.state);
 		}
 	}
 
 	const PriorityViewPluginSpec: PluginSpec<PriorityViewPluginValue> = {
 		decorations: (plugin) => {
-			return plugin.decorations.update({
-				filter: (
-					rangeFrom: number,
-					rangeTo: number,
-					deco: Decoration
-				) => {
-					const widget = deco.spec?.widget;
-					if ((widget as any).error) {
-						return false;
-					}
+			try {
+				return plugin.decorations.update({
+					filter: (
+						rangeFrom: number,
+						rangeTo: number,
+						deco: Decoration
+					) => {
+						try {
+							const widget = deco.spec?.widget;
+							if ((widget as any).error) {
+								return false;
+							}
 
-					const selection = plugin.view.state.selection;
+							const selection = plugin.view.state.selection;
 
-					for (const range of selection.ranges) {
-						if (!(range.to <= rangeFrom || range.from >= rangeTo)) {
-							return false;
+							// Remove decorations when cursor is inside them
+							for (const range of selection.ranges) {
+								if (
+									!(
+										range.to <= rangeFrom ||
+										range.from >= rangeTo
+									)
+								) {
+									return false;
+								}
+							}
+
+							return true;
+						} catch (e) {
+							console.warn(
+								"Error filtering priority decoration",
+								e
+							);
+							return false; // Remove decoration on error
 						}
-					}
-
-					return true;
-				},
-			});
+					},
+				});
+			} catch (e) {
+				console.error("Failed to update decorations filter", e);
+				return plugin.decorations; // Return current decorations to avoid breaking the editor
+			}
 		},
 	};
 

@@ -7,7 +7,7 @@ import {
 	Editor,
 	Menu,
 } from "obsidian";
-import { taskProgressBarExtension } from "./editor-ext/widget";
+import { taskProgressBarExtension } from "./editor-ext/progressBarWidget";
 import { updateProgressBarInElement } from "./components/readModeWidget";
 import { applyTaskTextMarks } from "./components/readModeTextMark";
 import {
@@ -32,7 +32,20 @@ import {
 import { moveTaskCommand } from "./commands/taskMover";
 import { moveCompletedTasksCommand } from "./commands/completedTaskMover";
 import { datePickerExtension } from "./editor-ext/datePicker";
-
+import {
+	quickCaptureExtension,
+	toggleQuickCapture,
+	quickCaptureState,
+} from "./editor-ext/quickCapture";
+import {
+	taskFilterExtension,
+	toggleTaskFilter,
+	taskFilterState,
+} from "./editor-ext/filterTasks";
+import { QuickCaptureModal } from "./components/QuickCaptureModal";
+import { MarkdownView } from "obsidian";
+import { Notice } from "obsidian";
+import { t } from "./translations/helper";
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
 	data: {
@@ -139,10 +152,22 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.registerEditorExtension([datePickerExtension(this.app, this)]);
 		}
 
+		// Add quick capture extension
+		if (this.settings.quickCapture.enableQuickCapture) {
+			this.registerEditorExtension([
+				quickCaptureExtension(this.app, this),
+			]);
+		}
+
+		// Add task filter extension
+		if (this.settings.taskFilter.enableTaskFilter) {
+			this.registerEditorExtension([taskFilterExtension(this)]);
+		}
+
 		// Add command for cycling task status forward
 		this.addCommand({
 			id: "cycle-task-status-forward",
-			name: "Cycle task status forward",
+			name: t("Cycle task status forward"),
 			editorCheckCallback: (checking, editor, ctx) => {
 				return cycleTaskStatusForward(checking, editor, ctx, this);
 			},
@@ -151,7 +176,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add command for cycling task status backward
 		this.addCommand({
 			id: "cycle-task-status-backward",
-			name: "Cycle task status backward",
+			name: t("Cycle task status backward"),
 			editorCheckCallback: (checking, editor, ctx) => {
 				return cycleTaskStatusBackward(checking, editor, ctx, this);
 			},
@@ -186,7 +211,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 			// Remove priority command
 			this.addCommand({
 				id: "remove-priority",
-				name: "Remove priority",
+				name: t("Remove priority"),
 				editorCallback: (editor) => {
 					this.removePriorityAtCursor(editor);
 				},
@@ -196,7 +221,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add command for moving tasks
 		this.addCommand({
 			id: "move-task-to-file",
-			name: "Move task to another file",
+			name: t("Move task to another file"),
 			editorCheckCallback: (checking, editor, ctx) => {
 				return moveTaskCommand(checking, editor, ctx, this);
 			},
@@ -207,7 +232,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 			// Command for moving all completed subtasks and their children
 			this.addCommand({
 				id: "move-completed-subtasks-to-file",
-				name: "Move all completed subtasks to another file",
+				name: t("Move all completed subtasks to another file"),
 				editorCheckCallback: (checking, editor, ctx) => {
 					return moveCompletedTasksCommand(
 						checking,
@@ -222,7 +247,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 			// Command for moving direct completed children
 			this.addCommand({
 				id: "move-direct-completed-subtasks-to-file",
-				name: "Move direct completed subtasks to another file",
+				name: t("Move direct completed subtasks to another file"),
 				editorCheckCallback: (checking, editor, ctx) => {
 					return moveCompletedTasksCommand(
 						checking,
@@ -237,7 +262,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 			// Command for moving all subtasks (completed and uncompleted)
 			this.addCommand({
 				id: "move-all-subtasks-to-file",
-				name: "Move all subtasks to another file",
+				name: t("Move all subtasks to another file"),
 				editorCheckCallback: (checking, editor, ctx) => {
 					return moveCompletedTasksCommand(
 						checking,
@@ -254,7 +279,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.app.workspace.on("editor-menu", (menu, editor) => {
 				if (this.settings.enablePriorityKeyboardShortcuts) {
 					menu.addItem((item) => {
-						item.setTitle("Set priority");
+						item.setTitle(t("Set priority"));
 						item.setIcon("list-ordered");
 						// @ts-ignore
 						const submenu = item.setSubmenu() as Menu;
@@ -296,7 +321,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 						// Remove priority command
 						submenu.addItem((item) => {
-							item.setTitle("Remove Priority");
+							item.setTitle(t("Remove Priority"));
 							item.setIcon("list-x");
 							// @ts-ignore
 							item.setWarning(true);
@@ -339,6 +364,96 @@ export default class TaskProgressBarPlugin extends Plugin {
 					ctx: ctx,
 				});
 			});
+		});
+
+		// Add command for toggling quick capture panel in editor
+		this.addCommand({
+			id: "toggle-quick-capture",
+			name: t("Toggle quick capture panel"),
+			editorCallback: (editor) => {
+				const editorView = editor.cm as EditorView;
+
+				try {
+					// Check if the state field exists
+					const stateField =
+						editorView.state.field(quickCaptureState);
+
+					// Toggle the quick capture panel
+					editorView.dispatch({
+						effects: toggleQuickCapture.of(!stateField),
+					});
+				} catch (e) {
+					// Field doesn't exist, create it with value true (to show panel)
+					editorView.dispatch({
+						effects: toggleQuickCapture.of(true),
+					});
+				}
+			},
+		});
+
+		// Add a global command for quick capture from anywhere
+		this.addCommand({
+			id: "global-quick-capture",
+			name: t("Quick capture (Global)"),
+			callback: () => {
+				// Get the active leaf if available
+				const activeLeaf =
+					this.app.workspace.getActiveViewOfType(MarkdownView);
+
+				if (activeLeaf && activeLeaf.editor) {
+					// If we're in a markdown editor, use the editor command
+					const editorView = activeLeaf.editor.cm as EditorView;
+
+					// Import necessary functions dynamically to avoid circular dependencies
+
+					try {
+						// Show the quick capture panel
+						editorView.dispatch({
+							effects: toggleQuickCapture.of(true),
+						});
+					} catch (e) {
+						// No quick capture state found, try to add the extension first
+						// This is a simplified approach and might not work in all cases
+						this.registerEditorExtension([
+							quickCaptureExtension(this.app, this),
+						]);
+
+						// Try again after registering the extension
+						setTimeout(() => {
+							try {
+								editorView.dispatch({
+									effects: toggleQuickCapture.of(true),
+								});
+							} catch (e) {
+								new Notice(
+									"Could not open quick capture panel in the current editor"
+								);
+							}
+						}, 100);
+					}
+				} else {
+					// No active markdown view, show a floating capture window instead
+					// Create a simple modal with capture functionality
+					new QuickCaptureModal(this.app, this).open();
+				}
+			},
+		});
+
+		// Add command for toggling task filter
+		this.addCommand({
+			id: "toggle-task-filter",
+			name: t("Toggle task filter panel"),
+			editorCallback: (editor, ctx) => {
+				const view = editor.cm as EditorView;
+
+				if (view) {
+					view.dispatch({
+						effects: toggleTaskFilter.of(
+							!view.state.field(taskFilterState)
+						),
+					});
+				}
+			},
 		});
 	}
 
