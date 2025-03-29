@@ -56,7 +56,6 @@ export function handleParentTaskUpdateTransaction(
 	const { doc, lineNumber } = taskStatusChangeInfo;
 	const parentInfo = findParentTask(doc, lineNumber);
 
-	console.log(parentInfo);
 	if (!parentInfo) {
 		return tr;
 	}
@@ -247,7 +246,6 @@ function findParentTask(
 	// Get the current line and its indentation level
 	const currentLine = doc.line(lineNumber);
 	const currentLineText = currentLine.text;
-	console.log(currentLineText, currentLine);
 	const currentIndentMatch = currentLineText.match(/^[\s|\t]*/);
 	const currentIndentLevel = currentIndentMatch
 		? currentIndentMatch[0].length

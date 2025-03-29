@@ -77,10 +77,8 @@ export interface TaskProgressBarSettings {
 	quickCapture: {
 		enableQuickCapture: boolean;
 		targetFile: string;
-		entryPrefix: string;
 		placeholder: string;
-		appendToFile: boolean;
-		dateFormat: string;
+		appendToFile: "append" | "prepend" | "replace";
 	};
 }
 
@@ -164,10 +162,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	quickCapture: {
 		enableQuickCapture: false,
 		targetFile: "Quick Capture.md",
-		entryPrefix: "- ",
 		placeholder: "Capture thoughts, tasks, or ideas...",
-		appendToFile: true,
-		dateFormat: "YYYY-MM-DD",
+		appendToFile: "append",
 	},
 };
 
@@ -1369,20 +1365,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(this.containerEl)
-			.setName("Entry prefix")
-			.setDesc(
-				"Prefix to add before each captured entry. Use '- ' for bullet points, '- [ ] ' for tasks, etc."
-			)
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.quickCapture.entryPrefix)
-					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.entryPrefix = value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		new Setting(this.containerEl)
 			.setName("Placeholder text")
 			.setDesc("Placeholder text to display in the capture panel")
 			.addText((text) =>
@@ -1399,25 +1381,15 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.setDesc(
 				"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content."
 			)
-			.addToggle((toggle) =>
-				toggle
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("append", "Append")
+					.addOption("prepend", "Prepend")
+					.addOption("replace", "Replace")
 					.setValue(this.plugin.settings.quickCapture.appendToFile)
 					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.appendToFile = value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		new Setting(this.containerEl)
-			.setName("Date format")
-			.setDesc(
-				"Format for dates when using {{date}} in your entries. Uses tokens: YYYY (year), MM (month), DD (day), HH (hour), mm (minute), ss (second)"
-			)
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.quickCapture.dateFormat)
-					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.dateFormat = value;
+						this.plugin.settings.quickCapture.appendToFile =
+							value as "append" | "prepend" | "replace";
 						this.applySettingsUpdate();
 					})
 			);

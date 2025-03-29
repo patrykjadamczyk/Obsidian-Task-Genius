@@ -445,8 +445,6 @@ export function taskProgressBarExtension(
 						headingLine.from
 					);
 
-					console.log(range, headingLine);
-
 					if (!range) continue;
 
 					const tasksNum = this.extractTasksFromRange(
@@ -454,8 +452,6 @@ export function taskProgressBarExtension(
 						view.state,
 						false
 					);
-
-					console.log(tasksNum);
 
 					if (tasksNum.total === 0) continue;
 
