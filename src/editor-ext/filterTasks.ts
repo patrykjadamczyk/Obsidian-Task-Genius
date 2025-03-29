@@ -465,7 +465,8 @@ function filterPanelDisplay(
 					view.dispatch({
 						effects: updateActiveFilters.of({ ...activeFilters }),
 					});
-					debounceFilter(view, plugin);
+
+					applyTaskFilters(view, plugin);
 				});
 		});
 
@@ -539,7 +540,8 @@ function filterPanelDisplay(
 								...activeFilters,
 							}),
 						});
-						debounceFilter(view, plugin);
+
+						applyTaskFilters(view, plugin);
 					});
 			});
 	}
@@ -549,7 +551,7 @@ function filterPanelDisplay(
 		.addButton((button) => {
 			button.setCta();
 			button.setButtonText("Apply").onClick(() => {
-				debounceFilter(view, plugin);
+				applyTaskFilters(view, plugin);
 			});
 		})
 		.addButton((button) => {
@@ -676,9 +678,9 @@ function createTaskFilterPanel(view: EditorView): Panel {
 		destroy: () => {
 			// Clear any filters when the panel is closed
 			// Use setTimeout to avoid dispatching during an update
-			setTimeout(() => {
-				resetTaskFilters(view);
-			}, 0);
+			// setTimeout(() => {
+			// 	resetTaskFilters(view);
+			// }, 0);
 		},
 	};
 }
