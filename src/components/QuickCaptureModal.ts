@@ -6,6 +6,7 @@ import {
 import TaskProgressBarPlugin from "../index";
 import { saveCapture } from "../utils/fileUtils";
 import { FileSuggest } from "../editor-ext/quickCapture";
+import { t } from "../translations/helper";
 
 export class QuickCaptureModal extends Modal {
 	plugin: TaskProgressBarPlugin;
@@ -26,7 +27,7 @@ export class QuickCaptureModal extends Modal {
 		this.modalEl.toggleClass("quick-capture-modal", true);
 
 		this.titleEl.createDiv({
-			text: "Capture to",
+			text: t("Capture to"),
 		});
 
 		const targetFileEl = this.titleEl.createEl("div", {
@@ -113,13 +114,13 @@ export class QuickCaptureModal extends Modal {
 
 		// Create the buttons
 		const submitButton = buttonContainer.createEl("button", {
-			text: "Capture",
+			text: t("Capture"),
 			cls: "mod-cta",
 		});
 		submitButton.addEventListener("click", () => this.handleSubmit());
 
 		const cancelButton = buttonContainer.createEl("button", {
-			text: "Cancel",
+			text: t("Cancel"),
 		});
 		cancelButton.addEventListener("click", () => this.close());
 
@@ -143,7 +144,7 @@ export class QuickCaptureModal extends Modal {
 			"";
 
 		if (!content) {
-			new Notice("Nothing to capture");
+			new Notice(t("Nothing to capture"));
 			return;
 		}
 
@@ -152,10 +153,10 @@ export class QuickCaptureModal extends Modal {
 				...this.plugin.settings.quickCapture,
 				targetFile: this.tempTargetFilePath,
 			});
-			new Notice("Captured successfully");
+			new Notice(t("Captured successfully"));
 			this.close();
 		} catch (error) {
-			new Notice(`Failed to save: ${error}`);
+			new Notice(`${t("Failed to save:")} ${error}`);
 		}
 	}
 

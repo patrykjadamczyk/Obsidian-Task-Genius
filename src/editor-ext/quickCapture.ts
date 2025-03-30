@@ -151,7 +151,7 @@ const handleSubmit = async (
 
 	const content = markdownEditor.value.trim();
 	if (!content) {
-		new Notice("Nothing to capture");
+		new Notice(t("Nothing to capture"));
 		return;
 	}
 
@@ -171,9 +171,9 @@ const handleSubmit = async (
 			effects: toggleQuickCapture.of(false),
 		});
 
-		new Notice(`Captured successfully to ${selectedTargetPath}`);
+		new Notice(`${t("Captured successfully to")} ${selectedTargetPath}`);
 	} catch (error) {
-		new Notice(`Failed to save: ${error}`);
+		new Notice(`${t("Failed to save:")} ${error}`);
 	}
 };
 

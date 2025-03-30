@@ -427,7 +427,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 								});
 							} catch (e) {
 								new Notice(
-									"Could not open quick capture panel in the current editor"
+									t(
+										"Could not open quick capture panel in the current editor"
+									)
 								);
 							}
 						}, 100);

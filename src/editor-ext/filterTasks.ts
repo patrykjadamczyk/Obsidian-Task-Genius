@@ -911,11 +911,6 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 		effects: updateHiddenTaskRanges.of(hiddenTaskRanges),
 	});
 
-	console.log(
-		view.state.field(editorInfoField)?.filterAction,
-		checkFilterChanges(view, plugin)
-	);
-
 	view.state
 		.field(editorInfoField)
 		// @ts-ignore

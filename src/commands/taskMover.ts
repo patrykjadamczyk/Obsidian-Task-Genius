@@ -12,6 +12,7 @@ import {
 } from "obsidian";
 import TaskProgressBarPlugin from "..";
 import { buildIndentString } from "../utils";
+import { t } from "../translations/helper";
 
 /**
  * Modal for selecting a target file to move tasks to
@@ -62,7 +63,7 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 	renderSuggestion(item: FuzzyMatch<TFile | string>, el: HTMLElement): void {
 		const match = item.item;
 		if (typeof match === "string") {
-			el.createEl("div", { text: `Create new file: ${match}` });
+			el.createEl("div", { text: `${t("Create new file:")} ${match}` });
 		} else {
 			el.createEl("div", { text: match.path });
 		}
@@ -144,9 +145,9 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 			// Open the new file
 			this.app.workspace.getLeaf(true).openFile(newFile);
 
-			new Notice(`Task moved to ${fileName}`);
+			new Notice(`${t("Task moved to")} ${fileName}`);
 		} catch (error) {
-			new Notice(`Failed to create file: ${error}`);
+			new Notice(`${t("Failed to create file:")} ${error}`);
 			console.error(error);
 		}
 	}
@@ -398,9 +399,9 @@ export class BlockSelectionModal extends SuggestModal<{
 			// Open the target file
 			// this.app.workspace.getLeaf().openFile(this.targetFile);
 
-			new Notice(`Task moved to ${this.targetFile.path}`);
+			new Notice(`${t("Task moved to")} ${this.targetFile.path}`);
 		} catch (error) {
-			new Notice(`Failed to move task: ${error}`);
+			new Notice(`${t("Failed to move task:")} ${error}`);
 			console.error(error);
 		}
 	}
@@ -532,7 +533,7 @@ export function moveTaskCommand(
 
 	// Execute the command
 	if (!currentFile) {
-		new Notice("No active file found");
+		new Notice(t("No active file found"));
 		return false;
 	}
 

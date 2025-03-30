@@ -134,11 +134,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Progress range text customization
 	customizeProgressRanges: false,
 	progressRanges: [
-		{ min: 0, max: 20, text: "Just started {{PROGRESS}}%" },
-		{ min: 20, max: 40, text: "Making progress {{PROGRESS}}%" },
-		{ min: 40, max: 60, text: "Half way {{PROGRESS}}%" },
-		{ min: 60, max: 80, text: "Good progress {{PROGRESS}}%" },
-		{ min: 80, max: 100, text: "Almost there {{PROGRESS}}%" },
+		{ min: 0, max: 20, text: t("Just started {{PROGRESS}}%") },
+		{ min: 20, max: 40, text: t("Making progress {{PROGRESS}}%") },
+		{ min: 40, max: 60, text: t("Half way {{PROGRESS}}%") },
+		{ min: 60, max: 80, text: t("Good progress {{PROGRESS}}%") },
+		{ min: 80, max: 100, text: t("Almost there {{PROGRESS}}%") },
 	],
 
 	// Task status switcher settings
@@ -1346,22 +1346,22 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.addButton((button) => {
 				button.setButtonText(t("Reset")).onClick(async () => {
 					this.plugin.settings.progressRanges = [
-						{ min: 0, max: 20, text: "Just started {{PROGRESS}}%" },
+						{ min: 0, max: 20, text: t("Just started {{PROGRESS}}%") },
 						{
 							min: 20,
 							max: 40,
-							text: "Making progress {{PROGRESS}}%",
+							text: t("Making progress {{PROGRESS}}%"),
 						},
-						{ min: 40, max: 60, text: "Half way {{PROGRESS}}%" },
+						{ min: 40, max: 60, text: t("Half way {{PROGRESS}}%") },
 						{
 							min: 60,
 							max: 80,
-							text: "Good progress {{PROGRESS}}%",
+							text: t("Good progress {{PROGRESS}}%"),
 						},
 						{
 							min: 80,
 							max: 100,
-							text: "Almost there {{PROGRESS}}%",
+							text: t("Almost there {{PROGRESS}}%"),
 						},
 					];
 					this.applySettingsUpdate();
@@ -1576,7 +1576,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			if (presetFilters.length === 0) {
 				presetFiltersContainer.createEl("div", {
 					cls: "no-presets-message",
-					text: "No preset filters created yet. Click 'Add New Preset' to create one.",
+					text: t("No preset filters created yet. Click 'Add New Preset' to create one."),
 				});
 			}
 

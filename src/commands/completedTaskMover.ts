@@ -13,6 +13,7 @@ import {
 } from "obsidian";
 import TaskProgressBarPlugin from "..";
 import { buildIndentString, getTabSize } from "../utils";
+import { t } from "../translations/helper";
 
 /**
  * Modal for selecting a target file to move completed tasks to
@@ -68,7 +69,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 	renderSuggestion(item: FuzzyMatch<TFile | string>, el: HTMLElement): void {
 		const match = item.item;
 		if (typeof match === "string") {
-			el.createEl("div", { text: `Create new file: ${match}` });
+			el.createEl("div", { text: `${t("Create new file:")} ${match}` });
 		} else {
 			el.createEl("div", { text: match.path });
 		}
@@ -153,9 +154,9 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 			// Open the new file
 			this.app.workspace.getLeaf(true).openFile(newFile);
 
-			new Notice(`Completed tasks moved to ${fileName}`);
+			new Notice(`${t("Completed tasks moved to")} ${fileName}`);
 		} catch (error) {
-			new Notice(`Failed to create file: ${error}`);
+			new Notice(`${t("Failed to create file:")} ${error}`);
 			console.error(error);
 		}
 	}
@@ -692,7 +693,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		// Add an option to insert at the beginning of the file
 		blocks.push({
 			id: "beginning",
-			text: "Beginning of file",
+			text: t("Beginning of file"),
 			level: 0,
 		});
 
@@ -813,9 +814,9 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 			// Open the target file
 			// this.app.workspace.getLeaf().openFile(this.targetFile);
 
-			new Notice(`Completed tasks moved to ${this.targetFile.path}`);
+			new Notice(`${t("Completed tasks moved to")} ${this.targetFile.path}`);
 		} catch (error) {
-			new Notice(`Failed to move tasks: ${error}`);
+			new Notice(`${t("Failed to move tasks:")} ${error}`);
 			console.error(error);
 		}
 	}
@@ -1320,7 +1321,7 @@ export function moveCompletedTasksCommand(
 
 	// Execute the command
 	if (!currentFile) {
-		new Notice("No active file found");
+		new Notice(t("No active file found"));
 		return false;
 	}
 
