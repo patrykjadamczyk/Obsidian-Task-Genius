@@ -261,6 +261,13 @@ const translations = {
 	"Toggle quick capture panel": "切換快速捕獲面板",
 	"Quick capture (Global)": "快速捕獲（全局）",
 	"Toggle task filter panel": "切換任務過濾器面板",
+	"Filter Mode": "過濾模式",
+	"Choose whether to include or exclude tasks that match the filters":
+		"選擇是包含還是排除符合過濾條件的任務",
+	"Show matching tasks": "顯示匹配的任務",
+	"Hide matching tasks": "隱藏匹配的任務",
+	"Choose whether to show or hide tasks that match the filters":
+		"選擇是顯示還是隱藏符合過濾條件的任務",
 };
 
 export default translations;

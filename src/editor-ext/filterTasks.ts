@@ -273,6 +273,26 @@ export const taskFilterOptions = Facet.define<
 	},
 });
 
+// Ensure backward compatibility for older preset configurations that might use filterOutTasks
+export function migrateOldFilterOptions(options: any): TaskFilterOptions {
+	// Create a new object with default options
+	const migrated = { ...DEFAULT_FILTER_OPTIONS };
+
+	// Copy all valid properties from the old options
+	Object.keys(DEFAULT_FILTER_OPTIONS).forEach((key) => {
+		if (key in options && options[key] !== undefined) {
+			(migrated as any)[key] = options[key];
+		}
+	});
+
+	// Handle filterOutTasks to filterMode migration if needed
+	if ("filterOutTasks" in options && options.filterMode === undefined) {
+		migrated.filterMode = options.filterOutTasks ? "EXCLUDE" : "INCLUDE";
+	}
+
+	return migrated;
+}
+
 // Helper function to get filter option value safely with proper typing
 function getFilterOption(
 	options: TaskFilterOptions,
@@ -1178,7 +1198,9 @@ export function taskFilterExtension(plugin: TaskProgressBarPlugin) {
  */
 export function getActiveFiltersForView(view: EditorView): TaskFilterOptions {
 	if (view.state.field(activeFiltersState, false)) {
-		return view.state.field(activeFiltersState);
+		const activeFilters = view.state.field(activeFiltersState);
+		// Ensure the active filters are properly migrated
+		return migrateOldFilterOptions(activeFilters);
 	}
 	return { ...DEFAULT_FILTER_OPTIONS };
 }

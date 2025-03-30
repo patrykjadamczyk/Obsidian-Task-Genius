@@ -1,7 +1,10 @@
 import { App, PluginSettingTab, Setting, Modal } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
-import { TaskFilterOptions } from "./editor-ext/filterTasks";
+import {
+	TaskFilterOptions,
+	migrateOldFilterOptions,
+} from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
 
 export interface TaskProgressBarSettings {
@@ -1644,7 +1647,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 									includeChildTasks: true,
 									includeSiblingTasks: false,
 									advancedFilterQuery: "",
-									filterOutTasks: false,
+									filterMode: "INCLUDE" as
+										| "INCLUDE"
+										| "EXCLUDE",
 								},
 							};
 
@@ -1729,7 +1734,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					includeChildTasks: true,
 					includeSiblingTasks: false,
 					advancedFilterQuery: "",
-					filterOutTasks: false,
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
 				},
 			},
 			{
@@ -1745,7 +1750,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					includeChildTasks: true,
 					includeSiblingTasks: false,
 					advancedFilterQuery: "",
-					filterOutTasks: false,
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
 				},
 			},
 			{
@@ -1761,7 +1766,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					includeChildTasks: true,
 					includeSiblingTasks: false,
 					advancedFilterQuery: "",
-					filterOutTasks: false,
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
 				},
 			},
 			{
@@ -1777,7 +1782,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					includeChildTasks: true,
 					includeSiblingTasks: true,
 					advancedFilterQuery: "",
-					filterOutTasks: false,
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
 				},
 			},
 		];
@@ -1791,6 +1796,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 class PresetFilterModal extends Modal {
 	constructor(app: App, private preset: any, private onSave: () => void) {
 		super(app);
+		// Migrate old preset options if needed
+		if (this.preset && this.preset.options) {
+			this.preset.options = migrateOldFilterOptions(this.preset.options);
+		}
 	}
 
 	onOpen() {
@@ -1878,17 +1887,17 @@ class PresetFilterModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Filter out tasks"))
+			.setName(t("Filter Mode"))
 			.setDesc(
-				t(
-					"If enabled, tasks that match the query will be hidden, otherwise they will be shown"
-				)
+				t("Choose whether to show or hide tasks that match the filters")
 			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.preset.options.filterOutTasks)
-					.onChange((value) => {
-						this.preset.options.filterOutTasks = value;
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("INCLUDE", t("Show matching tasks"))
+					.addOption("EXCLUDE", t("Hide matching tasks"))
+					.setValue(this.preset.options.filterMode || "INCLUDE")
+					.onChange((value: "INCLUDE" | "EXCLUDE") => {
+						this.preset.options.filterMode = value;
 					});
 			});
 

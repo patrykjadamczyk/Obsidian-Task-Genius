@@ -41,6 +41,7 @@ import {
 	taskFilterExtension,
 	toggleTaskFilter,
 	taskFilterState,
+	migrateOldFilterOptions,
 } from "./editor-ext/filterTasks";
 import { QuickCaptureModal } from "./components/QuickCaptureModal";
 import { MarkdownView } from "obsidian";
@@ -189,7 +190,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 				if (key !== "none") {
 					this.addCommand({
 						id: `set-priority-${key}`,
-						name: `Set ${priority.text}`,
+						name: `${t("Set priority")} ${priority.text}`,
 						editorCallback: (editor) => {
 							this.setPriorityAtCursor(editor, priority.emoji);
 						},
@@ -201,7 +202,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 			Object.entries(LETTER_PRIORITIES).forEach(([key, priority]) => {
 				this.addCommand({
 					id: `set-priority-letter-${key}`,
-					name: `Set priority ${key}`,
+					name: `${t("Set priority")} ${key}`,
 					editorCallback: (editor) => {
 						this.setPriorityAtCursor(editor, `[#${key}]`);
 					},
@@ -455,6 +456,25 @@ export default class TaskProgressBarPlugin extends Plugin {
 				}
 			},
 		});
+
+		// Migrate old presets to use the new filterMode setting
+		if (
+			this.settings.taskFilter &&
+			this.settings.taskFilter.presetTaskFilters
+		) {
+			this.settings.taskFilter.presetTaskFilters =
+				this.settings.taskFilter.presetTaskFilters.map(
+					(preset: any) => {
+						if (preset.options) {
+							preset.options = migrateOldFilterOptions(
+								preset.options
+							);
+						}
+						return preset;
+					}
+				);
+			await this.saveSettings();
+		}
 	}
 
 	onunload() {}

@@ -271,6 +271,13 @@ const translations = {
 	"Toggle quick capture panel": "クイックキャプチャパネルを切り替え",
 	"Quick capture (Global)": "クイックキャプチャ（グローバル）",
 	"Toggle task filter panel": "タスクフィルターパネルを切り替え",
+	"Filter Mode": "フィルターモード",
+	"Choose whether to include or exclude tasks that match the filters":
+		"タスクをフィルターする方法を選択します。",
+	"Show matching tasks": "一致するタスクを表示",
+	"Hide matching tasks": "一致するタスクを非表示",
+	"Choose whether to show or hide tasks that match the filters":
+		"タスクをフィルターする方法を選択します。",
 };
 
 export default translations;

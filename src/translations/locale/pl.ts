@@ -200,7 +200,12 @@ const translations = {
   "Set priority": "Set priority",
   "Toggle quick capture panel": "Toggle quick capture panel",
   "Quick capture (Global)": "Quick capture (Global)",
-  "Toggle task filter panel": "Toggle task filter panel"
+  "Toggle task filter panel": "Toggle task filter panel",
+  "Filter Mode": "Filter Mode",
+  "Choose whether to include or exclude tasks that match the filters": "Choose whether to include or exclude tasks that match the filters",
+  "Show matching tasks": "Show matching tasks",
+  "Hide matching tasks": "Hide matching tasks",
+  "Choose whether to show or hide tasks that match the filters": "Choose whether to show or hide tasks that match the filters"
 };
 
 export default translations;
