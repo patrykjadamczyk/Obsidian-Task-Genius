@@ -234,8 +234,8 @@ export interface TaskFilterOptions {
 	// Advanced search query
 	advancedFilterQuery: string;
 
-	// Filter out/in tasks
-	filterOutTasks: boolean;
+	// Global filter mode - true to show matching tasks, false to hide matching tasks
+	filterMode: "INCLUDE" | "EXCLUDE";
 }
 
 // Default filter options
@@ -252,7 +252,7 @@ export const DEFAULT_FILTER_OPTIONS: TaskFilterOptions = {
 
 	advancedFilterQuery: "",
 
-	filterOutTasks: false,
+	filterMode: "INCLUDE",
 };
 
 // Facet to provide filter options
@@ -435,7 +435,8 @@ function filterPanelDisplay(
 			text.inputEl.addEventListener("keydown", (event) => {
 				if (event.key === "Enter") {
 					if (Keymap.isModEvent(event)) {
-						activeFilters.filterOutTasks = true;
+						// Use Ctrl+Enter to switch to EXCLUDE mode
+						activeFilters.filterMode = "EXCLUDE";
 						// Update state with new active filters
 						view.dispatch({
 							effects: updateActiveFilters.of({
@@ -444,7 +445,8 @@ function filterPanelDisplay(
 						});
 						debounceFilter(view, plugin);
 					} else {
-						activeFilters.filterOutTasks = false;
+						// Regular Enter uses INCLUDE mode
+						activeFilters.filterMode = "INCLUDE";
 						// Update state with new active filters
 						view.dispatch({
 							effects: updateActiveFilters.of({
@@ -461,18 +463,28 @@ function filterPanelDisplay(
 			text.inputEl.toggleClass("task-filter-query-input", true);
 		});
 
-	new Setting(advancedSection)
-		.setName(t("Filter out tasks"))
+	// Add Filter Mode selector
+	const filterModeSection = filterOptionsDiv.createEl("div", {
+		cls: "task-filter-section",
+	});
+
+	let filterModeDropdown: DropdownComponent | null = null;
+
+	new Setting(filterModeSection)
+		.setName(t("Filter Mode"))
 		.setDesc(
 			t(
-				"If true, tasks that match the query will be hidden, otherwise they will be shown"
+				"Choose whether to include or exclude tasks that match the filters"
 			)
 		)
-		.addToggle((toggle) => {
-			toggle
-				.setValue(getFilterOption(options, "filterOutTasks"))
-				.onChange((value: boolean) => {
-					activeFilters.filterOutTasks = value;
+		.addDropdown((dropdown) => {
+			filterModeDropdown = dropdown;
+			dropdown
+				.addOption("INCLUDE", t("Show matching tasks"))
+				.addOption("EXCLUDE", t("Hide matching tasks"))
+				.setValue(getFilterOption(options, "filterMode"))
+				.onChange((value: "INCLUDE" | "EXCLUDE") => {
+					activeFilters.filterMode = value;
 					// Update state with new active filters
 					view.dispatch({
 						effects: updateActiveFilters.of({ ...activeFilters }),
@@ -636,6 +648,11 @@ function filterPanelDisplay(
 			queryInput.setValue(activeFilters.advancedFilterQuery);
 		}
 
+		// Update filter mode dropdown if it exists
+		if (filterModeDropdown) {
+			filterModeDropdown.setValue(activeFilters.filterMode);
+		}
+
 		// Update status toggles
 		for (const status of statuses) {
 			const propName = `include${status.id}` as keyof TaskFilterOptions;
@@ -709,55 +726,112 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 
 	// Build a map of matching tasks for quick lookup
 	const matchingTaskIds = new Set<number>();
+	// Set for tasks that directly match primary filters
+	const directMatchTaskIds = new Set<number>();
 
 	// Calculate new hidden task ranges
 	let hiddenTaskRanges: Array<{ from: number; to: number }> = [];
 
-	// First identify tasks that match the filter directly
+	// First identify tasks that pass status filters (mandatory)
+	const statusFilteredTasks: Array<{ task: Task; index: number }> = [];
 	tasks.forEach((task, index) => {
-		const baseResult = shouldHideTask(task, {
-			...activeFilters,
-			includeParentTasks: false,
-			includeChildTasks: false,
-			includeSiblingTasks: false,
-		});
+		// Check if task passes status filters
+		const passesStatusFilter =
+			(activeFilters.includeCompleted && task.status === "completed") ||
+			(activeFilters.includeInProgress && task.status === "inProgress") ||
+			(activeFilters.includeAbandoned && task.status === "abandoned") ||
+			(activeFilters.includeNotStarted && task.status === "notStarted") ||
+			(activeFilters.includePlanned && task.status === "planned");
 
-		if (!baseResult) {
-			matchingTaskIds.add(index);
+		// Only process tasks that match status filters
+		if (passesStatusFilter) {
+			statusFilteredTasks.push({ task, index });
 		}
 	});
 
-	// Then identify parent/child relationships to preserve
+	// Then apply query filters to status-filtered tasks
+	for (const { task, index } of statusFilteredTasks) {
+		// Check advanced query if present
+		let matchesQuery = true;
+		if (activeFilters.advancedFilterQuery.trim() !== "") {
+			try {
+				const parseResult = parseAdvancedFilterQuery(
+					activeFilters.advancedFilterQuery
+				);
+				const result = evaluateFilterNode(parseResult, task);
+				// Use the direct result, filter mode will be handled later
+				matchesQuery = result;
+			} catch (error) {
+				console.error("Error evaluating advanced filter:", error);
+			}
+		}
+
+		// If the task passes both status and query filters
+		if (matchesQuery) {
+			directMatchTaskIds.add(index);
+			matchingTaskIds.add(index);
+		}
+	}
+
+	// Now identify parent/child/sibling relationships only for tasks that match primary filters
 	if (
 		activeFilters.includeParentTasks ||
 		activeFilters.includeChildTasks ||
 		activeFilters.includeSiblingTasks
 	) {
 		for (let i = 0; i < tasks.length; i++) {
-			if (matchingTaskIds.has(i)) {
+			if (directMatchTaskIds.has(i)) {
 				const task = tasks[i];
 
-				// Include parents if enabled
+				// Include parents if enabled AND they match status filters
 				if (activeFilters.includeParentTasks) {
 					let parent = task.parentTask;
 					while (parent) {
-						const parentIndex = tasks.indexOf(parent);
-						if (parentIndex !== -1) {
-							matchingTaskIds.add(parentIndex);
+						// Only include parent if it matches status filters
+						if (
+							(activeFilters.includeCompleted &&
+								parent.status === "completed") ||
+							(activeFilters.includeInProgress &&
+								parent.status === "inProgress") ||
+							(activeFilters.includeAbandoned &&
+								parent.status === "abandoned") ||
+							(activeFilters.includeNotStarted &&
+								parent.status === "notStarted") ||
+							(activeFilters.includePlanned &&
+								parent.status === "planned")
+						) {
+							const parentIndex = tasks.indexOf(parent);
+							if (parentIndex !== -1) {
+								matchingTaskIds.add(parentIndex);
+							}
 						}
 						parent = parent.parentTask;
 					}
 				}
 
-				// Include children if enabled
+				// Include children if enabled AND they match status filters
 				if (activeFilters.includeChildTasks) {
 					const addChildren = (parentTask: Task) => {
 						for (const child of parentTask.childTasks) {
-							const childIndex = tasks.indexOf(child);
-							if (childIndex !== -1) {
-								matchingTaskIds.add(childIndex);
-								// Recursively add grandchildren
-								addChildren(child);
+							// Only include child if it matches status filters
+							if (
+								(activeFilters.includeCompleted &&
+									child.status === "completed") ||
+								(activeFilters.includeInProgress &&
+									child.status === "inProgress") ||
+								(activeFilters.includeAbandoned &&
+									child.status === "abandoned") ||
+								(activeFilters.includeNotStarted &&
+									child.status === "notStarted") ||
+								(activeFilters.includePlanned &&
+									child.status === "planned")
+							) {
+								const childIndex = tasks.indexOf(child);
+								if (childIndex !== -1) {
+									matchingTaskIds.add(childIndex);
+									// Recursively add grandchildren
+									addChildren(child);
+								}
 							}
 						}
 					};
@@ -765,14 +839,27 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 					addChildren(task);
 				}
 
-				// Include siblings if enabled
+				// Include siblings if enabled AND they match status filters
 				if (activeFilters.includeSiblingTasks && task.parentTask) {
 					for (const sibling of task.parentTask.childTasks) {
 						if (sibling !== task) {
-							// Don't include self
-							const siblingIndex = tasks.indexOf(sibling);
-							if (siblingIndex !== -1) {
-								matchingTaskIds.add(siblingIndex);
+							// Only include sibling if it matches status filters
+							if (
+								(activeFilters.includeCompleted &&
+									sibling.status === "completed") ||
+								(activeFilters.includeInProgress &&
+									sibling.status === "inProgress") ||
+								(activeFilters.includeAbandoned &&
+									sibling.status === "abandoned") ||
+								(activeFilters.includeNotStarted &&
+									sibling.status === "notStarted") ||
+								(activeFilters.includePlanned &&
+									sibling.status === "planned")
+							) {
+								const siblingIndex = tasks.indexOf(sibling);
+								if (siblingIndex !== -1) {
+									matchingTaskIds.add(siblingIndex);
+								}
 							}
 						}
 					}
@@ -781,10 +868,17 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 		}
 	}
 
-	// Determine which tasks to hide
-	const tasksToHide = tasks.filter(
-		(task, index) => !matchingTaskIds.has(index)
-	);
+	// Determine which tasks to hide based on the filter mode
+	let tasksToHide: Task[];
+	if (activeFilters.filterMode === "INCLUDE") {
+		// In INCLUDE mode, hide tasks that don't match
+		tasksToHide = tasks.filter(
+			(task, index) => !matchingTaskIds.has(index)
+		);
+	} else {
+		// In EXCLUDE mode, hide tasks that do match
+		tasksToHide = tasks.filter((task, index) => matchingTaskIds.has(index));
+	}
 
 	// Store the ranges to hide
 	hiddenTaskRanges = tasksToHide.map((task) => ({
@@ -799,6 +893,308 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 
 	// Apply decorations to hide filtered tasks
 	applyHiddenTaskDecorations(view, hiddenTaskRanges);
+}
+
+/**
+ * Determines if a task should be hidden based on filter criteria
+ * @param task The task to evaluate
+ * @param filters The filter options to apply
+ * @returns True if the task should be hidden, false otherwise
+ */
+function shouldHideTask(task: Task, filters: TaskFilterOptions): boolean {
+	// First check status filters (these are non-negotiable)
+	const passesStatusFilter =
+		(filters.includeCompleted && task.status === "completed") ||
+		(filters.includeInProgress && task.status === "inProgress") ||
+		(filters.includeAbandoned && task.status === "abandoned") ||
+		(filters.includeNotStarted && task.status === "notStarted") ||
+		(filters.includePlanned && task.status === "planned");
+
+	// If it doesn't pass status filter, always hide it
+	if (!passesStatusFilter) {
+		return true;
+	}
+
+	// Then check query filter if present
+	if (filters.advancedFilterQuery.trim() !== "") {
+		try {
+			const parseResult = parseAdvancedFilterQuery(
+				filters.advancedFilterQuery
+			);
+			const result = evaluateFilterNode(parseResult, task);
+			// Determine visibility based on filter mode
+			const shouldShow =
+				(filters.filterMode === "INCLUDE" && result) ||
+				(filters.filterMode === "EXCLUDE" && !result);
+
+			// If it doesn't meet display criteria, check if it should be shown due to relationships
+			if (!shouldShow) {
+				return !shouldShowDueToRelationships(task, filters);
+			}
+		} catch (error) {
+			console.error("Error evaluating advanced filter:", error);
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Determines if a task should be shown due to its relationships
+ * despite failing query filter
+ */
+function shouldShowDueToRelationships(
+	task: Task,
+	filters: TaskFilterOptions
+): boolean {
+	// Only consider relationships for tasks that pass status filters
+	// Parent relationship
+	if (filters.includeParentTasks && task.childTasks.length > 0) {
+		if (hasMatchingDescendant(task, filters)) {
+			return true;
+		}
+	}
+
+	// Child relationship
+	if (filters.includeChildTasks && task.parentTask) {
+		// First check if parent passes status filter
+		const parentPassesStatusFilter =
+			(filters.includeCompleted &&
+				task.parentTask.status === "completed") ||
+			(filters.includeInProgress &&
+				task.parentTask.status === "inProgress") ||
+			(filters.includeAbandoned &&
+				task.parentTask.status === "abandoned") ||
+			(filters.includeNotStarted &&
+				task.parentTask.status === "notStarted") ||
+			(filters.includePlanned && task.parentTask.status === "planned");
+
+		if (parentPassesStatusFilter) {
+			// Then check query filter (if present)
+			let parentPassesQueryFilter = true;
+			if (filters.advancedFilterQuery.trim() !== "") {
+				try {
+					const parseResult = parseAdvancedFilterQuery(
+						filters.advancedFilterQuery
+					);
+					const result = evaluateFilterNode(
+						parseResult,
+						task.parentTask
+					);
+					// Determine visibility based on filter mode
+					parentPassesQueryFilter =
+						(filters.filterMode === "INCLUDE" && result) ||
+						(filters.filterMode === "EXCLUDE" && !result);
+				} catch (error) {
+					console.error("Error evaluating advanced filter:", error);
+				}
+			}
+
+			if (parentPassesQueryFilter) {
+				return true;
+			}
+		}
+	}
+
+	// Sibling relationship
+	if (filters.includeSiblingTasks && task.parentTask) {
+		for (const sibling of task.parentTask.childTasks) {
+			if (sibling === task) continue; // Skip self
+
+			// First check if sibling passes status filter
+			const siblingPassesStatusFilter =
+				(filters.includeCompleted && sibling.status === "completed") ||
+				(filters.includeInProgress &&
+					sibling.status === "inProgress") ||
+				(filters.includeAbandoned && sibling.status === "abandoned") ||
+				(filters.includeNotStarted &&
+					sibling.status === "notStarted") ||
+				(filters.includePlanned && sibling.status === "planned");
+
+			if (siblingPassesStatusFilter) {
+				// Then check query filter (if present)
+				let siblingPassesQueryFilter = true;
+				if (filters.advancedFilterQuery.trim() !== "") {
+					try {
+						const parseResult = parseAdvancedFilterQuery(
+							filters.advancedFilterQuery
+						);
+						const result = evaluateFilterNode(parseResult, sibling);
+						// Determine visibility based on filter mode
+						siblingPassesQueryFilter =
+							(filters.filterMode === "INCLUDE" && result) ||
+							(filters.filterMode === "EXCLUDE" && !result);
+					} catch (error) {
+						console.error(
+							"Error evaluating advanced filter:",
+							error
+						);
+					}
+				}
+
+				if (siblingPassesQueryFilter) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Checks if a task has any descendant that matches the filter criteria
+ * @param task The parent task to check
+ * @param filters The filter options to apply
+ * @returns True if any descendant matches the filter
+ */
+function hasMatchingDescendant(
+	task: Task,
+	filters: TaskFilterOptions
+): boolean {
+	// Check each child task
+	for (const child of task.childTasks) {
+		// First check if child passes status filter (mandatory)
+		const childPassesStatusFilter =
+			(filters.includeCompleted && child.status === "completed") ||
+			(filters.includeInProgress && child.status === "inProgress") ||
+			(filters.includeAbandoned && child.status === "abandoned") ||
+			(filters.includeNotStarted && child.status === "notStarted") ||
+			(filters.includePlanned && child.status === "planned");
+
+		if (childPassesStatusFilter) {
+			// Then check query filter if present
+			let childPassesQueryFilter = true;
+			if (filters.advancedFilterQuery.trim() !== "") {
+				try {
+					const parseResult = parseAdvancedFilterQuery(
+						filters.advancedFilterQuery
+					);
+					const result = evaluateFilterNode(parseResult, child);
+					// Determine visibility based on filter mode
+					childPassesQueryFilter =
+						(filters.filterMode === "INCLUDE" && result) ||
+						(filters.filterMode === "EXCLUDE" && !result);
+				} catch (error) {
+					console.error("Error evaluating advanced filter:", error);
+				}
+			}
+
+			if (childPassesQueryFilter) {
+				return true;
+			}
+		}
+
+		// Recursively check grandchildren
+		if (hasMatchingDescendant(child, filters)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// Apply decorations to hide filtered tasks
+function applyHiddenTaskDecorations(
+	view: EditorView,
+	ranges: Array<{ from: number; to: number }> = []
+) {
+	// Create decorations for hidden tasks
+	const decorations = ranges.map((range) => {
+		return Decoration.replace({
+			inclusive: true,
+			block: true,
+		}).range(range.from, range.to);
+	});
+
+	// Apply the decorations
+	if (decorations.length > 0) {
+		view.dispatch({
+			effects: filterTasksEffect.of(
+				Decoration.none.update({
+					add: decorations,
+					filter: () => false,
+				})
+			),
+		});
+	} else {
+		// Clear decorations if no tasks to hide
+		view.dispatch({
+			effects: filterTasksEffect.of(Decoration.none),
+		});
+	}
+}
+
+// State field to handle hidden task decorations
+export const filterTasksEffect = StateEffect.define<DecorationSet>();
+
+export const filterTasksField = StateField.define<DecorationSet>({
+	create() {
+		return Decoration.none;
+	},
+	update(decorations, tr) {
+		decorations = decorations.map(tr.changes);
+		for (const effect of tr.effects) {
+			if (effect.is(filterTasksEffect)) {
+				decorations = effect.value;
+			}
+		}
+		return decorations;
+	},
+	provide(field) {
+		return EditorView.decorations.from(field);
+	},
+});
+
+// Facets to make app and plugin instances available to the panel
+export const appFacet = Facet.define<App, App>({
+	combine: (values) => values[0],
+});
+
+export const pluginFacet = Facet.define<
+	TaskProgressBarPlugin,
+	TaskProgressBarPlugin
+>({
+	combine: (values) => values[0],
+});
+
+// Create the extension to enable task filtering in an editor
+export function taskFilterExtension(plugin: TaskProgressBarPlugin) {
+	return [
+		taskFilterState,
+		activeFiltersState,
+		hiddenTaskRangesState,
+		actionButtonState,
+		filterTasksField,
+		taskFilterOptions.of(DEFAULT_FILTER_OPTIONS),
+		pluginFacet.of(plugin),
+	];
+}
+
+/**
+ * Gets the active filter options for a specific editor view
+ * @param view The editor view to get active filters for
+ * @returns The active filter options for the view
+ */
+export function getActiveFiltersForView(view: EditorView): TaskFilterOptions {
+	if (view.state.field(activeFiltersState, false)) {
+		return view.state.field(activeFiltersState);
+	}
+	return { ...DEFAULT_FILTER_OPTIONS };
+}
+
+/**
+ * Gets the hidden task ranges for a specific editor view
+ * @param view The editor view to get hidden ranges for
+ * @returns The array of hidden task ranges
+ */
+export function getHiddenTaskRangesForView(
+	view: EditorView
+): Array<{ from: number; to: number }> {
+	if (view.state.field(hiddenTaskRangesState, false)) {
+		return view.state.field(hiddenTaskRangesState);
+	}
+	return [];
 }
 
 // Reset all task filters
@@ -935,247 +1331,4 @@ function findAllTasks(
 	}
 
 	return tasks;
-}
-
-/**
- * Determines if a task should be hidden based on filter criteria
- * @param task The task to evaluate
- * @param filters The filter options to apply
- * @returns True if the task should be hidden, false otherwise
- */
-function shouldHideTask(task: Task, filters: TaskFilterOptions): boolean {
-	// First check if the task matches basic filter criteria
-	if (matchesBasicFilters(task, filters)) {
-		return !shouldShowDueToRelationships(task, filters);
-	}
-
-	// Check against advanced filter if enabled
-	if (filters.advancedFilterQuery.trim() !== "") {
-		const matchesAdvanced = matchesAdvancedFilter(task, filters);
-		if (matchesAdvanced) {
-			return !shouldShowDueToRelationships(task, filters);
-		}
-	}
-
-	return false;
-}
-
-/**
- * Checks if a task matches the basic status filters
- */
-function matchesBasicFilters(task: Task, filters: TaskFilterOptions): boolean {
-	return (
-		(!filters.includeCompleted && task.status === "completed") ||
-		(!filters.includeInProgress && task.status === "inProgress") ||
-		(!filters.includeAbandoned && task.status === "abandoned") ||
-		(!filters.includeNotStarted && task.status === "notStarted") ||
-		(!filters.includePlanned && task.status === "planned")
-	);
-}
-
-/**
- * Evaluates if a task matches the advanced filter query
- */
-function matchesAdvancedFilter(
-	task: Task,
-	filters: TaskFilterOptions
-): boolean {
-	try {
-		const parseResult = parseAdvancedFilterQuery(
-			filters.advancedFilterQuery
-		);
-		const result = evaluateFilterNode(parseResult, task);
-		return filters.filterOutTasks ? result : !result;
-	} catch (error) {
-		console.error("Error evaluating advanced filter:", error);
-		return false;
-	}
-}
-
-/**
- * Determines if a task should be shown due to its relationships
- * despite matching filter criteria
- */
-function shouldShowDueToRelationships(
-	task: Task,
-	filters: TaskFilterOptions
-): boolean {
-	// Check parent relationship
-	if (filters.includeParentTasks && task.childTasks.length > 0) {
-		if (hasMatchingDescendant(task, filters)) {
-			return true;
-		}
-	}
-
-	// Check child relationship
-	if (filters.includeChildTasks && task.parentTask) {
-		const tempFilters = createRelationshipFreeFilters(filters);
-		if (!shouldHideTask(task.parentTask, tempFilters)) {
-			return true;
-		}
-	}
-
-	// Check sibling relationship
-	if (filters.includeSiblingTasks && task.parentTask) {
-		const tempFilters = createRelationshipFreeFilters(filters);
-		for (const sibling of task.parentTask.childTasks) {
-			if (sibling !== task && !shouldHideTask(sibling, tempFilters)) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-/**
- * Creates a copy of filters with relationship settings disabled
- * to prevent recursion issues
- */
-function createRelationshipFreeFilters(
-	filters: TaskFilterOptions
-): TaskFilterOptions {
-	return {
-		...filters,
-		includeParentTasks: false,
-		includeChildTasks: false,
-		includeSiblingTasks: false,
-	};
-}
-
-/**
- * Checks if a task has any descendant that matches the filter criteria
- * @param task The parent task to check
- * @param filters The filter options to apply
- * @returns True if any descendant matches the filter
- */
-function hasMatchingDescendant(
-	task: Task,
-	filters: TaskFilterOptions
-): boolean {
-	// Check each child task
-	for (const child of task.childTasks) {
-		const tempFilters = createRelationshipFreeFilters(filters);
-
-		// Check if this child would be visible on its own
-		if (
-			!matchesBasicFilters(child, tempFilters) &&
-			!(
-				tempFilters.advancedFilterQuery.trim() !== "" &&
-				matchesAdvancedFilter(child, tempFilters)
-			)
-		) {
-			return true;
-		}
-
-		// Recursively check grandchildren
-		if (hasMatchingDescendant(child, tempFilters)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-// Apply decorations to hide filtered tasks
-function applyHiddenTaskDecorations(
-	view: EditorView,
-	ranges: Array<{ from: number; to: number }> = []
-) {
-	// Create decorations for hidden tasks
-	const decorations = ranges.map((range) => {
-		return Decoration.replace({
-			inclusive: true,
-			block: true,
-		}).range(range.from, range.to);
-	});
-
-	// Apply the decorations
-	if (decorations.length > 0) {
-		view.dispatch({
-			effects: filterTasksEffect.of(
-				Decoration.none.update({
-					add: decorations,
-					filter: () => false,
-				})
-			),
-		});
-	} else {
-		// Clear decorations if no tasks to hide
-		view.dispatch({
-			effects: filterTasksEffect.of(Decoration.none),
-		});
-	}
-}
-
-// State field to handle hidden task decorations
-export const filterTasksEffect = StateEffect.define<DecorationSet>();
-
-export const filterTasksField = StateField.define<DecorationSet>({
-	create() {
-		return Decoration.none;
-	},
-	update(decorations, tr) {
-		decorations = decorations.map(tr.changes);
-		for (const effect of tr.effects) {
-			if (effect.is(filterTasksEffect)) {
-				decorations = effect.value;
-			}
-		}
-		return decorations;
-	},
-	provide(field) {
-		return EditorView.decorations.from(field);
-	},
-});
-
-// Facets to make app and plugin instances available to the panel
-export const appFacet = Facet.define<App, App>({
-	combine: (values) => values[0],
-});
-
-export const pluginFacet = Facet.define<
-	TaskProgressBarPlugin,
-	TaskProgressBarPlugin
->({
-	combine: (values) => values[0],
-});
-
-// Create the extension to enable task filtering in an editor
-export function taskFilterExtension(plugin: TaskProgressBarPlugin) {
-	return [
-		taskFilterState,
-		activeFiltersState,
-		hiddenTaskRangesState,
-		actionButtonState,
-		filterTasksField,
-		taskFilterOptions.of(DEFAULT_FILTER_OPTIONS),
-		pluginFacet.of(plugin),
-	];
-}
-
-/**
- * Gets the active filter options for a specific editor view
- * @param view The editor view to get active filters for
- * @returns The active filter options for the view
- */
-export function getActiveFiltersForView(view: EditorView): TaskFilterOptions {
-	if (view.state.field(activeFiltersState, false)) {
-		return view.state.field(activeFiltersState);
-	}
-	return { ...DEFAULT_FILTER_OPTIONS };
-}
-
-/**
- * Gets the hidden task ranges for a specific editor view
- * @param view The editor view to get hidden ranges for
- * @returns The array of hidden task ranges
- */
-export function getHiddenTaskRangesForView(
-	view: EditorView
-): Array<{ from: number; to: number }> {
-	if (view.state.field(hiddenTaskRangesState, false)) {
-		return view.state.field(hiddenTaskRangesState);
-	}
-	return [];
 }
