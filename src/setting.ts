@@ -224,6 +224,15 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
+			.setName(t("Progress bar"))
+			.setDesc(
+				t(
+					"You can customize the progress bar behind the parent task(usually at the end of the task). You can also customize the progress bar for the task below the heading."
+				)
+			)
+			.setHeading();
+
+		new Setting(containerEl)
 			.setName(t("Show progress bar"))
 			.setDesc(t("Toggle this to show the progress bar."))
 			.addToggle((toggle) =>
@@ -232,79 +241,192 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showProgressBar = value;
 						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					})
 			);
 
-		new Setting(containerEl)
-			.setName(t("Support hover to show progress info"))
-			.setDesc(
-				t(
-					"Toggle this to allow this plugin to show progress info when hovering over the progress bar."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.supportHoverToShowProgressInfo
+		if (this.plugin.settings.showProgressBar) {
+			new Setting(containerEl)
+				.setName(t("Support hover to show progress info"))
+				.setDesc(
+					t(
+						"Toggle this to allow this plugin to show progress info when hovering over the progress bar."
 					)
-					.onChange(async (value) => {
-						this.plugin.settings.supportHoverToShowProgressInfo =
-							value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName(t("Add progress bar to non-task bullet"))
-			.setDesc(
-				t(
-					"Toggle this to allow adding progress bars to regular list items (non-task bullets)."
 				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.addProgressBarToNonTaskBullet
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.supportHoverToShowProgressInfo
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.supportHoverToShowProgressInfo =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Add progress bar to non-task bullet"))
+				.setDesc(
+					t(
+						"Toggle this to allow adding progress bars to regular list items (non-task bullets)."
 					)
-					.onChange(async (value) => {
-						this.plugin.settings.addProgressBarToNonTaskBullet =
-							value;
-						this.applySettingsUpdate();
-					})
-			);
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.addProgressBarToNonTaskBullet
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.addProgressBarToNonTaskBullet =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Add progress bar to Heading"))
+				.setDesc(
+					t(
+						"Toggle this to allow this plugin to add progress bar for Task below the headings."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.addTaskProgressBarToHeading
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.addTaskProgressBarToHeading =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Enable heading progress bars"))
+				.setDesc(
+					t(
+						"Add progress bars to headings to show progress of all tasks under that heading."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.enableHeadingProgressBar)
+						.onChange(async (value) => {
+							this.plugin.settings.enableHeadingProgressBar =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			this.showNumberToProgressbar();
+
+			new Setting(containerEl)
+				.setName(t("Count sub children level of current Task"))
+				.setDesc(
+					t("Toggle this to allow this plugin to count sub tasks.")
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.countSubLevel)
+						.onChange(async (value) => {
+							this.plugin.settings.countSubLevel = value;
+							this.applySettingsUpdate();
+						})
+				);
+			new Setting(containerEl)
+				.setName(t("Hide progress bars"))
+				.setHeading();
+
+			new Setting(containerEl)
+				.setName(t("Hide progress bars based on conditions"))
+				.setDesc(
+					t(
+						"Toggle this to enable hiding progress bars based on tags, folders, or metadata."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings
+								.hideProgressBarBasedOnConditions
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.hideProgressBarBasedOnConditions =
+								value;
+							this.applySettingsUpdate();
+
+							setTimeout(() => {
+								this.display();
+							}, 200);
+						})
+				);
+		}
+
+		if (this.plugin.settings.hideProgressBarBasedOnConditions) {
+			new Setting(containerEl)
+				.setName(t("Hide by tags"))
+				.setDesc(
+					t(
+						'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"'
+					)
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder(DEFAULT_SETTINGS.hideProgressBarTags)
+						.setValue(this.plugin.settings.hideProgressBarTags)
+						.onChange(async (value) => {
+							this.plugin.settings.hideProgressBarTags = value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Hide by folders"))
+				.setDesc(
+					t(
+						'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"'
+					)
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("folder1,folder2/subfolder")
+						.setValue(this.plugin.settings.hideProgressBarFolders)
+						.onChange(async (value) => {
+							this.plugin.settings.hideProgressBarFolders = value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Hide by metadata"))
+				.setDesc(
+					t(
+						'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"'
+					)
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder(
+							DEFAULT_SETTINGS.hideProgressBarMetadata
+						)
+						.setValue(this.plugin.settings.hideProgressBarMetadata)
+						.onChange(async (value) => {
+							this.plugin.settings.hideProgressBarMetadata =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+		}
 
 		new Setting(containerEl)
-			.setName(t("Add progress bar to Heading"))
-			.setDesc(
-				t(
-					"Toggle this to allow this plugin to add progress bar for Task below the headings."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.addTaskProgressBarToHeading)
-					.onChange(async (value) => {
-						this.plugin.settings.addTaskProgressBarToHeading =
-							value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName(t("Enable heading progress bars"))
-			.setDesc(
-				t(
-					"Add progress bars to headings to show progress of all tasks under that heading."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableHeadingProgressBar)
-					.onChange(async (value) => {
-						this.plugin.settings.enableHeadingProgressBar = value;
-						this.applySettingsUpdate();
-					})
-			);
+			.setName(t("Parent task changer"))
+			.setDesc(t("Change the parent task of the current task."))
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName(t("Auto complete parent task"))
@@ -338,20 +460,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.markParentInProgressWhenPartiallyComplete =
 							value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		this.showNumberToProgressbar();
-
-		new Setting(containerEl)
-			.setName(t("Count sub children level of current Task"))
-			.setDesc(t("Toggle this to allow this plugin to count sub tasks."))
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.countSubLevel)
-					.onChange(async (value) => {
-						this.plugin.settings.countSubLevel = value;
 						this.applySettingsUpdate();
 					})
 			);
@@ -634,89 +742,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							} else {
 								this.plugin.settings.onlyCountTaskMarks = value;
 							}
-							this.applySettingsUpdate();
-						})
-				);
-		}
-
-		new Setting(containerEl)
-			.setName(t("Conditional Progress Bar Display"))
-			.setHeading();
-
-		new Setting(containerEl)
-			.setName(t("Hide progress bars based on conditions"))
-			.setDesc(
-				t(
-					"Toggle this to enable hiding progress bars based on tags, folders, or metadata."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.hideProgressBarBasedOnConditions
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.hideProgressBarBasedOnConditions =
-							value;
-						this.applySettingsUpdate();
-
-						setTimeout(() => {
-							this.display();
-						}, 200);
-					})
-			);
-
-		if (this.plugin.settings.hideProgressBarBasedOnConditions) {
-			new Setting(containerEl)
-				.setName(t("Hide by tags"))
-				.setDesc(
-					t(
-						'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"'
-					)
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder(DEFAULT_SETTINGS.hideProgressBarTags)
-						.setValue(this.plugin.settings.hideProgressBarTags)
-						.onChange(async (value) => {
-							this.plugin.settings.hideProgressBarTags = value;
-							this.applySettingsUpdate();
-						})
-				);
-
-			new Setting(containerEl)
-				.setName(t("Hide by folders"))
-				.setDesc(
-					t(
-						'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"'
-					)
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("folder1,folder2/subfolder")
-						.setValue(this.plugin.settings.hideProgressBarFolders)
-						.onChange(async (value) => {
-							this.plugin.settings.hideProgressBarFolders = value;
-							this.applySettingsUpdate();
-						})
-				);
-
-			new Setting(containerEl)
-				.setName(t("Hide by metadata"))
-				.setDesc(
-					t(
-						'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"'
-					)
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder(
-							DEFAULT_SETTINGS.hideProgressBarMetadata
-						)
-						.setValue(this.plugin.settings.hideProgressBarMetadata)
-						.onChange(async (value) => {
-							this.plugin.settings.hideProgressBarMetadata =
-								value;
 							this.applySettingsUpdate();
 						})
 				);
@@ -1346,7 +1371,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.addButton((button) => {
 				button.setButtonText(t("Reset")).onClick(async () => {
 					this.plugin.settings.progressRanges = [
-						{ min: 0, max: 20, text: t("Just started {{PROGRESS}}%") },
+						{
+							min: 0,
+							max: 20,
+							text: t("Just started {{PROGRESS}}%"),
+						},
 						{
 							min: 20,
 							max: 40,
@@ -1576,7 +1605,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			if (presetFilters.length === 0) {
 				presetFiltersContainer.createEl("div", {
 					cls: "no-presets-message",
-					text: t("No preset filters created yet. Click 'Add New Preset' to create one."),
+					text: t(
+						"No preset filters created yet. Click 'Add New Preset' to create one."
+					),
 				});
 			}
 

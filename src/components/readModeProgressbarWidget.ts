@@ -1108,6 +1108,7 @@ class ProgressBar extends Component {
 		this.notStarted = notStarted;
 		this.total = total;
 	}
+
 	changePercentage() {
 		if (this.total === 0) return;
 
