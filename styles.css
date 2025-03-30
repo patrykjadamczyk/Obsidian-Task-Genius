@@ -810,6 +810,11 @@ settings:
 	overflow-y: auto;
 }
 
+.task-filter-active {
+	color: var(--color-accent-2);
+	font-weight: bold;
+}
+
 .task-filter-panel > .setting-item {
 	border-top: unset;
 }

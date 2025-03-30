@@ -98,7 +98,7 @@ export const actionButtonState = StateField.define<boolean>({
 					// Add preset menu action button to the markdown view
 					const filterAction = view.addAction(
 						"filter",
-						"task-filter-presets",
+						t("Filter Tasks"),
 						(event) => {
 							// Create dropdown menu for filter presets
 							const menu = new Menu();
@@ -910,6 +910,19 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 	view.dispatch({
 		effects: updateHiddenTaskRanges.of(hiddenTaskRanges),
 	});
+
+	console.log(
+		view.state.field(editorInfoField)?.filterAction,
+		checkFilterChanges(view, plugin)
+	);
+
+	view.state
+		.field(editorInfoField)
+		// @ts-ignore
+		?.filterAction?.toggleClass(
+			"task-filter-active",
+			checkFilterChanges(view, plugin)
+		);
 
 	// Apply decorations to hide filtered tasks
 	applyHiddenTaskDecorations(view, hiddenTaskRanges);
