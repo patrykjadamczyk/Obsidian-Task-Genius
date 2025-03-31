@@ -20,6 +20,10 @@ import { autoCompleteParentExtension } from "./editor-ext/autoCompleteParent";
 import { taskStatusSwitcherExtension } from "./editor-ext/taskStatusSwitcher";
 import { cycleCompleteStatusExtension } from "./editor-ext/cycleCompleteStatus";
 import {
+	workflowExtension,
+	updateWorkflowContextMenu,
+} from "./editor-ext/workflow";
+import {
 	priorityPickerExtension,
 	TASK_PRIORITIES,
 	LETTER_PRIORITIES,
@@ -151,6 +155,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add date picker extension
 		if (this.settings.enableDatePicker) {
 			this.registerEditorExtension([datePickerExtension(this.app, this)]);
+		}
+
+		// Add workflow extension
+		if (this.settings.workflow.enableWorkflow) {
+			this.registerEditorExtension([workflowExtension(this.app, this)]);
 		}
 
 		// Add quick capture extension
@@ -331,6 +340,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 							});
 						});
 					});
+				}
+
+				// Add workflow context menu
+				if (this.settings.workflow.enableWorkflow) {
+					updateWorkflowContextMenu(menu, editor, this);
 				}
 			})
 		);

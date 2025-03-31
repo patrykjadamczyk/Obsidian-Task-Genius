@@ -1003,3 +1003,561 @@ settings:
 		opacity: 1;
 	}
 }
+
+.modal-workflow-definition {
+	max-width: 800px;
+	width: 90vw;
+}
+
+.modal-stage-definition {
+	max-width: 800px;
+	width: 90vw;
+}
+
+/* Workflow settings panel improvements */
+.workflow-container {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 5px;
+	padding: 15px;
+	max-height: 500px;
+	overflow-y: auto;
+	background-color: var(--background-primary);
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.workflow-row {
+	margin-bottom: 15px;
+	padding: 12px;
+	border-radius: 6px;
+	background-color: var(--background-secondary-alt);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.workflow-row .setting-item {
+	border: none;
+	padding: 0;
+}
+
+.workflow-row .setting-item-info {
+	padding: 0 !important;
+}
+
+.workflow-row .setting-item-name {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.workflow-row .setting-item-description {
+	font-size: 13px;
+	color: var(--text-muted);
+	margin-top: 4px;
+}
+
+.workflow-stages-info {
+	margin-top: 12px;
+	padding: 8px 0 0 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.workflow-stages-list {
+	list-style-type: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2);
+	padding: 0;
+	margin: 0;
+}
+
+.workflow-stage-item {
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	display: inline-flex;
+	align-items: center;
+	background-color: var(--background-modifier-border);
+}
+
+.workflow-stage-cycle {
+	background-color: var(--task-in-progress-color);
+	color: var(--text-on-accent);
+}
+
+.workflow-stage-terminal {
+	background-color: var(--task-completed-color);
+	color: var(--text-on-accent);
+}
+
+.no-workflows-message {
+	font-style: italic;
+	color: var(--text-muted);
+	text-align: center;
+	padding: 15px;
+}
+
+/* Workflow modal styles */
+.workflow-form {
+	margin-bottom: 20px;
+}
+
+.workflow-stages-section {
+	margin-top: 20px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 15px;
+}
+
+.workflow-stages-section h2 {
+	margin-top: 0;
+	margin-bottom: 15px;
+	font-size: 1.3em;
+	color: var(--text-normal);
+}
+
+.workflow-stages-container {
+	margin-top: 15px;
+}
+
+.workflow-stages-container .workflow-stages-list {
+	display: block;
+	flex-wrap: unset;
+	gap: unset;
+}
+
+.workflow-stages-container .workflow-stage-item {
+	display: block;
+	margin-bottom: 10px;
+	padding: 0;
+	background-color: transparent;
+}
+
+.workflow-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 20px;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.workflow-save-button,
+.workflow-cancel-button,
+.workflow-add-stage-button {
+	padding: 6px 12px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.workflow-save-button.mod-cta {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.workflow-cancel-button {
+	background-color: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.workflow-add-stage-button {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	margin-top: 10px;
+}
+
+.no-stages-message {
+	font-style: italic;
+	color: var(--text-muted);
+	text-align: center;
+	padding: 15px;
+}
+
+/* Stage editing styles */
+.workflow-stage-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	margin-bottom: 8px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.workflow-stage-name {
+	font-weight: 600;
+	flex: 1;
+	margin-right: 10px;
+}
+
+.workflow-stage-actions {
+	display: flex;
+	gap: 5px;
+}
+
+.workflow-stage-edit,
+.workflow-stage-move-up,
+.workflow-stage-move-down,
+.workflow-stage-delete {
+	padding: 3px 8px;
+	border-radius: 3px;
+	background-color: var(--background-modifier-border);
+	cursor: pointer;
+	font-size: 12px;
+	border: none;
+}
+
+.workflow-stage-edit:hover,
+.workflow-stage-move-up:hover,
+.workflow-stage-move-down:hover {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.workflow-stage-delete:hover {
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+.workflow-stage-type-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	margin-left: 8px;
+	border-radius: 3px;
+	font-size: 10px;
+	text-transform: uppercase;
+	font-weight: 600;
+}
+
+.workflow-stage-type-linear {
+	background-color: var(--background-modifier-border);
+}
+
+.workflow-stage-type-cycle {
+	background-color: var(--task-in-progress-color);
+	color: var(--text-on-accent);
+}
+
+.workflow-stage-type-terminal {
+	background-color: var(--task-completed-color);
+	color: var(--text-on-accent);
+}
+
+/* Substage styles */
+.workflow-substages-list {
+	padding: 0 0 0 var(--size-4-6);
+	margin-top: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.substage-settings-container {
+	width: 100%;
+}
+
+/* Stage edit modal */
+.stage-type-settings {
+	margin-top: 20px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 15px;
+	background-color: var(--background-primary);
+}
+
+.substages-section,
+.can-proceed-to-section {
+	margin-top: 20px;
+	padding-top: 15px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.substages-container,
+.can-proceed-to-container {
+	margin-top: 15px;
+	padding: 10px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+}
+
+.substages-list,
+.can-proceed-list {
+	list-style-type: none;
+	padding: 0;
+	margin: 0;
+}
+
+.substage-name-container {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	flex: 1;
+}
+
+.substage-name-container input {
+	padding: 4px 8px;
+	border-radius: 3px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+}
+
+.substage-next-container {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin-left: 10px;
+}
+
+.substage-next-container select {
+	padding: 3px 6px;
+	border-radius: 3px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+}
+
+.substage-remove-button,
+.can-proceed-remove-button {
+	background-color: var(--background-modifier-border);
+	color: var(--text-normal);
+	border-radius: 3px;
+	padding: 2px 5px;
+	cursor: pointer;
+	border: none;
+}
+
+.substage-remove-button:hover,
+.can-proceed-remove-button:hover {
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+.add-substage-button,
+.add-can-proceed-button {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	padding: 4px 10px;
+	border-radius: 4px;
+	margin-top: 10px;
+	cursor: pointer;
+	border: none;
+}
+
+.add-can-proceed-container {
+	display: flex;
+	gap: 10px;
+	align-items: flex-end;
+}
+
+.add-can-proceed-select {
+	flex: 1;
+	padding: 4px 8px;
+	border-radius: 3px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.stage-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 20px;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.stage-save-button,
+.stage-cancel-button {
+	padding: 6px 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	border: none;
+}
+
+.stage-save-button.mod-cta {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.stage-cancel-button {
+	background-color: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.stage-error-message {
+	color: var(--background-modifier-error);
+	font-weight: bold;
+	text-align: center;
+	margin-top: 10px;
+	padding: 8px;
+	border-radius: 4px;
+}
+
+/* Workflow task in editor/preview mode styles */
+.task-workflow-tag {
+	display: inline-block;
+	padding: 2px 5px;
+	border-radius: 3px;
+	margin-left: 5px;
+	font-size: 12px;
+	background-color: var(--background-secondary-alt);
+}
+
+.task-workflow-stage {
+	margin-left: 5px;
+	color: var(--text-accent);
+}
+
+.task-workflow-substage {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.task-workflow-history {
+	margin-left: 20px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.task-workflow-timestamp {
+	color: var(--text-faint);
+}
+
+/* Workflow settings display enhancements */
+.setting-item-control span[class^="workflow-stage-name-"] {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 500;
+	margin-right: 5px;
+}
+
+.setting-item-control .workflow-stage-name-cycle {
+	background-color: var(--task-in-progress-color);
+	color: var(--text-on-accent);
+}
+
+.setting-item-control .workflow-stage-name-terminal {
+	background-color: var(--task-completed-color);
+	color: var(--text-on-accent);
+}
+
+.workflow-stage-item {
+	margin-right: 4px;
+}
+
+/* WorkflowDefinitionModal header enhancements */
+.workflow-stages-container .workflow-stage-header {
+	padding: 8px 12px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	margin-bottom: 8px;
+}
+
+.workflow-stages-container .workflow-stage-type-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	margin-left: 8px;
+	border-radius: 3px;
+	font-size: 10px;
+	text-transform: uppercase;
+	font-weight: 600;
+}
+
+.workflow-substages-list {
+	list-style-type: none;
+	padding: 0 0 0 20px;
+	margin: 5px 0 10px 0;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+/* Better buttons in workflow panels */
+.workflow-add-stage-button,
+.stage-save-button.mod-cta,
+.workflow-save-button.mod-cta {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	padding: 6px 15px;
+	border-radius: 4px;
+	font-weight: 500;
+	border: none;
+	cursor: pointer;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	transition: all 0.2s ease;
+	text-align: center;
+}
+
+.workflow-add-stage-button:hover,
+.stage-save-button.mod-cta:hover,
+.workflow-save-button.mod-cta:hover {
+	background-color: var(--interactive-accent-hover);
+	box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+	transform: translateY(-1px);
+}
+
+.workflow-stage-move-up,
+.workflow-stage-move-down,
+.workflow-stage-edit,
+.workflow-stage-delete {
+	border: none;
+	background-color: var(--background-modifier-border);
+	padding: 3px 8px;
+	border-radius: 3px;
+	font-size: 12px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.workflow-stage-move-up:hover,
+.workflow-stage-move-down:hover,
+.workflow-stage-edit:hover {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.workflow-stage-delete:hover {
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+/* Subtask styling improvements */
+.substage-item {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	padding: 6px 10px;
+	margin-bottom: 5px;
+	border-radius: 4px;
+}
+
+.substage-name-container input {
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 8px;
+	border-radius: 3px;
+	font-size: 13px;
+}
+
+.substage-name-container input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.substage-next-container select {
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 3px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
+.no-stages-message,
+.no-workflows-message,
+.no-substages-message,
+.no-can-proceed-message {
+	font-style: italic;
+	color: var(--text-muted);
+	padding: 15px;
+	text-align: center;
+	background-color: var(--background-secondary-alt);
+	border-radius: 5px;
+	margin: 10px 0;
+}

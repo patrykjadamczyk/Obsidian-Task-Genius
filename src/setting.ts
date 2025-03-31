@@ -1,4 +1,10 @@
-import { App, PluginSettingTab, Setting, Modal } from "obsidian";
+import {
+	App,
+	PluginSettingTab,
+	Setting,
+	Modal,
+	DropdownComponent,
+} from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
 import {
@@ -6,6 +12,7 @@ import {
 	migrateOldFilterOptions,
 } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
+import { WorkflowDefinition, WorkflowStage } from "./editor-ext/workflow";
 
 export interface TaskProgressBarSettings {
 	showProgressBar: boolean;
@@ -66,6 +73,14 @@ export interface TaskProgressBarSettings {
 	// Cycle complete status settings
 	enableCycleCompleteStatus: boolean;
 	alwaysCycleNewTasks: boolean;
+
+	// Workflow settings
+	workflow: {
+		enableWorkflow: boolean;
+		autoAddTimestamp: boolean;
+		autoAddNextTask: boolean;
+		definitions: WorkflowDefinition[];
+	};
 
 	// Completed task mover settings
 	completedTaskMover: {
@@ -163,6 +178,67 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Cycle complete status settings
 	enableCycleCompleteStatus: true,
 	alwaysCycleNewTasks: false,
+
+	// Workflow settings
+	workflow: {
+		enableWorkflow: false,
+		autoAddTimestamp: true,
+		autoAddNextTask: false,
+		definitions: [
+			{
+				id: "project_workflow",
+				name: "Project Workflow",
+				description: "Standard project management workflow",
+				stages: [
+					{
+						id: "planning",
+						name: "Planning",
+						type: "linear",
+						next: "in_progress",
+					},
+					{
+						id: "in_progress",
+						name: "In Progress",
+						type: "cycle",
+						subStages: [
+							{
+								id: "development",
+								name: "Development",
+								next: "testing",
+							},
+							{
+								id: "testing",
+								name: "Testing",
+								next: "development",
+							},
+						],
+						canProceedTo: ["review", "cancelled"],
+					},
+					{
+						id: "review",
+						name: "Review",
+						type: "cycle",
+						canProceedTo: ["in_progress", "completed"],
+					},
+					{
+						id: "completed",
+						name: "Completed",
+						type: "terminal",
+					},
+					{
+						id: "cancelled",
+						name: "Cancelled",
+						type: "terminal",
+					},
+				],
+				metadata: {
+					version: "1.0",
+					created: "2024-03-20",
+					lastModified: "2024-03-20",
+				},
+			},
+		],
+	},
 
 	// Completed task mover settings
 	completedTaskMover: {
@@ -1174,6 +1250,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Add task filter settings
 		this.addTaskFilterSettings();
 
+		// Add workflow settings
+		this.addWorkflowSettings();
+
 		new Setting(containerEl).setName(t("Say Thank You")).setHeading();
 
 		new Setting(containerEl)
@@ -1822,6 +1901,248 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		this.plugin.settings.taskFilter.presetTaskFilters = defaultPresets;
 		this.applySettingsUpdate();
 	}
+
+	// Add new method for workflow settings
+	addWorkflowSettings() {
+		const containerEl = this.containerEl;
+
+		new Setting(containerEl)
+			.setName(t("Workflow"))
+			.setDesc(
+				t("Configure task workflows for project and process management")
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable workflow"))
+			.setDesc(t("Toggle to enable the workflow system for tasks"))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.workflow.enableWorkflow)
+					.onChange(async (value) => {
+						this.plugin.settings.workflow.enableWorkflow = value;
+						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
+					});
+			});
+
+		if (!this.plugin.settings.workflow.enableWorkflow) return;
+
+		// new Setting(containerEl)
+		// 	.setName(t("Auto-add timestamp"))
+		// 	.setDesc(
+		// 		t(
+		// 			"Automatically add a timestamp when a task moves to the next workflow stage"
+		// 		)
+		// 	)
+		// 	.addToggle((toggle) => {
+		// 		toggle
+		// 			.setValue(this.plugin.settings.workflow.autoAddTimestamp)
+		// 			.onChange(async (value) => {
+		// 				this.plugin.settings.workflow.autoAddTimestamp = value;
+		// 				this.applySettingsUpdate();
+		// 			});
+		// 	});
+
+		new Setting(containerEl)
+			.setName(t("Auto-add next task"))
+			.setDesc(
+				t(
+					"Automatically create a new task with the next stage when completing a task"
+				)
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.workflow.autoAddNextTask)
+					.onChange(async (value) => {
+						this.plugin.settings.workflow.autoAddNextTask = value;
+						this.applySettingsUpdate();
+					});
+			});
+
+		// Workflow definitions list
+		new Setting(containerEl)
+			.setName(t("Workflow definitions"))
+			.setDesc(
+				t(
+					"Configure workflow templates for different types of processes"
+				)
+			);
+
+		// Create a container for the workflow list
+		const workflowContainer = containerEl.createDiv({
+			cls: "workflow-container",
+		});
+
+		// Function to display workflow list
+		const refreshWorkflowList = () => {
+			// Clear the container
+			workflowContainer.empty();
+
+			const workflows = this.plugin.settings.workflow.definitions;
+
+			if (workflows.length === 0) {
+				workflowContainer.createEl("div", {
+					cls: "no-workflows-message",
+					text: t(
+						"No workflow definitions created yet. Click 'Add New Workflow' to create one."
+					),
+				});
+			}
+
+			// Add each workflow in the list
+			workflows.forEach((workflow, index) => {
+				const workflowRow = workflowContainer.createDiv({
+					cls: "workflow-row",
+				});
+
+				const workflowSetting = new Setting(workflowRow)
+					.setName(workflow.name)
+					.setDesc(workflow.description || "");
+
+				// Add edit button
+				workflowSetting.addExtraButton((button) => {
+					button
+						.setIcon("pencil")
+						.setTooltip(t("Edit workflow"))
+						.onClick(() => {
+							new WorkflowDefinitionModal(
+								this.app,
+								this.plugin,
+								workflow,
+								(updatedWorkflow) => {
+									// Update the workflow
+									this.plugin.settings.workflow.definitions[
+										index
+									] = updatedWorkflow;
+									this.applySettingsUpdate();
+									refreshWorkflowList();
+								}
+							).open();
+						});
+				});
+
+				// Add delete button
+				workflowSetting.addExtraButton((button) => {
+					button
+						.setIcon("trash")
+						.setTooltip(t("Remove workflow"))
+						.onClick(() => {
+							// Show confirmation dialog
+							const modal = new Modal(this.app);
+							modal.titleEl.setText(t("Delete workflow"));
+
+							const content = modal.contentEl.createDiv();
+							content.setText(
+								t(
+									`Are you sure you want to delete the '${workflow.name}' workflow?`
+								)
+							);
+
+							const buttonContainer = modal.contentEl.createDiv();
+							buttonContainer.addClass("modal-button-container");
+
+							const cancelButton =
+								buttonContainer.createEl("button");
+							cancelButton.setText(t("Cancel"));
+							cancelButton.addEventListener("click", () => {
+								modal.close();
+							});
+
+							const deleteButton =
+								buttonContainer.createEl("button");
+							deleteButton.setText(t("Delete"));
+							deleteButton.addClass("mod-warning");
+							deleteButton.addEventListener("click", () => {
+								// Remove the workflow
+								this.plugin.settings.workflow.definitions.splice(
+									index,
+									1
+								);
+								this.applySettingsUpdate();
+								refreshWorkflowList();
+								modal.close();
+							});
+
+							modal.open();
+						});
+				});
+
+				// Show stage information
+				const stagesInfo = workflowRow.createDiv({
+					cls: "workflow-stages-info",
+				});
+
+				if (workflow.stages.length > 0) {
+					const stagesList = stagesInfo.createEl("ul");
+					stagesList.addClass("workflow-stages-list");
+
+					workflow.stages.forEach((stage) => {
+						const stageItem = stagesList.createEl("li");
+						stageItem.addClass("workflow-stage-item");
+						stageItem.addClass(`workflow-stage-type-${stage.type}`);
+
+						const stageName = stageItem.createSpan({
+							text: stage.name,
+						});
+
+						if (stage.type === "cycle") {
+							stageItem.addClass("workflow-stage-cycle");
+							stageName.addClass("workflow-stage-name-cycle");
+						} else if (stage.type === "terminal") {
+							stageItem.addClass("workflow-stage-terminal");
+							stageName.addClass("workflow-stage-name-terminal");
+						}
+					});
+				}
+			});
+
+			// Add button to create a new workflow
+			const addButtonContainer = workflowContainer.createDiv();
+			new Setting(addButtonContainer).addButton((button) => {
+				button
+					.setButtonText(t("Add New Workflow"))
+					.setCta()
+					.onClick(() => {
+						// Create a new empty workflow
+						const newWorkflow = {
+							id: this.generateUniqueId(),
+							name: t("New Workflow"),
+							description: "",
+							stages: [],
+							metadata: {
+								version: "1.0",
+								created: new Date().toISOString().split("T")[0],
+								lastModified: new Date()
+									.toISOString()
+									.split("T")[0],
+							},
+						};
+
+						// Show the edit modal for the new workflow
+						new WorkflowDefinitionModal(
+							this.app,
+							this.plugin,
+							newWorkflow,
+							(createdWorkflow) => {
+								// Add the workflow to the list
+								this.plugin.settings.workflow.definitions.push(
+									createdWorkflow
+								);
+								this.applySettingsUpdate();
+								refreshWorkflowList();
+							}
+						).open();
+					});
+			});
+		};
+
+		// Initial render of the workflow list
+		refreshWorkflowList();
+	}
 }
 
 class PresetFilterModal extends Modal {
@@ -1953,5 +2274,882 @@ class PresetFilterModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
+	}
+}
+
+class WorkflowDefinitionModal extends Modal {
+	workflow: any;
+	onSave: (workflow: any) => void;
+	plugin: TaskProgressBarPlugin;
+
+	constructor(
+		app: App,
+		plugin: TaskProgressBarPlugin,
+		workflow: any,
+		onSave: (workflow: any) => void
+	) {
+		super(app);
+		this.plugin = plugin;
+		this.workflow = JSON.parse(JSON.stringify(workflow)); // Deep copy to avoid direct mutation
+		this.onSave = onSave;
+	}
+
+	onOpen() {
+		const { contentEl, titleEl } = this;
+
+		this.modalEl.toggleClass("modal-workflow-definition", true);
+		titleEl.setText(
+			this.workflow.id
+				? t(`Edit Workflow: ${this.workflow.name}`)
+				: t("Create New Workflow")
+		);
+
+		// Basic workflow information
+		const formContainer = contentEl.createDiv({ cls: "workflow-form" });
+
+		new Setting(formContainer)
+			.setName(t("Workflow name"))
+			.setDesc(t("A descriptive name for the workflow"))
+			.addText((text) => {
+				text.setValue(this.workflow.name || "").onChange((value) => {
+					this.workflow.name = value;
+				});
+			});
+
+		new Setting(formContainer)
+			.setName(t("Workflow ID"))
+			.setDesc(t("A unique identifier for the workflow (used in tags)"))
+			.addText((text) => {
+				text.setValue(this.workflow.id || "")
+					.setPlaceholder("unique_id")
+					.onChange((value) => {
+						this.workflow.id = value;
+					});
+			});
+
+		new Setting(formContainer)
+			.setName(t("Description"))
+			.setDesc(t("Optional description for the workflow"))
+			.addTextArea((textarea) => {
+				textarea
+					.setValue(this.workflow.description || "")
+					.setPlaceholder(
+						t("Describe the purpose and use of this workflow...")
+					)
+					.onChange((value) => {
+						this.workflow.description = value;
+					});
+
+				textarea.inputEl.rows = 3;
+				textarea.inputEl.cols = 40;
+			});
+
+		// Stages section
+		const stagesSection = contentEl.createDiv({
+			cls: "workflow-stages-section",
+		});
+		const stagesHeading = stagesSection.createEl("h2", {
+			text: t("Workflow Stages"),
+		});
+
+		const stagesContainer = stagesSection.createDiv({
+			cls: "workflow-stages-container",
+		});
+
+		// Function to render the stages list
+		const renderStages = () => {
+			stagesContainer.empty();
+
+			if (!this.workflow.stages || this.workflow.stages.length === 0) {
+				stagesContainer.createEl("p", {
+					text: t(
+						"No stages defined yet. Add a stage to get started."
+					),
+					cls: "no-stages-message",
+				});
+			} else {
+				// Create a sortable list of stages
+				const stagesList = stagesContainer.createEl("ul", {
+					cls: "workflow-stages-list",
+				});
+
+				this.workflow.stages.forEach((stage: any, index: number) => {
+					const stageItem = stagesList.createEl("li", {
+						cls: "workflow-stage-item",
+					});
+
+					// Create a setting for each stage
+					const stageSetting = new Setting(stageItem)
+						.setName(stage.name)
+						.setDesc(stage.type);
+
+					stageSetting.settingEl.toggleClass(
+						[
+							"workflow-stage-type-cycle",
+							"workflow-stage-type-linear",
+							"workflow-stage-type-parallel",
+							"workflow-stage-type-conditional",
+							"workflow-stage-type-custom",
+						].includes(stage.type)
+							? stage.type
+							: "workflow-stage-type-unknown",
+						true
+					);
+
+					// Edit button
+					stageSetting.addExtraButton((button) => {
+						button
+							.setIcon("pencil")
+							.setTooltip(t("Edit"))
+							.onClick(() => {
+								new StageEditModal(
+									this.app,
+									stage,
+									this.workflow.stages,
+									(updatedStage) => {
+										this.workflow.stages[index] =
+											updatedStage;
+										renderStages();
+									}
+								).open();
+							});
+					});
+
+					// Move up button (if not first)
+					if (index > 0) {
+						stageSetting.addExtraButton((button) => {
+							button
+								.setIcon("arrow-up")
+								.setTooltip(t("Move up"))
+								.onClick(() => {
+									// Swap with previous stage
+									[
+										this.workflow.stages[index - 1],
+										this.workflow.stages[index],
+									] = [
+										this.workflow.stages[index],
+										this.workflow.stages[index - 1],
+									];
+									renderStages();
+								});
+						});
+					}
+
+					// Move down button (if not last)
+					if (index < this.workflow.stages.length - 1) {
+						stageSetting.addExtraButton((button) => {
+							button
+								.setIcon("arrow-down")
+								.setTooltip(t("Move down"))
+								.onClick(() => {
+									// Swap with next stage
+									[
+										this.workflow.stages[index],
+										this.workflow.stages[index + 1],
+									] = [
+										this.workflow.stages[index + 1],
+										this.workflow.stages[index],
+									];
+									renderStages();
+								});
+						});
+					}
+
+					// Delete button
+					stageSetting.addExtraButton((button) => {
+						button
+							.setIcon("trash")
+							.setTooltip(t("Delete"))
+							.onClick(() => {
+								// Remove the stage
+								this.workflow.stages.splice(index, 1);
+								renderStages();
+							});
+					});
+
+					// If this stage has substages, show them
+					if (
+						stage.type === "cycle" &&
+						stage.subStages &&
+						stage.subStages.length > 0
+					) {
+						const subStagesList = stageItem.createEl("div", {
+							cls: "workflow-substages-list",
+						});
+
+						stage.subStages.forEach(
+							(subStage: any, index: number) => {
+								const subStageItem = subStagesList.createEl(
+									"div",
+									{
+										cls: "substage-item",
+									}
+								);
+
+								const subStageSettingsContainer =
+									subStageItem.createDiv({
+										cls: "substage-settings-container",
+									});
+
+								// Create a single Setting for the entire substage
+								const setting = new Setting(
+									subStageSettingsContainer
+								);
+
+								setting.setName(
+									t("Sub-stage") + " " + (index + 1)
+								);
+
+								// Add name text field
+								setting.addText((text) => {
+									text.setValue(subStage.name || "")
+										.setPlaceholder(t("Sub-stage name"))
+										.onChange((value) => {
+											subStage.name = value;
+										});
+								});
+
+								// Add ID text field
+								setting.addText((text) => {
+									text.setValue(subStage.id || "")
+										.setPlaceholder(t("Sub-stage ID"))
+										.onChange((value) => {
+											subStage.id = value;
+										});
+								});
+
+								// Add next stage dropdown if needed
+								if (this.workflow.stages.length > 1) {
+									setting.addDropdown((dropdown) => {
+										dropdown.selectEl.addClass(
+											"substage-next-select"
+										);
+
+										// Add label before dropdown
+										const labelEl = createSpan({
+											text: t("Next: "),
+											cls: "setting-dropdown-label",
+										});
+										dropdown.selectEl.parentElement?.insertBefore(
+											labelEl,
+											dropdown.selectEl
+										);
+
+										// Add all other sub-stages as options
+										this.workflow.stages.forEach(
+											(s: WorkflowStage) => {
+												if (s.id !== subStage.id) {
+													dropdown.addOption(
+														s.id,
+														s.name
+													);
+												}
+											}
+										);
+
+										// Set the current value
+										if (subStage.next) {
+											dropdown.setValue(subStage.next);
+										}
+
+										// Handle changes
+										dropdown.onChange((value) => {
+											subStage.next = value;
+										});
+									});
+								}
+
+								// Add remove button
+								setting.addExtraButton((button) => {
+									button.setIcon("trash").onClick(() => {
+										this.workflow.stages.splice(index, 1);
+										renderStages();
+									});
+								});
+							}
+						);
+					}
+				});
+			}
+
+			// Add button for new sub-stage
+			const addStageButton = stagesContainer.createEl("button", {
+				cls: "workflow-add-stage-button",
+				text: t("Add Sub-stage"),
+			});
+			addStageButton.addEventListener("click", () => {
+				if (!this.workflow.stages) {
+					this.workflow.stages = [];
+				}
+
+				// Create a new sub-stage
+				const newSubStage: {
+					id: string;
+					name: string;
+					next?: string;
+				} = {
+					id: this.generateUniqueId(),
+					name: t("New Sub-stage"),
+				};
+
+				// If there are existing sub-stages, set the next property
+				if (this.workflow.stages.length > 0) {
+					// Get the last sub-stage
+					const lastSubStage =
+						this.workflow.stages[this.workflow.stages.length - 1];
+
+					// Set the last sub-stage's next property to the new sub-stage
+					if (lastSubStage) {
+						// Ensure lastSubStage has a next property
+						if (!("next" in lastSubStage)) {
+							// Add next property if it doesn't exist
+							(lastSubStage as any).next = newSubStage.id;
+						} else {
+							lastSubStage.next = newSubStage.id;
+						}
+					}
+
+					// Set the new sub-stage's next property to the first sub-stage (cycle)
+					if (this.workflow.stages[0]) {
+						newSubStage.next = this.workflow.stages[0].id;
+					}
+				}
+
+				this.workflow.stages.push(newSubStage);
+				renderStages();
+			});
+		};
+
+		// Initial render of stages
+		renderStages();
+
+		// Save and Cancel buttons
+		const buttonContainer = contentEl.createDiv({
+			cls: "workflow-buttons",
+		});
+
+		const cancelButton = buttonContainer.createEl("button", {
+			text: t("Cancel"),
+			cls: "workflow-cancel-button",
+		});
+		cancelButton.addEventListener("click", () => {
+			this.close();
+		});
+
+		const saveButton = buttonContainer.createEl("button", {
+			text: t("Save"),
+			cls: "workflow-save-button mod-cta",
+		});
+		saveButton.addEventListener("click", () => {
+			// Update the lastModified date
+			if (!this.workflow.metadata) {
+				this.workflow.metadata = {};
+			}
+			this.workflow.metadata.lastModified = new Date()
+				.toISOString()
+				.split("T")[0];
+
+			// Call the onSave callback
+			this.onSave(this.workflow);
+			this.close();
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+
+	generateUniqueId(): string {
+		return (
+			Date.now().toString(36) + Math.random().toString(36).substring(2, 9)
+		);
+	}
+}
+
+// Stage edit modal
+class StageEditModal extends Modal {
+	stage: any;
+	allStages: any[];
+	onSave: (stage: any) => void;
+	renderStageTypeSettings: () => void;
+
+	constructor(
+		app: App,
+		stage: any,
+		allStages: any[],
+		onSave: (stage: any) => void
+	) {
+		super(app);
+		this.stage = JSON.parse(JSON.stringify(stage)); // Deep copy
+		this.allStages = allStages;
+		this.onSave = onSave;
+		// Initialize the renderStageTypeSettings as a no-op function that will be replaced in onOpen
+		this.renderStageTypeSettings = () => {};
+	}
+
+	onOpen() {
+		const { contentEl, titleEl } = this;
+
+		this.modalEl.toggleClass("modal-stage-definition", true);
+
+		titleEl.setText(t("Edit Stage"));
+
+		// Basic stage information
+		new Setting(contentEl)
+			.setName(t("Stage name"))
+			.setDesc(t("A descriptive name for this workflow stage"))
+			.addText((text) => {
+				text.setValue(this.stage.name || "")
+					.setPlaceholder(t("Stage name"))
+					.onChange((value) => {
+						this.stage.name = value;
+					});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Stage ID"))
+			.setDesc(t("A unique identifier for the stage (used in tags)"))
+			.addText((text) => {
+				text.setValue(this.stage.id || "")
+					.setPlaceholder("stage_id")
+					.onChange((value) => {
+						this.stage.id = value;
+					});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Stage type"))
+			.setDesc(t("The type of this workflow stage"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("linear", t("Linear (sequential)"))
+					.addOption("cycle", t("Cycle (repeatable)"))
+					.addOption("terminal", t("Terminal (end stage)"))
+					.setValue(this.stage.type || "linear")
+					.onChange((value: "linear" | "cycle" | "terminal") => {
+						this.stage.type = value;
+
+						// If changing to/from cycle, update the UI
+						this.renderStageTypeSettings();
+					});
+			});
+
+		// Container for type-specific settings
+		const typeSettingsContainer = contentEl.createDiv({
+			cls: "stage-type-settings",
+		});
+
+		// Function to render type-specific settings
+		const renderTypeSettings = () => {
+			typeSettingsContainer.empty();
+
+			if (this.stage.type === "linear" || this.stage.type === "cycle") {
+				// For linear and cycle stages, show next stage options
+				if (this.allStages.length > 0) {
+					new Setting(typeSettingsContainer)
+						.setName(t("Next stage"))
+						.setDesc(t("The stage to proceed to after this one"))
+						.addDropdown((dropdown) => {
+							// Add all other stages as options
+							this.allStages.forEach((s) => {
+								if (s.id !== this.stage.id) {
+									dropdown.addOption(s.id, s.name);
+								}
+							});
+
+							// Set current value if it exists
+							if (
+								typeof this.stage.next === "string" &&
+								this.stage.next
+							) {
+								dropdown.setValue(this.stage.next);
+							}
+
+							dropdown.onChange((value) => {
+								this.stage.next = value;
+							});
+						});
+				}
+
+				// For cycle stages, add subStages
+				if (this.stage.type === "cycle") {
+					// SubStages section
+					const subStagesSection = typeSettingsContainer.createDiv({
+						cls: "substages-section",
+					});
+
+					new Setting(subStagesSection)
+						.setName(t("Sub-stages"))
+						.setDesc(t("Define cycle sub-stages (optional)"));
+
+					const subStagesContainer = subStagesSection.createDiv({
+						cls: "substages-container",
+					});
+
+					// Function to render sub-stages
+					const renderSubStages = () => {
+						subStagesContainer.empty();
+
+						if (
+							!this.stage.subStages ||
+							this.stage.subStages.length === 0
+						) {
+							subStagesContainer.createEl("p", {
+								text: t("No sub-stages defined yet."),
+								cls: "no-substages-message",
+							});
+						} else {
+							const subStagesList = subStagesContainer.createEl(
+								"ul",
+								{
+									cls: "substages-list",
+								}
+							);
+
+							this.stage.subStages.forEach(
+								(subStage: any, index: number) => {
+									const subStageItem = subStagesList.createEl(
+										"li",
+										{
+											cls: "substage-item",
+										}
+									);
+
+									const subStageNameContainer =
+										subStageItem.createDiv({
+											cls: "substage-name-container",
+										});
+
+									// Name
+									const nameInput =
+										subStageNameContainer.createEl(
+											"input",
+											{
+												type: "text",
+												value: subStage.name || "",
+												placeholder:
+													t("Sub-stage name"),
+											}
+										);
+									nameInput.addEventListener("change", () => {
+										subStage.name = nameInput.value;
+									});
+
+									// ID
+									const idInput =
+										subStageNameContainer.createEl(
+											"input",
+											{
+												type: "text",
+												value: subStage.id || "",
+												placeholder: t("Sub-stage ID"),
+											}
+										);
+									idInput.addEventListener("change", () => {
+										subStage.id = idInput.value;
+									});
+
+									// Next sub-stage dropdown (if more than one sub-stage)
+									if (this.stage.subStages.length > 1) {
+										const nextContainer =
+											subStageNameContainer.createDiv({
+												cls: "substage-next-container",
+											});
+										nextContainer.createEl("span", {
+											text: t("Next: "),
+										});
+
+										const nextSelect =
+											nextContainer.createEl("select", {
+												cls: "substage-next-select",
+											});
+
+										// Add all other sub-stages as options
+										this.stage.subStages.forEach(
+											(s: any) => {
+												if (s.id !== subStage.id) {
+													const option =
+														nextSelect.createEl(
+															"option",
+															{
+																value: s.id,
+																text: s.name,
+															}
+														);
+
+													if (
+														subStage.next === s.id
+													) {
+														option.selected = true;
+													}
+												}
+											}
+										);
+
+										nextSelect.addEventListener(
+											"change",
+											() => {
+												subStage.next =
+													nextSelect.value;
+											}
+										);
+									}
+
+									// Remove button
+									const removeButton = subStageItem.createEl(
+										"button",
+										{
+											cls: "substage-remove-button",
+											text: "✕",
+										}
+									);
+									removeButton.addEventListener(
+										"click",
+										() => {
+											this.stage.subStages.splice(
+												index,
+												1
+											);
+											renderSubStages();
+										}
+									);
+								}
+							);
+						}
+
+						// Add button for new sub-stage
+						const addSubStageButton = subStagesContainer.createEl(
+							"button",
+							{
+								cls: "add-substage-button",
+								text: t("Add Sub-stage"),
+							}
+						);
+						addSubStageButton.addEventListener("click", () => {
+							if (!this.stage.subStages) {
+								this.stage.subStages = [];
+							}
+
+							// Create a new sub-stage with proper typing
+							const newSubStage: {
+								id: string;
+								name: string;
+								next?: string;
+							} = {
+								id: this.generateUniqueId(),
+								name: t("New Sub-stage"),
+							};
+
+							// If there are existing sub-stages, set the next property
+							if (this.stage.subStages.length > 0) {
+								// Get the last sub-stage
+								const lastSubStage =
+									this.stage.subStages[
+										this.stage.subStages.length - 1
+									];
+
+								// Set the last sub-stage's next property to the new sub-stage
+								if (lastSubStage) {
+									// Ensure lastSubStage has a next property
+									if (!("next" in lastSubStage)) {
+										// Add next property if it doesn't exist
+										(lastSubStage as any).next =
+											newSubStage.id;
+									} else {
+										lastSubStage.next = newSubStage.id;
+									}
+								}
+
+								// Set the new sub-stage's next property to the first sub-stage (cycle)
+								if (this.stage.subStages[0]) {
+									newSubStage.next =
+										this.stage.subStages[0].id;
+								}
+							}
+
+							this.stage.subStages.push(newSubStage);
+							renderSubStages();
+						});
+					};
+
+					// Initial render of sub-stages
+					renderSubStages();
+				}
+
+				// Can proceed to section (additional stages that can follow this one)
+				const canProceedToSection = typeSettingsContainer.createDiv({
+					cls: "can-proceed-to-section",
+				});
+
+				new Setting(canProceedToSection)
+					.setName(t("Can proceed to"))
+					.setDesc(
+						t(
+							"Additional stages that can follow this one (for right-click menu)"
+						)
+					);
+
+				const canProceedToContainer = canProceedToSection.createDiv({
+					cls: "can-proceed-to-container",
+				});
+
+				// Function to render canProceedTo options
+				const renderCanProceedTo = () => {
+					canProceedToContainer.empty();
+
+					if (
+						!this.stage.canProceedTo ||
+						this.stage.canProceedTo.length === 0
+					) {
+						canProceedToContainer.createEl("p", {
+							text: t(
+								"No additional destination stages defined."
+							),
+							cls: "no-can-proceed-message",
+						});
+					} else {
+						const canProceedList = canProceedToContainer.createEl(
+							"ul",
+							{
+								cls: "can-proceed-list",
+							}
+						);
+
+						this.stage.canProceedTo.forEach(
+							(stageId: string, index: number) => {
+								// Find the corresponding stage
+								const targetStage = this.allStages.find(
+									(s) => s.id === stageId
+								);
+
+								if (targetStage) {
+									const proceedItem = canProceedList.createEl(
+										"li",
+										{
+											cls: "can-proceed-item",
+										}
+									);
+
+									const setting = new Setting(
+										proceedItem
+									).setName(targetStage.name);
+
+									// Remove button
+									setting.addExtraButton((button) => {
+										button
+											.setIcon("trash")
+											.setTooltip(t("Remove"))
+											.onClick(() => {
+												this.stage.canProceedTo.splice(
+													index,
+													1
+												);
+												renderCanProceedTo();
+											});
+									});
+								}
+							}
+						);
+					}
+
+					// Add dropdown to add new destination
+					if (this.allStages.length > 0) {
+						const addContainer = canProceedToContainer.createDiv({
+							cls: "add-can-proceed-container",
+						});
+
+						const addSelect = addContainer.createEl("select", {
+							cls: "add-can-proceed-select",
+						});
+
+						// Add all other stages as options (that aren't already in canProceedTo)
+						this.allStages.forEach((s) => {
+							if (
+								s.id !== this.stage.id &&
+								(!this.stage.canProceedTo ||
+									!this.stage.canProceedTo.includes(s.id))
+							) {
+								addSelect.createEl("option", {
+									value: s.id,
+									text: s.name,
+								});
+							}
+						});
+
+						const addButton = addContainer.createEl("button", {
+							cls: "add-can-proceed-button",
+							text: t("Add"),
+						});
+						addButton.addEventListener("click", () => {
+							if (addSelect.value) {
+								if (!this.stage.canProceedTo) {
+									this.stage.canProceedTo = [];
+								}
+								this.stage.canProceedTo.push(addSelect.value);
+								renderCanProceedTo();
+							}
+						});
+					}
+				};
+
+				// Initial render of canProceedTo
+				renderCanProceedTo();
+			}
+		};
+
+		// Method to re-render the stage type settings when the type changes
+		this.renderStageTypeSettings = renderTypeSettings;
+
+		// Initial render of type settings
+		renderTypeSettings();
+
+		// Save and Cancel buttons
+		const buttonContainer = contentEl.createDiv({ cls: "stage-buttons" });
+
+		const cancelButton = buttonContainer.createEl("button", {
+			text: t("Cancel"),
+			cls: "stage-cancel-button",
+		});
+		cancelButton.addEventListener("click", () => {
+			this.close();
+		});
+
+		const saveButton = buttonContainer.createEl("button", {
+			text: t("Save"),
+			cls: "stage-save-button mod-cta",
+		});
+		saveButton.addEventListener("click", () => {
+			// Validate the stage before saving
+			if (!this.stage.name || !this.stage.id) {
+				// Show error
+				const errorMsg = contentEl.createDiv({
+					cls: "stage-error-message",
+					text: t("Name and ID are required."),
+				});
+
+				// Remove after 3 seconds
+				setTimeout(() => {
+					errorMsg.remove();
+				}, 3000);
+
+				return;
+			}
+
+			// Call the onSave callback
+			this.onSave(this.stage);
+			this.close();
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+
+	generateUniqueId(): string {
+		return (
+			Date.now().toString(36) + Math.random().toString(36).substring(2, 9)
+		);
 	}
 }

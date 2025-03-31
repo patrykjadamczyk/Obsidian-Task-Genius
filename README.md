@@ -66,6 +66,66 @@ You can customize which characters represent different task statuses, or choose 
 3. **Hide by folders**: Specify folder paths that will hide progress bars.
 4. **Hide by metadata**: Specify frontmatter metadata that will hide progress bars.
 
+
+
+## Workflow Feature
+
+Task Genius includes a powerful workflow feature that allows you to track tasks through different stages of completion. This feature helps with project management and tracking task progression.
+
+### How to Use Workflows
+
+1. **Enable Workflows**: First enable the workflow feature in settings.
+
+2. **Basic Workflow Syntax**:
+   ```markdown
+   - [ ] My task #workflow/project_workflow/planning
+   ```
+
+   This creates a task in the "Planning" stage of the "Project Workflow".
+
+3. **Workflow Progression**:
+   - When you complete a task by checking it, the workflow automatically advances to the next stage
+   - The workflow tag updates (e.g., from `#workflow/project_workflow/planning` to `#workflow/project_workflow/in_progress/development`)
+   - A timestamp of the completion is added when configured
+
+4. **Cycle Stages with Sub-stages**:
+   ```markdown
+   - [ ] My task #workflow/project_workflow/in_progress/development
+   ```
+
+   This task is in the "Development" sub-stage of the "In Progress" stage.
+
+### Default Workflow Structure
+
+The default "Project Workflow" includes these stages:
+
+1. **Planning** (linear stage)
+   - Next stage: In Progress
+
+2. **In Progress** (cycle stage with sub-stages)
+   - Sub-stages: Development, Testing
+   - Can proceed to: Review, Cancelled
+
+3. **Review** (cycle stage)
+   - Can proceed to: In Progress, Completed
+
+4. **Completed** (terminal stage)
+
+5. **Cancelled** (terminal stage)
+
+### Workflow Context Menu
+
+Right-click on any task to:
+- Add a workflow to a task
+- Change the current workflow stage
+- Add child tasks with the same workflow stage
+
+### Workflow Settings
+
+- **Enable Workflow**: Turn the workflow feature on/off
+- **Auto Add Timestamp**: Automatically add a timestamp when a task moves to a new stage (enabled by default)
+- **Auto Add Next Task**: Automatically create a new task for the next stage (disabled by default)
+
 ## How to Install
 
 ### From Plugin Market in Obsidian
