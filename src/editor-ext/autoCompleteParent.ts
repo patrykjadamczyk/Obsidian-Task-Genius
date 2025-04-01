@@ -8,6 +8,7 @@ import {
 import { getTabSize } from "../utils";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import TaskProgressBarPlugin from "..";
+import { isLastWorkflowStageOrNotWorkflow } from "./workflow";
 
 /**
  * Creates an editor extension that automatically updates parent tasks based on child task status changes
@@ -60,37 +61,50 @@ export function handleParentTaskUpdateTransaction(
 		return tr;
 	}
 
-	// Check if all siblings are completed
+	// Check if all siblings are completed (considering workflow status)
 	const allSiblingsCompleted = areAllSiblingsCompleted(
 		doc,
 		parentInfo.lineNumber,
 		parentInfo.indentationLevel,
-		app
+		app,
+		plugin
 	);
 
 	// Get current parent status
 	const parentStatus = getParentTaskStatus(doc, parentInfo.lineNumber);
 	const isParentCompleted = parentStatus === "x" || parentStatus === "X";
 
+	// Retrieve the annotation safely and check its type and content
+	const annotationValue = tr.annotation(taskStatusChangeAnnotation);
+	const isAutoCompleteAnnotation =
+		typeof annotationValue === "string" &&
+		annotationValue.includes("autoCompleteParent");
+
 	// If all siblings are completed, mark the parent task as completed
-	if (allSiblingsCompleted) {
-		return completeParentTask(tr, parentInfo.lineNumber, doc);
+	if (allSiblingsCompleted && !isParentCompleted) {
+		// Prevent completing parent if the trigger was an auto-complete itself
+		if (!isAutoCompleteAnnotation) {
+			return completeParentTask(tr, parentInfo.lineNumber, doc);
+		}
 	}
 
 	// If the parent is already completed but not all siblings are completed,
-	// it means a new task was added after the parent was completed,
-	// so we should revert the parent to "In Progress"
+	// it means a new task was added or an existing task was reverted after the parent was completed,
+	// so we should revert the parent to "In Progress" if the setting is enabled
 	if (
 		isParentCompleted &&
 		!allSiblingsCompleted &&
 		plugin.settings.markParentInProgressWhenPartiallyComplete
 	) {
-		return markParentAsInProgress(
-			tr,
-			parentInfo.lineNumber,
-			doc,
-			plugin.settings.taskStatuses.inProgress.split("|") || ["/"]
-		);
+		// Prevent reverting parent if the trigger was an auto-complete itself
+		if (!isAutoCompleteAnnotation) {
+			return markParentAsInProgress(
+				tr,
+				parentInfo.lineNumber,
+				doc,
+				plugin.settings.taskStatuses.inProgress.split("|") || ["/"]
+			);
+		}
 	}
 
 	// Check if any sibling is completed or has any status other than empty
@@ -102,20 +116,16 @@ export function handleParentTaskUpdateTransaction(
 	);
 
 	// If any siblings have a status and the feature is enabled, mark the parent as "In Progress"
+	// Only update if the parent is currently empty (' ')
 	if (
 		anySiblingsWithStatus &&
-		plugin.settings.markParentInProgressWhenPartiallyComplete
+		plugin.settings.markParentInProgressWhenPartiallyComplete &&
+		parentStatus === " "
 	) {
-		// Only update if the parent is not already marked as "In Progress" or completed
-		const inProgressStatuses = plugin.settings.taskStatuses.inProgress
-			.trim()
-			.split("|") || ["/", ">"];
-
-		if (
-			!inProgressStatuses.includes(parentStatus) &&
-			parentStatus !== "x" &&
-			parentStatus !== "X"
-		) {
+		const inProgressStatuses =
+			plugin.settings.taskStatuses.inProgress.split("|") || ["/"];
+		// Prevent updating parent if the trigger was an auto-complete itself
+		if (!isAutoCompleteAnnotation) {
 			return markParentAsInProgress(
 				tr,
 				parentInfo.lineNumber,
@@ -313,22 +323,32 @@ function findParentTask(
 }
 
 /**
- * Checks if all sibling tasks at the same indentation level as the parent's children are completed
+ * Checks if all sibling tasks at the same indentation level as the parent's children are completed.
+ * Considers workflow tasks: only treats them as completed if they are the final stage or not workflow tasks.
  * @param doc The document to check
  * @param parentLineNumber The line number of the parent task
  * @param parentIndentLevel The indentation level of the parent task
- * @returns True if all siblings are completed, false otherwise
+ * @param app The Obsidian app instance
+ * @param plugin The plugin instance
+ * @returns True if all siblings are completed (considering workflow rules), false otherwise
  */
 function areAllSiblingsCompleted(
 	doc: Text,
 	parentLineNumber: number,
 	parentIndentLevel: number,
-	app: App
+	app: App,
+	plugin: TaskProgressBarPlugin
 ): boolean {
 	const tabSize = getTabSize(app);
 
 	// The expected indentation level for child tasks
-	const childIndentLevel = parentIndentLevel + tabSize;
+	// Ensure childIndentLevel is correctly calculated based on actual indentation characters if mixed tabs/spaces are possible
+	const parentLine = doc.line(parentLineNumber);
+	const parentIndentMatch = parentLine.text.match(/^[/s|\t]*/);
+	const parentIndentText = parentIndentMatch ? parentIndentMatch[0] : "";
+	// Simple addition might not be robust if mixing tabs and spaces; getTabSize helps standardize comparison
+	// We'll primarily compare raw length for hierarchy, assuming consistent indentation within a list.
+	const childIndentLevel = parentIndentLevel + tabSize; // Use for regex matching primarily
 
 	// Track if we found at least one child
 	let foundChild = false;
@@ -344,37 +364,68 @@ function areAllSiblingsCompleted(
 		}
 
 		// Get the indentation of this line
-		const indentMatch = lineText.match(/^[\s|\t]*/);
-		const indentLevel = indentMatch ? indentMatch[0].length : 0;
+		const indentMatch = lineText.match(/^[/s|\t]*/);
+		const currentIndentText = indentMatch ? indentMatch[0] : "";
+		const indentLevel = currentIndentText.length; // Compare raw length
 
 		// If we encounter a line with less or equal indentation to the parent,
 		// we've moved out of the parent's children scope
+		// Use raw length comparison for hierarchy check
 		if (indentLevel <= parentIndentLevel) {
 			break;
 		}
 
-		// If this is a direct child of the parent (exactly one level deeper)
-		if (indentLevel === childIndentLevel) {
-			// Create a regex to match tasks based on the indentation level
-			const taskRegex = new RegExp(
-				`^[\\s|\\t]{${childIndentLevel}}([-*+]|\\d+\\.)\\s\\[(.)\\]`
-			);
-
+		if (
+			indentLevel > parentIndentLevel &&
+			lineText.startsWith(parentIndentText)
+		) {
+			// Check if it's a task using a regex that allows for flexible indentation matching
+			// Regex explanation:
+			// ^                  - Start of the line
+			// ([\s|\t]*)        - Capture the leading whitespace (indentation group 1)
+			// ([-*+]|\d+\.)     - Capture the list marker (group 2)
+			// \s+                - One or more whitespace characters
+			// \[(.)\]            - Capture the character inside the brackets (task status, group 3)
+			const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
-			if (taskMatch) {
-				foundChild = true;
 
-				// If we find an incomplete task, return false
-				const taskStatus = taskMatch[2];
+			if (taskMatch) {
+				// Check if this task's indentation makes it a direct child
+
+				foundChild = true; // We found at least one descendant task
+				const taskStatus = taskMatch[3]; // Use index 3 for the status character
 
 				if (taskStatus !== "x" && taskStatus !== "X") {
+					// Found an incomplete descendant task
 					return false;
+				} else {
+					// Task is marked complete '[x]' - check if it's a workflow task and the *last* stage
+					// Use the correct line number `i` for the current line being checked
+					if (
+						plugin.settings.workflow.enableWorkflow && // Only check if workflow enabled
+						!isLastWorkflowStageOrNotWorkflow(
+							lineText,
+							i,
+							doc,
+							plugin
+						)
+					) {
+						// It IS an enabled workflow task, and it's NOT the last stage.
+						// Treat it as effectively incomplete for parent auto-completion.
+						return false;
+					}
+					// Otherwise (it's not a workflow task, OR it is the last stage, OR workflow is disabled),
+					// consider this task complete and continue checking other siblings/descendants.
 				}
 			}
+			// If the line is indented further but not a task, ignore it for completion logic
+			// but continue scanning as it might contain nested tasks.
 		}
 	}
 
-	// If we found at least one child and all were completed, return true
+	// If we looped through all descendants without finding any incomplete ones,
+	// return true *only if* we actually found at least one child task.
+	// An empty parent (no children) shouldn't be auto-completed by this logic.
 	return foundChild;
 }
 

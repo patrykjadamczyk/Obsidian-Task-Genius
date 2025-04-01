@@ -80,6 +80,7 @@ export interface TaskProgressBarSettings {
 		autoAddTimestamp: boolean;
 		autoAddNextTask: boolean;
 		definitions: WorkflowDefinition[];
+		autoRemoveLastStageMarker: boolean;
 	};
 
 	// Completed task mover settings
@@ -184,6 +185,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		enableWorkflow: false,
 		autoAddTimestamp: true,
 		autoAddNextTask: false,
+		autoRemoveLastStageMarker: false,
 		definitions: [
 			{
 				id: "project_workflow",
@@ -1930,6 +1932,41 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		if (!this.plugin.settings.workflow.enableWorkflow) return;
+
+		new Setting(containerEl)
+			.setName(t("Auto-add timestamp"))
+			.setDesc(
+				t(
+					"Automatically add a timestamp to the task when it is created"
+				)
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.workflow.autoAddTimestamp)
+					.onChange(async (value) => {
+						this.plugin.settings.workflow.autoAddTimestamp = value;
+						this.applySettingsUpdate();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t("Auto remove last stage marker"))
+			.setDesc(
+				t(
+					"Automatically remove the last stage marker when a task is completed"
+				)
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(
+						this.plugin.settings.workflow.autoRemoveLastStageMarker
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.workflow.autoRemoveLastStageMarker =
+							value;
+						this.applySettingsUpdate();
+					});
+			});
 
 		new Setting(containerEl)
 			.setName(t("Auto-add next task"))

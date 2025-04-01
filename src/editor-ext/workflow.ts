@@ -1,4 +1,4 @@
-import { App, Editor, EditorPosition } from "obsidian";
+import { App, Editor, moment } from "obsidian";
 import {
 	EditorState,
 	Transaction,
@@ -13,6 +13,7 @@ import { priorityChangeAnnotation } from "./priorityPicker";
 import { getTabSize } from "../utils";
 // @ts-ignore
 import { foldable } from "@codemirror/language";
+import { t } from "../translations/helper";
 
 // Annotation that marks a transaction as a workflow change
 export const workflowChangeAnnotation = Annotation.define<string>();
@@ -486,13 +487,16 @@ export function handleWorkflowTransaction(
 
 			// Create task for the main stage
 			let completeTaskText;
+			const timestamp = plugin.settings.workflow.autoAddTimestamp
+				? ` 🛫 ${moment().format("YYYY-MM-DD HH:mm:ss")}`
+				: "";
 
 			if (nextSubStage) {
 				// If we already have a specific next substage, create a task with that substage
-				completeTaskText = `${newTaskIndentation}- [ ] New task for ${stageName} (${nextSubStage.name}) [stage::${nextStage.id}.${nextSubStage.id}]`;
+				completeTaskText = `${newTaskIndentation}- [ ] ${stageName} (${nextSubStage.name}) [stage::${nextStage.id}.${nextSubStage.id}]${timestamp}`;
 			} else {
 				// Otherwise, create a task for the main stage
-				completeTaskText = `${newTaskIndentation}- [ ] New task for ${stageName} [stage::${nextStage.id}]`;
+				completeTaskText = `${newTaskIndentation}- [ ] ${stageName} [stage::${nextStage.id}]${timestamp}`;
 
 				// If this next stage has sub-stages, also create a sub-task for the first sub-stage
 				if (
@@ -556,9 +560,24 @@ export function handleWorkflowTransaction(
 				to: insertionPoint,
 				insert: `\n${completeTaskText}`,
 			});
-		}
 
-		console.log(newChanges, tr.changes.toJSON());
+			// Remove the [stage::] marker from the current line
+			const currentLineText = line.text;
+			const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
+			const stageMarker = currentLineText.match(stageMarkerRegex);
+			if (
+				stageMarker &&
+				stageMarker.index &&
+				plugin.settings.workflow.autoRemoveLastStageMarker
+			) {
+				// Create a change that removes the [stage::] marker
+				newChanges.push({
+					from: line.from + stageMarker.index,
+					to: line.from + stageMarker.index + stageMarker[0].length,
+					insert: "",
+				});
+			}
+		}
 
 		// Use the original changes from the transaction (which completed the task)
 		// plus our new changes to add the next task
@@ -573,6 +592,84 @@ export function handleWorkflowTransaction(
 	}
 
 	return tr;
+}
+
+// Helper function to create workflow stage transition
+function createWorkflowStageTransition(
+	editor: Editor,
+	line: string,
+	lineNumber: number,
+	nextStage: WorkflowStage,
+	nextSubStage?: { id: string; name: string; next?: string },
+	currentSubStage?: { id: string; name: string; next?: string },
+	plugin?: TaskProgressBarPlugin
+) {
+	const doc = editor.cm.state.doc;
+	const lineStart = doc.line(lineNumber + 1);
+	const indentMatch = line.match(/^([\s|\t]*)/);
+	const indentation = indentMatch ? indentMatch[1] : "";
+	const tabSize = getTabSize(app);
+
+	const timestamp = plugin?.settings.workflow.autoAddTimestamp
+		? ` 🛫 ${moment().format("YYYY-MM-DD HH:mm:ss")}`
+		: "";
+
+	let changes = [];
+
+	// If we're transitioning from a sub-stage to a new main stage
+	// Mark the current sub-stage as complete
+	if (currentSubStage && !nextSubStage) {
+		const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
+		const stageMarker = line.match(stageMarkerRegex);
+		if (stageMarker && stageMarker.index) {
+			changes.push({
+				from: lineStart.from + stageMarker.index,
+				to: lineStart.from + stageMarker.index + stageMarker[0].length,
+				insert: "",
+			});
+		}
+	}
+
+	// Create the new task text
+	let newTaskText;
+	if (nextSubStage) {
+		newTaskText = `${indentation}- [ ] ${nextStage.name} (${nextSubStage.name}) [stage::${nextStage.id}.${nextSubStage.id}]${timestamp}`;
+	} else {
+		newTaskText = `${indentation}- [ ] ${nextStage.name} [stage::${nextStage.id}]${timestamp}`;
+
+		// If this next stage has sub-stages, also create a sub-task for the first sub-stage
+		if (
+			nextStage.type === "cycle" &&
+			nextStage.subStages &&
+			nextStage.subStages.length > 0
+		) {
+			const firstSubStage = nextStage.subStages[0];
+			const subTaskIndentation = indentation + " ".repeat(tabSize);
+			newTaskText += `\n${subTaskIndentation}- [ ] ${nextStage.name} - ${firstSubStage.name} [stage::${nextStage.id}.${firstSubStage.id}]`;
+		}
+	}
+
+	// Add the new task after the current line
+	changes.push({
+		from: lineStart.to,
+		to: lineStart.to,
+		insert: `\n${newTaskText}`,
+	});
+
+	// Remove stage marker from current line if setting enabled
+	if (plugin?.settings.workflow.autoRemoveLastStageMarker) {
+		const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
+		const stageMarker = line.match(stageMarkerRegex);
+		if (stageMarker && stageMarker.index) {
+			changes.push({
+				from: lineStart.from + stageMarker.index,
+				to: lineStart.from + stageMarker.index + stageMarker[0].length,
+				insert: "",
+			});
+		}
+	}
+
+	return changes;
 }
 
 /**
@@ -607,7 +704,7 @@ export function updateWorkflowContextMenu(
 	if (!workflowInfo) {
 		// Add option to add workflow
 		menu.addItem((item: any) => {
-			item.setTitle("Workflow");
+			item.setTitle(t("Workflow"));
 			item.setIcon("list-ordered");
 
 			// Create submenu
@@ -615,7 +712,7 @@ export function updateWorkflowContextMenu(
 
 			// Add option to add workflow root
 			submenu.addItem((addItem: any) => {
-				addItem.setTitle("Add as workflow root");
+				addItem.setTitle(t("Add as workflow root"));
 				addItem.setIcon("plus-circle");
 
 				// Create a submenu for available workflows
@@ -625,11 +722,20 @@ export function updateWorkflowContextMenu(
 					workflowSubmenu.addItem((wfItem: any) => {
 						wfItem.setTitle(workflow.name);
 						wfItem.onClick(() => {
-							// Add workflow tag
-							editor.setLine(
-								cursor.line,
-								`${line} #workflow/${workflow.id}`
-							);
+							// Add workflow tag using dispatch
+							editor.cm.dispatch({
+								changes: {
+									from: editor.posToOffset(cursor),
+									to:
+										editor.posToOffset(cursor) +
+										line.length,
+									insert: `${line} #workflow/${workflow.id}`,
+								},
+								annotations:
+									taskStatusChangeAnnotation.of(
+										"workflowChange"
+									),
+							});
 						});
 					});
 				});
@@ -637,7 +743,7 @@ export function updateWorkflowContextMenu(
 
 			// Add option to add stage marker
 			submenu.addItem((addItem: any) => {
-				addItem.setTitle("Add stage marker");
+				addItem.setTitle(t("Add stage marker"));
 				addItem.setIcon("plus-circle");
 
 				// Create a submenu for available workflows
@@ -655,11 +761,22 @@ export function updateWorkflowContextMenu(
 								stageSubmenu.addItem((stageItem: any) => {
 									stageItem.setTitle(stage.name);
 									stageItem.onClick(() => {
-										// Add stage marker
-										editor.setLine(
-											cursor.line,
-											`${line} [stage::${stage.id}]`
-										);
+										// Add stage marker using dispatch
+										editor.cm.dispatch({
+											changes: {
+												from: editor.posToOffset(
+													cursor
+												),
+												to:
+													editor.posToOffset(cursor) +
+													line.length,
+												insert: `${line} [stage::${stage.id}]`,
+											},
+											annotations:
+												taskStatusChangeAnnotation.of(
+													"workflowChange"
+												),
+										});
 									});
 								});
 							});
@@ -673,7 +790,7 @@ export function updateWorkflowContextMenu(
 
 	// If we're here, the task has a workflow tag or stage marker
 	menu.addItem((item: any) => {
-		item.setTitle("Workflow");
+		item.setTitle(t("Workflow"));
 		item.setIcon("list-ordered");
 
 		// Create submenu
@@ -681,10 +798,10 @@ export function updateWorkflowContextMenu(
 
 		let workflowType = workflowInfo.workflowType;
 		let stageId = workflowInfo.currentStage;
+		let currentSubStage = workflowInfo.subStage;
 
 		// If this is a stage marker, we need to find the parent workflow
 		if (workflowType === "fromParent") {
-			// Get the document
 			const doc = editor.getDoc();
 			const parentWorkflow = findParentWorkflow(
 				{
@@ -699,7 +816,6 @@ export function updateWorkflowContextMenu(
 			if (parentWorkflow) {
 				workflowType = parentWorkflow;
 			} else {
-				// No parent workflow found
 				return;
 			}
 		}
@@ -715,7 +831,6 @@ export function updateWorkflowContextMenu(
 		let currentStage: WorkflowStage | undefined;
 
 		if (stageId === "root") {
-			// For root tasks, use the first stage
 			if (workflow.stages.length > 0) {
 				currentStage = {
 					id: "_root_task_",
@@ -724,28 +839,45 @@ export function updateWorkflowContextMenu(
 					next: workflow.stages[0].id,
 				};
 			} else {
-				return; // No stages in this workflow
+				return;
 			}
 		} else {
-			// For sub-tasks, use the stage specified by the stage marker
 			currentStage = workflow.stages.find((s) => s.id === stageId);
 		}
 
 		if (!currentStage) return;
 
+		// Find current substage if exists
+		let currentSubStageObj:
+			| { id: string; name: string; next?: string }
+			| undefined;
+		if (currentSubStage && currentStage.subStages) {
+			currentSubStageObj = currentStage.subStages.find(
+				(ss) => ss.id === currentSubStage
+			);
+		}
+
 		// Show available next stages
 		if (currentStage.id === "_root_task_") {
-			// For root tasks, show the first stage
 			if (workflow.stages.length > 0) {
 				const firstStage = workflow.stages[0];
 				submenu.addItem((nextItem: any) => {
 					nextItem.setTitle(`Move to ${firstStage.name}`);
 					nextItem.onClick(() => {
-						// Add the stage marker
-						editor.setLine(
+						const changes = createWorkflowStageTransition(
+							editor,
+							line,
 							cursor.line,
-							`${line} [stage::${firstStage.id}]`
+							firstStage,
+							undefined,
+							undefined,
+							plugin
 						);
+						editor.cm.dispatch({
+							changes,
+							annotations:
+								taskStatusChangeAnnotation.of("workflowChange"),
+						});
 					});
 				});
 			}
@@ -759,23 +891,22 @@ export function updateWorkflowContextMenu(
 					submenu.addItem((nextItem: any) => {
 						nextItem.setTitle(`Move to ${nextStage.name}`);
 						nextItem.onClick(() => {
-							// Update the stage marker
-							const oldStageRegex = /\[stage::[^\]]+\]/;
-
-							if (workflowInfo.currentStage === "root") {
-								// For root tasks, add a stage marker
-								editor.setLine(
-									cursor.line,
-									`${line} [stage::${nextStage.id}]`
-								);
-							} else {
-								// For tasks with stage markers, update the marker
-								const updatedLine = line.replace(
-									oldStageRegex,
-									`[stage::${nextStage.id}]`
-								);
-								editor.setLine(cursor.line, updatedLine);
-							}
+							const changes = createWorkflowStageTransition(
+								editor,
+								line,
+								cursor.line,
+								nextStage,
+								undefined,
+								currentSubStageObj,
+								plugin
+							);
+							editor.cm.dispatch({
+								changes,
+								annotations:
+									taskStatusChangeAnnotation.of(
+										"workflowChange"
+									),
+							});
 						});
 					});
 				}
@@ -783,29 +914,25 @@ export function updateWorkflowContextMenu(
 		} else {
 			// Show all stages from the workflow
 			workflow.stages.forEach((stage) => {
-				// Skip the current stage
 				if (stage.id === currentStage?.id) return;
 
 				submenu.addItem((nextItem: any) => {
 					nextItem.setTitle(`Move to ${stage.name}`);
 					nextItem.onClick(() => {
-						// Update the stage marker
-						const oldStageRegex = /\[stage::[^\]]+\]/;
-
-						if (workflowInfo.currentStage === "root") {
-							// For root tasks, add a stage marker
-							editor.setLine(
-								cursor.line,
-								`${line} [stage::${stage.id}]`
-							);
-						} else {
-							// For tasks with stage markers, update the marker
-							const updatedLine = line.replace(
-								oldStageRegex,
-								`[stage::${stage.id}]`
-							);
-							editor.setLine(cursor.line, updatedLine);
-						}
+						const changes = createWorkflowStageTransition(
+							editor,
+							line,
+							cursor.line,
+							stage,
+							undefined,
+							currentSubStageObj,
+							plugin
+						);
+						editor.cm.dispatch({
+							changes,
+							annotations:
+								taskStatusChangeAnnotation.of("workflowChange"),
+						});
 					});
 				});
 			});
@@ -814,101 +941,219 @@ export function updateWorkflowContextMenu(
 		// Add option to add a child task with same stage
 		submenu.addSeparator();
 		submenu.addItem((addItem: any) => {
-			addItem.setTitle("Add child task with same stage");
+			addItem.setTitle(t("Add child task with same stage"));
 			addItem.setIcon("plus-circle");
 			addItem.onClick(() => {
-				// Get indentation
 				const indentMatch = line.match(/^([\s|\t]*)/);
 				const indentation = indentMatch ? indentMatch[1] : "";
 				const tabSize = getTabSize(app);
 
-				// Check if this is a root task
-				const isRootTask =
-					line.includes(`#workflow/${workflowType}`) &&
-					!line.includes("[stage::");
-
-				// Create a new task with the same stage information
 				let newTaskText: string;
 				if (workflowInfo.currentStage === "root") {
-					// For root tasks, child task should have first stage
 					if (workflow.stages.length > 0) {
-						// Get the first stage
 						const firstStage = workflow.stages[0];
-						newTaskText = `${indentation}${" ".repeat(
-							tabSize
-						)}- [ ] New subtask [stage::${firstStage.id}]`;
-
-						// If the first stage has substages, also add a subtask for the first substage
-						if (
-							firstStage.type === "cycle" &&
-							firstStage.subStages &&
-							firstStage.subStages.length > 0
-						) {
-							const subTaskIndent =
-								indentation + " ".repeat(tabSize + tabSize);
-							const firstSubStage = firstStage.subStages[0];
-							newTaskText += `\n${subTaskIndent}- [ ] New sub-subtask [stage::${firstStage.id}.${firstSubStage.id}]`;
-						}
-					} else {
-						newTaskText = `${indentation}${" ".repeat(
-							tabSize
-						)}- [ ] New subtask`;
+						const changes = createWorkflowStageTransition(
+							editor,
+							line,
+							cursor.line,
+							firstStage,
+							undefined,
+							undefined,
+							plugin
+						);
+						editor.cm.dispatch({
+							changes,
+							annotations:
+								taskStatusChangeAnnotation.of("workflowChange"),
+						});
 					}
 				} else if (currentStage && currentStage.id === "_root_task_") {
-					// Also handle the special _root_task_ marker
 					if (workflow.stages.length > 0) {
-						// Get the first stage
 						const firstStage = workflow.stages[0];
-						newTaskText = `${indentation}${" ".repeat(
-							tabSize
-						)}- [ ] New subtask [stage::${firstStage.id}]`;
-
-						// If the first stage has substages, also add a subtask for the first substage
-						if (
-							firstStage.type === "cycle" &&
-							firstStage.subStages &&
-							firstStage.subStages.length > 0
-						) {
-							const subTaskIndent =
-								indentation + " ".repeat(tabSize + tabSize);
-							const firstSubStage = firstStage.subStages[0];
-							newTaskText += `\n${subTaskIndent}- [ ] New sub-subtask [stage::${firstStage.id}.${firstSubStage.id}]`;
-						}
-					} else {
-						newTaskText = `${indentation}${" ".repeat(
-							tabSize
-						)}- [ ] New subtask`;
+						const changes = createWorkflowStageTransition(
+							editor,
+							line,
+							cursor.line,
+							firstStage,
+							undefined,
+							undefined,
+							plugin
+						);
+						editor.cm.dispatch({
+							changes,
+							annotations:
+								taskStatusChangeAnnotation.of("workflowChange"),
+						});
 					}
 				} else {
-					// For tasks with stage markers, use the same stage
-					// Always add proper indentation for subtasks
-					newTaskText = `${indentation}${" ".repeat(
-						tabSize
-					)}- [ ] New subtask [stage::${workflowInfo.currentStage}]`;
-
-					// Check if the current stage has substages
-					const stage = workflow.stages.find(
-						(s) => s.id === workflowInfo.currentStage
+					const changes = createWorkflowStageTransition(
+						editor,
+						line,
+						cursor.line,
+						currentStage,
+						currentSubStageObj,
+						undefined,
+						plugin
 					);
-					if (
-						stage &&
-						stage.type === "cycle" &&
-						stage.subStages &&
-						stage.subStages.length > 0
-					) {
-						const subTaskIndent =
-							indentation + " ".repeat(tabSize + tabSize);
-						const firstSubStage = stage.subStages[0];
-						newTaskText += `\n${subTaskIndent}- [ ] New sub-subtask [stage::${stage.id}.${firstSubStage.id}]`;
-					}
+					editor.cm.dispatch({
+						changes,
+						annotations:
+							taskStatusChangeAnnotation.of("workflowChange"),
+					});
 				}
-
-				// Insert the new task after the current line
-				editor.replaceRange(`\n${newTaskText}`, {
-					line: cursor.line,
-					ch: line.length,
-				});
 			});
 		});
 	});
+}
+
+/**
+ * Checks if a task line represents the final stage of a workflow or is not part of a workflow.
+ * Returns true if it's the final stage or not a workflow task, false otherwise.
+ * @param lineText The text of the line containing the task
+ * @param lineNumber The line number (1-based)
+ * @param doc The document text
+ * @param plugin The plugin instance
+ * @returns boolean
+ */
+export function isLastWorkflowStageOrNotWorkflow(
+	lineText: string,
+	lineNumber: number,
+	doc: Text,
+	plugin: TaskProgressBarPlugin
+): boolean {
+	const workflowInfo = extractWorkflowInfo(lineText);
+
+	// If not a workflow task, treat as "final" for parent completion purposes
+	if (!workflowInfo) {
+		return true;
+	}
+
+	let workflowType = workflowInfo.workflowType;
+	let currentStageId = workflowInfo.currentStage;
+	let currentSubStageId = workflowInfo.subStage;
+
+	// Resolve workflow type if it's derived from parent
+	if (workflowType === "fromParent") {
+		// Need the actual doc object, not just Text interface for findParentWorkflow
+		// Let's assume the calling context provides a way to get Text if needed,
+		// but findParentWorkflow expects the Codemirror Text type.
+		// This might require adjusting how doc is passed or using editor instance if available.
+		// For now, we proceed assuming doc is compatible or findParentWorkflow is adapted.
+		const parentWorkflow = findParentWorkflow(doc, lineNumber);
+		if (parentWorkflow) {
+			workflowType = parentWorkflow;
+		} else {
+			// Cannot determine workflow, treat as non-workflow task for safety
+			console.warn(
+				`Could not find parent workflow for task at line ${lineNumber}`
+			);
+			return true;
+		}
+	}
+
+	// Find the workflow definition
+	const workflow = plugin.settings.workflow.definitions.find(
+		(wf: WorkflowDefinition) => wf.id === workflowType
+	);
+	if (!workflow) {
+		console.warn(`Workflow definition not found: ${workflowType}`);
+		return true; // Definition missing, treat as non-workflow
+	}
+
+	// Handle root tasks - they are never the "last stage" in the sense of triggering parent completion
+	// A root task completion should trigger the first stage, not parent completion.
+	if (currentStageId === "root") {
+		return false;
+	}
+
+	// Find the current stage definition
+	const currentStage = workflow.stages.find((s) => s.id === currentStageId);
+	if (!currentStage) {
+		console.warn(
+			`Stage definition not found: ${currentStageId} in workflow ${workflowType}`
+		);
+		return true; // Stage definition missing
+	}
+
+	// --- Check if it's the last stage ---
+
+	// 1. Terminal Stage: Explicitly the end.
+	if (currentStage.type === "terminal") {
+		return true;
+	}
+
+	// 2. Cycle Stage with SubStages:
+	if (
+		currentStage.type === "cycle" &&
+		currentStage.subStages &&
+		currentSubStageId
+	) {
+		const currentSubStage = currentStage.subStages.find(
+			(ss) => ss.id === currentSubStageId
+		);
+		if (!currentSubStage) {
+			console.warn(
+				`SubStage definition not found: ${currentSubStageId} in stage ${currentStageId}`
+			);
+			return true; // SubStage definition missing
+		}
+		// It's the last substage if it has no 'next' AND the parent stage has no 'canProceedTo' or linear 'next'
+		const isLastSubStage = !currentSubStage.next;
+		// Check if the main stage points anywhere else *after* this cycle potentially finishes
+		const parentStageCanProceed =
+			currentStage.canProceedTo && currentStage.canProceedTo.length > 0;
+		const parentStageHasLinearNext =
+			typeof currentStage.next === "string" ||
+			(Array.isArray(currentStage.next) && currentStage.next.length > 0);
+
+		// If it's the last known substage AND the main stage cannot proceed elsewhere,
+		// then we consider this the end of this branch of the workflow.
+		if (
+			isLastSubStage &&
+			!parentStageCanProceed &&
+			!parentStageHasLinearNext
+		) {
+			// Additionally, ensure this main stage itself is the last in the overall sequence if no explicit next steps are defined
+			const currentIndex = workflow.stages.findIndex(
+				(s) => s.id === currentStage.id
+			);
+			if (currentIndex === workflow.stages.length - 1) {
+				return true;
+			}
+			// If it's the last substage, and the parent stage can't proceed, but it's NOT the last main stage,
+			// it's likely an error in definition or implies looping back, so not terminal.
+			// Let's default to false unless explicitly the last main stage too.
+			// This simplifies the logic: last sub-stage of the last main stage without onward links is terminal.
+			// Fall through if not the absolute last stage.
+		}
+		// Otherwise, if it's a substage in a cycle, assume it's not the absolute final step
+		return false;
+	}
+
+	// 3. Linear or Cycle (without SubStages being considered): Check for onward connections
+	const hasExplicitNext =
+		currentStage.next ||
+		(currentStage.canProceedTo && currentStage.canProceedTo.length > 0);
+	if (hasExplicitNext) {
+		// If there's an explicit next stage defined, it's not the last one.
+		return false;
+	}
+
+	// 4. Check sequence: If no explicit 'next', is it the last stage in the definition array?
+	const currentIndex = workflow.stages.findIndex(
+		(s) => s.id === currentStage.id
+	);
+	if (currentIndex < 0) {
+		console.warn(
+			`Current stage ${currentStage.id} not found in workflow stages array.`
+		);
+		return true; // Error condition
+	}
+	if (currentIndex === workflow.stages.length - 1) {
+		// It's the last stage in the defined sequence without explicit next steps.
+		return true;
+	}
+
+	// Default: Assume not the last stage if none of the above conditions met
+	return false;
 }
