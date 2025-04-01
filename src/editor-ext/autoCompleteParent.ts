@@ -440,7 +440,7 @@ function completeParentTask(
 			},
 		],
 		selection: tr.selection,
-		annotations: [taskStatusChangeAnnotation.of("taskStatusChange")],
+		annotations: [taskStatusChangeAnnotation.of("autoCompleteParent.DONE")],
 	};
 }
 
@@ -591,6 +591,8 @@ function markParentAsInProgress(
 			},
 		],
 		selection: tr.selection,
-		annotations: [taskStatusChangeAnnotation.of("taskStatusChange")],
+		annotations: [
+			taskStatusChangeAnnotation.of("autoCompleteParent.IN_PROGRESS"),
+		],
 	};
 }

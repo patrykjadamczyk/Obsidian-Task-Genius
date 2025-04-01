@@ -1931,22 +1931,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		if (!this.plugin.settings.workflow.enableWorkflow) return;
 
-		// new Setting(containerEl)
-		// 	.setName(t("Auto-add timestamp"))
-		// 	.setDesc(
-		// 		t(
-		// 			"Automatically add a timestamp when a task moves to the next workflow stage"
-		// 		)
-		// 	)
-		// 	.addToggle((toggle) => {
-		// 		toggle
-		// 			.setValue(this.plugin.settings.workflow.autoAddTimestamp)
-		// 			.onChange(async (value) => {
-		// 				this.plugin.settings.workflow.autoAddTimestamp = value;
-		// 				this.applySettingsUpdate();
-		// 			});
-		// 	});
-
 		new Setting(containerEl)
 			.setName(t("Auto-add next task"))
 			.setDesc(
