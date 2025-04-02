@@ -377,7 +377,6 @@ export function handleWorkflowTransaction(
 				newTaskIndentation,
 				plugin,
 				true,
-				tabSize,
 				nextSubStage
 			);
 
@@ -389,11 +388,18 @@ export function handleWorkflowTransaction(
 			);
 
 			// Add the new task(s) after the determined insertion point
-			newChanges.push({
-				from: insertionPoint,
-				to: insertionPoint,
-				insert: `\n${completeTaskText}`,
-			});
+			if (
+				!(
+					tr.annotation(taskStatusChangeAnnotation) ===
+					"autoCompleteParent.DONE"
+				)
+			) {
+				newChanges.push({
+					from: insertionPoint,
+					to: insertionPoint,
+					insert: `\n${completeTaskText}`,
+				});
+			}
 		}
 	}
 
@@ -667,7 +673,9 @@ export function updateWorkflowContextMenu(
 			if (workflow.stages.length > 0) {
 				const firstStage = workflow.stages[0];
 				submenu.addItem((nextItem: any) => {
-					nextItem.setTitle(`Move to ${firstStage.name}`);
+					nextItem.setTitle(
+						`${t("Move to stage")} ${firstStage.name}`
+					);
 					nextItem.onClick(() => {
 						const changes = createWorkflowStageTransition(
 							plugin,
@@ -707,8 +715,8 @@ export function updateWorkflowContextMenu(
 						// If last stage, show "Complete stage" instead of "Move to"
 						nextItem.setTitle(
 							isLastStage
-								? `Complete stage: ${nextStage.name}`
-								: `Move to ${nextStage.name}`
+								? `${t("Complete stage")}: ${nextStage.name}`
+								: `${t("Move to stage")} ${nextStage.name}`
 						);
 						nextItem.onClick(() => {
 							const changes = createWorkflowStageTransition(
@@ -723,10 +731,11 @@ export function updateWorkflowContextMenu(
 							);
 							editor.cm.dispatch({
 								changes,
-								annotations:
-									taskStatusChangeAnnotation.of(
-										"workflowChange"
-									),
+								annotations: taskStatusChangeAnnotation.of(
+									isLastStage
+										? "workflowChange.completeStage"
+										: "workflowChange.moveToStage"
+								),
 							});
 						});
 					});
@@ -781,6 +790,8 @@ export function updateWorkflowContextMenu(
 								undefined,
 								undefined
 							);
+
+							console.log(changes, "changes");
 
 							editor.cm.dispatch({
 								changes,
@@ -878,6 +889,8 @@ export function isLastWorkflowStageOrNotWorkflow(
 ): boolean {
 	const workflowInfo = extractWorkflowInfo(lineText);
 
+	console.log(workflowInfo, "workflowInfo");
+
 	// If not a workflow task, treat as "final" for parent completion purposes
 	if (!workflowInfo) {
 		console.log("not a workflow task");
@@ -899,6 +912,8 @@ export function isLastWorkflowStageOrNotWorkflow(
 		}
 		workflowType = parentWorkflow;
 	}
+
+	console.log(workflowType, "workflowType");
 
 	// Find the workflow definition
 	const workflow = plugin.settings.workflow.definitions.find(
@@ -1183,14 +1198,17 @@ function createWorkflowStageTransition(
 	}
 
 	// Create the new task text
-	if (!isLastWorkflowStageOrNotWorkflow(line, lineNumber, doc, plugin)) {
+	if (
+		!isLastWorkflowStageOrNotWorkflow(line, lineNumber, doc, plugin)
+		// If there is a current sub-stage, we need to add a new task
+		// But this behavior would be controlled by the autoCompleteParent function
+	) {
 		// Generate the task text using our helper
 		const newTaskText = generateWorkflowTaskText(
 			nextStage,
 			indentation,
 			plugin,
 			true,
-			tabSize,
 			nextSubStage
 		);
 
@@ -1329,7 +1347,6 @@ export function generateWorkflowTaskText(
 	indentation: string,
 	plugin: TaskProgressBarPlugin,
 	addSubtasks: boolean = true,
-	tabSize: number = 4,
 	nextSubStage?: { id: string; name: string; next?: string }
 ): string {
 	// Generate timestamp if configured
@@ -1339,6 +1356,7 @@ export function generateWorkflowTaskText(
 					"YYYY-MM-DD HH:mm:ss"
 		  )}`
 		: "";
+	const defaultIndentation = buildIndentString(plugin.app);
 
 	// Create task text
 	if (nextSubStage) {
@@ -1356,7 +1374,7 @@ export function generateWorkflowTaskText(
 			nextStage.subStages.length > 0
 		) {
 			const firstSubStage = nextStage.subStages[0];
-			const subTaskIndentation = indentation + " ".repeat(tabSize);
+			const subTaskIndentation = indentation + defaultIndentation;
 			taskText += `\n${subTaskIndentation}- [ ] ${nextStage.name} (${firstSubStage.name}) [stage::${nextStage.id}.${firstSubStage.id}]${timestamp}`;
 		}
 

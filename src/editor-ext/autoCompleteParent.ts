@@ -8,7 +8,10 @@ import {
 import { getTabSize } from "../utils";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import TaskProgressBarPlugin from "..";
-import { isLastWorkflowStageOrNotWorkflow } from "./workflow";
+import {
+	isLastWorkflowStageOrNotWorkflow,
+	workflowChangeAnnotation,
+} from "./workflow";
 
 /**
  * Creates an editor extension that automatically updates parent tasks based on child task status changes
@@ -44,6 +47,8 @@ export function handleParentTaskUpdateTransaction(
 
 	// Check if a task status was changed or a new task was added in this transaction
 	const taskStatusChangeInfo = findTaskStatusChange(tr);
+
+	console.log(taskStatusChangeInfo, "taskStatusChangeInfo");
 
 	if (!taskStatusChangeInfo) {
 		return tr;
@@ -167,13 +172,15 @@ function findTaskStatusChange(tr: Transaction): {
 			inserted: Text
 		) => {
 			// Check if this is a new line insertion with a task marker
-			if (inserted.length > 0) {
+			if (inserted.length > 0 && taskChangedLine === null) {
 				const insertedText = inserted.toString();
 
 				// First check for tasks with preceding newline (common case when adding a task in the middle of a document)
 				const newTaskMatch = insertedText.match(
 					/\n[\s|\t]*([-*+]|\d+\.)\s\[ \]/
 				);
+
+				console.log(insertedText, newTaskMatch, "newTaskMatch");
 
 				if (newTaskMatch) {
 					// A new task was added, find the line number
@@ -212,6 +219,8 @@ function findTaskStatusChange(tr: Transaction): {
 			// Check if this line contains a task marker
 			const taskRegex = /^[\s|\t]*([-*+]|\d+\.)\s\[(.)]/i;
 			const taskMatch = lineText.match(taskRegex);
+
+			console.log(lineText, taskMatch, "lineText");
 
 			if (taskMatch) {
 				// Get the old line if it exists in the old document
@@ -372,7 +381,7 @@ function areAllSiblingsCompleted(
 		}
 
 		// Get the indentation of this line
-		const indentMatch = lineText.match(/^[/s|\t]*/);
+		const indentMatch = lineText.match(/^[\s|\t]*/);
 		const currentIndentText = indentMatch ? indentMatch[0] : "";
 		const indentLevel = currentIndentText.length; // Compare raw length
 
@@ -388,12 +397,6 @@ function areAllSiblingsCompleted(
 			lineText.startsWith(parentIndentText)
 		) {
 			// Check if it's a task using a regex that allows for flexible indentation matching
-			// Regex explanation:
-			// ^                  - Start of the line
-			// ([\s|\t]*)        - Capture the leading whitespace (indentation group 1)
-			// ([-*+]|\d+\.)     - Capture the list marker (group 2)
-			// \s+                - One or more whitespace characters
-			// \[(.)\]            - Capture the character inside the brackets (task status, group 3)
 			const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
 
@@ -407,8 +410,6 @@ function areAllSiblingsCompleted(
 					// Found an incomplete descendant task
 					return false;
 				} else {
-					// Task is marked complete '[x]' - check if it's a workflow task and the *last* stage
-					// Use the correct line number `i` for the current line being checked
 					if (
 						plugin.settings.workflow.enableWorkflow && // Only check if workflow enabled
 						!isLastWorkflowStageOrNotWorkflow(
@@ -418,22 +419,13 @@ function areAllSiblingsCompleted(
 							plugin
 						)
 					) {
-						// It IS an enabled workflow task, and it's NOT the last stage.
-						// Treat it as effectively incomplete for parent auto-completion.
 						return false;
 					}
-					// Otherwise (it's not a workflow task, OR it is the last stage, OR workflow is disabled),
-					// consider this task complete and continue checking other siblings/descendants.
 				}
 			}
-			// If the line is indented further but not a task, ignore it for completion logic
-			// but continue scanning as it might contain nested tasks.
 		}
 	}
 
-	// If we looped through all descendants without finding any incomplete ones,
-	// return true *only if* we actually found at least one child task.
-	// An empty parent (no children) shouldn't be auto-completed by this logic.
 	return foundChild;
 }
 
@@ -487,6 +479,16 @@ function completeParentTask(
 	// Find the exact position of the checkbox character
 	const checkboxStart = parentLineText.indexOf("[") + 1;
 	const markerStart = parentLine.from + checkboxStart;
+
+	console.log(
+		tr.changes,
+		{
+			from: markerStart,
+			to: markerStart + 1,
+			insert: "x",
+		},
+		"markerStart"
+	);
 
 	// Create a new transaction that adds the completion marker 'x' to the parent task
 	return {
