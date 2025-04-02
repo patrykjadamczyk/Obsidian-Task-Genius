@@ -80,6 +80,14 @@ export function handleParentTaskUpdateTransaction(
 		typeof annotationValue === "string" &&
 		annotationValue.includes("autoCompleteParent");
 
+	console.log(
+		isAutoCompleteAnnotation,
+		allSiblingsCompleted,
+		isParentCompleted,
+		parentStatus,
+		"isAutoCompleteAnnotation"
+	);
+
 	// If all siblings are completed, mark the parent task as completed
 	if (allSiblingsCompleted && !isParentCompleted) {
 		// Prevent completing parent if the trigger was an auto-complete itself

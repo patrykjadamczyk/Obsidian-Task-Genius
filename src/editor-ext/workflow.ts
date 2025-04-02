@@ -10,7 +10,7 @@ import { Annotation } from "@codemirror/state";
 import TaskProgressBarPlugin from "..";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import { priorityChangeAnnotation } from "./priorityPicker";
-import { getTabSize } from "../utils";
+import { buildIndentString, getTabSize } from "../utils";
 // @ts-ignore
 import { foldable } from "@codemirror/language";
 import { t } from "../translations/helper";
@@ -192,7 +192,8 @@ export function handleWorkflowTransaction(
 	// Skip if this transaction already has a workflow or task status annotation
 	if (
 		tr.annotation(workflowChangeAnnotation) ||
-		tr.annotation(priorityChangeAnnotation)
+		tr.annotation(priorityChangeAnnotation) ||
+		tr.annotation(taskStatusChangeAnnotation) === "workflowChange"
 	) {
 		return tr;
 	}
@@ -228,8 +229,6 @@ export function handleWorkflowTransaction(
 	) {
 		return tr;
 	}
-
-	console.log(changes);
 
 	// Check if any completed tasks have workflow tags
 	let workflowUpdates: {
@@ -336,8 +335,6 @@ export function handleWorkflowTransaction(
 
 	const newChanges = [];
 
-	console.log(workflowUpdates);
-
 	// If we found any workflow updates to make, create a new transaction
 	if (workflowUpdates.length > 0) {
 		// Process each workflow update
@@ -346,6 +343,7 @@ export function handleWorkflowTransaction(
 			const indentMatch = update.lineText.match(/^([\s|\t]*)/);
 			let indentation = indentMatch ? indentMatch[1] : "";
 			const tabSize = getTabSize(app);
+			const defaultIndentation = buildIndentString(app);
 
 			// Find the workflow definition
 			const workflow = plugin.settings.workflow.definitions.find(
@@ -436,11 +434,21 @@ export function handleWorkflowTransaction(
 							stageMarkerIndex !== -1
 								? stageMarkerIndex
 								: line.to;
-						newChanges.push({
-							from: line.from + insertPosition,
-							to: line.from + insertPosition,
-							insert: ` (⏱️ ${spentTime})`,
-						});
+						if (
+							!isLastWorkflowStageOrNotWorkflow(
+								line.text,
+								line.number,
+								tr.newDoc,
+								plugin
+							) ||
+							!plugin.settings.workflow.calculateFullSpentTime
+						) {
+							newChanges.push({
+								from: line.from + insertPosition,
+								to: line.from + insertPosition,
+								insert: ` (⏱️ ${spentTime})`,
+							});
+						}
 
 						// If this is the last stage and calculateFullSpentTime is enabled, calculate total time
 						if (
@@ -530,7 +538,7 @@ export function handleWorkflowTransaction(
 								newChanges.push({
 									from: line.from + insertPosition,
 									to: line.from + insertPosition,
-									insert: ` (⏱️ ${spentTime} | Total: ${totalSpentTime})`,
+									insert: ` (Total: ${totalSpentTime})`,
 								});
 							}
 						}
@@ -656,7 +664,7 @@ export function handleWorkflowTransaction(
 
 			// If this is a root task, add additional indentation for the new task
 			const newTaskIndentation = isRootTask
-				? indentation + " ".repeat(tabSize)
+				? indentation + defaultIndentation
 				: indentation;
 
 			// Create task for the main stage
@@ -682,7 +690,7 @@ export function handleWorkflowTransaction(
 					const subTaskIndentation =
 						newTaskIndentation + " ".repeat(tabSize);
 					// Use a more explicit format for substages that includes the parent stage ID
-					completeTaskText += `\n${subTaskIndentation}- [ ] New sub-task for ${firstSubStage.name} [stage::${nextStage.id}.${firstSubStage.id}]`;
+					completeTaskText += `\n${subTaskIndentation}- [ ] ${stageName} (${firstSubStage.name}) [stage::${nextStage.id}.${firstSubStage.id}]${timestamp}`;
 				}
 			}
 
@@ -758,6 +766,7 @@ function createWorkflowStageTransition(
 	line: string,
 	lineNumber: number,
 	nextStage: WorkflowStage,
+	isRootTask: boolean,
 	nextSubStage?: { id: string; name: string; next?: string },
 	currentSubStage?: { id: string; name: string; next?: string }
 ) {
@@ -765,8 +774,11 @@ function createWorkflowStageTransition(
 	const app = plugin.app;
 	const lineStart = doc.line(lineNumber + 1);
 	const indentMatch = line.match(/^([\s|\t]*)/);
-	let indentation = indentMatch ? indentMatch[1] : "";
+	const defaultIndentation = buildIndentString(app);
 	const tabSize = getTabSize(app);
+	let indentation = indentMatch
+		? indentMatch[1] + (isRootTask ? defaultIndentation : "")
+		: "";
 
 	const timestamp = plugin.settings.workflow.autoAddTimestamp
 		? ` 🛫 ${moment().format(
@@ -789,20 +801,11 @@ function createWorkflowStageTransition(
 		});
 	}
 
-	console.log(
-		"removeTimestampOnTransition",
-		plugin.settings.workflow.removeTimestampOnTransition
-	);
-
 	// Handle timestamp removal and time calculation
 	if (
 		plugin.settings.workflow.removeTimestampOnTransition ||
 		plugin.settings.workflow.calculateSpentTime
 	) {
-		console.log(
-			"calculateSpentTime",
-			plugin.settings.workflow.calculateSpentTime
-		);
 		// Find timestamp by looking for the 🛫 symbol
 		const timestampIndex = line.indexOf("🛫");
 		if (timestampIndex !== -1) {
@@ -842,13 +845,23 @@ function createWorkflowStageTransition(
 				const spentTime = moment
 					.utc(duration.asMilliseconds())
 					.format(plugin.settings.workflow.spentTimeFormat);
-				changes.push({
-					from: lineStart.to,
-					to: lineStart.to,
-					insert: ` (⏱️ ${spentTime})`,
-				});
 
-				// If this is the last stage and calculateFullSpentTime is enabled, calculate total time
+				if (
+					!isLastWorkflowStageOrNotWorkflow(
+						line,
+						lineNumber,
+						doc,
+						plugin
+					) ||
+					!plugin.settings.workflow.calculateFullSpentTime
+				) {
+					changes.push({
+						from: lineStart.to,
+						to: lineStart.to,
+						insert: ` (⏱️ ${spentTime})`,
+					});
+				}
+
 				if (
 					plugin.settings.workflow.calculateFullSpentTime &&
 					isLastWorkflowStageOrNotWorkflow(
@@ -861,42 +874,61 @@ function createWorkflowStageTransition(
 					// Find all tasks in this workflow
 					const workflowTag = `#workflow/${
 						nextStage.id.split(".")[0]
-					}`; // Get the main workflow ID
+					}`;
 					let totalDuration = moment.duration(0);
 					let foundStartTime = false;
-					const timestampRegex =
-						/🛫\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/;
+
+					// Define regex to match time spent markers
+					const timeSpentRegex = /\(⏱️\s+([0-9:]+)\)/;
 
 					// Look up to find the root task
 					for (let i = lineNumber - 1; i >= 1; i--) {
 						const checkLine = doc.line(i);
 						if (checkLine.text.includes(workflowTag)) {
-							// Found root task, now look for all tasks with timestamps
+							// Found root task, now look for all tasks with time spent markers
 							for (let j = i; j <= lineNumber; j++) {
 								const taskLine = doc.line(j);
-								const taskTimestampMatch =
-									taskLine.text.match(timestampRegex);
-								if (taskTimestampMatch) {
-									const taskStartTime = moment(
-										taskTimestampMatch[1]
-									);
-									if (!foundStartTime) {
+								const timeSpentMatch =
+									taskLine.text.match(timeSpentRegex);
+
+								if (timeSpentMatch && timeSpentMatch[1]) {
+									// Parse the time spent from the format HH:mm:ss
+									const timeParts =
+										timeSpentMatch[1].split(":");
+									let timeInMs = 0;
+
+									if (timeParts.length === 3) {
+										// HH:mm:ss format
+										timeInMs =
+											(parseInt(timeParts[0]) * 3600 +
+												parseInt(timeParts[1]) * 60 +
+												parseInt(timeParts[2])) *
+											1000;
+									} else if (timeParts.length === 2) {
+										// mm:ss format
+										timeInMs =
+											(parseInt(timeParts[0]) * 60 +
+												parseInt(timeParts[1])) *
+											1000;
+									}
+
+									if (timeInMs > 0) {
+										totalDuration.add(timeInMs);
 										foundStartTime = true;
 									}
-									// If this is the last task, use current time, otherwise use next task's start time
-									const taskEndTime =
-										j === lineNumber
-											? endTime
-											: moment(taskTimestampMatch[1]);
-									totalDuration.add(
-										moment.duration(
-											taskEndTime.diff(taskStartTime)
-										)
-									);
 								}
 							}
 							break;
 						}
+					}
+
+					// If we couldn't find any time spent markers, use the current duration
+					if (!foundStartTime) {
+						totalDuration = duration;
+						foundStartTime = true;
+					} else {
+						// Add the current task's duration to the total
+						totalDuration.add(duration);
 					}
 
 					if (foundStartTime) {
@@ -907,7 +939,7 @@ function createWorkflowStageTransition(
 						changes.push({
 							from: lineStart.to,
 							to: lineStart.to,
-							insert: ` (⏱️ ${spentTime} | Total: ${totalSpentTime})`,
+							insert: ` (Total: ${totalSpentTime})`,
 						});
 					}
 				}
@@ -917,7 +949,11 @@ function createWorkflowStageTransition(
 
 	// If we're transitioning from a sub-stage to a new main stage
 	// Mark the current sub-stage as complete and reduce indentation
-	if (currentSubStage && !nextSubStage) {
+	if (
+		currentSubStage &&
+		!nextSubStage &&
+		!isLastWorkflowStageOrNotWorkflow(line, lineNumber, doc, plugin)
+	) {
 		// First, mark the current sub-stage as complete
 		const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
 		const stageMarker = line.match(stageMarkerRegex);
@@ -935,30 +971,32 @@ function createWorkflowStageTransition(
 	}
 
 	// Create the new task text
-	let newTaskText;
-	if (nextSubStage) {
-		newTaskText = `${indentation}- [ ] ${nextStage.name} (${nextSubStage.name}) [stage::${nextStage.id}.${nextSubStage.id}]${timestamp}`;
-	} else {
-		newTaskText = `${indentation}- [ ] ${nextStage.name} [stage::${nextStage.id}]${timestamp}`;
+	if (!isLastWorkflowStageOrNotWorkflow(line, lineNumber, doc, plugin)) {
+		let newTaskText;
+		if (nextSubStage) {
+			newTaskText = `${indentation}- [ ] ${nextStage.name} (${nextSubStage.name}) [stage::${nextStage.id}.${nextSubStage.id}]${timestamp}`;
+		} else {
+			newTaskText = `${indentation}- [ ] ${nextStage.name} [stage::${nextStage.id}]${timestamp}`;
 
-		// If this next stage has sub-stages, also create a sub-task for the first sub-stage
-		if (
-			nextStage.type === "cycle" &&
-			nextStage.subStages &&
-			nextStage.subStages.length > 0
-		) {
-			const firstSubStage = nextStage.subStages[0];
-			const subTaskIndentation = indentation + " ".repeat(tabSize);
-			newTaskText += `\n${subTaskIndentation}- [ ] ${nextStage.name} - ${firstSubStage.name} [stage::${nextStage.id}.${firstSubStage.id}]`;
+			// If this next stage has sub-stages, also create a sub-task for the first sub-stage
+			if (
+				nextStage.type === "cycle" &&
+				nextStage.subStages &&
+				nextStage.subStages.length > 0
+			) {
+				const firstSubStage = nextStage.subStages[0];
+				const subTaskIndentation = indentation + defaultIndentation;
+				newTaskText += `\n${subTaskIndentation}- [ ] ${nextStage.name} (${firstSubStage.name}) [stage::${nextStage.id}.${firstSubStage.id}]`;
+			}
 		}
-	}
 
-	// Add the new task after the current line
-	changes.push({
-		from: lineStart.to,
-		to: lineStart.to,
-		insert: `\n${newTaskText}`,
-	});
+		// Add the new task after the current line
+		changes.push({
+			from: lineStart.to,
+			to: lineStart.to,
+			insert: `\n${newTaskText}`,
+		});
+	}
 
 	// Remove stage marker from current line if setting enabled
 	if (plugin?.settings.workflow.autoRemoveLastStageMarker) {
@@ -1030,62 +1068,12 @@ export function updateWorkflowContextMenu(
 							editor.cm.dispatch({
 								changes: {
 									from: editor.posToOffset(cursor),
-									to:
-										editor.posToOffset(cursor) +
-										line.length,
-									insert: `${line} #workflow/${workflow.id}`,
+									to: editor.posToOffset(cursor),
+									insert: `#workflow/${workflow.id}`,
 								},
-								annotations:
-									taskStatusChangeAnnotation.of(
-										"workflowChange"
-									),
 							});
 						});
 					});
-				});
-			});
-
-			// Add option to add stage marker
-			submenu.addItem((addItem: any) => {
-				addItem.setTitle(t("Add stage marker"));
-				addItem.setIcon("plus-circle");
-
-				// Create a submenu for available workflows
-				const workflowSubmenu = addItem.setSubmenu();
-
-				plugin.settings.workflow.definitions.forEach((workflow) => {
-					const workflowItem = workflowSubmenu.addItem(
-						(wfItem: any) => {
-							wfItem.setTitle(workflow.name);
-
-							// Create submenu for stages
-							const stageSubmenu = wfItem.setSubmenu();
-
-							workflow.stages.forEach((stage) => {
-								stageSubmenu.addItem((stageItem: any) => {
-									stageItem.setTitle(stage.name);
-									stageItem.onClick(() => {
-										// Add stage marker using dispatch
-										editor.cm.dispatch({
-											changes: {
-												from: editor.posToOffset(
-													cursor
-												),
-												to:
-													editor.posToOffset(cursor) +
-													line.length,
-												insert: `${line} [stage::${stage.id}]`,
-											},
-											annotations:
-												taskStatusChangeAnnotation.of(
-													"workflowChange"
-												),
-										});
-									});
-								});
-							});
-						}
-					);
 				});
 			});
 		});
@@ -1106,16 +1094,8 @@ export function updateWorkflowContextMenu(
 
 		// If this is a stage marker, we need to find the parent workflow
 		if (workflowType === "fromParent") {
-			const doc = editor.getDoc();
-			const parentWorkflow = findParentWorkflow(
-				{
-					line: (n: number) => ({
-						text: doc.getLine(n - 1),
-						number: n,
-					}),
-				} as any,
-				cursor.line + 1
-			);
+			const doc = editor.cm.state.doc;
+			const parentWorkflow = findParentWorkflow(doc, cursor.line + 1);
 
 			if (parentWorkflow) {
 				workflowType = parentWorkflow;
@@ -1174,9 +1154,11 @@ export function updateWorkflowContextMenu(
 							line,
 							cursor.line,
 							firstStage,
+							true,
 							undefined,
 							undefined
 						);
+
 						editor.cm.dispatch({
 							changes,
 							annotations:
@@ -1193,7 +1175,20 @@ export function updateWorkflowContextMenu(
 
 				if (nextStage) {
 					submenu.addItem((nextItem: any) => {
-						nextItem.setTitle(`Move to ${nextStage.name}`);
+						// Check if this is the last stage
+						const isLastStage = isLastWorkflowStageOrNotWorkflow(
+							line,
+							cursor.line,
+							editor.cm.state.doc,
+							plugin
+						);
+
+						// If last stage, show "Complete stage" instead of "Move to"
+						nextItem.setTitle(
+							isLastStage
+								? `Complete stage: ${nextStage.name}`
+								: `Move to ${nextStage.name}`
+						);
 						nextItem.onClick(() => {
 							const changes = createWorkflowStageTransition(
 								plugin,
@@ -1201,6 +1196,7 @@ export function updateWorkflowContextMenu(
 								line,
 								cursor.line,
 								nextStage,
+								false,
 								undefined,
 								currentSubStageObj
 							);
@@ -1215,23 +1211,47 @@ export function updateWorkflowContextMenu(
 					});
 				}
 			});
-		} else {
-			// Show all stages from the workflow
-			workflow.stages.forEach((stage) => {
-				if (stage.id === currentStage?.id) return;
+		} else if (currentStage.type === "terminal") {
+			submenu.addItem((nextItem: any) => {
+				nextItem.setTitle(`Complete workflow`);
+				nextItem.onClick(() => {
+					const changes = createWorkflowStageTransition(
+						plugin,
+						editor,
+						line,
+						cursor.line,
+						currentStage,
+						false,
+						undefined,
+						currentSubStageObj
+					);
 
+					editor.cm.dispatch({
+						changes,
+						annotations:
+							taskStatusChangeAnnotation.of("workflowChange"),
+					});
+				});
+			});
+		} else if (currentStage.next) {
+			const nextStage = workflow.stages.find(
+				(s) => s.id === currentStage.next
+			);
+			if (nextStage) {
 				submenu.addItem((nextItem: any) => {
-					nextItem.setTitle(`Move to ${stage.name}`);
+					nextItem.setTitle(`Move to ${nextStage.name}`);
 					nextItem.onClick(() => {
 						const changes = createWorkflowStageTransition(
 							plugin,
 							editor,
 							line,
 							cursor.line,
-							stage,
+							nextStage,
+							false,
 							undefined,
-							currentSubStageObj
+							undefined
 						);
+
 						editor.cm.dispatch({
 							changes,
 							annotations:
@@ -1239,7 +1259,7 @@ export function updateWorkflowContextMenu(
 						});
 					});
 				});
-			});
+			}
 		}
 
 		// Add option to add a child task with same stage
@@ -1248,11 +1268,6 @@ export function updateWorkflowContextMenu(
 			addItem.setTitle(t("Add child task with same stage"));
 			addItem.setIcon("plus-circle");
 			addItem.onClick(() => {
-				const indentMatch = line.match(/^([\s|\t]*)/);
-				const indentation = indentMatch ? indentMatch[1] : "";
-				const tabSize = getTabSize(app);
-
-				let newTaskText: string;
 				if (workflowInfo.currentStage === "root") {
 					if (workflow.stages.length > 0) {
 						const firstStage = workflow.stages[0];
@@ -1262,6 +1277,7 @@ export function updateWorkflowContextMenu(
 							line,
 							cursor.line,
 							firstStage,
+							false,
 							undefined,
 							undefined
 						);
@@ -1280,6 +1296,7 @@ export function updateWorkflowContextMenu(
 							line,
 							cursor.line,
 							firstStage,
+							false,
 							undefined,
 							undefined
 						);
@@ -1296,6 +1313,7 @@ export function updateWorkflowContextMenu(
 						line,
 						cursor.line,
 						currentStage,
+						false,
 						currentSubStageObj,
 						undefined
 					);
@@ -1329,6 +1347,7 @@ export function isLastWorkflowStageOrNotWorkflow(
 
 	// If not a workflow task, treat as "final" for parent completion purposes
 	if (!workflowInfo) {
+		console.log("not a workflow task");
 		return true;
 	}
 
@@ -1338,12 +1357,7 @@ export function isLastWorkflowStageOrNotWorkflow(
 
 	// Resolve workflow type if it's derived from parent
 	if (workflowType === "fromParent") {
-		// Need the actual doc object, not just Text interface for findParentWorkflow
-		// Let's assume the calling context provides a way to get Text if needed,
-		// but findParentWorkflow expects the Codemirror Text type.
-		// This might require adjusting how doc is passed or using editor instance if available.
-		// For now, we proceed assuming doc is compatible or findParentWorkflow is adapted.
-		const parentWorkflow = findParentWorkflow(doc, lineNumber);
+		const parentWorkflow = findParentWorkflow(doc, lineNumber + 1);
 		if (parentWorkflow) {
 			workflowType = parentWorkflow;
 		} else {
@@ -1364,6 +1378,7 @@ export function isLastWorkflowStageOrNotWorkflow(
 		return true; // Definition missing, treat as non-workflow
 	}
 
+	console.log(currentStageId, "currentStageId");
 	// Handle root tasks - they are never the "last stage" in the sense of triggering parent completion
 	// A root task completion should trigger the first stage, not parent completion.
 	if (currentStageId === "root") {
@@ -1424,11 +1439,6 @@ export function isLastWorkflowStageOrNotWorkflow(
 			if (currentIndex === workflow.stages.length - 1) {
 				return true;
 			}
-			// If it's the last substage, and the parent stage can't proceed, but it's NOT the last main stage,
-			// it's likely an error in definition or implies looping back, so not terminal.
-			// Let's default to false unless explicitly the last main stage too.
-			// This simplifies the logic: last sub-stage of the last main stage without onward links is terminal.
-			// Fall through if not the absolute last stage.
 		}
 		// Otherwise, if it's a substage in a cycle, assume it's not the absolute final step
 		return false;
