@@ -333,7 +333,7 @@ export function handleWorkflowTransaction(
 		for (const update of workflowUpdates) {
 			const line = tr.newDoc.line(update.line);
 			const indentMatch = update.lineText.match(/^([\s|\t]*)/);
-			const indentation = indentMatch ? indentMatch[1] : "";
+			let indentation = indentMatch ? indentMatch[1] : "";
 			const tabSize = getTabSize(app);
 
 			// Find the workflow definition
@@ -607,7 +607,7 @@ function createWorkflowStageTransition(
 	const doc = editor.cm.state.doc;
 	const lineStart = doc.line(lineNumber + 1);
 	const indentMatch = line.match(/^([\s|\t]*)/);
-	const indentation = indentMatch ? indentMatch[1] : "";
+	let indentation = indentMatch ? indentMatch[1] : "";
 	const tabSize = getTabSize(app);
 
 	const timestamp = plugin?.settings.workflow.autoAddTimestamp
@@ -617,8 +617,9 @@ function createWorkflowStageTransition(
 	let changes = [];
 
 	// If we're transitioning from a sub-stage to a new main stage
-	// Mark the current sub-stage as complete
+	// Mark the current sub-stage as complete and reduce indentation
 	if (currentSubStage && !nextSubStage) {
+		// First, mark the current sub-stage as complete
 		const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
 		const stageMarker = line.match(stageMarkerRegex);
 		if (stageMarker && stageMarker.index) {
@@ -628,6 +629,22 @@ function createWorkflowStageTransition(
 				insert: "",
 			});
 		}
+
+		// Then, update the task status to completed
+		const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
+		const taskMatch = line.match(taskRegex);
+		if (taskMatch) {
+			const taskStart = lineStart.from + taskMatch[0].indexOf("[");
+			changes.push({
+				from: taskStart + 1,
+				to: taskStart + 2,
+				insert: "x",
+			});
+		}
+
+		// Reduce indentation for the new task
+		const newIndentation = indentation.slice(0, -tabSize);
+		indentation = newIndentation;
 	}
 
 	// Create the new task text
