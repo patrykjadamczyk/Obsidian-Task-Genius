@@ -616,6 +616,18 @@ function createWorkflowStageTransition(
 
 	let changes = [];
 
+	// Complete the current task
+	const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
+	const taskMatch = line.match(taskRegex);
+	if (taskMatch) {
+		const taskStart = lineStart.from + taskMatch[0].indexOf("[");
+		changes.push({
+			from: taskStart + 1,
+			to: taskStart + 2,
+			insert: "x",
+		});
+	}
+
 	// If we're transitioning from a sub-stage to a new main stage
 	// Mark the current sub-stage as complete and reduce indentation
 	if (currentSubStage && !nextSubStage) {
@@ -627,18 +639,6 @@ function createWorkflowStageTransition(
 				from: lineStart.from + stageMarker.index,
 				to: lineStart.from + stageMarker.index + stageMarker[0].length,
 				insert: "",
-			});
-		}
-
-		// Then, update the task status to completed
-		const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
-		const taskMatch = line.match(taskRegex);
-		if (taskMatch) {
-			const taskStart = lineStart.from + taskMatch[0].indexOf("[");
-			changes.push({
-				from: taskStart + 1,
-				to: taskStart + 2,
-				insert: "x",
 			});
 		}
 
