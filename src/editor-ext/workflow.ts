@@ -189,8 +189,6 @@ export function handleWorkflowTransaction(
 		return tr;
 	}
 
-	console.log(tr.annotation(taskStatusChangeAnnotation));
-
 	// Skip if this transaction already has a workflow or task status annotation
 	if (
 		tr.annotation(workflowChangeAnnotation) ||
@@ -219,6 +217,20 @@ export function handleWorkflowTransaction(
 		});
 	});
 
+	const completedStatuses = plugin.settings.taskStatuses.completed.split("|");
+
+	if (
+		!changes.some(
+			(c) =>
+				completedStatuses.includes(c.text) ||
+				completedStatuses.some((status) => c.text === `- [${status}]`)
+		)
+	) {
+		return tr;
+	}
+
+	console.log(changes);
+
 	// Check if any completed tasks have workflow tags
 	let workflowUpdates: {
 		line: number;
@@ -230,11 +242,10 @@ export function handleWorkflowTransaction(
 
 	for (const change of changes) {
 		// Check if this is a task status change to completed
+		// Check if the change matches any of the completed task statuses
 		if (
-			change.text === "x" ||
-			change.text === "X" ||
-			change.text === "- [x]" ||
-			change.text === "- [X]"
+			completedStatuses.includes(change.text) ||
+			completedStatuses.some((status) => change.text === `- [${status}]`)
 		) {
 			const line = tr.newDoc.lineAt(change.fromB);
 			const lineText = line.text;
@@ -380,6 +391,169 @@ export function handleWorkflowTransaction(
 			}
 
 			if (!currentStage) continue;
+
+			// Handle timestamp removal and time calculation first
+			if (
+				plugin.settings.workflow.removeTimestampOnTransition ||
+				plugin.settings.workflow.calculateSpentTime
+			) {
+				const timestampLength = `🛫 ${moment().format(
+					plugin.settings.workflow.timestampFormat ||
+						"YYYY-MM-DD HH:mm:ss"
+				)}`.length;
+				const startMarkIndex = line.text.indexOf("🛫");
+				const endMarkIndex = startMarkIndex + timestampLength;
+
+				if (startMarkIndex !== -1) {
+					const timestamp = line.text.substring(
+						startMarkIndex,
+						endMarkIndex
+					);
+					const startTime = moment(timestamp);
+					const endTime = moment();
+					const duration = moment.duration(endTime.diff(startTime));
+
+					// Remove timestamp if enabled
+					if (plugin.settings.workflow.removeTimestampOnTransition) {
+						const timestampStart =
+							line.from + line.text.indexOf("🛫");
+						const timestampEnd = timestampStart + timestampLength;
+						newChanges.push({
+							from: timestampStart,
+							to: timestampEnd,
+							insert: "",
+						});
+					}
+
+					// Add spent time if enabled
+					if (plugin.settings.workflow.calculateSpentTime) {
+						const spentTime = moment
+							.utc(duration.asMilliseconds())
+							.format(plugin.settings.workflow.spentTimeFormat);
+						// Add spent time to the current line, before any existing stage marker
+						const stageMarkerIndex = line.text.indexOf("[stage::");
+						const insertPosition =
+							stageMarkerIndex !== -1
+								? stageMarkerIndex
+								: line.to;
+						newChanges.push({
+							from: line.from + insertPosition,
+							to: line.from + insertPosition,
+							insert: ` (⏱️ ${spentTime})`,
+						});
+
+						// If this is the last stage and calculateFullSpentTime is enabled, calculate total time
+						if (
+							plugin.settings.workflow.calculateFullSpentTime &&
+							isLastWorkflowStageOrNotWorkflow(
+								line.text,
+								line.number,
+								tr.newDoc,
+								plugin
+							)
+						) {
+							// Find all tasks in this workflow
+							const workflowTag = `#workflow/${update.workflowType}`;
+							let totalDuration = moment.duration(0);
+							let foundStartTime = false;
+
+							// Define regex to match time spent markers
+							const timeSpentRegex = /\(⏱️\s+([0-9:]+)\)/;
+
+							// Look up to find the root task
+							for (let i = line.number - 1; i >= 1; i--) {
+								const checkLine = tr.newDoc.line(i);
+								if (checkLine.text.includes(workflowTag)) {
+									// Found root task, now look for all tasks with time spent markers
+									for (let j = i; j <= line.number; j++) {
+										const taskLine = tr.newDoc.line(j);
+										const timeSpentMatch =
+											taskLine.text.match(timeSpentRegex);
+
+										if (
+											timeSpentMatch &&
+											timeSpentMatch[1]
+										) {
+											// Parse the time spent from the format HH:mm:ss
+											const timeParts =
+												timeSpentMatch[1].split(":");
+											let timeInMs = 0;
+
+											if (timeParts.length === 3) {
+												// HH:mm:ss format
+												timeInMs =
+													(parseInt(timeParts[0]) *
+														3600 +
+														parseInt(timeParts[1]) *
+															60 +
+														parseInt(
+															timeParts[2]
+														)) *
+													1000;
+											} else if (timeParts.length === 2) {
+												// mm:ss format
+												timeInMs =
+													(parseInt(timeParts[0]) *
+														60 +
+														parseInt(
+															timeParts[1]
+														)) *
+													1000;
+											}
+
+											if (timeInMs > 0) {
+												totalDuration.add(timeInMs);
+												foundStartTime = true;
+											}
+										}
+									}
+									break;
+								}
+							}
+
+							// If we couldn't find any time spent markers, use the current duration
+							if (!foundStartTime) {
+								totalDuration = duration;
+								foundStartTime = true;
+							} else {
+								// Add the current task's duration to the total
+								totalDuration.add(duration);
+							}
+
+							if (foundStartTime) {
+								const totalSpentTime = moment
+									.utc(totalDuration.asMilliseconds())
+									.format(
+										plugin.settings.workflow.spentTimeFormat
+									);
+								// Add total time to the current line
+								newChanges.push({
+									from: line.from + insertPosition,
+									to: line.from + insertPosition,
+									insert: ` (⏱️ ${spentTime} | Total: ${totalSpentTime})`,
+								});
+							}
+						}
+					}
+				}
+			}
+
+			// Remove the [stage::] marker from the current line
+			const currentLineText = line.text;
+			const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
+			const stageMarker = currentLineText.match(stageMarkerRegex);
+			if (
+				stageMarker &&
+				stageMarker.index &&
+				plugin.settings.workflow.autoRemoveLastStageMarker
+			) {
+				// Create a change that removes the [stage::] marker
+				newChanges.push({
+					from: line.from + stageMarker.index,
+					to: line.from + stageMarker.index + stageMarker[0].length,
+					insert: "",
+				});
+			}
 
 			// Determine the next stage
 			let nextStageId: string;
@@ -560,23 +734,6 @@ export function handleWorkflowTransaction(
 				to: insertionPoint,
 				insert: `\n${completeTaskText}`,
 			});
-
-			// Remove the [stage::] marker from the current line
-			const currentLineText = line.text;
-			const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
-			const stageMarker = currentLineText.match(stageMarkerRegex);
-			if (
-				stageMarker &&
-				stageMarker.index &&
-				plugin.settings.workflow.autoRemoveLastStageMarker
-			) {
-				// Create a change that removes the [stage::] marker
-				newChanges.push({
-					from: line.from + stageMarker.index,
-					to: line.from + stageMarker.index + stageMarker[0].length,
-					insert: "",
-				});
-			}
 		}
 
 		// Use the original changes from the transaction (which completed the task)
@@ -596,22 +753,26 @@ export function handleWorkflowTransaction(
 
 // Helper function to create workflow stage transition
 function createWorkflowStageTransition(
+	plugin: TaskProgressBarPlugin,
 	editor: Editor,
 	line: string,
 	lineNumber: number,
 	nextStage: WorkflowStage,
 	nextSubStage?: { id: string; name: string; next?: string },
-	currentSubStage?: { id: string; name: string; next?: string },
-	plugin?: TaskProgressBarPlugin
+	currentSubStage?: { id: string; name: string; next?: string }
 ) {
 	const doc = editor.cm.state.doc;
+	const app = plugin.app;
 	const lineStart = doc.line(lineNumber + 1);
 	const indentMatch = line.match(/^([\s|\t]*)/);
 	let indentation = indentMatch ? indentMatch[1] : "";
 	const tabSize = getTabSize(app);
 
-	const timestamp = plugin?.settings.workflow.autoAddTimestamp
-		? ` 🛫 ${moment().format("YYYY-MM-DD HH:mm:ss")}`
+	const timestamp = plugin.settings.workflow.autoAddTimestamp
+		? ` 🛫 ${moment().format(
+				plugin.settings.workflow.timestampFormat ||
+					"YYYY-MM-DD HH:mm:ss"
+		  )}`
 		: "";
 
 	let changes = [];
@@ -626,6 +787,132 @@ function createWorkflowStageTransition(
 			to: taskStart + 2,
 			insert: "x",
 		});
+	}
+
+	console.log(
+		"removeTimestampOnTransition",
+		plugin.settings.workflow.removeTimestampOnTransition
+	);
+
+	// Handle timestamp removal and time calculation
+	if (
+		plugin.settings.workflow.removeTimestampOnTransition ||
+		plugin.settings.workflow.calculateSpentTime
+	) {
+		console.log(
+			"calculateSpentTime",
+			plugin.settings.workflow.calculateSpentTime
+		);
+		// Find timestamp by looking for the 🛫 symbol
+		const timestampIndex = line.indexOf("🛫");
+		if (timestampIndex !== -1) {
+			// Extract the timestamp string based on the format in settings
+			const timestampFormat =
+				plugin.settings.workflow.timestampFormat ||
+				"YYYY-MM-DD HH:mm:ss";
+			const formattedTimestamp = moment().format(timestampFormat);
+
+			// Calculate the expected length of the timestamp
+			const timestampLength = `🛫 ${formattedTimestamp}`.length;
+
+			// Extract the actual timestamp from the line
+			const extractedTimestamp = line.substring(
+				timestampIndex,
+				timestampIndex + timestampLength
+			);
+
+			// Parse the timestamp to calculate duration
+			const startTime = moment(extractedTimestamp, timestampFormat);
+			const endTime = moment();
+			const duration = moment.duration(endTime.diff(startTime));
+
+			// Remove timestamp if enabled
+			if (plugin.settings.workflow.removeTimestampOnTransition) {
+				const timestampStart = lineStart.from + timestampIndex;
+				const timestampEnd = timestampStart + timestampLength;
+				changes.push({
+					from: timestampStart - 1,
+					to: timestampEnd,
+					insert: "",
+				});
+			}
+
+			// Add spent time if enabled
+			if (plugin.settings.workflow.calculateSpentTime) {
+				const spentTime = moment
+					.utc(duration.asMilliseconds())
+					.format(plugin.settings.workflow.spentTimeFormat);
+				changes.push({
+					from: lineStart.to,
+					to: lineStart.to,
+					insert: ` (⏱️ ${spentTime})`,
+				});
+
+				// If this is the last stage and calculateFullSpentTime is enabled, calculate total time
+				if (
+					plugin.settings.workflow.calculateFullSpentTime &&
+					isLastWorkflowStageOrNotWorkflow(
+						line,
+						lineNumber,
+						doc,
+						plugin
+					)
+				) {
+					// Find all tasks in this workflow
+					const workflowTag = `#workflow/${
+						nextStage.id.split(".")[0]
+					}`; // Get the main workflow ID
+					let totalDuration = moment.duration(0);
+					let foundStartTime = false;
+					const timestampRegex =
+						/🛫\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/;
+
+					// Look up to find the root task
+					for (let i = lineNumber - 1; i >= 1; i--) {
+						const checkLine = doc.line(i);
+						if (checkLine.text.includes(workflowTag)) {
+							// Found root task, now look for all tasks with timestamps
+							for (let j = i; j <= lineNumber; j++) {
+								const taskLine = doc.line(j);
+								const taskTimestampMatch =
+									taskLine.text.match(timestampRegex);
+								if (taskTimestampMatch) {
+									const taskStartTime = moment(
+										taskTimestampMatch[1]
+									);
+									if (!foundStartTime) {
+										foundStartTime = true;
+									}
+									// If this is the last task, use current time, otherwise use next task's start time
+									const taskEndTime =
+										j === lineNumber
+											? endTime
+											: moment(taskTimestampMatch[1]);
+									totalDuration.add(
+										moment.duration(
+											taskEndTime.diff(taskStartTime)
+										)
+									);
+								}
+							}
+							break;
+						}
+					}
+
+					if (foundStartTime) {
+						const totalSpentTime = moment
+							.utc(totalDuration.asMilliseconds())
+							.format(plugin.settings.workflow.spentTimeFormat);
+						// Add total time to the current line
+						changes.push({
+							from: lineStart.to,
+							to: lineStart.to,
+							insert: ` (⏱️ ${spentTime} | Total: ${totalSpentTime})`,
+						});
+					}
+				}
+			}
+		}
 	}
 
 	// If we're transitioning from a sub-stage to a new main stage
@@ -882,13 +1169,13 @@ export function updateWorkflowContextMenu(
 					nextItem.setTitle(`Move to ${firstStage.name}`);
 					nextItem.onClick(() => {
 						const changes = createWorkflowStageTransition(
+							plugin,
 							editor,
 							line,
 							cursor.line,
 							firstStage,
 							undefined,
-							undefined,
-							plugin
+							undefined
 						);
 						editor.cm.dispatch({
 							changes,
@@ -909,13 +1196,13 @@ export function updateWorkflowContextMenu(
 						nextItem.setTitle(`Move to ${nextStage.name}`);
 						nextItem.onClick(() => {
 							const changes = createWorkflowStageTransition(
+								plugin,
 								editor,
 								line,
 								cursor.line,
 								nextStage,
 								undefined,
-								currentSubStageObj,
-								plugin
+								currentSubStageObj
 							);
 							editor.cm.dispatch({
 								changes,
@@ -937,13 +1224,13 @@ export function updateWorkflowContextMenu(
 					nextItem.setTitle(`Move to ${stage.name}`);
 					nextItem.onClick(() => {
 						const changes = createWorkflowStageTransition(
+							plugin,
 							editor,
 							line,
 							cursor.line,
 							stage,
 							undefined,
-							currentSubStageObj,
-							plugin
+							currentSubStageObj
 						);
 						editor.cm.dispatch({
 							changes,
@@ -970,13 +1257,13 @@ export function updateWorkflowContextMenu(
 					if (workflow.stages.length > 0) {
 						const firstStage = workflow.stages[0];
 						const changes = createWorkflowStageTransition(
+							plugin,
 							editor,
 							line,
 							cursor.line,
 							firstStage,
 							undefined,
-							undefined,
-							plugin
+							undefined
 						);
 						editor.cm.dispatch({
 							changes,
@@ -988,13 +1275,13 @@ export function updateWorkflowContextMenu(
 					if (workflow.stages.length > 0) {
 						const firstStage = workflow.stages[0];
 						const changes = createWorkflowStageTransition(
+							plugin,
 							editor,
 							line,
 							cursor.line,
 							firstStage,
 							undefined,
-							undefined,
-							plugin
+							undefined
 						);
 						editor.cm.dispatch({
 							changes,
@@ -1004,13 +1291,13 @@ export function updateWorkflowContextMenu(
 					}
 				} else {
 					const changes = createWorkflowStageTransition(
+						plugin,
 						editor,
 						line,
 						cursor.line,
 						currentStage,
 						currentSubStageObj,
-						undefined,
-						plugin
+						undefined
 					);
 					editor.cm.dispatch({
 						changes,

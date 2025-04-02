@@ -81,6 +81,11 @@ export interface TaskProgressBarSettings {
 		autoAddNextTask: boolean;
 		definitions: WorkflowDefinition[];
 		autoRemoveLastStageMarker: boolean;
+		calculateSpentTime: boolean;
+		spentTimeFormat: string;
+		timestampFormat: string;
+		removeTimestampOnTransition: boolean;
+		calculateFullSpentTime: boolean;
 	};
 
 	// Completed task mover settings
@@ -186,6 +191,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		autoAddTimestamp: true,
 		autoAddNextTask: false,
 		autoRemoveLastStageMarker: false,
+		calculateSpentTime: false,
+		spentTimeFormat: "HH:mm:ss",
+		removeTimestampOnTransition: false,
+		timestampFormat: "YYYY-MM-DD HH:mm:ss",
+		calculateFullSpentTime: false,
 		definitions: [
 			{
 				id: "project_workflow",
@@ -1946,8 +1956,149 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.workflow.autoAddTimestamp = value;
 						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					});
 			});
+
+		if (this.plugin.settings.workflow.autoAddTimestamp) {
+			let fragment = document.createDocumentFragment();
+			fragment.createEl("span", {
+				text: t("Timestamp format:"),
+			});
+			fragment.createEl("span", {
+				text: "   ",
+			});
+			const span = fragment.createEl("span");
+			new Setting(containerEl)
+				.setName(t("Timestamp format"))
+				.setDesc(fragment)
+				.addMomentFormat((format) => {
+					format.setSampleEl(span);
+					format.setDefaultFormat(
+						this.plugin.settings.workflow.timestampFormat ||
+							"YYYY-MM-DD HH:mm:ss"
+					);
+					format
+						.setValue(
+							this.plugin.settings.workflow.timestampFormat ||
+								"YYYY-MM-DD HH:mm:ss"
+						)
+						.onChange((value) => {
+							this.plugin.settings.workflow.timestampFormat =
+								value;
+							this.applySettingsUpdate();
+
+							format.updateSample();
+						});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Remove timestamp when moving to next stage"))
+				.setDesc(
+					t(
+						"Remove the timestamp from the current task when moving to the next stage"
+					)
+				)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(
+							this.plugin.settings.workflow
+								.removeTimestampOnTransition
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.workflow.removeTimestampOnTransition =
+								value;
+							this.applySettingsUpdate();
+						});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Calculate spent time"))
+				.setDesc(
+					t(
+						"Calculate and display the time spent on the task when moving to the next stage"
+					)
+				)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(
+							this.plugin.settings.workflow.calculateSpentTime
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.workflow.calculateSpentTime =
+								value;
+							this.applySettingsUpdate();
+
+							setTimeout(() => {
+								this.display();
+							}, 200);
+						});
+				});
+
+			if (this.plugin.settings.workflow.calculateSpentTime) {
+				let fragment = document.createDocumentFragment();
+				fragment.createEl("span", {
+					text: t("Format for spent time:"),
+				});
+				fragment.createEl("span", {
+					text: "   ",
+				});
+				const span = fragment.createEl("span", {
+					text: "HH:mm:ss",
+				});
+				fragment.createEl("span", {
+					text: ".   ",
+				});
+				fragment.createEl("span", {
+					text: t("Calculate spent time when move to next stage."),
+				});
+				new Setting(containerEl)
+					.setName(t("Spent time format"))
+					.setDesc(fragment)
+					.addMomentFormat((format) => {
+						format.setSampleEl(span);
+						format.setDefaultFormat(
+							this.plugin.settings.workflow.spentTimeFormat ||
+								"HH:mm:ss"
+						);
+						format
+							.setValue(
+								this.plugin.settings.workflow.spentTimeFormat ||
+									"HH:mm:ss"
+							)
+							.onChange((value) => {
+								this.plugin.settings.workflow.spentTimeFormat =
+									value;
+								this.applySettingsUpdate();
+
+								format.updateSample();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName(t("Calculate full spent time"))
+					.setDesc(
+						t(
+							"Calculate the full spent time from the start of the task to the last stage"
+						)
+					)
+					.addToggle((toggle) => {
+						toggle
+							.setValue(
+								this.plugin.settings.workflow
+									.calculateFullSpentTime
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.workflow.calculateFullSpentTime =
+									value;
+								this.applySettingsUpdate();
+							});
+					});
+			}
+		}
 
 		new Setting(containerEl)
 			.setName(t("Auto remove last stage marker"))
