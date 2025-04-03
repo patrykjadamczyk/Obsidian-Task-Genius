@@ -28,6 +28,7 @@ export const STATE_MARK_MAP: Record<string, string> = {
 class TaskStatusWidget extends WidgetType {
 	private cycle: string[] = [];
 	private marks: Record<string, string> = {};
+	private isLivePreview: boolean;
 
 	constructor(
 		readonly app: App,
@@ -41,6 +42,7 @@ class TaskStatusWidget extends WidgetType {
 		const config = this.getStatusConfig();
 		this.cycle = config.cycle;
 		this.marks = config.marks;
+		this.isLivePreview = view.state.field(editorLivePreviewField);
 	}
 
 	eq(other: TaskStatusWidget): boolean {
@@ -72,21 +74,37 @@ class TaskStatusWidget extends WidgetType {
 			},
 		});
 
-		wrapper.createEl(
-			"span",
-			{
-				cls: "cm-formatting cm-formatting-list cm-formatting-list-ul",
-			},
-			(el) => {
-				el.createEl("span", {
-					cls: "list-bullet",
-					text: "-",
-				});
-			}
-		);
+		// Only add the bullet point in Live Preview mode
+		if (this.isLivePreview) {
+			wrapper.createEl(
+				"span",
+				{
+					cls: "cm-formatting cm-formatting-list cm-formatting-list-ul",
+				},
+				(el) => {
+					el.createEl("span", {
+						cls: "list-bullet",
+						text: "-",
+					});
+				}
+			);
+		}
 
 		const statusText = document.createElement("span");
-		statusText.classList.add(`task-state`);
+		statusText.toggleClass(
+			[
+				"task-state",
+				this.isLivePreview ? "live-preview-mode" : "source-mode",
+			],
+			true
+		);
+
+		// Add a specific class based on the mode
+		if (this.isLivePreview) {
+			statusText.classList.add("live-preview-mode");
+		} else {
+			statusText.classList.add("source-mode");
+		}
 
 		const mark = marks[this.currentState] || " ";
 		statusText.setAttribute("data-task-state", mark);
@@ -238,7 +256,7 @@ export function taskStatusSwitcherExtension(
 		private lastUpdate: number = 0;
 		private readonly updateThreshold: number = 50;
 		private readonly match = new MatchDecorator({
-			regexp: /^(\s*)((?:[-*+]|\d+[.)])\s\[(.)])(\s)/g,
+			regexp: /^(\s*)((?:[-*+]|\d+[.)])\s)(\[(.)]\s)/g,
 			decorate: (
 				add,
 				from: number,
@@ -250,7 +268,11 @@ export function taskStatusSwitcherExtension(
 					return;
 				}
 
-				const mark = match[3];
+				const mark = match[4];
+				const bulletWithSpace = match[2]; // e.g., "- "
+				const checkboxWithSpace = match[3]; // e.g., "[x] "
+				const checkbox = checkboxWithSpace.trim(); // e.g., "[x]"
+				const isLivePreview = this.isLivePreview(view.state);
 				const cycle = plugin.settings.taskStatusCycle;
 				const marks = plugin.settings.taskStatusMarks;
 				const excludeMarksFromCycle =
@@ -265,20 +287,53 @@ export function taskStatusSwitcherExtension(
 					Object.keys(marks).find((state) => marks[state] === mark) ||
 					remainingCycle[0];
 
-				add(
-					from + match[1].length,
-					to - match[4].length,
-					Decoration.replace({
-						widget: new TaskStatusWidget(
-							app,
-							plugin,
-							view,
-							from + match[1].length,
-							to - match[4].length,
-							currentState
-						),
-					})
-				);
+				// In source mode with textmark enabled, only replace the checkbox part
+				if (
+					!isLivePreview &&
+					plugin.settings.enableTextMarkInSourceMode
+				) {
+					// Only replace the checkbox part, not including the bullet
+					const checkboxStart =
+						from + match[1].length + bulletWithSpace.length;
+					const checkboxEnd = checkboxStart + checkbox.length;
+
+					add(
+						checkboxStart,
+						checkboxEnd,
+						Decoration.replace({
+							widget: new TaskStatusWidget(
+								app,
+								plugin,
+								view,
+								checkboxStart,
+								checkboxEnd,
+								currentState
+							),
+						})
+					);
+				} else {
+					// In Live Preview mode, replace the whole bullet point + checkbox
+					add(
+						from + match[1].length,
+						from +
+							match[1].length +
+							bulletWithSpace.length +
+							checkbox.length,
+						Decoration.replace({
+							widget: new TaskStatusWidget(
+								app,
+								plugin,
+								view,
+								from + match[1].length,
+								from +
+									match[1].length +
+									bulletWithSpace.length +
+									checkbox.length,
+								currentState
+							),
+						})
+					);
+				}
 			},
 		});
 
@@ -350,7 +405,11 @@ export function taskStatusSwitcherExtension(
 				return !(r.to <= decorationFrom || r.from >= decorationTo);
 			});
 
-			return !overlap && this.isLivePreview(view.state);
+			return (
+				!overlap &&
+				(this.isLivePreview(view.state) ||
+					plugin.settings.enableTextMarkInSourceMode)
+			);
 		}
 	}
 

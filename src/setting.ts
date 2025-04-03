@@ -1004,6 +1004,22 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName(t("Enable text mark in source mode"))
+			.setDesc(
+				t(
+					"Make the text mark in source mode follow the task status cycle when clicked."
+				)
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.enableTextMarkInSourceMode)
+					.onChange(async (value) => {
+						this.plugin.settings.enableTextMarkInSourceMode = value;
+						this.applySettingsUpdate();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName(t("Enable cycle complete status"))
 			.setDesc(
 				t(
@@ -2120,7 +2136,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	private displayAboutSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName(t("About") + "Task Genius")
+			.setName(t("About") + " Task Genius")
 			.setHeading();
 
 		new Setting(containerEl)
