@@ -3,9 +3,8 @@ import {
 	PluginSettingTab,
 	Setting,
 	Modal,
-	DropdownComponent,
+	setIcon,
 	ButtonComponent,
-	ExtraButtonComponent,
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
@@ -14,277 +13,33 @@ import {
 	migrateOldFilterOptions,
 } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
-import { WorkflowDefinition, WorkflowStage } from "./editor-ext/workflow";
-
-export interface TaskProgressBarSettings {
-	showProgressBar: boolean;
-	addTaskProgressBarToHeading: boolean;
-	addProgressBarToNonTaskBullet: boolean;
-	enableHeadingProgressBar: boolean;
-	addNumberToProgressBar: boolean;
-	showPercentage: boolean;
-
-	progressRanges: Array<{
-		min: number;
-		max: number;
-		text: string;
-	}>;
-
-	autoCompleteParent: boolean;
-	supportHoverToShowProgressInfo: boolean;
-	markParentInProgressWhenPartiallyComplete: boolean;
-	countSubLevel: boolean;
-	hideProgressBarBasedOnConditions: boolean;
-	hideProgressBarTags: string;
-	hideProgressBarFolders: string;
-	hideProgressBarMetadata: string;
-
-	// Task state settings
-	taskStatuses: {
-		completed: string;
-		inProgress: string;
-		abandoned: string;
-		notStarted: string;
-		planned: string;
-	};
-
-	countOtherStatusesAs: string;
-
-	// Control which tasks to count
-	excludeTaskMarks: string;
-	useOnlyCountMarks: boolean;
-	onlyCountTaskMarks: string;
-
-	// Progress range text customization
-	customizeProgressRanges: boolean;
-
-	// Task status switcher settings
-	enableTaskStatusSwitcher: boolean;
-	enableCustomTaskMarks: boolean;
-	taskStatusCycle: string[];
-	taskStatusMarks: Record<string, string>;
-	excludeMarksFromCycle: string[];
-
-	// Priority picker settings
-	enablePriorityPicker: boolean;
-	enablePriorityKeyboardShortcuts: boolean;
-
-	// Date picker settings
-	enableDatePicker: boolean;
-	dateMark: string;
-	// Cycle complete status settings
-	enableCycleCompleteStatus: boolean;
-	alwaysCycleNewTasks: boolean;
-
-	// Workflow settings
-	workflow: {
-		enableWorkflow: boolean;
-		autoAddTimestamp: boolean;
-		autoAddNextTask: boolean;
-		definitions: WorkflowDefinition[];
-		autoRemoveLastStageMarker: boolean;
-		calculateSpentTime: boolean;
-		spentTimeFormat: string;
-		timestampFormat: string;
-		removeTimestampOnTransition: boolean;
-		calculateFullSpentTime: boolean;
-	};
-
-	// Completed task mover settings
-	completedTaskMover: {
-		enableCompletedTaskMover: boolean;
-		taskMarkerType: "version" | "date" | "custom";
-		versionMarker: string;
-		dateMarker: string;
-		customMarker: string;
-		completeAllMovedTasks: boolean;
-		treatAbandonedAsCompleted: boolean;
-		withCurrentFileLink: boolean;
-	};
-
-	// Quick capture settings
-	quickCapture: {
-		enableQuickCapture: boolean;
-		targetFile: string;
-		placeholder: string;
-		appendToFile: "append" | "prepend" | "replace";
-	};
-
-	// Task filter settings
-	taskFilter: {
-		enableTaskFilter: boolean;
-		keyboardShortcut: string;
-		presetTaskFilters: Array<{
-			id: string;
-			name: string;
-			options: TaskFilterOptions;
-		}>;
-	};
-}
-
-export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
-	showProgressBar: false,
-	addTaskProgressBarToHeading: false,
-	addProgressBarToNonTaskBullet: false,
-	enableHeadingProgressBar: false,
-	addNumberToProgressBar: false,
-	autoCompleteParent: false,
-	supportHoverToShowProgressInfo: false,
-	markParentInProgressWhenPartiallyComplete: false,
-	showPercentage: false,
-	countSubLevel: true,
-	hideProgressBarBasedOnConditions: false,
-	hideProgressBarTags: "no-progress-bar",
-	hideProgressBarFolders: "",
-	hideProgressBarMetadata: "hide-progress-bar",
-
-	// Default task statuses
-	taskStatuses: {
-		completed: "x|X",
-		inProgress: ">|/",
-		abandoned: "-",
-		notStarted: " ",
-		planned: "?",
-	},
-
-	countOtherStatusesAs: "notStarted",
-
-	// Control which tasks to count
-	excludeTaskMarks: "",
-	onlyCountTaskMarks: "x|X",
-	useOnlyCountMarks: false,
-
-	// Progress range text customization
-	customizeProgressRanges: false,
-	progressRanges: [
-		{ min: 0, max: 20, text: t("Just started {{PROGRESS}}%") },
-		{ min: 20, max: 40, text: t("Making progress {{PROGRESS}}%") },
-		{ min: 40, max: 60, text: t("Half way {{PROGRESS}}%") },
-		{ min: 60, max: 80, text: t("Good progress {{PROGRESS}}%") },
-		{ min: 80, max: 100, text: t("Almost there {{PROGRESS}}%") },
-	],
-
-	// Task status switcher settings
-	enableTaskStatusSwitcher: false,
-	enableCustomTaskMarks: false,
-	taskStatusCycle: ["TODO", "DOING", "IN-PROGRESS", "DONE"],
-	taskStatusMarks: {
-		TODO: " ",
-		DOING: "-",
-		"IN-PROGRESS": ">",
-		DONE: "x",
-	},
-	excludeMarksFromCycle: [],
-
-	// Priority picker settings
-	enablePriorityPicker: false,
-	enablePriorityKeyboardShortcuts: false,
-
-	// Date picker settings
-	enableDatePicker: false,
-	dateMark: "📅,📆,⏳,🛫",
-	// Cycle complete status settings
-	enableCycleCompleteStatus: true,
-	alwaysCycleNewTasks: false,
-
-	// Workflow settings
-	workflow: {
-		enableWorkflow: false,
-		autoAddTimestamp: true,
-		autoAddNextTask: false,
-		autoRemoveLastStageMarker: false,
-		calculateSpentTime: false,
-		spentTimeFormat: "HH:mm:ss",
-		removeTimestampOnTransition: false,
-		timestampFormat: "YYYY-MM-DD HH:mm:ss",
-		calculateFullSpentTime: false,
-		definitions: [
-			{
-				id: "project_workflow",
-				name: "Project Workflow",
-				description: "Standard project management workflow",
-				stages: [
-					{
-						id: "planning",
-						name: "Planning",
-						type: "linear",
-						next: "in_progress",
-					},
-					{
-						id: "in_progress",
-						name: "In Progress",
-						type: "cycle",
-						subStages: [
-							{
-								id: "development",
-								name: "Development",
-								next: "testing",
-							},
-							{
-								id: "testing",
-								name: "Testing",
-								next: "development",
-							},
-						],
-						canProceedTo: ["review", "cancelled"],
-					},
-					{
-						id: "review",
-						name: "Review",
-						type: "cycle",
-						canProceedTo: ["in_progress", "completed"],
-					},
-					{
-						id: "completed",
-						name: "Completed",
-						type: "terminal",
-					},
-					{
-						id: "cancelled",
-						name: "Cancelled",
-						type: "terminal",
-					},
-				],
-				metadata: {
-					version: "1.0",
-					created: "2024-03-20",
-					lastModified: "2024-03-20",
-				},
-			},
-		],
-	},
-
-	// Completed task mover settings
-	completedTaskMover: {
-		enableCompletedTaskMover: false,
-		taskMarkerType: "version",
-		versionMarker: "version 1.0",
-		dateMarker: "archived on {{date}}",
-		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
-		completeAllMovedTasks: false,
-		treatAbandonedAsCompleted: false,
-		withCurrentFileLink: false,
-	},
-
-	// Quick capture settings
-	quickCapture: {
-		enableQuickCapture: false,
-		targetFile: "Quick Capture.md",
-		placeholder: "Capture thoughts, tasks, or ideas...",
-		appendToFile: "append",
-	},
-
-	// Task filter settings
-	taskFilter: {
-		enableTaskFilter: true,
-		keyboardShortcut: "Alt-f",
-		presetTaskFilters: [],
-	},
-};
+import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
+import {
+	DEFAULT_SETTINGS,
+	TaskProgressBarSettings,
+} from "./common/setting-definition";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
 	private applyDebounceTimer: number = 0;
+
+	// Tabs management
+	private currentTab: string = "general";
+	private tabs: Array<{ id: string; name: string; icon: string }> = [
+		{ id: "general", name: t("General"), icon: "gear" },
+		{ id: "progress-bar", name: t("Progress Bar"), icon: "route" },
+		{ id: "task-status", name: t("Task Status"), icon: "checkbox-glyph" },
+		{ id: "task-filter", name: t("Task Filter"), icon: "filter" },
+		{ id: "task-mover", name: t("Task Mover"), icon: "arrow-right-circle" },
+		{
+			id: "quick-capture",
+			name: t("Quick Capture"),
+			icon: "lightbulb",
+		},
+		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
+		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
+		{ id: "about", name: t("About"), icon: "info" },
+	];
 
 	constructor(app: App, plugin: TaskProgressBarPlugin) {
 		super(app, plugin);
@@ -299,13 +54,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		}, 100);
 	}
 
-	display(): void {
-		const { containerEl } = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
+	// Tabs management
+	private createTabsUI() {
+		this.containerEl.toggleClass("task-genius-settings", true);
+		// Create tabs container
+		new Setting(this.containerEl)
 			.setName("Task Genius")
+			.setClass("task-genius-settings-header")
 			.setDesc(
 				t(
 					"Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features."
@@ -313,6 +68,164 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			)
 			.setHeading();
 
+		const tabsContainer = this.containerEl.createDiv({
+			cls: "settings-tabs-container",
+		});
+
+		// Create tabs
+		this.tabs.forEach((tab) => {
+			const tabEl = tabsContainer.createDiv({
+				cls: `settings-tab ${
+					this.currentTab === tab.id ? "settings-tab-active" : ""
+				}`,
+				attr: { "data-tab-id": tab.id },
+			});
+
+			// Add icon if Obsidian has it
+			tabEl.createSpan({ cls: `settings-tab-icon` }, (el) => {
+				setIcon(el, tab.icon);
+			});
+
+			// Add label
+			tabEl.createSpan({
+				text:
+					tab.name +
+					(tab.id === "about"
+						? " Task Genius v" + this.plugin.manifest.version
+						: ""),
+			});
+
+			// Add click handler
+			tabEl.addEventListener("click", () => {
+				this.switchToTab(tab.id);
+			});
+		});
+
+		// Create sections container
+		this.containerEl.createDiv({ cls: "settings-tab-sections" });
+	}
+
+	private switchToTab(tabId: string) {
+		// Update current tab
+		this.currentTab = tabId;
+
+		// Update active tab
+		const tabs = this.containerEl.querySelectorAll(".settings-tab");
+		tabs.forEach((tab) => {
+			if (tab.getAttribute("data-tab-id") === tabId) {
+				tab.addClass("settings-tab-active");
+			} else {
+				tab.removeClass("settings-tab-active");
+			}
+		});
+
+		// Show active section, hide others
+		const sections = this.containerEl.querySelectorAll(
+			".settings-tab-section"
+		);
+		sections.forEach((section) => {
+			if (section.getAttribute("data-tab-id") === tabId) {
+				section.addClass("settings-tab-section-active");
+			} else {
+				section.removeClass("settings-tab-section-active");
+			}
+		});
+	}
+
+	private createTabSection(tabId: string): HTMLElement {
+		// Get the sections container
+		const sectionsContainer = this.containerEl.querySelector(
+			".settings-tab-sections"
+		);
+		if (!sectionsContainer) return this.containerEl;
+
+		// Create section element
+		const section = sectionsContainer.createDiv({
+			cls: `settings-tab-section ${
+				this.currentTab === tabId ? "settings-tab-section-active" : ""
+			}`,
+			attr: { "data-tab-id": tabId },
+		});
+
+		section.createDiv(
+			{
+				cls: "settings-tab-section-header",
+			},
+			(el) => {
+				const button = new ButtonComponent(el)
+					.setClass("header-button")
+					.onClick(() => {
+						this.currentTab = "general";
+						this.display();
+					});
+
+				button.buttonEl.createEl(
+					"span",
+					{
+						cls: "header-button-icon",
+					},
+					(el) => {
+						setIcon(el, "arrow-left");
+					}
+				);
+				button.buttonEl.createEl("span", {
+					cls: "header-button-text",
+					text: "Back to main settings",
+				});
+			}
+		);
+
+		return section;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+
+		containerEl.empty();
+
+		// Create tabs UI
+		this.createTabsUI();
+
+		// General Tab
+		const generalSection = this.createTabSection("general");
+		this.displayGeneralSettings(generalSection);
+
+		// Progress Bar Tab
+		const progressBarSection = this.createTabSection("progress-bar");
+		this.displayProgressBarSettings(progressBarSection);
+
+		// Task Status Tab
+		const taskStatusSection = this.createTabSection("task-status");
+		this.displayTaskStatusSettings(taskStatusSection);
+
+		// Task Filter Tab
+		const taskFilterSection = this.createTabSection("task-filter");
+		this.displayTaskFilterSettings(taskFilterSection);
+
+		// Task Mover Tab
+		const taskMoverSection = this.createTabSection("task-mover");
+		this.displayTaskMoverSettings(taskMoverSection);
+
+		// Quick Capture Tab
+		const quickCaptureSection = this.createTabSection("quick-capture");
+		this.displayQuickCaptureSettings(quickCaptureSection);
+
+		// Workflow Tab
+		const workflowSection = this.createTabSection("workflow");
+		this.displayWorkflowSettings(workflowSection);
+
+		// Date & Priority Tab
+		const datePrioritySection = this.createTabSection("date-priority");
+		this.displayDatePrioritySettings(datePrioritySection);
+
+		// About Tab
+		const aboutSection = this.createTabSection("about");
+		this.displayAboutSettings(aboutSection);
+	}
+
+	private displayGeneralSettings(containerEl: HTMLElement): void {}
+
+	private displayProgressBarSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName(t("Progress bar"))
 			.setDesc(
@@ -331,10 +244,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.showProgressBar = value;
 						this.applySettingsUpdate();
-
-						setTimeout(() => {
-							this.display();
-						}, 200);
 					})
 			);
 
@@ -413,12 +322,12 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						})
 				);
 
-			this.showNumberToProgressbar();
-
 			new Setting(containerEl)
-				.setName(t("Count sub children level of current Task"))
+				.setName(t("Count sub children of current Task"))
 				.setDesc(
-					t("Toggle this to allow this plugin to count sub tasks.")
+					t(
+						"Toggle this to allow this plugin to count sub tasks when generating progress bar	."
+					)
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -428,6 +337,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							this.applySettingsUpdate();
 						})
 				);
+
+			this.displayNumberToProgressbar(containerEl);
+
 			new Setting(containerEl)
 				.setName(t("Hide progress bars"))
 				.setHeading();
@@ -455,67 +367,277 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							}, 200);
 						})
 				);
+
+			if (this.plugin.settings.hideProgressBarBasedOnConditions) {
+				new Setting(containerEl)
+					.setName(t("Hide by tags"))
+					.setDesc(
+						t(
+							'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"'
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder(
+								DEFAULT_SETTINGS.hideProgressBarTags
+							)
+							.setValue(this.plugin.settings.hideProgressBarTags)
+							.onChange(async (value) => {
+								this.plugin.settings.hideProgressBarTags =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+
+				new Setting(containerEl)
+					.setName(t("Hide by folders"))
+					.setDesc(
+						t(
+							'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"'
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("folder1,folder2/subfolder")
+							.setValue(
+								this.plugin.settings.hideProgressBarFolders
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.hideProgressBarFolders =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+
+				new Setting(containerEl)
+					.setName(t("Hide by metadata"))
+					.setDesc(
+						t(
+							'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"'
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder(
+								DEFAULT_SETTINGS.hideProgressBarMetadata
+							)
+							.setValue(
+								this.plugin.settings.hideProgressBarMetadata
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.hideProgressBarMetadata =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			}
 		}
+	}
 
-		if (this.plugin.settings.hideProgressBarBasedOnConditions) {
+	// Renamed from showNumberToProgressbar() to match the pattern
+	private displayNumberToProgressbar(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Add number to the Progress Bar"))
+			.setDesc(
+				t(
+					"Toggle this to allow this plugin to add tasks number to progress bar."
+				)
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.addNumberToProgressBar)
+					.onChange(async (value) => {
+						this.plugin.settings.addNumberToProgressBar = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		if (this.plugin.settings.addNumberToProgressBar) {
 			new Setting(containerEl)
-				.setName(t("Hide by tags"))
+				.setName(t("Show percentage"))
 				.setDesc(
 					t(
-						'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"'
+						"Toggle this to allow this plugin to show percentage in the progress bar."
 					)
 				)
-				.addText((text) =>
-					text
-						.setPlaceholder(DEFAULT_SETTINGS.hideProgressBarTags)
-						.setValue(this.plugin.settings.hideProgressBarTags)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.showPercentage)
 						.onChange(async (value) => {
-							this.plugin.settings.hideProgressBarTags = value;
+							this.plugin.settings.showPercentage = value;
 							this.applySettingsUpdate();
 						})
 				);
 
-			new Setting(containerEl)
-				.setName(t("Hide by folders"))
-				.setDesc(
-					t(
-						'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"'
+			if (this.plugin.settings.showPercentage) {
+				new Setting(containerEl)
+					.setName(t("Customize progress text"))
+					.setDesc(
+						t(
+							"Toggle this to customize text representation for different progress percentage ranges."
+						)
 					)
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder("folder1,folder2/subfolder")
-						.setValue(this.plugin.settings.hideProgressBarFolders)
-						.onChange(async (value) => {
-							this.plugin.settings.hideProgressBarFolders = value;
-							this.applySettingsUpdate();
-						})
-				);
+					.addToggle((toggle) =>
+						toggle
+							.setValue(
+								this.plugin.settings.customizeProgressRanges
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.customizeProgressRanges =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
 
+				if (this.plugin.settings.customizeProgressRanges) {
+					this.addProgressRangesSettings(containerEl);
+				}
+			}
+		}
+	}
+
+	addProgressRangesSettings(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName(t("Progress Ranges"))
+			.setDesc(
+				t(
+					"Define progress ranges and their corresponding text representations."
+				)
+			)
+			.setHeading();
+
+		// Display existing ranges
+		this.plugin.settings.progressRanges.forEach((range, index) => {
 			new Setting(containerEl)
-				.setName(t("Hide by metadata"))
+				.setName(`Range ${index + 1}: ${range.min}%-${range.max}%`)
 				.setDesc(
-					t(
-						'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"'
-					)
+					`Use {{PROGRESS}} as a placeholder for the percentage value`
 				)
 				.addText((text) =>
 					text
 						.setPlaceholder(
-							DEFAULT_SETTINGS.hideProgressBarMetadata
+							"Template text with {{PROGRESS}} placeholder"
 						)
-						.setValue(this.plugin.settings.hideProgressBarMetadata)
+						.setValue(range.text)
 						.onChange(async (value) => {
-							this.plugin.settings.hideProgressBarMetadata =
+							this.plugin.settings.progressRanges[index].text =
 								value;
 							this.applySettingsUpdate();
 						})
-				);
-		}
+				)
+				.addButton((button) => {
+					button.setButtonText("Delete").onClick(async () => {
+						this.plugin.settings.progressRanges.splice(index, 1);
+						this.applySettingsUpdate();
+						this.display();
+					});
+				});
+		});
 
 		new Setting(containerEl)
-			.setName(t("Parent task changer"))
-			.setDesc(t("Change the parent task of the current task."))
+			.setName(t("Add new range"))
+			.setDesc(t("Add a new progress percentage range with custom text"));
+
+		// Add a new range
+		const newRangeSetting = new Setting(containerEl);
+		newRangeSetting.infoEl.detach();
+
+		newRangeSetting
+			.addText((text) =>
+				text
+					.setPlaceholder(t("Min percentage (0-100)"))
+					.setValue("")
+					.onChange(async (value) => {
+						// This will be handled when the user clicks the Add button
+					})
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder(t("Max percentage (0-100)"))
+					.setValue("")
+					.onChange(async (value) => {
+						// This will be handled when the user clicks the Add button
+					})
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder(t("Text template (use {{PROGRESS}})"))
+					.setValue("")
+					.onChange(async (value) => {
+						// This will be handled when the user clicks the Add button
+					})
+			)
+			.addButton((button) => {
+				button.setButtonText("Add").onClick(async () => {
+					const settingsContainer = button.buttonEl.parentElement;
+					if (!settingsContainer) return;
+
+					const inputs = settingsContainer.querySelectorAll("input");
+					if (inputs.length < 3) return;
+
+					const min = parseInt(inputs[0].value);
+					const max = parseInt(inputs[1].value);
+					const text = inputs[2].value;
+
+					if (isNaN(min) || isNaN(max) || !text) {
+						return;
+					}
+
+					this.plugin.settings.progressRanges.push({
+						min,
+						max,
+						text,
+					});
+
+					// Clear inputs
+					inputs[0].value = "";
+					inputs[1].value = "";
+					inputs[2].value = "";
+
+					this.applySettingsUpdate();
+					this.display();
+				});
+			});
+
+		// Reset to defaults
+		new Setting(containerEl)
+			.setName(t("Reset to defaults"))
+			.setDesc(t("Reset progress ranges to default values"))
+			.addButton((button) => {
+				button.setButtonText(t("Reset")).onClick(async () => {
+					this.plugin.settings.progressRanges = [
+						{
+							min: 0,
+							max: 20,
+							text: t("Just started {{PROGRESS}}%"),
+						},
+						{
+							min: 20,
+							max: 40,
+							text: t("Making progress {{PROGRESS}}%"),
+						},
+						{ min: 40, max: 60, text: t("Half way {{PROGRESS}}%") },
+						{
+							min: 60,
+							max: 80,
+							text: t("Good progress {{PROGRESS}}%"),
+						},
+						{
+							min: 80,
+							max: 100,
+							text: t("Almost there {{PROGRESS}}%"),
+						},
+					];
+					this.applySettingsUpdate();
+					this.display();
+				});
+			});
+	}
+
+	private displayTaskStatusSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Task Status Settings"))
+			.setDesc(t("Configure task status settings"))
 			.setHeading();
 
 		new Setting(containerEl)
@@ -774,12 +896,19 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				dropdown.addOption("planned", "Planned");
 				dropdown.addOption("completed", "Completed");
 				dropdown.addOption("inProgress", "In Progress");
+				dropdown.setValue(
+					this.plugin.settings.countOtherStatusesAs || "notStarted"
+				);
+				dropdown.onChange((value) => {
+					this.plugin.settings.countOtherStatusesAs = value;
+					this.applySettingsUpdate();
+				});
 			});
 
 		// Task Counting Settings
 		new Setting(containerEl)
 			.setName(t("Task Counting Settings"))
-			.setDesc(t("Toggle this to allow this plugin to count sub tasks."))
+			.setDesc(t("Configure which task markers to count or exclude"))
 			.setHeading();
 
 		new Setting(containerEl)
@@ -837,6 +966,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 		}
 
+		// Task Status Switcher section
 		new Setting(containerEl)
 			.setName(t("Task Status Switcher"))
 			.setHeading();
@@ -906,7 +1036,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName(t("Task Status Cycle and Marks"))
+			.setName(t("Task status cycle and marks"))
 			.setDesc(
 				t(
 					"Define task states and their corresponding marks. The order from top to bottom defines the cycling sequence."
@@ -1074,427 +1204,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Initial render of the task states list
 		refreshTaskStatesList();
-
-		this.addPriorityPickerSettings();
-		this.addDatePickerSettings();
-		this.addQuickCaptureSettings();
-
-		// Add Completed Task Mover settings
-		new Setting(containerEl)
-			.setName(t("Completed Task Mover"))
-			.setHeading();
-
-		new Setting(containerEl)
-			.setName(t("Enable completed task mover"))
-			.setDesc(
-				t(
-					"Toggle this to enable commands for moving completed tasks to another file."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.completedTaskMover
-							.enableCompletedTaskMover
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.completedTaskMover.enableCompletedTaskMover =
-							value;
-						this.applySettingsUpdate();
-
-						setTimeout(() => {
-							this.display();
-						}, 200);
-					})
-			);
-
-		if (this.plugin.settings.completedTaskMover.enableCompletedTaskMover) {
-			new Setting(containerEl)
-				.setName(t("Task marker type"))
-				.setDesc(t("Choose what type of marker to add to moved tasks"))
-				.addDropdown((dropdown) => {
-					dropdown
-						.addOption("version", "Version marker")
-						.addOption("date", "Date marker")
-						.addOption("custom", "Custom marker")
-						.setValue(
-							this.plugin.settings.completedTaskMover
-								.taskMarkerType
-						)
-						.onChange(
-							async (value: "version" | "date" | "custom") => {
-								this.plugin.settings.completedTaskMover.taskMarkerType =
-									value;
-								this.applySettingsUpdate();
-
-								setTimeout(() => {
-									this.display();
-								}, 200);
-							}
-						);
-				});
-
-			// Show specific settings based on marker type
-			const markerType =
-				this.plugin.settings.completedTaskMover.taskMarkerType;
-
-			if (markerType === "version") {
-				new Setting(containerEl)
-					.setName(t("Version marker text"))
-					.setDesc(
-						t(
-							"Text to append to tasks when moved (e.g., 'version 1.0')"
-						)
-					)
-					.addText((text) =>
-						text
-							.setPlaceholder("version 1.0")
-							.setValue(
-								this.plugin.settings.completedTaskMover
-									.versionMarker
-							)
-							.onChange(async (value) => {
-								this.plugin.settings.completedTaskMover.versionMarker =
-									value;
-								this.applySettingsUpdate();
-							})
-					);
-			} else if (markerType === "date") {
-				new Setting(containerEl)
-					.setName(t("Date marker text"))
-					.setDesc(
-						t(
-							"Text to append to tasks when moved (e.g., 'archived on 2023-12-31')"
-						)
-					)
-					.addText((text) =>
-						text
-							.setPlaceholder("archived on {{date}}")
-							.setValue(
-								this.plugin.settings.completedTaskMover
-									.dateMarker
-							)
-							.onChange(async (value) => {
-								this.plugin.settings.completedTaskMover.dateMarker =
-									value;
-								this.applySettingsUpdate();
-							})
-					);
-			} else if (markerType === "custom") {
-				new Setting(containerEl)
-					.setName(t("Custom marker text"))
-					.setDesc(
-						t(
-							"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}}"
-						)
-					)
-					.addText((text) =>
-						text
-							.setPlaceholder("moved {{DATE:YYYY-MM-DD HH:mm}}")
-							.setValue(
-								this.plugin.settings.completedTaskMover
-									.customMarker
-							)
-							.onChange(async (value) => {
-								this.plugin.settings.completedTaskMover.customMarker =
-									value;
-								this.applySettingsUpdate();
-							})
-					);
-			}
-
-			new Setting(containerEl)
-				.setName(t("Treat abandoned tasks as completed"))
-				.setDesc(
-					t(
-						"If enabled, abandoned tasks will be treated as completed."
-					)
-				)
-				.addToggle((toggle) => {
-					toggle.setValue(
-						this.plugin.settings.completedTaskMover
-							.treatAbandonedAsCompleted
-					);
-					toggle.onChange((value) => {
-						this.plugin.settings.completedTaskMover.treatAbandonedAsCompleted =
-							value;
-						this.applySettingsUpdate();
-					});
-				});
-
-			new Setting(containerEl)
-				.setName(t("Complete all moved tasks"))
-				.setDesc(
-					t(
-						"If enabled, all moved tasks will be marked as completed."
-					)
-				)
-				.addToggle((toggle) => {
-					toggle.setValue(
-						this.plugin.settings.completedTaskMover
-							.completeAllMovedTasks
-					);
-					toggle.onChange((value) => {
-						this.plugin.settings.completedTaskMover.completeAllMovedTasks =
-							value;
-						this.applySettingsUpdate();
-					});
-				});
-
-			new Setting(containerEl)
-				.setName(t("With current file link"))
-				.setDesc(
-					t(
-						"A link to the current file will be added to the parent task of the moved tasks."
-					)
-				)
-				.addToggle((toggle) => {
-					toggle.setValue(
-						this.plugin.settings.completedTaskMover
-							.withCurrentFileLink
-					);
-					toggle.onChange((value) => {
-						this.plugin.settings.completedTaskMover.withCurrentFileLink =
-							value;
-						this.applySettingsUpdate();
-					});
-				});
-		}
-
-		// Add task filter settings
-		this.addTaskFilterSettings();
-
-		// Add workflow settings
-		this.addWorkflowSettings();
-
-		new Setting(containerEl).setName(t("Say Thank You")).setHeading();
-
-		new Setting(containerEl)
-			.setName(t("Donate"))
-			.setDesc(
-				t(
-					"If you like this plugin, consider donating to support continued development:"
-				)
-			)
-			.addButton((bt) => {
-				bt.buttonEl.outerHTML = `<a href="https://www.buymeacoffee.com/boninall"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00"></a>`;
-			});
 	}
 
-	showNumberToProgressbar() {
-		new Setting(this.containerEl)
-			.setName(t("Add number to the Progress Bar"))
-			.setDesc(
-				t(
-					"Toggle this to allow this plugin to add tasks number to progress bar."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.addNumberToProgressBar)
-					.onChange(async (value) => {
-						this.plugin.settings.addNumberToProgressBar = value;
-						this.applySettingsUpdate();
-
-						setTimeout(() => {
-							this.display();
-						}, 200);
-					})
-			);
-
-		if (this.plugin.settings.addNumberToProgressBar) {
-			new Setting(this.containerEl)
-				.setName(t("Show percentage"))
-				.setDesc(
-					t(
-						"Toggle this to allow this plugin to show percentage in the progress bar."
-					)
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.plugin.settings.showPercentage)
-						.onChange(async (value) => {
-							this.plugin.settings.showPercentage = value;
-							this.applySettingsUpdate();
-
-							setTimeout(() => {
-								this.display();
-							}, 200);
-						})
-				);
-
-			if (this.plugin.settings.showPercentage) {
-				new Setting(this.containerEl)
-					.setName(t("Customize progress text"))
-					.setDesc(
-						t(
-							"Toggle this to customize text representation for different progress percentage ranges."
-						)
-					)
-					.addToggle((toggle) =>
-						toggle
-							.setValue(
-								this.plugin.settings.customizeProgressRanges
-							)
-							.onChange(async (value) => {
-								this.plugin.settings.customizeProgressRanges =
-									value;
-								this.applySettingsUpdate();
-
-								setTimeout(() => {
-									this.display();
-								}, 200);
-							})
-					);
-
-				if (this.plugin.settings.customizeProgressRanges) {
-					this.addProgressRangesSettings();
-				}
-			}
-		}
-	}
-
-	addProgressRangesSettings() {
-		new Setting(this.containerEl)
-			.setName(t("Progress Ranges"))
-			.setDesc(
-				t(
-					"Define progress ranges and their corresponding text representations."
-				)
-			)
-			.setHeading();
-
-		// Display existing ranges
-		this.plugin.settings.progressRanges.forEach((range, index) => {
-			new Setting(this.containerEl)
-				.setName(`Range ${index + 1}: ${range.min}%-${range.max}%`)
-				.setDesc(
-					`Use {{PROGRESS}} as a placeholder for the percentage value`
-				)
-				.addText((text) =>
-					text
-						.setPlaceholder(
-							"Template text with {{PROGRESS}} placeholder"
-						)
-						.setValue(range.text)
-						.onChange(async (value) => {
-							this.plugin.settings.progressRanges[index].text =
-								value;
-							this.applySettingsUpdate();
-						})
-				)
-				.addButton((button) => {
-					button.setButtonText("Delete").onClick(async () => {
-						this.plugin.settings.progressRanges.splice(index, 1);
-						this.applySettingsUpdate();
-						this.display();
-					});
-				});
-		});
-
-		new Setting(this.containerEl)
-			.setName(t("Add new range"))
-			.setDesc(t("Add a new progress percentage range with custom text"));
-
-		// Add a new range
-		const newRangeSetting = new Setting(this.containerEl);
-		newRangeSetting.infoEl.detach();
-
-		newRangeSetting
-			.addText((text) =>
-				text
-					.setPlaceholder(t("Min percentage (0-100)"))
-					.setValue("")
-					.onChange(async (value) => {
-						// This will be handled when the user clicks the Add button
-					})
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(t("Max percentage (0-100)"))
-					.setValue("")
-					.onChange(async (value) => {
-						// This will be handled when the user clicks the Add button
-					})
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(t("Text template (use {{PROGRESS}})"))
-					.setValue("")
-					.onChange(async (value) => {
-						// This will be handled when the user clicks the Add button
-					})
-			)
-			.addButton((button) => {
-				button.setButtonText("Add").onClick(async () => {
-					const settingsContainer = button.buttonEl.parentElement;
-					if (!settingsContainer) return;
-
-					const inputs = settingsContainer.querySelectorAll("input");
-					if (inputs.length < 3) return;
-
-					const min = parseInt(inputs[0].value);
-					const max = parseInt(inputs[1].value);
-					const text = inputs[2].value;
-
-					if (isNaN(min) || isNaN(max) || !text) {
-						return;
-					}
-
-					this.plugin.settings.progressRanges.push({
-						min,
-						max,
-						text,
-					});
-
-					// Clear inputs
-					inputs[0].value = "";
-					inputs[1].value = "";
-					inputs[2].value = "";
-
-					this.applySettingsUpdate();
-					this.display();
-				});
-			});
-
-		// Reset to defaults
-		new Setting(this.containerEl)
-			.setName(t("Reset to defaults"))
-			.setDesc(t("Reset progress ranges to default values"))
-			.addButton((button) => {
-				button.setButtonText(t("Reset")).onClick(async () => {
-					this.plugin.settings.progressRanges = [
-						{
-							min: 0,
-							max: 20,
-							text: t("Just started {{PROGRESS}}%"),
-						},
-						{
-							min: 20,
-							max: 40,
-							text: t("Making progress {{PROGRESS}}%"),
-						},
-						{ min: 40, max: 60, text: t("Half way {{PROGRESS}}%") },
-						{
-							min: 60,
-							max: 80,
-							text: t("Good progress {{PROGRESS}}%"),
-						},
-						{
-							min: 80,
-							max: 100,
-							text: t("Almost there {{PROGRESS}}%"),
-						},
-					];
-					this.applySettingsUpdate();
-					this.display();
-				});
-			});
-	}
-
-	addPriorityPickerSettings() {
-		const { containerEl } = this;
-
+	private displayDatePrioritySettings(containerEl: HTMLElement): void {
+		// Priority picker settings
 		new Setting(containerEl)
 			.setName(t("Priority Picker Settings"))
 			.setDesc(
@@ -1538,12 +1251,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					})
 			);
-	}
 
-	addDatePickerSettings() {
-		new Setting(this.containerEl).setName(t("Date picker")).setHeading();
+		// Date picker settings
+		new Setting(containerEl).setName(t("Date picker")).setHeading();
 
-		new Setting(this.containerEl)
+		new Setting(containerEl)
 			.setName(t("Enable date picker"))
 			.setDesc(
 				t(
@@ -1560,7 +1272,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 
 		// Date mark setting
-		new Setting(this.containerEl)
+		new Setting(containerEl)
 			.setName(t("Date mark"))
 			.setDesc(
 				t(
@@ -1577,86 +1289,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 	}
 
-	addQuickCaptureSettings() {
-		new Setting(this.containerEl).setName(t("Quick capture")).setHeading();
-
-		new Setting(this.containerEl)
-			.setName(t("Enable quick capture"))
-			.setDesc(
-				t(
-					"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(
-						this.plugin.settings.quickCapture.enableQuickCapture
-					)
-					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.enableQuickCapture =
-							value;
-						this.applySettingsUpdate();
-
-						setTimeout(() => {
-							this.display();
-						}, 200);
-					})
-			);
-
-		if (!this.plugin.settings.quickCapture.enableQuickCapture) return;
-
-		new Setting(this.containerEl)
-			.setName(t("Target file"))
-			.setDesc(
-				t(
-					"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'"
-				)
-			)
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.quickCapture.targetFile)
-					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.targetFile = value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		new Setting(this.containerEl)
-			.setName(t("Placeholder text"))
-			.setDesc(t("Placeholder text to display in the capture panel"))
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.quickCapture.placeholder)
-					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.placeholder = value;
-						this.applySettingsUpdate();
-					})
-			);
-
-		new Setting(this.containerEl)
-			.setName(t("Append to file"))
-			.setDesc(
-				t(
-					"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content."
-				)
-			)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("append", "Append")
-					.addOption("prepend", "Prepend")
-					.addOption("replace", "Replace")
-					.setValue(this.plugin.settings.quickCapture.appendToFile)
-					.onChange(async (value) => {
-						this.plugin.settings.quickCapture.appendToFile =
-							value as "append" | "prepend" | "replace";
-						this.applySettingsUpdate();
-					})
-			);
-	}
-
-	addTaskFilterSettings() {
-		const containerEl = this.containerEl;
-
+	private displayTaskFilterSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName(t("Task Filter")).setHeading();
 
 		new Setting(containerEl)
@@ -1837,93 +1470,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		refreshPresetFiltersList();
 	}
 
-	// Generate a unique ID for preset filters
-	generateUniqueId(): string {
-		return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-	}
-
-	// Create default preset filters
-	createDefaultPresetFilters() {
-		// Clear existing presets if any
-		this.plugin.settings.taskFilter.presetTaskFilters = [];
-
-		// Add default presets
-		const defaultPresets = [
-			{
-				id: this.generateUniqueId(),
-				name: "Incomplete Tasks",
-				options: {
-					includeCompleted: false,
-					includeInProgress: true,
-					includeAbandoned: false,
-					includeNotStarted: true,
-					includePlanned: true,
-					includeParentTasks: true,
-					includeChildTasks: true,
-					includeSiblingTasks: false,
-					advancedFilterQuery: "",
-					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
-				},
-			},
-			{
-				id: this.generateUniqueId(),
-				name: "In Progress Tasks",
-				options: {
-					includeCompleted: false,
-					includeInProgress: true,
-					includeAbandoned: false,
-					includeNotStarted: false,
-					includePlanned: false,
-					includeParentTasks: true,
-					includeChildTasks: true,
-					includeSiblingTasks: false,
-					advancedFilterQuery: "",
-					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
-				},
-			},
-			{
-				id: this.generateUniqueId(),
-				name: "Completed Tasks",
-				options: {
-					includeCompleted: true,
-					includeInProgress: false,
-					includeAbandoned: false,
-					includeNotStarted: false,
-					includePlanned: false,
-					includeParentTasks: false,
-					includeChildTasks: true,
-					includeSiblingTasks: false,
-					advancedFilterQuery: "",
-					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
-				},
-			},
-			{
-				id: this.generateUniqueId(),
-				name: "All Tasks",
-				options: {
-					includeCompleted: true,
-					includeInProgress: true,
-					includeAbandoned: true,
-					includeNotStarted: true,
-					includePlanned: true,
-					includeParentTasks: true,
-					includeChildTasks: true,
-					includeSiblingTasks: true,
-					advancedFilterQuery: "",
-					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
-				},
-			},
-		];
-
-		// Add default presets to settings
-		this.plugin.settings.taskFilter.presetTaskFilters = defaultPresets;
-		this.applySettingsUpdate();
-	}
-
-	// Add new method for workflow settings
-	addWorkflowSettings() {
-		const containerEl = this.containerEl;
-
+	private displayWorkflowSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName(t("Workflow"))
 			.setDesc(
@@ -2321,6 +1868,367 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Initial render of the workflow list
 		refreshWorkflowList();
 	}
+
+	private displayQuickCaptureSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName(t("Quick capture")).setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable quick capture"))
+			.setDesc(
+				t(
+					"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel."
+				)
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.quickCapture.enableQuickCapture
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.enableQuickCapture =
+							value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		if (!this.plugin.settings.quickCapture.enableQuickCapture) return;
+
+		new Setting(containerEl)
+			.setName(t("Target file"))
+			.setDesc(
+				t(
+					"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'"
+				)
+			)
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.quickCapture.targetFile)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.targetFile = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(t("Placeholder text"))
+			.setDesc(t("Placeholder text to display in the capture panel"))
+			.addText((text) =>
+				text
+					.setValue(this.plugin.settings.quickCapture.placeholder)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.placeholder = value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(t("Append to file"))
+			.setDesc(
+				t(
+					"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content."
+				)
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("append", "Append")
+					.addOption("prepend", "Prepend")
+					.addOption("replace", "Replace")
+					.setValue(this.plugin.settings.quickCapture.appendToFile)
+					.onChange(async (value) => {
+						this.plugin.settings.quickCapture.appendToFile =
+							value as "append" | "prepend" | "replace";
+						this.applySettingsUpdate();
+					})
+			);
+	}
+
+	private displayTaskMoverSettings(containerEl: HTMLElement): void {
+		// Add Completed Task Mover settings
+		new Setting(containerEl)
+			.setName(t("Completed Task Mover"))
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable completed task mover"))
+			.setDesc(
+				t(
+					"Toggle this to enable commands for moving completed tasks to another file."
+				)
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.completedTaskMover
+							.enableCompletedTaskMover
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.completedTaskMover.enableCompletedTaskMover =
+							value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		if (this.plugin.settings.completedTaskMover.enableCompletedTaskMover) {
+			new Setting(containerEl)
+				.setName(t("Task marker type"))
+				.setDesc(t("Choose what type of marker to add to moved tasks"))
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("version", "Version marker")
+						.addOption("date", "Date marker")
+						.addOption("custom", "Custom marker")
+						.setValue(
+							this.plugin.settings.completedTaskMover
+								.taskMarkerType
+						)
+						.onChange(
+							async (value: "version" | "date" | "custom") => {
+								this.plugin.settings.completedTaskMover.taskMarkerType =
+									value;
+								this.applySettingsUpdate();
+							}
+						);
+				});
+
+			// Show specific settings based on marker type
+			const markerType =
+				this.plugin.settings.completedTaskMover.taskMarkerType;
+
+			if (markerType === "version") {
+				new Setting(containerEl)
+					.setName(t("Version marker text"))
+					.setDesc(
+						t(
+							"Text to append to tasks when moved (e.g., 'version 1.0')"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("version 1.0")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.versionMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.versionMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			} else if (markerType === "date") {
+				new Setting(containerEl)
+					.setName(t("Date marker text"))
+					.setDesc(
+						t(
+							"Text to append to tasks when moved (e.g., 'archived on 2023-12-31')"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("archived on {{date}}")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.dateMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.dateMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			} else if (markerType === "custom") {
+				new Setting(containerEl)
+					.setName(t("Custom marker text"))
+					.setDesc(
+						t(
+							"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}}"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("moved {{DATE:YYYY-MM-DD HH:mm}}")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.customMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.customMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			}
+
+			new Setting(containerEl)
+				.setName(t("Treat abandoned tasks as completed"))
+				.setDesc(
+					t(
+						"If enabled, abandoned tasks will be treated as completed."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.treatAbandonedAsCompleted
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.treatAbandonedAsCompleted =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Complete all moved tasks"))
+				.setDesc(
+					t(
+						"If enabled, all moved tasks will be marked as completed."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.completeAllMovedTasks
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.completeAllMovedTasks =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName(t("With current file link"))
+				.setDesc(
+					t(
+						"A link to the current file will be added to the parent task of the moved tasks."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.withCurrentFileLink
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.withCurrentFileLink =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+		}
+	}
+
+	private displayAboutSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName(t("About Task Genius")).setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Version"))
+			.setDesc(`Task Genius v${this.plugin.manifest.version}`);
+
+		new Setting(containerEl)
+			.setName(t("Donate"))
+			.setDesc(
+				t(
+					"If you like this plugin, consider donating to support continued development:"
+				)
+			)
+			.addButton((bt) => {
+				bt.buttonEl.outerHTML = `<a href="https://www.buymeacoffee.com/boninall"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00"></a>`;
+			});
+
+		new Setting(containerEl)
+			.setName(t("Documentation"))
+			.setDesc(t("View the documentation for this plugin"))
+			.addButton((button) => {
+				button.setButtonText(t("Open Documentation")).onClick(() => {
+					window.open(
+						"https://github.com/quorafind/obsidian-task-genius/"
+					);
+				});
+			});
+	}
+
+	// Helper methods for task filters and workflows
+	private generateUniqueId(): string {
+		return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+	}
+
+	private createDefaultPresetFilters(): void {
+		// Clear existing presets if any
+		this.plugin.settings.taskFilter.presetTaskFilters = [];
+
+		// Add default presets
+		const defaultPresets = [
+			{
+				id: this.generateUniqueId(),
+				name: t("Incomplete tasks"),
+				options: {
+					includeCompleted: false,
+					includeInProgress: true,
+					includeAbandoned: false,
+					includeNotStarted: true,
+					includePlanned: true,
+					includeParentTasks: true,
+					includeChildTasks: true,
+					includeSiblingTasks: false,
+					advancedFilterQuery: "",
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
+				},
+			},
+			{
+				id: this.generateUniqueId(),
+				name: t("In progress tasks"),
+				options: {
+					includeCompleted: false,
+					includeInProgress: true,
+					includeAbandoned: false,
+					includeNotStarted: false,
+					includePlanned: false,
+					includeParentTasks: true,
+					includeChildTasks: true,
+					includeSiblingTasks: false,
+					advancedFilterQuery: "",
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
+				},
+			},
+			{
+				id: this.generateUniqueId(),
+				name: t("Completed tasks"),
+				options: {
+					includeCompleted: true,
+					includeInProgress: false,
+					includeAbandoned: false,
+					includeNotStarted: false,
+					includePlanned: false,
+					includeParentTasks: false,
+					includeChildTasks: true,
+					includeSiblingTasks: false,
+					advancedFilterQuery: "",
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
+				},
+			},
+			{
+				id: this.generateUniqueId(),
+				name: t("All tasks"),
+				options: {
+					includeCompleted: true,
+					includeInProgress: true,
+					includeAbandoned: true,
+					includeNotStarted: true,
+					includePlanned: true,
+					includeParentTasks: true,
+					includeChildTasks: true,
+					includeSiblingTasks: true,
+					advancedFilterQuery: "",
+					filterMode: "INCLUDE" as "INCLUDE" | "EXCLUDE",
+				},
+			},
+		];
+
+		// Add default presets to settings
+		this.plugin.settings.taskFilter.presetTaskFilters = defaultPresets;
+		this.applySettingsUpdate();
+	}
 }
 
 class PresetFilterModal extends Modal {
@@ -2452,874 +2360,5 @@ class PresetFilterModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
-	}
-}
-
-class WorkflowDefinitionModal extends Modal {
-	workflow: any;
-	onSave: (workflow: any) => void;
-	plugin: TaskProgressBarPlugin;
-
-	constructor(
-		app: App,
-		plugin: TaskProgressBarPlugin,
-		workflow: any,
-		onSave: (workflow: any) => void
-	) {
-		super(app);
-		this.plugin = plugin;
-		this.workflow = JSON.parse(JSON.stringify(workflow)); // Deep copy to avoid direct mutation
-		this.onSave = onSave;
-	}
-
-	onOpen() {
-		const { contentEl, titleEl } = this;
-
-		this.modalEl.toggleClass("modal-workflow-definition", true);
-		titleEl.setText(
-			this.workflow.id
-				? t(`Edit Workflow: ${this.workflow.name}`)
-				: t("Create New Workflow")
-		);
-
-		// Basic workflow information
-		const formContainer = contentEl.createDiv({ cls: "workflow-form" });
-
-		new Setting(formContainer)
-			.setName(t("Workflow name"))
-			.setDesc(t("A descriptive name for the workflow"))
-			.addText((text) => {
-				text.setValue(this.workflow.name || "").onChange((value) => {
-					this.workflow.name = value;
-				});
-			});
-
-		new Setting(formContainer)
-			.setName(t("Workflow ID"))
-			.setDesc(t("A unique identifier for the workflow (used in tags)"))
-			.addText((text) => {
-				text.setValue(this.workflow.id || "")
-					.setPlaceholder("unique_id")
-					.onChange((value) => {
-						this.workflow.id = value;
-					});
-			});
-
-		new Setting(formContainer)
-			.setName(t("Description"))
-			.setDesc(t("Optional description for the workflow"))
-			.addTextArea((textarea) => {
-				textarea
-					.setValue(this.workflow.description || "")
-					.setPlaceholder(
-						t("Describe the purpose and use of this workflow...")
-					)
-					.onChange((value) => {
-						this.workflow.description = value;
-					});
-
-				textarea.inputEl.rows = 3;
-				textarea.inputEl.cols = 40;
-			});
-
-		// Stages section
-		const stagesSection = contentEl.createDiv({
-			cls: "workflow-stages-section",
-		});
-		const stagesHeading = stagesSection.createEl("h2", {
-			text: t("Workflow Stages"),
-		});
-
-		const stagesContainer = stagesSection.createDiv({
-			cls: "workflow-stages-container",
-		});
-
-		// Function to render the stages list
-		const renderStages = () => {
-			stagesContainer.empty();
-
-			if (!this.workflow.stages || this.workflow.stages.length === 0) {
-				stagesContainer.createEl("p", {
-					text: t(
-						"No stages defined yet. Add a stage to get started."
-					),
-					cls: "no-stages-message",
-				});
-			} else {
-				// Create a sortable list of stages
-				const stagesList = stagesContainer.createEl("ul", {
-					cls: "workflow-stages-list",
-				});
-
-				this.workflow.stages.forEach((stage: any, index: number) => {
-					const stageItem = stagesList.createEl("li", {
-						cls: "workflow-stage-item",
-					});
-
-					// Create a setting for each stage
-					const stageSetting = new Setting(stageItem)
-						.setName(stage.name)
-						.setDesc(stage.type);
-
-					stageSetting.settingEl.toggleClass(
-						[
-							"workflow-stage-type-cycle",
-							"workflow-stage-type-linear",
-							"workflow-stage-type-parallel",
-							"workflow-stage-type-conditional",
-							"workflow-stage-type-custom",
-						].includes(stage.type)
-							? stage.type
-							: "workflow-stage-type-unknown",
-						true
-					);
-
-					// Edit button
-					stageSetting.addExtraButton((button) => {
-						button
-							.setIcon("pencil")
-							.setTooltip(t("Edit"))
-							.onClick(() => {
-								new StageEditModal(
-									this.app,
-									stage,
-									this.workflow.stages,
-									(updatedStage) => {
-										this.workflow.stages[index] =
-											updatedStage;
-										renderStages();
-									}
-								).open();
-							});
-					});
-
-					// Move up button (if not first)
-					if (index > 0) {
-						stageSetting.addExtraButton((button) => {
-							button
-								.setIcon("arrow-up")
-								.setTooltip(t("Move up"))
-								.onClick(() => {
-									// Swap with previous stage
-									[
-										this.workflow.stages[index - 1],
-										this.workflow.stages[index],
-									] = [
-										this.workflow.stages[index],
-										this.workflow.stages[index - 1],
-									];
-									renderStages();
-								});
-						});
-					}
-
-					// Move down button (if not last)
-					if (index < this.workflow.stages.length - 1) {
-						stageSetting.addExtraButton((button) => {
-							button
-								.setIcon("arrow-down")
-								.setTooltip(t("Move down"))
-								.onClick(() => {
-									// Swap with next stage
-									[
-										this.workflow.stages[index],
-										this.workflow.stages[index + 1],
-									] = [
-										this.workflow.stages[index + 1],
-										this.workflow.stages[index],
-									];
-									renderStages();
-								});
-						});
-					}
-
-					// Delete button
-					stageSetting.addExtraButton((button) => {
-						button
-							.setIcon("trash")
-							.setTooltip(t("Delete"))
-							.onClick(() => {
-								// Remove the stage
-								this.workflow.stages.splice(index, 1);
-								renderStages();
-							});
-					});
-
-					// If this stage has substages, show them
-					if (
-						stage.type === "cycle" &&
-						stage.subStages &&
-						stage.subStages.length > 0
-					) {
-						const subStagesList = stageItem.createEl("div", {
-							cls: "workflow-substages-list",
-						});
-
-						stage.subStages.forEach(
-							(subStage: any, index: number) => {
-								const subStageItem = subStagesList.createEl(
-									"div",
-									{
-										cls: "substage-item",
-									}
-								);
-
-								const subStageSettingsContainer =
-									subStageItem.createDiv({
-										cls: "substage-settings-container",
-									});
-
-								// Create a single Setting for the entire substage
-								const setting = new Setting(
-									subStageSettingsContainer
-								);
-
-								setting.setName(
-									t("Sub-stage") + " " + (index + 1)
-								);
-
-								// Add name text field
-								setting.addText((text) => {
-									text.setValue(subStage.name || "")
-										.setPlaceholder(t("Sub-stage name"))
-										.onChange((value) => {
-											subStage.name = value;
-										});
-								});
-
-								// Add ID text field
-								setting.addText((text) => {
-									text.setValue(subStage.id || "")
-										.setPlaceholder(t("Sub-stage ID"))
-										.onChange((value) => {
-											subStage.id = value;
-										});
-								});
-
-								// Add next stage dropdown if needed
-								if (this.workflow.stages.length > 1) {
-									setting.addDropdown((dropdown) => {
-										dropdown.selectEl.addClass(
-											"substage-next-select"
-										);
-
-										// Add label before dropdown
-										const labelEl = createSpan({
-											text: t("Next: "),
-											cls: "setting-dropdown-label",
-										});
-										dropdown.selectEl.parentElement?.insertBefore(
-											labelEl,
-											dropdown.selectEl
-										);
-
-										// Add all other sub-stages as options
-										this.workflow.stages.forEach(
-											(s: WorkflowStage) => {
-												if (s.id !== subStage.id) {
-													dropdown.addOption(
-														s.id,
-														s.name
-													);
-												}
-											}
-										);
-
-										// Set the current value
-										if (subStage.next) {
-											dropdown.setValue(subStage.next);
-										}
-
-										// Handle changes
-										dropdown.onChange((value) => {
-											subStage.next = value;
-										});
-									});
-								}
-
-								// Add remove button
-								setting.addExtraButton((button) => {
-									button.setIcon("trash").onClick(() => {
-										this.workflow.stages.splice(index, 1);
-										renderStages();
-									});
-								});
-							}
-						);
-					}
-				});
-			}
-
-			// Add button for new sub-stage
-			const addStageButton = stagesContainer.createEl("button", {
-				cls: "workflow-add-stage-button",
-				text: t("Add Sub-stage"),
-			});
-			addStageButton.addEventListener("click", () => {
-				if (!this.workflow.stages) {
-					this.workflow.stages = [];
-				}
-
-				// Create a new sub-stage
-				const newSubStage: {
-					id: string;
-					name: string;
-					next?: string;
-				} = {
-					id: this.generateUniqueId(),
-					name: t("New Sub-stage"),
-				};
-
-				// If there are existing sub-stages, set the next property
-				if (this.workflow.stages.length > 0) {
-					// Get the last sub-stage
-					const lastSubStage =
-						this.workflow.stages[this.workflow.stages.length - 1];
-
-					// Set the last sub-stage's next property to the new sub-stage
-					if (lastSubStage) {
-						// Ensure lastSubStage has a next property
-						if (!("next" in lastSubStage)) {
-							// Add next property if it doesn't exist
-							(lastSubStage as any).next = newSubStage.id;
-						} else {
-							lastSubStage.next = newSubStage.id;
-						}
-					}
-
-					// Set the new sub-stage's next property to the first sub-stage (cycle)
-					if (this.workflow.stages[0]) {
-						newSubStage.next = this.workflow.stages[0].id;
-					}
-				}
-
-				this.workflow.stages.push(newSubStage);
-				renderStages();
-			});
-		};
-
-		// Initial render of stages
-		renderStages();
-
-		// Save and Cancel buttons
-		const buttonContainer = contentEl.createDiv({
-			cls: "workflow-buttons",
-		});
-
-		const cancelButton = buttonContainer.createEl("button", {
-			text: t("Cancel"),
-			cls: "workflow-cancel-button",
-		});
-		cancelButton.addEventListener("click", () => {
-			this.close();
-		});
-
-		const saveButton = buttonContainer.createEl("button", {
-			text: t("Save"),
-			cls: "workflow-save-button mod-cta",
-		});
-		saveButton.addEventListener("click", () => {
-			// Update the lastModified date
-			if (!this.workflow.metadata) {
-				this.workflow.metadata = {};
-			}
-			this.workflow.metadata.lastModified = new Date()
-				.toISOString()
-				.split("T")[0];
-
-			// Call the onSave callback
-			this.onSave(this.workflow);
-			this.close();
-		});
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
-
-	generateUniqueId(): string {
-		return (
-			Date.now().toString(36) + Math.random().toString(36).substring(2, 9)
-		);
-	}
-}
-
-// Stage edit modal
-class StageEditModal extends Modal {
-	stage: any;
-	allStages: any[];
-	onSave: (stage: any) => void;
-	renderStageTypeSettings: () => void;
-
-	constructor(
-		app: App,
-		stage: any,
-		allStages: any[],
-		onSave: (stage: any) => void
-	) {
-		super(app);
-		this.stage = JSON.parse(JSON.stringify(stage)); // Deep copy
-		this.allStages = allStages;
-		this.onSave = onSave;
-		// Initialize the renderStageTypeSettings as a no-op function that will be replaced in onOpen
-		this.renderStageTypeSettings = () => {};
-	}
-
-	onOpen() {
-		const { contentEl, titleEl } = this;
-
-		this.modalEl.toggleClass("modal-stage-definition", true);
-
-		titleEl.setText(t("Edit Stage"));
-
-		// Basic stage information
-		new Setting(contentEl)
-			.setName(t("Stage name"))
-			.setDesc(t("A descriptive name for this workflow stage"))
-			.addText((text) => {
-				text.setValue(this.stage.name || "")
-					.setPlaceholder(t("Stage name"))
-					.onChange((value) => {
-						this.stage.name = value;
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Stage ID"))
-			.setDesc(t("A unique identifier for the stage (used in tags)"))
-			.addText((text) => {
-				text.setValue(this.stage.id || "")
-					.setPlaceholder("stage_id")
-					.onChange((value) => {
-						this.stage.id = value;
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Stage type"))
-			.setDesc(t("The type of this workflow stage"))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("linear", t("Linear (sequential)"))
-					.addOption("cycle", t("Cycle (repeatable)"))
-					.addOption("terminal", t("Terminal (end stage)"))
-					.setValue(this.stage.type || "linear")
-					.onChange((value: "linear" | "cycle" | "terminal") => {
-						this.stage.type = value;
-
-						// If changing to/from cycle, update the UI
-						this.renderStageTypeSettings();
-					});
-			});
-
-		// Container for type-specific settings
-		const typeSettingsContainer = contentEl.createDiv({
-			cls: "stage-type-settings",
-		});
-
-		// Function to render type-specific settings
-		const renderTypeSettings = () => {
-			typeSettingsContainer.empty();
-
-			if (this.stage.type === "linear" || this.stage.type === "cycle") {
-				// For linear and cycle stages, show next stage options
-				if (this.allStages.length > 0) {
-					new Setting(typeSettingsContainer)
-						.setName(t("Next stage"))
-						.setDesc(t("The stage to proceed to after this one"))
-						.addDropdown((dropdown) => {
-							// Add all other stages as options
-							this.allStages.forEach((s) => {
-								if (s.id !== this.stage.id) {
-									dropdown.addOption(s.id, s.name);
-								}
-							});
-
-							// Set current value if it exists
-							if (
-								typeof this.stage.next === "string" &&
-								this.stage.next
-							) {
-								dropdown.setValue(this.stage.next);
-							}
-
-							dropdown.onChange((value) => {
-								this.stage.next = value;
-							});
-						});
-				}
-
-				// For cycle stages, add subStages
-				if (this.stage.type === "cycle") {
-					// SubStages section
-					const subStagesSection = typeSettingsContainer.createDiv({
-						cls: "substages-section",
-					});
-
-					new Setting(subStagesSection)
-						.setName(t("Sub-stages"))
-						.setDesc(t("Define cycle sub-stages (optional)"));
-
-					const subStagesContainer = subStagesSection.createDiv({
-						cls: "substages-container",
-					});
-
-					// Function to render sub-stages
-					const renderSubStages = () => {
-						subStagesContainer.empty();
-
-						if (
-							!this.stage.subStages ||
-							this.stage.subStages.length === 0
-						) {
-							subStagesContainer.createEl("p", {
-								text: t("No sub-stages defined yet."),
-								cls: "no-substages-message",
-							});
-						} else {
-							const subStagesList = subStagesContainer.createEl(
-								"ul",
-								{
-									cls: "substages-list",
-								}
-							);
-
-							this.stage.subStages.forEach(
-								(subStage: any, index: number) => {
-									const subStageItem = subStagesList.createEl(
-										"li",
-										{
-											cls: "substage-item",
-										}
-									);
-
-									const subStageNameContainer =
-										subStageItem.createDiv({
-											cls: "substage-name-container",
-										});
-
-									// Name
-									const nameInput =
-										subStageNameContainer.createEl(
-											"input",
-											{
-												type: "text",
-												value: subStage.name || "",
-												placeholder:
-													t("Sub-stage name"),
-											}
-										);
-									nameInput.addEventListener("change", () => {
-										subStage.name = nameInput.value;
-									});
-
-									// ID
-									const idInput =
-										subStageNameContainer.createEl(
-											"input",
-											{
-												type: "text",
-												value: subStage.id || "",
-												placeholder: t("Sub-stage ID"),
-											}
-										);
-									idInput.addEventListener("change", () => {
-										subStage.id = idInput.value;
-									});
-
-									// Next sub-stage dropdown (if more than one sub-stage)
-									if (this.stage.subStages.length > 1) {
-										const nextContainer =
-											subStageNameContainer.createDiv({
-												cls: "substage-next-container",
-											});
-										nextContainer.createEl("span", {
-											text: t("Next: "),
-										});
-
-										const dropdown = new DropdownComponent(
-											nextContainer
-										);
-
-										// Add all other sub-stages as options
-										this.stage.subStages.forEach(
-											(s: any) => {
-												if (s.id !== subStage.id) {
-													dropdown.addOption(
-														s.id,
-														s.name
-													);
-												}
-											}
-										);
-
-										// Set the current value
-										if (subStage.next) {
-											dropdown.setValue(subStage.next);
-										}
-
-										// Handle changes
-										dropdown.onChange((value) => {
-											subStage.next = value;
-										});
-									}
-
-									subStageItem.createEl("div", {}, (el) => {
-										const button = new ExtraButtonComponent(
-											el
-										)
-											.setIcon("trash")
-											.setTooltip(t("Remove"))
-											.onClick(() => {
-												this.stage.subStages.splice(
-													index,
-													1
-												);
-												renderSubStages();
-											});
-
-										button.extraSettingsEl.toggleClass(
-											"substage-remove-button",
-											true
-										);
-									});
-								}
-							);
-						}
-
-						// Add button for new sub-stage
-						const addSubStageButton = subStagesContainer.createEl(
-							"button",
-							{
-								cls: "add-substage-button",
-								text: t("Add Sub-stage"),
-							}
-						);
-						addSubStageButton.addEventListener("click", () => {
-							if (!this.stage.subStages) {
-								this.stage.subStages = [];
-							}
-
-							// Create a new sub-stage with proper typing
-							const newSubStage: {
-								id: string;
-								name: string;
-								next?: string;
-							} = {
-								id: this.generateUniqueId(),
-								name: t("New Sub-stage"),
-							};
-
-							// If there are existing sub-stages, set the next property
-							if (this.stage.subStages.length > 0) {
-								// Get the last sub-stage
-								const lastSubStage =
-									this.stage.subStages[
-										this.stage.subStages.length - 1
-									];
-
-								// Set the last sub-stage's next property to the new sub-stage
-								if (lastSubStage) {
-									// Ensure lastSubStage has a next property
-									if (!("next" in lastSubStage)) {
-										// Add next property if it doesn't exist
-										(lastSubStage as any).next =
-											newSubStage.id;
-									} else {
-										lastSubStage.next = newSubStage.id;
-									}
-								}
-
-								// Set the new sub-stage's next property to the first sub-stage (cycle)
-								if (this.stage.subStages[0]) {
-									newSubStage.next =
-										this.stage.subStages[0].id;
-								}
-							}
-
-							this.stage.subStages.push(newSubStage);
-							renderSubStages();
-						});
-					};
-
-					// Initial render of sub-stages
-					renderSubStages();
-				}
-
-				// Can proceed to section (additional stages that can follow this one)
-				const canProceedToSection = typeSettingsContainer.createDiv({
-					cls: "can-proceed-to-section",
-				});
-
-				new Setting(canProceedToSection)
-					.setName(t("Can proceed to"))
-					.setDesc(
-						t(
-							"Additional stages that can follow this one (for right-click menu)"
-						)
-					);
-
-				const canProceedToContainer = canProceedToSection.createDiv({
-					cls: "can-proceed-to-container",
-				});
-
-				// Function to render canProceedTo options
-				const renderCanProceedTo = () => {
-					canProceedToContainer.empty();
-
-					if (
-						!this.stage.canProceedTo ||
-						this.stage.canProceedTo.length === 0
-					) {
-						canProceedToContainer.createEl("p", {
-							text: t(
-								"No additional destination stages defined."
-							),
-							cls: "no-can-proceed-message",
-						});
-					} else {
-						const canProceedList = canProceedToContainer.createEl(
-							"ul",
-							{
-								cls: "can-proceed-list",
-							}
-						);
-
-						this.stage.canProceedTo.forEach(
-							(stageId: string, index: number) => {
-								// Find the corresponding stage
-								const targetStage = this.allStages.find(
-									(s) => s.id === stageId
-								);
-
-								if (targetStage) {
-									const proceedItem = canProceedList.createEl(
-										"li",
-										{
-											cls: "can-proceed-item",
-										}
-									);
-
-									const setting = new Setting(
-										proceedItem
-									).setName(targetStage.name);
-
-									// Remove button
-									setting.addExtraButton((button) => {
-										button
-											.setIcon("trash")
-											.setTooltip(t("Remove"))
-											.onClick(() => {
-												this.stage.canProceedTo.splice(
-													index,
-													1
-												);
-												renderCanProceedTo();
-											});
-									});
-								}
-							}
-						);
-					}
-
-					// Add dropdown to add new destination
-					if (this.allStages.length > 0) {
-						const addContainer = canProceedToContainer.createDiv({
-							cls: "add-can-proceed-container",
-						});
-
-						const addSelect = addContainer.createEl("select", {
-							cls: "add-can-proceed-select",
-						});
-
-						// Add all other stages as options (that aren't already in canProceedTo)
-						this.allStages.forEach((s) => {
-							if (
-								s.id !== this.stage.id &&
-								(!this.stage.canProceedTo ||
-									!this.stage.canProceedTo.includes(s.id))
-							) {
-								addSelect.createEl("option", {
-									value: s.id,
-									text: s.name,
-								});
-							}
-						});
-
-						const addButton = addContainer.createEl("button", {
-							cls: "add-can-proceed-button",
-							text: t("Add"),
-						});
-						addButton.addEventListener("click", () => {
-							if (addSelect.value) {
-								if (!this.stage.canProceedTo) {
-									this.stage.canProceedTo = [];
-								}
-								this.stage.canProceedTo.push(addSelect.value);
-								renderCanProceedTo();
-							}
-						});
-					}
-				};
-
-				// Initial render of canProceedTo
-				renderCanProceedTo();
-			}
-		};
-
-		// Method to re-render the stage type settings when the type changes
-		this.renderStageTypeSettings = renderTypeSettings;
-
-		// Initial render of type settings
-		renderTypeSettings();
-
-		// Save and Cancel buttons
-		const buttonContainer = contentEl.createDiv({ cls: "stage-buttons" });
-
-		const cancelButton = buttonContainer.createEl("button", {
-			text: t("Cancel"),
-			cls: "stage-cancel-button",
-		});
-		cancelButton.addEventListener("click", () => {
-			this.close();
-		});
-
-		const saveButton = buttonContainer.createEl("button", {
-			text: t("Save"),
-			cls: "stage-save-button mod-cta",
-		});
-		saveButton.addEventListener("click", () => {
-			// Validate the stage before saving
-			if (!this.stage.name || !this.stage.id) {
-				// Show error
-				const errorMsg = contentEl.createDiv({
-					cls: "stage-error-message",
-					text: t("Name and ID are required."),
-				});
-
-				// Remove after 3 seconds
-				setTimeout(() => {
-					errorMsg.remove();
-				}, 3000);
-
-				return;
-			}
-
-			// Call the onSave callback
-			this.onSave(this.stage);
-			this.close();
-		});
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
-
-	generateUniqueId(): string {
-		return (
-			Date.now().toString(36) + Math.random().toString(36).substring(2, 9)
-		);
 	}
 }

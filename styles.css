@@ -1559,3 +1559,100 @@ settings:
 	border-radius: 5px;
 	margin: 10px 0;
 }
+
+.task-genius-settings .settings-tabs-container {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	grid-auto-rows: var(--size-4-18);
+	margin-top: var(--size-4-4);
+	margin-bottom: var(--size-4-4);
+	height: fit-content;
+	gap: var(--size-4-4);
+}
+
+@media (max-width: 768px) {
+	.task-genius-settings .settings-tabs-container {
+		grid-template-columns: repeat(1, 1fr);
+	}
+}
+
+.task-genius-settings .settings-tab {
+	padding: var(--size-4-2) var(--size-4-4);
+	border-radius: 4px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+
+	height: 100%;
+
+	border: 1px solid var(--background-modifier-border);
+}
+.task-genius-settings .settings-tab:hover {
+	background-color: var(--background-modifier-hover);
+}
+.task-genius-settings .settings-tab-active {
+	background-color: var(--background-modifier-active);
+	font-weight: bold;
+}
+.task-genius-settings .settings-tab-sections {
+	overflow: hidden;
+}
+.task-genius-settings .settings-tab-section {
+	display: none;
+}
+.task-genius-settings .settings-tab-section-active {
+	display: block;
+}
+
+.task-genius-settings .settings-tab-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	margin-top: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.task-genius-settings .settings-tab-section-header .header-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	font-size: var(--font-ui-small);
+}
+
+.task-genius-settings .settings-tab-section-header .header-button-icon {
+	--icon-size: 16px;
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.task-genius-settings
+	.settings-tab-section[data-tab-id="general"]
+	.header-button {
+	display: none;
+}
+
+.task-genius-settings
+	.settings-tabs-container:has(.settings-tab-active[data-tab-id="general"]) {
+	display: grid;
+}
+
+.task-genius-settings .settings-tab[data-tab-id="general"] {
+	display: none;
+}
+
+.task-genius-settings .settings-tabs-container {
+	display: none;
+}
+
+.task-genius-settings:has(.settings-tab-active[data-tab-id="general"])
+	.task-genius-settings-header {
+	display: block;
+}
+
+.task-genius-settings-header {
+	display: none;
+}
