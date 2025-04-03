@@ -47,6 +47,7 @@ export interface TaskProgressBarSettings {
 	// Task status switcher settings
 	enableTaskStatusSwitcher: boolean;
 	enableCustomTaskMarks: boolean;
+	enableTextMarkInSourceMode: boolean;
 	taskStatusCycle: string[];
 	taskStatusMarks: Record<string, string>;
 	excludeMarksFromCycle: string[];
@@ -153,6 +154,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Task status switcher settings
 	enableTaskStatusSwitcher: false,
 	enableCustomTaskMarks: false,
+	enableTextMarkInSourceMode: false,
 	taskStatusCycle: ["TODO", "DOING", "IN-PROGRESS", "DONE"],
 	taskStatusMarks: {
 		TODO: " ",
