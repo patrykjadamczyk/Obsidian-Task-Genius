@@ -13,8 +13,8 @@ import { applyTaskTextMarks } from "./components/readModeTextMark";
 import {
 	DEFAULT_SETTINGS,
 	TaskProgressBarSettings,
-	TaskProgressBarSettingTab,
-} from "./setting";
+} from "./common/setting-definition";
+import { TaskProgressBarSettingTab } from "./setting";
 import { EditorView } from "@codemirror/view";
 import { autoCompleteParentExtension } from "./editor-ext/autoCompleteParent";
 import { taskStatusSwitcherExtension } from "./editor-ext/taskStatusSwitcher";

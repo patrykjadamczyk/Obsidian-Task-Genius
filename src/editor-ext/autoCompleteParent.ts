@@ -8,6 +8,10 @@ import {
 import { getTabSize } from "../utils";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import TaskProgressBarPlugin from "..";
+import {
+	isLastWorkflowStageOrNotWorkflow,
+	workflowChangeAnnotation,
+} from "./workflow";
 
 /**
  * Creates an editor extension that automatically updates parent tasks based on child task status changes
@@ -44,6 +48,8 @@ export function handleParentTaskUpdateTransaction(
 	// Check if a task status was changed or a new task was added in this transaction
 	const taskStatusChangeInfo = findTaskStatusChange(tr);
 
+	console.log(taskStatusChangeInfo, "taskStatusChangeInfo");
+
 	if (!taskStatusChangeInfo) {
 		return tr;
 	}
@@ -60,37 +66,58 @@ export function handleParentTaskUpdateTransaction(
 		return tr;
 	}
 
-	// Check if all siblings are completed
+	// Check if all siblings are completed (considering workflow status)
 	const allSiblingsCompleted = areAllSiblingsCompleted(
 		doc,
 		parentInfo.lineNumber,
 		parentInfo.indentationLevel,
-		app
+		app,
+		plugin
 	);
 
 	// Get current parent status
 	const parentStatus = getParentTaskStatus(doc, parentInfo.lineNumber);
 	const isParentCompleted = parentStatus === "x" || parentStatus === "X";
 
+	// Retrieve the annotation safely and check its type and content
+	const annotationValue = tr.annotation(taskStatusChangeAnnotation);
+	const isAutoCompleteAnnotation =
+		typeof annotationValue === "string" &&
+		annotationValue.includes("autoCompleteParent");
+
+	console.log(
+		isAutoCompleteAnnotation,
+		allSiblingsCompleted,
+		isParentCompleted,
+		parentStatus,
+		"isAutoCompleteAnnotation"
+	);
+
 	// If all siblings are completed, mark the parent task as completed
-	if (allSiblingsCompleted) {
-		return completeParentTask(tr, parentInfo.lineNumber, doc);
+	if (allSiblingsCompleted && !isParentCompleted) {
+		// Prevent completing parent if the trigger was an auto-complete itself
+		if (!isAutoCompleteAnnotation) {
+			return completeParentTask(tr, parentInfo.lineNumber, doc);
+		}
 	}
 
 	// If the parent is already completed but not all siblings are completed,
-	// it means a new task was added after the parent was completed,
-	// so we should revert the parent to "In Progress"
+	// it means a new task was added or an existing task was reverted after the parent was completed,
+	// so we should revert the parent to "In Progress" if the setting is enabled
 	if (
 		isParentCompleted &&
 		!allSiblingsCompleted &&
 		plugin.settings.markParentInProgressWhenPartiallyComplete
 	) {
-		return markParentAsInProgress(
-			tr,
-			parentInfo.lineNumber,
-			doc,
-			plugin.settings.taskStatuses.inProgress.split("|") || ["/"]
-		);
+		// Prevent reverting parent if the trigger was an auto-complete itself
+		if (!isAutoCompleteAnnotation) {
+			return markParentAsInProgress(
+				tr,
+				parentInfo.lineNumber,
+				doc,
+				plugin.settings.taskStatuses.inProgress.split("|") || ["/"]
+			);
+		}
 	}
 
 	// Check if any sibling is completed or has any status other than empty
@@ -102,20 +129,16 @@ export function handleParentTaskUpdateTransaction(
 	);
 
 	// If any siblings have a status and the feature is enabled, mark the parent as "In Progress"
+	// Only update if the parent is currently empty (' ')
 	if (
 		anySiblingsWithStatus &&
-		plugin.settings.markParentInProgressWhenPartiallyComplete
+		plugin.settings.markParentInProgressWhenPartiallyComplete &&
+		parentStatus === " "
 	) {
-		// Only update if the parent is not already marked as "In Progress" or completed
-		const inProgressStatuses = plugin.settings.taskStatuses.inProgress
-			.trim()
-			.split("|") || ["/", ">"];
-
-		if (
-			!inProgressStatuses.includes(parentStatus) &&
-			parentStatus !== "x" &&
-			parentStatus !== "X"
-		) {
+		const inProgressStatuses =
+			plugin.settings.taskStatuses.inProgress.split("|") || ["/"];
+		// Prevent updating parent if the trigger was an auto-complete itself
+		if (!isAutoCompleteAnnotation) {
 			return markParentAsInProgress(
 				tr,
 				parentInfo.lineNumber,
@@ -149,13 +172,15 @@ function findTaskStatusChange(tr: Transaction): {
 			inserted: Text
 		) => {
 			// Check if this is a new line insertion with a task marker
-			if (inserted.length > 0) {
+			if (inserted.length > 0 && taskChangedLine === null) {
 				const insertedText = inserted.toString();
 
 				// First check for tasks with preceding newline (common case when adding a task in the middle of a document)
 				const newTaskMatch = insertedText.match(
 					/\n[\s|\t]*([-*+]|\d+\.)\s\[ \]/
 				);
+
+				console.log(insertedText, newTaskMatch, "newTaskMatch");
 
 				if (newTaskMatch) {
 					// A new task was added, find the line number
@@ -194,6 +219,8 @@ function findTaskStatusChange(tr: Transaction): {
 			// Check if this line contains a task marker
 			const taskRegex = /^[\s|\t]*([-*+]|\d+\.)\s\[(.)]/i;
 			const taskMatch = lineText.match(taskRegex);
+
+			console.log(lineText, taskMatch, "lineText");
 
 			if (taskMatch) {
 				// Get the old line if it exists in the old document
@@ -313,22 +340,32 @@ function findParentTask(
 }
 
 /**
- * Checks if all sibling tasks at the same indentation level as the parent's children are completed
+ * Checks if all sibling tasks at the same indentation level as the parent's children are completed.
+ * Considers workflow tasks: only treats them as completed if they are the final stage or not workflow tasks.
  * @param doc The document to check
  * @param parentLineNumber The line number of the parent task
  * @param parentIndentLevel The indentation level of the parent task
- * @returns True if all siblings are completed, false otherwise
+ * @param app The Obsidian app instance
+ * @param plugin The plugin instance
+ * @returns True if all siblings are completed (considering workflow rules), false otherwise
  */
 function areAllSiblingsCompleted(
 	doc: Text,
 	parentLineNumber: number,
 	parentIndentLevel: number,
-	app: App
+	app: App,
+	plugin: TaskProgressBarPlugin
 ): boolean {
 	const tabSize = getTabSize(app);
 
 	// The expected indentation level for child tasks
-	const childIndentLevel = parentIndentLevel + tabSize;
+	// Ensure childIndentLevel is correctly calculated based on actual indentation characters if mixed tabs/spaces are possible
+	const parentLine = doc.line(parentLineNumber);
+	const parentIndentMatch = parentLine.text.match(/^[/s|\t]*/);
+	const parentIndentText = parentIndentMatch ? parentIndentMatch[0] : "";
+	// Simple addition might not be robust if mixing tabs and spaces; getTabSize helps standardize comparison
+	// We'll primarily compare raw length for hierarchy, assuming consistent indentation within a list.
+	const childIndentLevel = parentIndentLevel + tabSize; // Use for regex matching primarily
 
 	// Track if we found at least one child
 	let foundChild = false;
@@ -345,36 +382,50 @@ function areAllSiblingsCompleted(
 
 		// Get the indentation of this line
 		const indentMatch = lineText.match(/^[\s|\t]*/);
-		const indentLevel = indentMatch ? indentMatch[0].length : 0;
+		const currentIndentText = indentMatch ? indentMatch[0] : "";
+		const indentLevel = currentIndentText.length; // Compare raw length
 
 		// If we encounter a line with less or equal indentation to the parent,
 		// we've moved out of the parent's children scope
+		// Use raw length comparison for hierarchy check
 		if (indentLevel <= parentIndentLevel) {
 			break;
 		}
 
-		// If this is a direct child of the parent (exactly one level deeper)
-		if (indentLevel === childIndentLevel) {
-			// Create a regex to match tasks based on the indentation level
-			const taskRegex = new RegExp(
-				`^[\\s|\\t]{${childIndentLevel}}([-*+]|\\d+\\.)\\s\\[(.)\\]`
-			);
-
+		if (
+			indentLevel > parentIndentLevel &&
+			lineText.startsWith(parentIndentText)
+		) {
+			// Check if it's a task using a regex that allows for flexible indentation matching
+			const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
-			if (taskMatch) {
-				foundChild = true;
 
-				// If we find an incomplete task, return false
-				const taskStatus = taskMatch[2];
+			if (taskMatch) {
+				// Check if this task's indentation makes it a direct child
+
+				foundChild = true; // We found at least one descendant task
+				const taskStatus = taskMatch[3]; // Use index 3 for the status character
 
 				if (taskStatus !== "x" && taskStatus !== "X") {
+					// Found an incomplete descendant task
 					return false;
+				} else {
+					if (
+						plugin.settings.workflow.enableWorkflow && // Only check if workflow enabled
+						!isLastWorkflowStageOrNotWorkflow(
+							lineText,
+							i,
+							doc,
+							plugin
+						)
+					) {
+						return false;
+					}
 				}
 			}
 		}
 	}
 
-	// If we found at least one child and all were completed, return true
 	return foundChild;
 }
 
@@ -429,6 +480,16 @@ function completeParentTask(
 	const checkboxStart = parentLineText.indexOf("[") + 1;
 	const markerStart = parentLine.from + checkboxStart;
 
+	console.log(
+		tr.changes,
+		{
+			from: markerStart,
+			to: markerStart + 1,
+			insert: "x",
+		},
+		"markerStart"
+	);
+
 	// Create a new transaction that adds the completion marker 'x' to the parent task
 	return {
 		changes: [
@@ -440,7 +501,7 @@ function completeParentTask(
 			},
 		],
 		selection: tr.selection,
-		annotations: [taskStatusChangeAnnotation.of("taskStatusChange")],
+		annotations: [taskStatusChangeAnnotation.of("autoCompleteParent.DONE")],
 	};
 }
 
@@ -591,6 +652,8 @@ function markParentAsInProgress(
 			},
 		],
 		selection: tr.selection,
-		annotations: [taskStatusChangeAnnotation.of("taskStatusChange")],
+		annotations: [
+			taskStatusChangeAnnotation.of("autoCompleteParent.IN_PROGRESS"),
+		],
 	};
 }

@@ -286,7 +286,7 @@ export class BlockSelectionModal extends SuggestModal<{
 		// Add an option to insert at the beginning of the file
 		blocks.push({
 			id: "beginning",
-			text: "Beginning of file",
+			text: t("Beginning of file"),
 			level: 0,
 		});
 
