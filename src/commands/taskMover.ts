@@ -197,13 +197,12 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 			endLine = i;
 		}
 
-		// Remove the lines
-		const newContent = [
-			...lines.slice(0, this.taskLine),
-			...lines.slice(endLine + 1),
-		].join("\n");
-
-		this.editor.setValue(newContent);
+		// Remove the task lines using replaceRange
+		this.editor.replaceRange(
+			"",
+			{ line: this.taskLine, ch: 0 },
+			{ line: endLine + 1, ch: 0 }
+		);
 	}
 
 	private getIndentation(line: string): number {
@@ -211,7 +210,7 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 		return match ? match[1].length : 0;
 	}
 
-	// New method to reset indentation for new files
+	// Reset indentation for new files
 	private resetIndentation(content: string): string {
 		const lines = content.split("\n");
 
@@ -239,12 +238,13 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 }
 
 /**
- * Modal for selecting a block to insert after in the target file
+ * Modal for selecting a heading to insert after in the target file
  */
 export class BlockSelectionModal extends SuggestModal<{
 	id: string;
 	text: string;
 	level: number;
+	line: number;
 }> {
 	plugin: TaskProgressBarPlugin;
 	editor: Editor;
@@ -268,26 +268,39 @@ export class BlockSelectionModal extends SuggestModal<{
 		this.targetFile = targetFile;
 		this.taskLine = taskLine;
 		this.metadataCache = app.metadataCache;
-		this.setPlaceholder("Select a block to insert after");
+		this.setPlaceholder("Select where to insert the task");
 	}
 
 	async getSuggestions(
 		query: string
-	): Promise<{ id: string; text: string; level: number }[]> {
+	): Promise<{ id: string; text: string; level: number; line: number }[]> {
 		// Get file content
 		const fileContent = await this.app.vault.read(this.targetFile);
 		const lines = fileContent.split("\n");
 
-		// Get file cache to find headings and list items
+		// Get file cache to find headings
 		const fileCache = this.metadataCache.getFileCache(this.targetFile);
 
-		let blocks: { id: string; text: string; level: number }[] = [];
+		let blocks: {
+			id: string;
+			text: string;
+			level: number;
+			line: number;
+		}[] = [];
 
-		// Add an option to insert at the beginning of the file
+		// Add options to insert at the beginning or end of the file
 		blocks.push({
 			id: "beginning",
 			text: t("Beginning of file"),
 			level: 0,
+			line: 0,
+		});
+
+		blocks.push({
+			id: "end",
+			text: t("End of file"),
+			level: 0,
+			line: lines.length,
 		});
 
 		// Add headings
@@ -295,21 +308,18 @@ export class BlockSelectionModal extends SuggestModal<{
 			for (const heading of fileCache.headings) {
 				const text = lines[heading.position.start.line];
 				blocks.push({
-					id: `heading-${heading.position.start.line}`,
-					text: text,
+					id: `heading-start-${heading.position.start.line}`,
+					text: `${t("After heading")}: ${text}`,
 					level: heading.level,
+					line: heading.position.start.line,
 				});
-			}
-		}
 
-		// Add list items
-		if (fileCache && fileCache.listItems) {
-			for (const listItem of fileCache.listItems) {
-				const text = lines[listItem.position.start.line];
+				// Add option to insert at end of section
 				blocks.push({
-					id: `list-${listItem.position.start.line}`,
-					text: text,
-					level: this.getIndentation(text),
+					id: `heading-end-${heading.position.start.line}`,
+					text: `${t("End of section")}: ${text}`,
+					level: heading.level,
+					line: heading.position.start.line,
 				});
 			}
 		}
@@ -326,20 +336,15 @@ export class BlockSelectionModal extends SuggestModal<{
 	}
 
 	renderSuggestion(
-		block: { id: string; text: string; level: number },
+		block: { id: string; text: string; level: number; line: number },
 		el: HTMLElement
 	) {
 		const indent = "  ".repeat(block.level);
-
-		if (block.id === "beginning") {
-			el.createEl("div", { text: block.text });
-		} else {
-			el.createEl("div", { text: `${indent}${block.text}` });
-		}
+		el.createEl("div", { text: `${indent}${block.text}` });
 	}
 
 	onChooseSuggestion(
-		block: { id: string; text: string; level: number },
+		block: { id: string; text: string; level: number; line: number },
 		evt: MouseEvent | KeyboardEvent
 	) {
 		this.moveTaskToTargetFile(block);
@@ -349,6 +354,7 @@ export class BlockSelectionModal extends SuggestModal<{
 		id: string;
 		text: string;
 		level: number;
+		line: number;
 	}) {
 		try {
 			// Get task content
@@ -363,47 +369,69 @@ export class BlockSelectionModal extends SuggestModal<{
 
 			if (block.id === "beginning") {
 				insertPosition = 0;
+			} else if (block.id === "end") {
+				insertPosition = lines.length;
+			} else if (block.id.startsWith("heading-start-")) {
+				// Insert after the heading
+				insertPosition = block.line + 1;
+				// Add one level of indentation for content under a heading
+				indentLevel = buildIndentString(this.app).length;
+			} else if (block.id.startsWith("heading-end-")) {
+				// Find the end of this section (next heading of same or lower level)
+				insertPosition = this.findSectionEnd(
+					lines,
+					block.line,
+					block.level
+				);
+				// Add one level of indentation for content under a heading
+				indentLevel = buildIndentString(this.app).length;
 			} else {
-				// Extract line number from block id
-				const lineMatch = block.id.match(/-(\d+)$/);
-				if (!lineMatch) {
-					throw new Error("Invalid block ID");
-				}
-
-				const lineNumber = parseInt(lineMatch[1]);
-				insertPosition = lineNumber + 1;
-
-				// Get indentation of the target block
-				indentLevel = this.getIndentation(lines[lineNumber]);
+				throw new Error("Invalid block ID");
 			}
 
-			// Adjust indentation of task content to match the target block
-			const indentedTaskContent = this.adjustIndentation(
-				taskContent,
-				indentLevel
+			// Reset task indentation to 0 and then add target indentation
+			const resetIndentContent = this.resetIndentation(taskContent);
+			const indentedTaskContent = this.addIndentation(
+				resetIndentContent,
+				0
 			);
 
 			// Insert task at the position
-			const newContent = [
-				...lines.slice(0, insertPosition),
-				indentedTaskContent,
-				...lines.slice(insertPosition),
-			].join("\n");
-
-			// Update target file
-			await this.app.vault.modify(this.targetFile, newContent);
+			await this.app.vault.modify(
+				this.targetFile,
+				[
+					...lines.slice(0, insertPosition),
+					indentedTaskContent,
+					...lines.slice(insertPosition),
+				].join("\n")
+			);
 
 			// Remove task from source file
 			this.removeTaskFromSourceFile();
-
-			// Open the target file
-			// this.app.workspace.getLeaf().openFile(this.targetFile);
 
 			new Notice(`${t("Task moved to")} ${this.targetFile.path}`);
 		} catch (error) {
 			new Notice(`${t("Failed to move task:")} ${error}`);
 			console.error(error);
 		}
+	}
+
+	// Find the end of a section (line number of the next heading with same or lower level)
+	private findSectionEnd(
+		lines: string[],
+		headingLine: number,
+		headingLevel: number
+	): number {
+		for (let i = headingLine + 1; i < lines.length; i++) {
+			const line = lines[i];
+			// Check if this line is a heading with same or lower level
+			const headingMatch = line.match(/^(#+)\s+/);
+			if (headingMatch && headingMatch[1].length <= headingLevel) {
+				return i;
+			}
+		}
+		// If no matching heading found, return end of file
+		return lines.length;
 	}
 
 	private getTaskWithChildren(): string {
@@ -433,43 +461,42 @@ export class BlockSelectionModal extends SuggestModal<{
 		return resultLines.join("\n");
 	}
 
-	private adjustIndentation(
-		taskContent: string,
-		targetIndent: number
-	): string {
-		const lines = taskContent.split("\n");
+	// Reset all indentation to 0
+	private resetIndentation(content: string): string {
+		const lines = content.split("\n");
 
-		// Get the indentation of the first line
-		const firstLineIndent = this.getIndentation(lines[0]);
-
-		// Calculate the indentation difference
-		const indentDiff = targetIndent - firstLineIndent;
-
-		if (indentDiff === 0) {
-			return taskContent;
+		// Find the minimum indentation in all lines
+		let minIndent = Number.MAX_SAFE_INTEGER;
+		for (const line of lines) {
+			if (line.trim().length === 0) continue; // Skip empty lines
+			const indent = this.getIndentation(line);
+			minIndent = Math.min(minIndent, indent);
 		}
 
-		// Adjust indentation for all lines
-		const indentStr =
-			indentDiff > 0
-				? buildIndentString(this.app).repeat(indentDiff)
-				: "";
+		// If no valid minimum found, or it's already 0, return as is
+		if (minIndent === Number.MAX_SAFE_INTEGER || minIndent === 0) {
+			return content;
+		}
 
+		// Remove the minimum indentation from each line
 		return lines
 			.map((line) => {
-				if (indentDiff > 0) {
-					// Add indentation
-					return indentStr + line;
-				} else {
-					// Remove indentation
-					const currentIndent = this.getIndentation(line);
-					const newIndent = Math.max(0, currentIndent + indentDiff);
-					return (
-						buildIndentString(this.app).repeat(newIndent) +
-						line.substring(currentIndent)
-					);
-				}
+				if (line.trim().length === 0) return line; // Keep empty lines unchanged
+				return line.substring(minIndent);
 			})
+			.join("\n");
+	}
+
+	// Add indentation to all lines
+	private addIndentation(content: string, indentSize: number): string {
+		if (indentSize <= 0) return content;
+
+		const indentStr = buildIndentString(this.app).repeat(
+			indentSize / buildIndentString(this.app).length
+		);
+		return content
+			.split("\n")
+			.map((line) => (line.length > 0 ? indentStr + line : line))
 			.join("\n");
 	}
 
@@ -491,13 +518,12 @@ export class BlockSelectionModal extends SuggestModal<{
 			endLine = i;
 		}
 
-		// Remove the lines
-		const newContent = [
-			...lines.slice(0, this.taskLine),
-			...lines.slice(endLine + 1),
-		].join("\n");
-
-		this.editor.setValue(newContent);
+		// Remove the task lines using replaceRange
+		this.editor.replaceRange(
+			"",
+			{ line: this.taskLine, ch: 0 },
+			{ line: endLine + 1, ch: 0 }
+		);
 	}
 
 	private getIndentation(line: string): number {
