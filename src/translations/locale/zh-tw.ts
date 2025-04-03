@@ -396,6 +396,29 @@ const translations = {
 	"Reset to Default Presets": "重置為預設",
 	"This will replace all your current presets with the default set. Are you sure?":
 		"這將替換您當前的所有預設，並使用默認設置。您確定嗎？",
+	"Edit Workflow": "編輯工作流",
+	General: "常規",
+	"Progress Bar": "進度條",
+	"Task Mover": "任務移動器",
+	"Quick Capture": "快速捕獲",
+	"Date & Priority": "日期和優先級",
+	About: "關於",
+	"Count sub children of current Task": "計算當前任務的子任務",
+	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
+		"切換此選項以允許此插件在生成進度條時計算子任務。",
+	"Configure task status settings": "配置任務狀態設置",
+	"Configure which task markers to count or exclude":
+		"配置要計算或排除的任務標記",
+	"Task status cycle and marks": "任務狀態循環和標記",
+	"About Task Genius": "關於 Task Genius",
+	Version: "版本",
+	Documentation: "文檔",
+	"View the documentation for this plugin": "查看此插件的文檔",
+	"Open Documentation": "打開文檔",
+	"Incomplete tasks": "未完成的任務",
+	"In progress tasks": "進行中的任務",
+	"Completed tasks": "已完成的任務",
+	"All tasks": "所有任務",
 };
 
 export default translations;

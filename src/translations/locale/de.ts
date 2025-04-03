@@ -313,7 +313,28 @@ const translations = {
   "Add New Preset": "Add New Preset",
   "New Filter": "New Filter",
   "Reset to Default Presets": "Reset to Default Presets",
-  "This will replace all your current presets with the default set. Are you sure?": "This will replace all your current presets with the default set. Are you sure?"
+  "This will replace all your current presets with the default set. Are you sure?": "This will replace all your current presets with the default set. Are you sure?",
+  "Edit Workflow": "Edit Workflow",
+  "General": "General",
+  "Progress Bar": "Progress Bar",
+  "Task Mover": "Task Mover",
+  "Quick Capture": "Quick Capture",
+  "Date & Priority": "Date & Priority",
+  "About": "About",
+  "Count sub children of current Task": "Count sub children of current Task",
+  "Toggle this to allow this plugin to count sub tasks when generating progress bar\t.": "Toggle this to allow this plugin to count sub tasks when generating progress bar\t.",
+  "Configure task status settings": "Configure task status settings",
+  "Configure which task markers to count or exclude": "Configure which task markers to count or exclude",
+  "Task status cycle and marks": "Task status cycle and marks",
+  "About Task Genius": "About Task Genius",
+  "Version": "Version",
+  "Documentation": "Documentation",
+  "View the documentation for this plugin": "View the documentation for this plugin",
+  "Open Documentation": "Open Documentation",
+  "Incomplete tasks": "Incomplete tasks",
+  "In progress tasks": "In progress tasks",
+  "Completed tasks": "Completed tasks",
+  "All tasks": "All tasks"
 };
 
 export default translations;

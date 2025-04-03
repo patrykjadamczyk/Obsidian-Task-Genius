@@ -75,8 +75,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Create tabs
 		this.tabs.forEach((tab) => {
 			const tabEl = tabsContainer.createDiv({
-				cls: `settings-tab ${
-					this.currentTab === tab.id ? "settings-tab-active" : ""
+				cls: `settings-tab${
+					this.currentTab === tab.id ? " settings-tab-active" : ""
 				}`,
 				attr: { "data-tab-id": tab.id },
 			});
@@ -2119,7 +2119,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	}
 
 	private displayAboutSettings(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t("About Task Genius")).setHeading();
+		new Setting(containerEl)
+			.setName(t("About") + "Task Genius")
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName(t("Version"))

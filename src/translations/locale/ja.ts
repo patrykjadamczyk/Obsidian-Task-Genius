@@ -411,6 +411,31 @@ const translations = {
 	"Reset to Default Presets": "デフォルトのプリセットにリセット",
 	"This will replace all your current presets with the default set. Are you sure?":
 		"これにより、現在のすべてのプリセットがデフォルトのセットに置き換えられます。よろしいですか？",
+	"Edit Workflow": "ワークフローを編集",
+	General: "一般",
+	"Progress Bar": "進捗バー",
+	"Task Mover": "タスク移動",
+	"Quick Capture": "クイックキャプチャ",
+	"Date & Priority": "日付と優先度",
+	About: "について",
+	"Count sub children of current Task":
+		"現在のタスクのサブ子タスクをカウント",
+	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
+		"進捗バーを生成する際にサブタスクをカウントするためにこのプラグインを許可するには切り替えてください。",
+	"Configure task status settings": "タスクステータス設定を構成",
+	"Configure which task markers to count or exclude":
+		"カウントまたは除外するタスクマーカーを構成",
+	"Task status cycle and marks": "タスクステータスサイクルとマーク",
+	"About Task Genius": "Task Geniusについて",
+	Version: "バージョン",
+	Documentation: "ドキュメント",
+	"View the documentation for this plugin":
+		"このプラグインのドキュメントを表示",
+	"Open Documentation": "ドキュメントを開く",
+	"Incomplete tasks": "未完了のタスク",
+	"In progress tasks": "進行中のタスク",
+	"Completed tasks": "完了したタスク",
+	"All tasks": "すべてのタスク",
 };
 
 export default translations;

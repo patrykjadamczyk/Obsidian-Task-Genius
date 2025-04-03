@@ -396,6 +396,28 @@ const translations = {
 	"Reset to Default Presets": "重置为默认预设",
 	"This will replace all your current presets with the default set. Are you sure?":
 		"这将替换您当前的所有预设，并使用默认设置。您确定吗？",
+	"Edit Workflow": "编辑工作流",
+	General: "常规",
+	"Progress Bar": "进度条",
+	"Task Mover": "任务移动器",
+	"Quick Capture": "快速捕获",
+	"Date & Priority": "日期和优先级",
+	About: "关于",
+	"Count sub children of current Task": "计算当前任务的子任务",
+	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
+		"切换此选项以允许此插件在生成进度条时计算子任务。",
+	"Configure task status settings": "配置任务状态设置",
+	"Configure which task markers to count or exclude":
+		"配置要计算或排除的任务标记",
+	"Task status cycle and marks": "任务状态循环和标记",
+	Version: "版本",
+	Documentation: "文档",
+	"View the documentation for this plugin": "查看此插件的文档",
+	"Open Documentation": "打开文档",
+	"Incomplete tasks": "未完成的任务",
+	"In progress tasks": "进行中的任务",
+	"Completed tasks": "已完成的任务",
+	"All tasks": "所有任务",
 };
 
 export default translations;

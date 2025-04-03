@@ -1583,24 +1583,61 @@ settings:
 	display: flex;
 	align-items: center;
 	gap: 6px;
-
 	height: 100%;
-
 	border: 1px solid var(--background-modifier-border);
+	position: relative;
+	overflow: hidden;
+	transition: all 0.3s ease;
 }
+
+.task-genius-settings .settings-tab::after {
+	content: "";
+	position: absolute;
+	top: 10px;
+	right: -80px;
+	width: 200px;
+	height: 200px;
+	background-color: var(--background-activated-tab-header-dark);
+	transform: rotateZ(-15deg);
+	z-index: 0;
+	opacity: 0.7;
+	transition: all 0.3s ease;
+	border-radius: var(--radius-m);
+}
+
+.task-genius-settings .settings-tab:hover::after {
+	transform: rotateZ(-10deg);
+	opacity: 0.9;
+}
+
+.task-genius-settings .settings-tab-active::after {
+	background-color: var(--interactive-accent);
+	opacity: 0.3;
+}
+
+.task-genius-settings .settings-tab-icon,
+.task-genius-settings .settings-tab span {
+	position: relative;
+	z-index: 1;
+}
+
 .task-genius-settings .settings-tab:hover {
 	background-color: var(--background-modifier-hover);
 }
+
 .task-genius-settings .settings-tab-active {
 	background-color: var(--background-modifier-active);
 	font-weight: bold;
 }
+
 .task-genius-settings .settings-tab-sections {
 	overflow: hidden;
 }
+
 .task-genius-settings .settings-tab-section {
 	display: none;
 }
+
 .task-genius-settings .settings-tab-section-active {
 	display: block;
 }
