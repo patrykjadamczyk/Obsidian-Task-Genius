@@ -1089,7 +1089,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.setName(`Status #${index + 1}`)
 					.addText((text) => {
 						text.setValue(state)
-							.setPlaceholder("Status name")
+							.setPlaceholder(t("Status name"))
 							.onChange((value) => {
 								// Update the state name in both cycle and marks
 								const oldState = cycle[index];

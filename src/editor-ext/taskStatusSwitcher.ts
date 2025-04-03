@@ -9,7 +9,13 @@ import {
 	PluginValue,
 	PluginSpec,
 } from "@codemirror/view";
-import { App, editorLivePreviewField, Keymap, Menu } from "obsidian";
+import {
+	App,
+	editorInfoField,
+	editorLivePreviewField,
+	Keymap,
+	Menu,
+} from "obsidian";
 import TaskProgressBarPlugin from "..";
 import { Annotation, EditorSelection, SelectionRange } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
@@ -118,6 +124,7 @@ class TaskStatusWidget extends WidgetType {
 			if (Keymap.isModEvent(e)) {
 				// When modifier key is pressed, jump to the first or last state
 				const { cycle } = this.getStatusConfig();
+				// Just use whatever states are available in the cycle
 				if (cycle.length > 0) {
 					// Jump to the last state (DONE) if not already there
 					if (this.currentState !== cycle[cycle.length - 1]) {
@@ -210,7 +217,19 @@ class TaskStatusWidget extends WidgetType {
 			(state) => !excludeMarksFromCycle.includes(state)
 		);
 
-		if (remainingCycle.length === 0) return;
+		if (remainingCycle.length === 0) {
+			const editor = this.view.state.field(editorInfoField);
+			if (editor) {
+				editor?.editor?.cm?.dispatch({
+					selection: EditorSelection.range(this.to + 1, this.to + 1),
+				});
+			}
+			// If no cycle is available, trigger the default editor:toggle-checklist-status command
+			this.app.commands.executeCommandById(
+				"editor:toggle-checklist-status"
+			);
+			return;
+		}
 
 		let currentStateIndex = -1;
 
@@ -281,7 +300,11 @@ export function taskStatusSwitcherExtension(
 					(state) => !excludeMarksFromCycle.includes(state)
 				);
 
-				if (remainingCycle.length === 0) return;
+				if (
+					remainingCycle.length === 0 &&
+					!plugin.settings.enableCustomTaskMarks
+				)
+					return;
 
 				let currentState: TaskState =
 					Object.keys(marks).find((state) => marks[state] === mark) ||
