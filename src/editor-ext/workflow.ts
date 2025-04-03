@@ -499,6 +499,12 @@ export function processTimestampAndCalculateTime(
 			let foundStartTime = false;
 			const timeSpentRegex = /\(⏱️\s+([0-9:]+)\)/;
 
+			// Get current task indentation level
+			const currentIndentMatch = lineText.match(/^(\s*)/);
+			const currentIndentLevel = currentIndentMatch
+				? currentIndentMatch[1].length
+				: 0;
+
 			// Look up to find the root task
 			for (let i = lineNumber - 1; i >= 1; i--) {
 				// Ensure line is within document bounds (0-indexed in doc.line)
@@ -514,6 +520,18 @@ export function processTimestampAndCalculateTime(
 
 						// Use 0-indexed line number for doc.line
 						const taskLine = doc.line(j);
+
+						// Check indentation level - only include tasks with indentation less than or equal to current task
+						const indentMatch = taskLine.text.match(/^(\s*)/);
+						const indentLevel = indentMatch
+							? indentMatch[1].length
+							: 0;
+
+						// Skip tasks with greater indentation (subtasks of other tasks)
+						if (indentLevel > currentIndentLevel) {
+							continue;
+						}
+
 						const timeSpentMatch =
 							taskLine.text.match(timeSpentRegex);
 
@@ -565,7 +583,7 @@ export function processTimestampAndCalculateTime(
 				changes.push({
 					from: insertPosition,
 					to: insertPosition,
-					insert: ` (Total: ${totalSpentTime})`,
+					insert: ` (${t("Total")}: ${totalSpentTime})`,
 				});
 			}
 		}
