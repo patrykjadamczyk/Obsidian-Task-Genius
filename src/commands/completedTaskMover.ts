@@ -699,7 +699,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 
 		blocks.push({
 			id: "end",
-			text: "End of file",
+			text: t("End of file"),
 			level: 0,
 		});
 
@@ -814,7 +814,9 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 			// Open the target file
 			// this.app.workspace.getLeaf().openFile(this.targetFile);
 
-			new Notice(`${t("Completed tasks moved to")} ${this.targetFile.path}`);
+			new Notice(
+				`${t("Completed tasks moved to")} ${this.targetFile.path}`
+			);
 		} catch (error) {
 			new Notice(`${t("Failed to move tasks:")} ${error}`);
 			console.error(error);

@@ -4,6 +4,8 @@ import {
 	Setting,
 	Modal,
 	DropdownComponent,
+	ButtonComponent,
+	ExtraButtonComponent,
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
@@ -972,7 +974,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				// Add toggle for including in cycle
 				stateSetting.addToggle((toggle) => {
 					toggle
-						.setTooltip("Include in cycle")
+						.setTooltip(t("Include in cycle"))
 						.setValue(
 							!this.plugin.settings.excludeMarksFromCycle.includes(
 								state
@@ -1005,7 +1007,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				stateSetting.addExtraButton((button) => {
 					button
 						.setIcon("arrow-up")
-						.setTooltip("Move up")
+						.setTooltip(t("Move up"))
 						.onClick(() => {
 							if (index > 0) {
 								// Swap with the previous item
@@ -1023,7 +1025,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				stateSetting.addExtraButton((button) => {
 					button
 						.setIcon("arrow-down")
-						.setTooltip("Move down")
+						.setTooltip(t("Move down"))
 						.onClick(() => {
 							if (index < cycle.length - 1) {
 								// Swap with the next item
@@ -1041,7 +1043,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				stateSetting.addExtraButton((button) => {
 					button
 						.setIcon("trash")
-						.setTooltip("Remove")
+						.setTooltip(t("Remove"))
 						.onClick(() => {
 							// Remove from cycle
 							cycle.splice(index, 1);
@@ -1710,10 +1712,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 				// Create the setting
 				const presetSetting = new Setting(presetRow)
-					.setName(`Preset #${index + 1}`)
+					.setName(`${t("Preset")} #${index + 1}`)
 					.addText((text) => {
 						text.setValue(preset.name)
-							.setPlaceholder("Preset name")
+							.setPlaceholder(t("Preset name"))
 							.onChange((value) => {
 								preset.name = value;
 								this.applySettingsUpdate();
@@ -1724,7 +1726,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				presetSetting.addExtraButton((button) => {
 					button
 						.setIcon("pencil")
-						.setTooltip("Edit Filter")
+						.setTooltip(t("Edit Filter"))
 						.onClick(() => {
 							// Show modal to edit filter options
 							new PresetFilterModal(this.app, preset, () => {
@@ -1737,7 +1739,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				presetSetting.addExtraButton((button) => {
 					button
 						.setIcon("trash")
-						.setTooltip("Remove")
+						.setTooltip(t("Remove"))
 						.onClick(() => {
 							// Remove the preset
 							presetFilters.splice(index, 1);
@@ -1752,13 +1754,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			new Setting(addButtonContainer)
 				.addButton((button) => {
 					button
-						.setButtonText("Add New Preset")
+						.setButtonText(t("Add New Preset"))
 						.setCta()
 						.onClick(() => {
 							// Add a new preset with default options
 							const newPreset = {
 								id: this.generateUniqueId(),
-								name: "New Filter",
+								name: t("New Filter"),
 								options: {
 									includeCompleted: true,
 									includeInProgress: true,
@@ -1791,15 +1793,19 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				})
 				.addButton((button) => {
 					button
-						.setButtonText("Reset to Default Presets")
+						.setButtonText(t("Reset to Default Presets"))
 						.onClick(() => {
 							// Show confirmation modal
 							const modal = new Modal(this.app);
-							modal.titleEl.setText("Reset to Default Presets");
+							modal.titleEl.setText(
+								t("Reset to Default Presets")
+							);
 
 							const content = modal.contentEl.createDiv();
 							content.setText(
-								"This will replace all your current presets with the default set. Are you sure?"
+								t(
+									"This will replace all your current presets with the default set. Are you sure?"
+								)
 							);
 
 							const buttonContainer = modal.contentEl.createDiv();
@@ -1807,14 +1813,14 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 							const cancelButton =
 								buttonContainer.createEl("button");
-							cancelButton.setText("Cancel");
+							cancelButton.setText(t("Cancel"));
 							cancelButton.addEventListener("click", () => {
 								modal.close();
 							});
 
 							const confirmButton =
 								buttonContainer.createEl("button");
-							confirmButton.setText("Reset");
+							confirmButton.setText(t("Reset"));
 							confirmButton.addClass("mod-warning");
 							confirmButton.addEventListener("click", () => {
 								this.createDefaultPresetFilters();
@@ -3032,60 +3038,52 @@ class StageEditModal extends Modal {
 											text: t("Next: "),
 										});
 
-										const nextSelect =
-											nextContainer.createEl("select", {
-												cls: "substage-next-select",
-											});
+										const dropdown = new DropdownComponent(
+											nextContainer
+										);
 
 										// Add all other sub-stages as options
 										this.stage.subStages.forEach(
 											(s: any) => {
 												if (s.id !== subStage.id) {
-													const option =
-														nextSelect.createEl(
-															"option",
-															{
-																value: s.id,
-																text: s.name,
-															}
-														);
-
-													if (
-														subStage.next === s.id
-													) {
-														option.selected = true;
-													}
+													dropdown.addOption(
+														s.id,
+														s.name
+													);
 												}
 											}
 										);
 
-										nextSelect.addEventListener(
-											"change",
-											() => {
-												subStage.next =
-													nextSelect.value;
-											}
-										);
+										// Set the current value
+										if (subStage.next) {
+											dropdown.setValue(subStage.next);
+										}
+
+										// Handle changes
+										dropdown.onChange((value) => {
+											subStage.next = value;
+										});
 									}
 
-									// Remove button
-									const removeButton = subStageItem.createEl(
-										"button",
-										{
-											cls: "substage-remove-button",
-											text: "✕",
-										}
-									);
-									removeButton.addEventListener(
-										"click",
-										() => {
-											this.stage.subStages.splice(
-												index,
-												1
-											);
-											renderSubStages();
-										}
-									);
+									subStageItem.createEl("div", {}, (el) => {
+										const button = new ExtraButtonComponent(
+											el
+										)
+											.setIcon("trash")
+											.setTooltip(t("Remove"))
+											.onClick(() => {
+												this.stage.subStages.splice(
+													index,
+													1
+												);
+												renderSubStages();
+											});
+
+										button.extraSettingsEl.toggleClass(
+											"substage-remove-button",
+											true
+										);
+									});
 								}
 							);
 						}

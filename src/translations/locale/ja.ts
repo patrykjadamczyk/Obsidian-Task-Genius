@@ -278,6 +278,139 @@ const translations = {
 	"Hide matching tasks": "一致するタスクを非表示",
 	"Choose whether to show or hide tasks that match the filters":
 		"タスクをフィルターする方法を選択します。",
+	"Create new file:": "新しいファイルを作成：",
+	"Completed tasks moved to": "完了したタスクの移動先",
+	"Failed to create file:": "ファイルの作成に失敗しました：",
+	"Beginning of file": "ファイルの先頭",
+	"Failed to move tasks:": "タスクの移動に失敗しました：",
+	"No active file found": "アクティブなファイルが見つかりません",
+	"Task moved to": "タスクの移動先",
+	"Failed to move task:": "タスクの移動に失敗しました：",
+	"Nothing to capture": "キャプチャするものがありません",
+	"Captured successfully": "キャプチャに成功しました",
+	"Failed to save:": "保存に失敗しました：",
+	"Captured successfully to": "キャプチャ先",
+	Total: "合計",
+	Workflow: "ワークフロー",
+	"Add as workflow root": "ワークフローのルートとして追加",
+	"Move to stage": "ステージに移動",
+	"Complete stage": "ステージを完了",
+	"Add child task with same stage": "同じステージの子タスクを追加",
+	"Could not open quick capture panel in the current editor":
+		"現在のエディタでクイックキャプチャパネルを開けませんでした",
+	"Just started {{PROGRESS}}%": "開始したばかり {{PROGRESS}}%",
+	"Making progress {{PROGRESS}}%": "進行中 {{PROGRESS}}%",
+	"Half way {{PROGRESS}}%": "半分まで {{PROGRESS}}%",
+	"Good progress {{PROGRESS}}%": "順調に進行中 {{PROGRESS}}%",
+	"Almost there {{PROGRESS}}%": "もう少しで完了 {{PROGRESS}}%",
+	"Progress bar": "進捗バー",
+	"You can customize the progress bar behind the parent task(usually at the end of the task). You can also customize the progress bar for the task below the heading.":
+		"親タスクの後ろの進捗バー（通常はタスクの最後）をカスタマイズできます。また、見出しの下のタスクの進捗バーもカスタマイズできます。",
+	"Hide progress bars": "進捗バーを非表示",
+	"Parent task changer": "親タスク変更ツール",
+	"Change the parent task of the current task.":
+		"現在のタスクの親タスクを変更します。",
+	"No preset filters created yet. Click 'Add New Preset' to create one.":
+		"プリセットフィルターがまだ作成されていません。「新しいプリセットを追加」をクリックして作成してください。",
+	"Configure task workflows for project and process management":
+		"プロジェクトとプロセス管理のためのタスクワークフローを設定",
+	"Enable workflow": "ワークフローを有効化",
+	"Toggle to enable the workflow system for tasks":
+		"タスクのワークフローシステムを有効にする切り替え",
+	"Auto-add timestamp": "タイムスタンプを自動追加",
+	"Automatically add a timestamp to the task when it is created":
+		"タスク作成時に自動的にタイムスタンプを追加",
+	"Timestamp format:": "タイムスタンプ形式：",
+	"Timestamp format": "タイムスタンプ形式",
+	"Remove timestamp when moving to next stage":
+		"次のステージに移動する際にタイムスタンプを削除",
+	"Remove the timestamp from the current task when moving to the next stage":
+		"次のステージに移動する際に現在のタスクからタイムスタンプを削除",
+	"Calculate spent time": "経過時間を計算",
+	"Calculate and display the time spent on the task when moving to the next stage":
+		"次のステージに移動する際にタスクにかかった時間を計算して表示",
+	"Format for spent time:": "経過時間の形式：",
+	"Calculate spent time when move to next stage.":
+		"次のステージに移動する際に経過時間を計算します。",
+	"Spent time format": "経過時間の形式",
+	"Calculate full spent time": "全経過時間を計算",
+	"Calculate the full spent time from the start of the task to the last stage":
+		"タスクの開始から最後のステージまでの全経過時間を計算",
+	"Auto remove last stage marker": "最後のステージマーカーを自動削除",
+	"Automatically remove the last stage marker when a task is completed":
+		"タスクが完了したときに最後のステージマーカーを自動的に削除",
+	"Auto-add next task": "次のタスクを自動追加",
+	"Automatically create a new task with the next stage when completing a task":
+		"タスクを完了する際に次のステージの新しいタスクを自動的に作成",
+	"Workflow definitions": "ワークフロー定義",
+	"Configure workflow templates for different types of processes":
+		"異なるタイプのプロセス用のワークフローテンプレートを設定",
+	"No workflow definitions created yet. Click 'Add New Workflow' to create one.":
+		"ワークフロー定義がまだ作成されていません。「新しいワークフローを追加」をクリックして作成してください。",
+	"Edit workflow": "ワークフローを編集",
+	"Remove workflow": "ワークフローを削除",
+	"Delete workflow": "ワークフローを削除",
+	Delete: "削除",
+	"Add New Workflow": "新しいワークフローを追加",
+	"New Workflow": "新しいワークフロー",
+	"Create New Workflow": "新しいワークフローを作成",
+	"Workflow name": "ワークフロー名",
+	"A descriptive name for the workflow": "ワークフローの説明的な名前",
+	"Workflow ID": "ワークフローID",
+	"A unique identifier for the workflow (used in tags)":
+		"ワークフローの一意の識別子（タグで使用）",
+	Description: "説明",
+	"Optional description for the workflow": "ワークフローのオプション説明",
+	"Describe the purpose and use of this workflow...":
+		"このワークフローの目的と使用方法を説明...",
+	"Workflow Stages": "ワークフローステージ",
+	"No stages defined yet. Add a stage to get started.":
+		"ステージがまだ定義されていません。ステージを追加して始めましょう。",
+	Edit: "編集",
+	"Move up": "上に移動",
+	"Move down": "下に移動",
+	"Sub-stage": "サブステージ",
+	"Sub-stage name": "サブステージ名",
+	"Sub-stage ID": "サブステージID",
+	"Next: ": "次：",
+	"Add Sub-stage": "サブステージを追加",
+	"New Sub-stage": "新しいサブステージ",
+	"Edit Stage": "ステージを編集",
+	"Stage name": "ステージ名",
+	"A descriptive name for this workflow stage":
+		"このワークフローステージの説明的な名前",
+	"Stage ID": "ステージID",
+	"A unique identifier for the stage (used in tags)":
+		"ステージの一意の識別子（タグで使用）",
+	"Stage type": "ステージタイプ",
+	"The type of this workflow stage": "このワークフローステージのタイプ",
+	"Linear (sequential)": "線形（順次）",
+	"Cycle (repeatable)": "サイクル（繰り返し可能）",
+	"Terminal (end stage)": "終端（終了ステージ）",
+	"Next stage": "次のステージ",
+	"The stage to proceed to after this one": "このステージの後に進むステージ",
+	"Sub-stages": "サブステージ",
+	"Define cycle sub-stages (optional)":
+		"サイクルサブステージを定義（オプション）",
+	"No sub-stages defined yet.": "サブステージがまだ定義されていません。",
+	"Can proceed to": "進むことができる先",
+	"Additional stages that can follow this one (for right-click menu)":
+		"このステージの後に続く追加のステージ（右クリックメニュー用）",
+	"No additional destination stages defined.":
+		"追加の目的地ステージが定義されていません。",
+	Remove: "削除",
+	Add: "追加",
+	"Name and ID are required.": "名前とIDが必要です。",
+	"End of file": "ファイルの終わり",
+	"Include in cycle": "サイクルに含める",
+	Preset: "プリセット",
+	"Preset name": "プリセット名",
+	"Edit Filter": "フィルターを編集",
+	"Add New Preset": "新しいプリセットを追加",
+	"New Filter": "新しいフィルター",
+	"Reset to Default Presets": "デフォルトのプリセットにリセット",
+	"This will replace all your current presets with the default set. Are you sure?":
+		"これにより、現在のすべてのプリセットがデフォルトのセットに置き換えられます。よろしいですか？",
 };
 
 export default translations;

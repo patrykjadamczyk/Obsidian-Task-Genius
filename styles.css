@@ -1274,7 +1274,6 @@ settings:
 .can-proceed-to-container {
 	margin-top: 15px;
 	padding: 10px;
-	background-color: var(--background-secondary);
 	border-radius: 4px;
 }
 
@@ -1315,7 +1314,6 @@ settings:
 
 .substage-remove-button,
 .can-proceed-remove-button {
-	background-color: var(--background-modifier-border);
 	color: var(--text-normal);
 	border-radius: 3px;
 	padding: 2px 5px;
@@ -1523,7 +1521,7 @@ settings:
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
-	padding: 6px 10px;
+	padding: 6px 0;
 	margin-bottom: 5px;
 	border-radius: 4px;
 }
