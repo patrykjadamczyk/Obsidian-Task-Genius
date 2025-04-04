@@ -419,6 +419,12 @@ const translations = {
 	"In progress tasks": "進行中的任務",
 	"Completed tasks": "已完成的任務",
 	"All tasks": "所有任務",
+	"After heading": "標題後",
+	"End of section": "章節結尾",
+	"Enable text mark in source mode": "在源碼模式中啟用文本標記",
+	"Make the text mark in source mode follow the task status cycle when clicked.":
+		"點擊時使源碼模式中的文本標記跟隨任務狀態循環。",
+	"Status name": "狀態名稱",
 };
 
 export default translations;

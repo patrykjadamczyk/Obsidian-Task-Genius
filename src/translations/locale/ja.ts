@@ -436,6 +436,12 @@ const translations = {
 	"In progress tasks": "進行中のタスク",
 	"Completed tasks": "完了したタスク",
 	"All tasks": "すべてのタスク",
+	"After heading": "見出しの後",
+	"End of section": "セクションの終わり",
+	"Enable text mark in source mode": "ソースモードでテキストマークを有効化",
+	"Make the text mark in source mode follow the task status cycle when clicked.":
+		"ソースモードでテキストマークをクリックするとタスクステータスサイクルに従う",
+	"Status name": "ステータス名",
 };
 
 export default translations;

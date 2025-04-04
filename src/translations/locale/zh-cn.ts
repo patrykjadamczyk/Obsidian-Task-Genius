@@ -418,6 +418,12 @@ const translations = {
 	"In progress tasks": "进行中的任务",
 	"Completed tasks": "已完成的任务",
 	"All tasks": "所有任务",
+	"After heading": "标题之后",
+	"End of section": "章节结尾",
+	"Enable text mark in source mode": "在源码模式中启用文本标记",
+	"Make the text mark in source mode follow the task status cycle when clicked.":
+		"点击时使源码模式中的文本标记跟随任务状态循环。",
+	"Status name": "状态名称",
 };
 
 export default translations;
