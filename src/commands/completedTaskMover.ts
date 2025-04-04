@@ -22,8 +22,7 @@ export class TaskUtils {
 	// Get indentation of a line
 	static getIndentation(line: string, app: App): number {
 		const match = line.match(/^(\s*)/);
-		const tabSize = getTabSize(app);
-		return match ? match[1].length / tabSize : 0;
+		return match ? match[1].length : 0;
 	}
 
 	// Get tab size from app
@@ -246,8 +245,8 @@ export class TaskUtils {
 				const newIndent = Math.max(0, targetIndent + relativeIndent);
 
 				return (
-					buildIndentString(app).repeat(newIndent) +
-					line.substring(currentIndent)
+					buildIndentString(app).repeat(newIndent / getTabSize(app)) +
+					line.trimStart()
 				);
 			})
 			.join("\n");
