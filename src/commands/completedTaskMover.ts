@@ -22,8 +22,7 @@ export class TaskUtils {
 	// Get indentation of a line
 	static getIndentation(line: string, app: App): number {
 		const match = line.match(/^(\s*)/);
-		const tabSize = getTabSize(app);
-		return match ? match[1].length / tabSize : 0;
+		return match ? match[1].length : 0;
 	}
 
 	// Get tab size from app
@@ -246,8 +245,8 @@ export class TaskUtils {
 				const newIndent = Math.max(0, targetIndent + relativeIndent);
 
 				return (
-					buildIndentString(app).repeat(newIndent) +
-					line.substring(currentIndent)
+					buildIndentString(app).repeat(newIndent / getTabSize(app)) +
+					line.trimStart()
 				);
 			})
 			.join("\n");
@@ -266,299 +265,376 @@ export class TaskUtils {
 		content: string;
 		linesToRemove: number[];
 	} {
-		const content = editor.getValue();
-		const lines = content.split("\n");
-		const allResultLines: string[] = [];
-		const allLinesToRemove: number[] = [];
+		// Sort task lines in descending order to process bottom-up
+		const sortedTaskLines = [...taskLines].sort((a, b) => b - a);
 
-		// Process each selected task line
-		for (const taskLine of taskLines) {
-			// Get the current task line
-			const currentLine = lines[taskLine];
-			const currentIndent = this.getIndentation(currentLine, app);
+		// Use Sets to avoid duplicates for lines to remove and content to copy
+		const linesToRemoveSet = new Set<number>();
+		const contentMap = new Map<number, string[]>();
 
-			// Extract the parent task's mark
-			const parentTaskMatch = currentLine.match(/\[(.)]/);
-			const parentTaskMark = parentTaskMatch ? parentTaskMatch[1] : "";
-
-			// Clone parent task with marker
-			let parentTaskWithMarker = this.addMarkerToTask(
-				currentLine,
+		// First pass: collect all lines to remove and content to copy
+		for (const taskLine of sortedTaskLines) {
+			const result = this.processSingleSelectedTask(
+				editor,
+				taskLine,
+				moveMode,
 				settings,
 				currentFile,
 				app,
-				true
+				isSourceFile
 			);
 
-			// Complete parent task if setting is enabled
-			parentTaskWithMarker = this.completeTaskIfNeeded(
-				parentTaskWithMarker,
-				settings
-			);
+			// Store content lines for this task
+			contentMap.set(taskLine, result.content.split("\n"));
 
-			// Include the current line and completed child tasks
-			const resultLines: string[] = [parentTaskWithMarker];
+			// Add lines to remove to the set
+			result.linesToRemove.forEach((line) => linesToRemoveSet.add(line));
+		}
 
-			// Keep track of which task lines to remove for this task
-			const linesToRemove: number[] = [];
+		// Second pass: build the final content by properly ordering task content
+		// Sort tasks from top to bottom for content ordering
+		const orderedTaskLines = [...taskLines].sort((a, b) => a - b);
 
-			// If we're moving all subtasks, we'll collect them all
-			if (moveMode === "all") {
-				for (let i = taskLine + 1; i < lines.length; i++) {
-					const line = lines[i];
-					const lineIndent = this.getIndentation(line, app);
+		const allResultLines: string[] = [];
 
-					// If indentation is less or equal to current task, we've exited the child tasks
-					if (lineIndent <= currentIndent) {
-						break;
-					}
+		// Process each task in order (top to bottom)
+		for (let i = 0; i < orderedTaskLines.length; i++) {
+			const taskLine = orderedTaskLines[i];
 
-					resultLines.push(this.completeTaskIfNeeded(line, settings));
-					linesToRemove.push(i);
-				}
+			// Skip if this task is contained within another task's removal range
+			if (
+				orderedTaskLines.some((otherLine) => {
+					if (otherLine === taskLine) return false;
 
-				// Add the main task line to remove
-				linesToRemove.push(taskLine);
-			}
-			// If we're moving only completed tasks or direct children
-			else {
-				// First pass: collect all child tasks to analyze
-				const childTasks: {
-					line: string;
-					index: number;
-					indent: number;
-					isCompleted: boolean;
-				}[] = [];
-
-				for (let i = taskLine + 1; i < lines.length; i++) {
-					const line = lines[i];
-					const lineIndent = this.getIndentation(line, app);
-
-					// If indentation is less or equal to current task, we've exited the child tasks
-					if (lineIndent <= currentIndent) {
-						break;
-					}
-
-					// Check if this is a task
-					const taskMatch = line.match(/\[(.)]/);
-					if (taskMatch) {
-						const taskMark = taskMatch[1];
-						const isCompleted = this.isCompletedTaskMark(
-							taskMark,
-							settings
-						);
-
-						childTasks.push({
-							line,
-							index: i,
-							indent: lineIndent,
-							isCompleted,
-						});
-					} else {
-						// Non-task lines should be included with their related task
-						childTasks.push({
-							line,
-							index: i,
-							indent: lineIndent,
-							isCompleted: false, // Non-task lines aren't completed
-						});
-					}
-				}
-
-				// Process child tasks based on the mode
-				if (moveMode === "allCompleted") {
-					// Only include completed tasks (and their children)
-					const completedTasks = new Set<number>();
-					const tasksToInclude = new Set<number>();
-					const parentTasksToPreserve = new Set<number>();
-
-					// First identify all completed tasks
-					childTasks.forEach((task) => {
-						if (task.isCompleted) {
-							completedTasks.add(task.index);
-							tasksToInclude.add(task.index);
-
-							// Add all parent tasks up to the root task
-							let currentTask = task;
-							let parentIndex = this.findParentTaskIndex(
-								currentTask.index,
-								currentTask.indent,
-								childTasks
-							);
-
-							while (parentIndex !== -1) {
-								tasksToInclude.add(parentIndex);
-								// Only mark parent tasks for removal if they're completed
-								const parentTask = childTasks.find(
-									(t) => t.index === parentIndex
-								);
-								if (!parentTask) break;
-
-								if (!parentTask.isCompleted) {
-									parentTasksToPreserve.add(parentIndex);
-								}
-
-								parentIndex = this.findParentTaskIndex(
-									parentTask.index,
-									parentTask.indent,
-									childTasks
-								);
-							}
-						}
-					});
-
-					// Then include all children of completed tasks
-					childTasks.forEach((task) => {
-						const parentIndex = this.findParentTaskIndex(
-							task.index,
-							task.indent,
-							childTasks
-						);
-						if (
-							parentIndex !== -1 &&
-							completedTasks.has(parentIndex)
-						) {
-							tasksToInclude.add(task.index);
-						}
-					});
-
-					// Add the selected items to results, sorting by index to maintain order
-					const tasksByIndex = [...tasksToInclude].sort(
-						(a, b) => a - b
+					const content = editor.getValue();
+					const lines = content.split("\n");
+					const otherIndent = this.getIndentation(
+						lines[otherLine],
+						app
+					);
+					const taskIndent = this.getIndentation(
+						lines[taskLine],
+						app
 					);
 
-					resultLines.length = 0; // Clear resultLines before rebuilding
-
-					// Add parent task with marker
-					resultLines.push(parentTaskWithMarker);
-
-					// Add child tasks in order
-					for (const taskIndex of tasksByIndex) {
-						const task = childTasks.find(
-							(t) => t.index === taskIndex
-						);
-						if (!task) continue;
-
-						// Add marker to parent tasks that are preserved
-						if (parentTasksToPreserve.has(taskIndex)) {
-							let taskLine = this.addMarkerToTask(
-								task.line,
-								settings,
-								currentFile,
-								app,
-								false
-							);
-							// Complete the task if setting is enabled
-							taskLine = this.completeTaskIfNeeded(
-								taskLine,
-								settings
-							);
-							resultLines.push(taskLine);
-						} else {
-							// Complete the task if setting is enabled
-							resultLines.push(
-								this.completeTaskIfNeeded(task.line, settings)
-							);
-						}
-
-						// Only add to linesToRemove if it's completed or a child of completed
-						if (!parentTasksToPreserve.has(taskIndex)) {
-							linesToRemove.push(taskIndex);
-						}
-					}
-
-					// If parent task is completed, add it to lines to remove
-					if (this.isCompletedTaskMark(parentTaskMark, settings)) {
-						linesToRemove.push(taskLine);
-					}
-				} else if (moveMode === "directChildren") {
-					// Only include direct children that are completed
-					const completedDirectChildren = new Set<number>();
-
-					// Determine the minimum indentation level of direct children
-					let minChildIndent = Number.MAX_SAFE_INTEGER;
-					for (const task of childTasks) {
-						if (
-							task.indent > currentIndent &&
-							task.indent < minChildIndent
-						) {
-							minChildIndent = task.indent;
-						}
-					}
-
-					// Now identify all direct children using the calculated indentation
-					for (const task of childTasks) {
-						const isDirectChild = task.indent === minChildIndent;
-						if (isDirectChild && task.isCompleted) {
-							completedDirectChildren.add(task.index);
-						}
-					}
-
-					// Include all identified direct completed children and their subtasks
-					resultLines.length = 0; // Clear resultLines before rebuilding
-
-					// Add parent task with marker
-					resultLines.push(parentTaskWithMarker);
-
-					// Add direct completed children in order
-					const sortedChildIndices = [
-						...completedDirectChildren,
-					].sort((a, b) => a - b);
-					for (const taskIndex of sortedChildIndices) {
-						// Add the direct completed child
-						const task = childTasks.find(
-							(t) => t.index === taskIndex
-						);
-						if (!task) continue;
-
-						resultLines.push(
-							this.completeTaskIfNeeded(task.line, settings)
-						);
-						linesToRemove.push(taskIndex);
-
-						// Add all its subtasks (regardless of completion status)
-						let i =
-							childTasks.findIndex((t) => t.index === taskIndex) +
-							1;
-						const taskIndent = task.indent;
-
-						while (i < childTasks.length) {
-							const subtask = childTasks[i];
-							if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
-
-							resultLines.push(
-								this.completeTaskIfNeeded(
-									subtask.line,
-									settings
-								)
-							);
-							linesToRemove.push(subtask.index);
-							i++;
-						}
-					}
-
-					// If parent task is completed, add it to lines to remove
-					if (this.isCompletedTaskMark(parentTaskMark, settings)) {
-						linesToRemove.push(taskLine);
-					}
-				}
+					// Check if this task is a subtask of another selected task
+					return (
+						taskLine > otherLine &&
+						taskIndent > otherIndent &&
+						!orderedTaskLines.some(
+							(line) =>
+								line > otherLine &&
+								line < taskLine &&
+								this.getIndentation(lines[line], app) <=
+									otherIndent
+						)
+					);
+				})
+			) {
+				continue;
 			}
 
-			// Add the result lines for this task to the overall result
-			allResultLines.push(...resultLines);
-
-			// Add new line between task groups if not the last task
-			if (taskLine !== taskLines[taskLines.length - 1]) {
+			// Add a blank line between task groups if not the first task
+			if (allResultLines.length > 0) {
 				allResultLines.push("");
 			}
 
-			// Add the lines to remove for this task to the overall list
-			allLinesToRemove.push(...linesToRemove);
+			// Add the content for this task
+			const taskContent = contentMap.get(taskLine);
+			if (taskContent) {
+				allResultLines.push(...taskContent);
+			}
 		}
 
+		// Convert the set to an array
+		const allLinesToRemove = Array.from(linesToRemoveSet);
+
 		return {
-			content: allResultLines.join("\n"),
+			content: allResultLines
+				.filter((line) => line.trim() !== "")
+				.join("\n"),
 			linesToRemove: allLinesToRemove,
+		};
+	}
+
+	// Process a single selected task
+	static processSingleSelectedTask(
+		editor: Editor,
+		taskLine: number,
+		moveMode: "allCompleted" | "directChildren" | "all",
+		settings: any,
+		currentFile: TFile,
+		app: App,
+		isSourceFile: boolean = true
+	): {
+		content: string;
+		linesToRemove: number[];
+	} {
+		const content = editor.getValue();
+		const lines = content.split("\n");
+		const resultLines: string[] = [];
+		const linesToRemove: number[] = [];
+
+		// Get the current task line
+		const currentLine = lines[taskLine];
+		const currentIndent = this.getIndentation(currentLine, app);
+
+		// Extract the parent task's mark
+		const parentTaskMatch = currentLine.match(/\[(.)]/);
+		const parentTaskMark = parentTaskMatch ? parentTaskMatch[1] : "";
+
+		// Clone parent task with marker
+		let parentTaskWithMarker = this.addMarkerToTask(
+			currentLine,
+			settings,
+			currentFile,
+			app,
+			true
+		);
+
+		// Complete parent task if setting is enabled
+		parentTaskWithMarker = this.completeTaskIfNeeded(
+			parentTaskWithMarker,
+			settings
+		);
+
+		// Include the current line and completed child tasks
+		resultLines.push(parentTaskWithMarker);
+
+		// If we're moving all subtasks, we'll collect them all
+		if (moveMode === "all") {
+			for (let i = taskLine + 1; i < lines.length; i++) {
+				const line = lines[i];
+				const lineIndent = this.getIndentation(line, app);
+
+				// If indentation is less or equal to current task, we've exited the child tasks
+				if (lineIndent <= currentIndent) {
+					break;
+				}
+
+				resultLines.push(this.completeTaskIfNeeded(line, settings));
+				linesToRemove.push(i);
+			}
+
+			// Add the main task line to remove
+			linesToRemove.push(taskLine);
+		}
+		// If we're moving only completed tasks or direct children
+		else {
+			// First pass: collect all child tasks to analyze
+			const childTasks: {
+				line: string;
+				index: number;
+				indent: number;
+				isCompleted: boolean;
+			}[] = [];
+
+			for (let i = taskLine + 1; i < lines.length; i++) {
+				const line = lines[i];
+				const lineIndent = this.getIndentation(line, app);
+
+				// If indentation is less or equal to current task, we've exited the child tasks
+				if (lineIndent <= currentIndent) {
+					break;
+				}
+
+				// Check if this is a task
+				const taskMatch = line.match(/\[(.)]/);
+				if (taskMatch) {
+					const taskMark = taskMatch[1];
+					const isCompleted = this.isCompletedTaskMark(
+						taskMark,
+						settings
+					);
+
+					childTasks.push({
+						line,
+						index: i,
+						indent: lineIndent,
+						isCompleted,
+					});
+				} else {
+					// Non-task lines should be included with their related task
+					childTasks.push({
+						line,
+						index: i,
+						indent: lineIndent,
+						isCompleted: false, // Non-task lines aren't completed
+					});
+				}
+			}
+
+			// Process child tasks based on the mode
+			if (moveMode === "allCompleted") {
+				// Only include completed tasks (and their children)
+				const completedTasks = new Set<number>();
+				const tasksToInclude = new Set<number>();
+				const parentTasksToPreserve = new Set<number>();
+
+				// First identify all completed tasks
+				childTasks.forEach((task) => {
+					if (task.isCompleted) {
+						completedTasks.add(task.index);
+						tasksToInclude.add(task.index);
+
+						// Add all parent tasks up to the root task
+						let currentTask = task;
+						let parentIndex = this.findParentTaskIndex(
+							currentTask.index,
+							currentTask.indent,
+							childTasks
+						);
+
+						while (parentIndex !== -1) {
+							tasksToInclude.add(parentIndex);
+							// Only mark parent tasks for removal if they're completed
+							const parentTask = childTasks.find(
+								(t) => t.index === parentIndex
+							);
+							if (!parentTask) break;
+
+							if (!parentTask.isCompleted) {
+								parentTasksToPreserve.add(parentIndex);
+							}
+
+							parentIndex = this.findParentTaskIndex(
+								parentTask.index,
+								parentTask.indent,
+								childTasks
+							);
+						}
+					}
+				});
+
+				// Then include all children of completed tasks
+				childTasks.forEach((task) => {
+					const parentIndex = this.findParentTaskIndex(
+						task.index,
+						task.indent,
+						childTasks
+					);
+					if (parentIndex !== -1 && completedTasks.has(parentIndex)) {
+						tasksToInclude.add(task.index);
+					}
+				});
+
+				// Add the selected items to results, sorting by index to maintain order
+				const tasksByIndex = [...tasksToInclude].sort((a, b) => a - b);
+
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add child tasks in order
+				for (const taskIndex of tasksByIndex) {
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					// Add marker to parent tasks that are preserved
+					if (parentTasksToPreserve.has(taskIndex)) {
+						let taskLine = this.addMarkerToTask(
+							task.line,
+							settings,
+							currentFile,
+							app,
+							false
+						);
+						// Complete the task if setting is enabled
+						taskLine = this.completeTaskIfNeeded(
+							taskLine,
+							settings
+						);
+						resultLines.push(taskLine);
+					} else {
+						// Complete the task if setting is enabled
+						resultLines.push(
+							this.completeTaskIfNeeded(task.line, settings)
+						);
+					}
+
+					// Only add to linesToRemove if it's completed or a child of completed
+					if (!parentTasksToPreserve.has(taskIndex)) {
+						linesToRemove.push(taskIndex);
+					}
+				}
+
+				// If parent task is completed, add it to lines to remove
+				if (this.isCompletedTaskMark(parentTaskMark, settings)) {
+					linesToRemove.push(taskLine);
+				}
+			} else if (moveMode === "directChildren") {
+				// Only include direct children that are completed
+				const completedDirectChildren = new Set<number>();
+
+				// Determine the minimum indentation level of direct children
+				let minChildIndent = Number.MAX_SAFE_INTEGER;
+				for (const task of childTasks) {
+					if (
+						task.indent > currentIndent &&
+						task.indent < minChildIndent
+					) {
+						minChildIndent = task.indent;
+					}
+				}
+
+				// Now identify all direct children using the calculated indentation
+				for (const task of childTasks) {
+					const isDirectChild = task.indent === minChildIndent;
+					if (isDirectChild && task.isCompleted) {
+						completedDirectChildren.add(task.index);
+					}
+				}
+
+				// Include all identified direct completed children and their subtasks
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add direct completed children in order
+				const sortedChildIndices = [...completedDirectChildren].sort(
+					(a, b) => a - b
+				);
+				for (const taskIndex of sortedChildIndices) {
+					// Add the direct completed child
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					resultLines.push(
+						this.completeTaskIfNeeded(task.line, settings)
+					);
+					linesToRemove.push(taskIndex);
+
+					// Add all its subtasks (regardless of completion status)
+					let i =
+						childTasks.findIndex((t) => t.index === taskIndex) + 1;
+					const taskIndent = task.indent;
+
+					while (i < childTasks.length) {
+						const subtask = childTasks[i];
+						if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
+
+						resultLines.push(
+							this.completeTaskIfNeeded(subtask.line, settings)
+						);
+						linesToRemove.push(subtask.index);
+						i++;
+					}
+				}
+
+				// If parent task is completed, add it to lines to remove
+				if (this.isCompletedTaskMark(parentTaskMark, settings)) {
+					linesToRemove.push(taskLine);
+				}
+			}
+		}
+
+		console.log(resultLines);
+
+		return {
+			content: resultLines.join("\n"),
+			linesToRemove: linesToRemove,
 		};
 	}
 
@@ -608,7 +684,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 	plugin: TaskProgressBarPlugin;
 	editor: Editor;
 	currentFile: TFile;
-	taskLine: number;
+	taskLines: number[];
 	moveMode: "allCompleted" | "directChildren" | "all";
 
 	constructor(
@@ -616,14 +692,14 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 		plugin: TaskProgressBarPlugin,
 		editor: Editor,
 		currentFile: TFile,
-		taskLine: number,
+		taskLines: number[],
 		moveMode: "allCompleted" | "directChildren" | "all"
 	) {
 		super(app);
 		this.plugin = plugin;
 		this.editor = editor;
 		this.currentFile = currentFile;
-		this.taskLine = taskLine;
+		this.taskLines = taskLines;
 		this.moveMode = moveMode;
 		this.setPlaceholder("Select a file or type to create a new one");
 	}
@@ -671,7 +747,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 				this.editor,
 				this.currentFile,
 				item,
-				this.taskLine,
+				this.taskLines,
 				this.moveMode
 			).open();
 		}
@@ -717,7 +793,7 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 			// Get completed tasks content
 			const { content, linesToRemove } = TaskUtils.processSelectedTasks(
 				this.editor,
-				[this.taskLine],
+				this.taskLines,
 				this.moveMode,
 				this.plugin.settings,
 				this.currentFile,
@@ -766,7 +842,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 	editor: Editor;
 	sourceFile: TFile;
 	targetFile: TFile;
-	taskLine: number;
+	taskLines: number[];
 	metadataCache: MetadataCache;
 	moveMode: "allCompleted" | "directChildren" | "all";
 
@@ -776,7 +852,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		editor: Editor,
 		sourceFile: TFile,
 		targetFile: TFile,
-		taskLine: number,
+		taskLines: number[],
 		moveMode: "allCompleted" | "directChildren" | "all"
 	) {
 		super(app);
@@ -784,7 +860,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		this.editor = editor;
 		this.sourceFile = sourceFile;
 		this.targetFile = targetFile;
-		this.taskLine = taskLine;
+		this.taskLines = taskLines;
 		this.metadataCache = app.metadataCache;
 		this.moveMode = moveMode;
 		this.setPlaceholder("Select a block to insert after");
@@ -879,7 +955,7 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 			// Get completed tasks content
 			const { content, linesToRemove } = TaskUtils.processSelectedTasks(
 				this.editor,
-				[this.taskLine],
+				this.taskLines,
 				this.moveMode,
 				this.plugin.settings,
 				this.sourceFile,
@@ -963,11 +1039,14 @@ export function moveCompletedTasksCommand(
 			return false;
 		}
 
-		const cursor = editor.getCursor();
-		const line = editor.getLine(cursor.line);
-
-		// Check if line is a task with any of the supported list markers (-, 1., *)
-		return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
+		const selection = editor.getSelection();
+		if (selection.length === 0) {
+			const cursor = editor.getCursor();
+			const line = editor.getLine(cursor.line);
+			// Check if line is a task with any of the supported list markers (-, 1., *)
+			return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
+		}
+		return true;
 	}
 
 	// Execute the command
@@ -976,13 +1055,32 @@ export function moveCompletedTasksCommand(
 		return false;
 	}
 
-	const cursor = editor.getCursor();
+	// Get all selections to support multi-line selection
+	const selections = editor.listSelections();
+	console.log(selections);
+
+	// Extract all selected lines from the selections
+	const selectedLinesSet = new Set<number>();
+	selections.forEach((selection) => {
+		// Get the start and end lines (accounting for selection direction)
+		const startLine = Math.min(selection.anchor.line, selection.head.line);
+		const endLine = Math.max(selection.anchor.line, selection.head.line);
+
+		// Add all lines in this selection range
+		for (let line = startLine; line <= endLine; line++) {
+			selectedLinesSet.add(line);
+		}
+	});
+
+	// Convert Set to Array for further processing
+	const selectedLines = Array.from(selectedLinesSet);
+
 	new CompletedTaskFileSelectionModal(
 		plugin.app,
 		plugin,
 		editor,
 		currentFile,
-		cursor.line,
+		selectedLines,
 		moveMode
 	).open();
 

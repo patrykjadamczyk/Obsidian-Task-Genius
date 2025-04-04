@@ -334,7 +334,12 @@ const translations = {
   "Incomplete tasks": "Incomplete tasks",
   "In progress tasks": "In progress tasks",
   "Completed tasks": "Completed tasks",
-  "All tasks": "All tasks"
+  "All tasks": "All tasks",
+  "After heading": "After heading",
+  "End of section": "End of section",
+  "Enable text mark in source mode": "Enable text mark in source mode",
+  "Make the text mark in source mode follow the task status cycle when clicked.": "Make the text mark in source mode follow the task status cycle when clicked.",
+  "Status name": "Status name"
 };
 
 export default translations;
