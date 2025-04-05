@@ -199,6 +199,7 @@ export function handleWorkflowTransaction(
 		return tr;
 	}
 
+	console.log(tr.annotation(workflowChangeAnnotation), tr);
 	// Skip if this transaction already has a workflow or task status annotation
 	if (
 		tr.annotation(workflowChangeAnnotation) ||
@@ -229,11 +230,26 @@ export function handleWorkflowTransaction(
 
 	// Check if any change is a task completion
 	const completedStatuses = plugin.settings.taskStatuses.completed.split("|");
+	console.log(
+		completedStatuses,
+		changes,
+		changes.some(
+			(c) =>
+				completedStatuses.includes(c.text) ||
+				completedStatuses.some(
+					(status) =>
+						c.text === `- [${status}]` || c.text === `[${status}]`
+				)
+		)
+	);
 	if (
 		!changes.some(
 			(c) =>
 				completedStatuses.includes(c.text) ||
-				completedStatuses.some((status) => c.text === `- [${status}]`)
+				completedStatuses.some(
+					(status) =>
+						c.text === `- [${status}]` || c.text === `[${status}]`
+				)
 		)
 	) {
 		return tr;
@@ -252,7 +268,11 @@ export function handleWorkflowTransaction(
 		// Check if this is a task status change to completed
 		if (
 			completedStatuses.includes(change.text) ||
-			completedStatuses.some((status) => change.text === `- [${status}]`)
+			completedStatuses.some(
+				(status) =>
+					change.text === `- [${status}]` ||
+					change.text === `[${status}]`
+			)
 		) {
 			const line = tr.newDoc.lineAt(change.fromB);
 			const lineText = line.text;
@@ -285,7 +305,6 @@ export function handleWorkflowTransaction(
 	}
 
 	const newChanges = [];
-
 	// Process each workflow update
 	if (workflowUpdates.length > 0) {
 		for (const update of workflowUpdates) {
