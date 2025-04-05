@@ -1057,7 +1057,114 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				t(
 					"Define task states and their corresponding marks. The order from top to bottom defines the cycling sequence."
 				)
-			);
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("custom", "Custom");
+				for (const statusCollection of allStatusCollections) {
+					dropdown.addOption(statusCollection, statusCollection);
+				}
+
+				// Set default value to custom
+				dropdown.setValue("custom");
+
+				dropdown.onChange(async (value) => {
+					if (value === "custom") {
+						return;
+					}
+
+					// Confirm before applying the theme
+					const modal = new Modal(this.app);
+					modal.titleEl.setText(`Apply ${value} Theme?`);
+
+					const content = modal.contentEl.createDiv();
+					content.setText(
+						t(
+							`This will override your current task status settings with the selected theme. Do you want to continue?`
+						)
+					);
+
+					const buttonContainer = modal.contentEl.createDiv();
+					buttonContainer.addClass("modal-button-container");
+
+					const cancelButton = buttonContainer.createEl("button");
+					cancelButton.setText(t("Cancel"));
+					cancelButton.addEventListener("click", () => {
+						dropdown.setValue("custom");
+						modal.close();
+					});
+
+					const confirmButton = buttonContainer.createEl("button");
+					confirmButton.setText(t("Apply Theme"));
+					confirmButton.addClass("mod-cta");
+					confirmButton.addEventListener("click", async () => {
+						modal.close();
+
+						// Apply the selected theme's task statuses
+						try {
+							// Import the function dynamically based on the selected theme
+							const functionName =
+								value.toLowerCase() + "SupportedStatuses";
+							const statusesModule = await import(
+								"./task-status"
+							);
+
+							// Use type assertion for the dynamic function access
+							const getStatuses = (statusesModule as any)[
+								functionName
+							];
+
+							if (typeof getStatuses === "function") {
+								const statuses = getStatuses();
+
+								// Update cycle and marks
+								const cycle =
+									this.plugin.settings.taskStatusCycle;
+								const marks =
+									this.plugin.settings.taskStatusMarks;
+								const excludeMarks =
+									this.plugin.settings.excludeMarksFromCycle;
+
+								// Clear existing cycle, marks and excludeMarks
+								cycle.length = 0;
+								Object.keys(marks).forEach(
+									(key) => delete marks[key]
+								);
+								excludeMarks.length = 0;
+
+								// Add new statuses to cycle and marks
+								for (const [symbol, name, type] of statuses) {
+									const realName = (name as string)
+										.split("/")[0]
+										.trim();
+									// Add to cycle if not already included
+									if (!cycle.includes(realName)) {
+										cycle.push(realName);
+									}
+
+									// Add to marks
+									marks[realName] = symbol;
+
+									// Add to excludeMarks if not space or x
+									if (symbol !== " " && symbol !== "x") {
+										excludeMarks.push(realName);
+									}
+								}
+
+								// Save settings and refresh the display
+								this.applySettingsUpdate();
+								this.display();
+							}
+						} catch (error) {
+							console.error(
+								"Failed to apply task status theme:",
+								error
+							);
+						}
+					});
+
+					modal.open();
+				});
+			});
 
 		// Create a container for the task states list
 		const taskStatesContainer = containerEl.createDiv({

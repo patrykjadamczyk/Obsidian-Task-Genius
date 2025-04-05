@@ -1305,13 +1305,6 @@ settings:
 	margin-left: 10px;
 }
 
-.substage-next-container select {
-	padding: 3px 6px;
-	border-radius: 3px;
-	border: 1px solid var(--background-modifier-border);
-	background-color: var(--background-primary);
-}
-
 .substage-remove-button,
 .can-proceed-remove-button {
 	color: var(--text-normal);
@@ -1537,14 +1530,6 @@ settings:
 .substage-name-container input:focus {
 	border-color: var(--interactive-accent);
 	outline: none;
-}
-
-.substage-next-container select {
-	background-color: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
-	padding: 3px 6px;
-	border-radius: 3px;
-	font-size: 12px;
 }
 
 .no-stages-message,

@@ -391,34 +391,43 @@ export class StageEditModal extends Modal {
 							cls: "add-can-proceed-container",
 						});
 
-						const addSelect = addContainer.createEl("select", {
-							cls: "add-can-proceed-select",
-						});
+						let dropdown: DropdownComponent;
 
-						// Add all other stages as options (that aren't already in canProceedTo)
-						this.allStages.forEach((s) => {
-							if (
-								s.id !== this.stage.id &&
-								(!this.stage.canProceedTo ||
-									!this.stage.canProceedTo.includes(s.id))
-							) {
-								addSelect.createEl("option", {
-									value: s.id,
-									text: s.name,
+						addContainer.createEl(
+							"div",
+							{
+								cls: "add-can-proceed-select",
+							},
+							(el) => {
+								dropdown = new DropdownComponent(el);
+								this.allStages.forEach((s) => {
+									if (
+										s.id !== this.stage.id &&
+										(!this.stage.canProceedTo ||
+											!this.stage.canProceedTo.includes(
+												s.id
+											))
+									) {
+										dropdown.addOption(s.id, s.name);
+									}
 								});
 							}
-						});
+						);
+
+						// Add all other stages as options (that aren't already in canProceedTo)
 
 						const addButton = addContainer.createEl("button", {
 							cls: "add-can-proceed-button",
 							text: t("Add"),
 						});
 						addButton.addEventListener("click", () => {
-							if (addSelect.value) {
+							if (dropdown.selectEl.value) {
 								if (!this.stage.canProceedTo) {
 									this.stage.canProceedTo = [];
 								}
-								this.stage.canProceedTo.push(addSelect.value);
+								this.stage.canProceedTo.push(
+									dropdown.selectEl.value
+								);
 								renderCanProceedTo();
 							}
 						});
