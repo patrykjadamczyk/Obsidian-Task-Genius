@@ -1749,6 +1749,8 @@ settings:
 .custom-format-placeholder-info {
 	margin-top: var(--size-4-2);
 	margin-bottom: var(--size-4-2);
+
+	user-select: text;
 }
 
 .custom-format-preview-error,
