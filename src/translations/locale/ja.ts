@@ -480,6 +480,9 @@ const translations = {
 	"Toggle this to customize the text for different progress ranges.":
 		"異なる進捗範囲のテキストをカスタマイズするには切り替えてください。",
 	"Apply Theme": "テーマを適用",
+	"Back to main settings": "メイン設定に戻る",
+	"Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat functions to get the result.":
+		"フォーマットで式をサポートする、例えばdata.percentagesを使用して完了したタスクのパーセンテージを取得する。また、数学や繰り返し関数を使用して結果を取得する。",
 };
 
 export default translations;

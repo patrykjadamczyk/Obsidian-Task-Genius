@@ -463,6 +463,9 @@ const translations = {
 	"Toggle this to customize the text for different progress ranges.":
 		"切換此選項以自定義不同進度範圍的文本。",
 	"Apply Theme": "應用主題",
+	"Back to main settings": "返回主設置",
+	"Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat functions to get the result.":
+		"支持在格式中使用表达式，例如使用 data.percentages 获取已完成任务的百分比。使用 Math 或 Repeat 函数来获取结果。",
 };
 
 export default translations;

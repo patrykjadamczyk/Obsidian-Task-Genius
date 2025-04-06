@@ -1709,6 +1709,7 @@ settings:
 	font-family: var(--font-monospace);
 	font-size: 0.9em;
 	overflow-wrap: break-word;
+	user-select: text;
 }
 
 .expression-example-use {

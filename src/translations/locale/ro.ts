@@ -371,7 +371,10 @@ const translations = {
   "Toggle this to show percentage instead of completed/total count.": "Toggle this to show percentage instead of completed/total count.",
   "Customize progress ranges": "Customize progress ranges",
   "Toggle this to customize the text for different progress ranges.": "Toggle this to customize the text for different progress ranges.",
-  "Apply Theme": "Apply Theme"
+  "Apply Theme": "Apply Theme",
+  "Back to main settings": "Back to main settings",
+  "Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat operations to get the result.": "Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat operations to get the result.",
+  "Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat functions to get the result.": "Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat functions to get the result."
 };
 
 export default translations;

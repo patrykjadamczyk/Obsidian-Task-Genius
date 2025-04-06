@@ -169,7 +169,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 				button.buttonEl.createEl("span", {
 					cls: "header-button-text",
-					text: "Back to main settings",
+					text: t("Back to main settings"),
 				});
 			}
 		);
@@ -472,6 +472,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				cls: "custom-format-placeholder-info",
 				text: t(
 					"Available placeholders: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}"
+				),
+			});
+
+			fragment.createEl("div", {
+				cls: "custom-format-placeholder-info",
+				text: t(
+					"Support expression in format, like using data.percentages to get the percentage of completed tasks. And using math or even repeat functions to get the result."
 				),
 			});
 
