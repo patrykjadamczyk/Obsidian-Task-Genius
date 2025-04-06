@@ -7,7 +7,10 @@ import {
 	Editor,
 	Menu,
 } from "obsidian";
-import { taskProgressBarExtension } from "./editor-ext/progressBarWidget";
+import {
+	taskProgressBarExtension,
+	formatProgressText,
+} from "./editor-ext/progressBarWidget";
 import { updateProgressBarInElement } from "./components/readModeProgressbarWidget";
 import { applyTaskTextMarks } from "./components/readModeTextMark";
 import {
@@ -131,6 +134,8 @@ export default class TaskProgressBarPlugin extends Plugin {
 	settings: TaskProgressBarSettings;
 	// Used for completed task mover to track which lines should be removed
 	linesToRemove: number[] = [];
+	// Expose format function for use in settings UI
+	formatProgressText = formatProgressText;
 
 	async onload() {
 		await this.loadSettings();

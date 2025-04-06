@@ -14,10 +14,8 @@ import {
 } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
 import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
-import {
-	DEFAULT_SETTINGS,
-	TaskProgressBarSettings,
-} from "./common/setting-definition";
+import { DEFAULT_SETTINGS } from "./common/setting-definition";
+import { formatProgressText } from "./editor-ext/progressBarWidget";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -495,8 +493,30 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							this.plugin.settings.customFormat = value;
 							this.applySettingsUpdate();
+							// 更新预览
+							this.updateFormatPreview(containerEl, value);
 						});
 				});
+
+			// 添加预览区域
+			const previewEl = containerEl.createDiv({
+				cls: "custom-format-preview-container",
+			});
+
+			const previewLabel = previewEl.createDiv({
+				cls: "custom-format-preview-label",
+				text: t("Preview:"),
+			});
+
+			const previewContent = previewEl.createDiv({
+				cls: "custom-format-preview-content",
+			});
+
+			// 初始预览
+			this.updateFormatPreview(
+				containerEl,
+				this.plugin.settings.customFormat || "[{{COMPLETED}}/{{TOTAL}}]"
+			);
 
 			// Add help text for available placeholders
 			new Setting(containerEl)
@@ -508,10 +528,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 
 			// Show examples of advanced formats using expressions
-			containerEl.createEl("div", {
-				cls: "setting-item-name",
-				text: t("Expression examples:"),
-			});
+			new Setting(containerEl)
+				.setName(t("Expression examples"))
+				.setDesc(t("Examples of advanced formats using expressions"))
+				.setHeading();
 
 			const exampleContainer = containerEl.createEl("div", {
 				cls: "expression-examples",
@@ -551,24 +571,57 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					text: example.code,
 				});
 
+				// 添加预览效果
+				const previewEl = exampleItem.createEl("div", {
+					cls: "expression-example-preview",
+				});
+
+				// 创建示例数据来渲染预览
+				const sampleData = {
+					completed: 3,
+					total: 5,
+					inProgress: 1,
+					abandoned: 0,
+					notStarted: 0,
+					planned: 1,
+					percentages: {
+						completed: 60,
+						inProgress: 20,
+						abandoned: 0,
+						notStarted: 0,
+						planned: 20,
+					},
+				};
+
+				try {
+					const renderedText = this.renderFormatPreview(
+						example.code,
+						sampleData
+					);
+					previewEl.setText(`${t("Preview")}: ${renderedText}`);
+				} catch (error) {
+					previewEl.setText(`${t("Preview")}: Error`);
+					previewEl.addClass("expression-preview-error");
+				}
+
 				const useButton = exampleItem.createEl("button", {
 					cls: "expression-example-use",
 					text: t("Use"),
 				});
 
 				useButton.addEventListener("click", () => {
-					// 修复：正确设置自定义格式并立即调用applySettingsUpdate
 					this.plugin.settings.customFormat = example.code;
 					this.applySettingsUpdate();
 
-					// 更新展示的输入框内容
-					const inputs = containerEl.querySelectorAll("input");
+					const inputs = containerEl.querySelectorAll("textarea");
 					for (const input of Array.from(inputs)) {
 						if (input.placeholder === "[{{COMPLETED}}/{{TOTAL}}]") {
 							input.value = example.code;
 							break;
 						}
 					}
+
+					this.updateFormatPreview(containerEl, example.code);
 				});
 			});
 		}
@@ -2482,6 +2535,68 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Add default presets to settings
 		this.plugin.settings.taskFilter.presetTaskFilters = defaultPresets;
 		this.applySettingsUpdate();
+	}
+
+	// 添加渲染格式文本的辅助方法
+	private renderFormatPreview(formatText: string, sampleData: any): string {
+		try {
+			// 保存原始的customFormat值
+			const originalFormat = this.plugin.settings.customFormat;
+
+			// 临时设置customFormat为我们要预览的格式
+			this.plugin.settings.customFormat = formatText;
+
+			// 使用插件的formatProgressText函数计算预览
+			const result = formatProgressText(sampleData, this.plugin);
+
+			// 恢复原始的customFormat值
+			this.plugin.settings.customFormat = originalFormat;
+
+			return result;
+		} catch (error) {
+			console.error("Error in renderFormatPreview:", error);
+			throw error;
+		}
+	}
+
+	// 更新预览的方法
+	private updateFormatPreview(
+		containerEl: HTMLElement,
+		formatText: string
+	): void {
+		const previewContainer = containerEl.querySelector(
+			".custom-format-preview-content"
+		);
+		if (!previewContainer) return;
+
+		// 创建示例数据
+		const sampleData = {
+			completed: 3,
+			total: 5,
+			inProgress: 1,
+			abandoned: 0,
+			notStarted: 0,
+			planned: 1,
+			percentages: {
+				completed: 60,
+				inProgress: 20,
+				abandoned: 0,
+				notStarted: 0,
+				planned: 20,
+			},
+		};
+
+		try {
+			const renderedText = this.renderFormatPreview(
+				formatText,
+				sampleData
+			);
+			previewContainer.setText(renderedText);
+			previewContainer.removeClass("custom-format-preview-error");
+		} catch (error) {
+			previewContainer.setText("Error rendering format");
+			previewContainer.addClass("custom-format-preview-error");
+		}
 	}
 }
 

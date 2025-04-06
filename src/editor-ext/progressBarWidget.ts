@@ -46,6 +46,8 @@ export interface ProgressData {
 /**
  * Format the progress text according to settings and data
  * Supports various display modes including fraction, percentage, and custom formats
+ *
+ * This function is exported for use in the settings UI for previews
  */
 export function formatProgressText(
 	data: ProgressData,
