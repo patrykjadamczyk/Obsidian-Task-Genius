@@ -236,18 +236,24 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName(t("Show progress bar"))
-			.setDesc(t("Toggle this to show the progress bar."))
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.showProgressBar)
-					.onChange(async (value) => {
-						this.plugin.settings.showProgressBar = value;
+			.setName(t("Progress display mode"))
+			.setDesc(t("Choose how to display task progress"))
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("none", t("No progress indicators"))
+					.addOption("graphical", t("Graphical progress bar"))
+					.addOption("text", t("Text progress indicator"))
+					.addOption("both", t("Both graphical and text"))
+					.setValue(this.plugin.settings.progressBarDisplayMode)
+					.onChange(async (value: any) => {
+						this.plugin.settings.progressBarDisplayMode = value;
 						this.applySettingsUpdate();
+						this.display();
 					})
 			);
 
-		if (this.plugin.settings.showProgressBar) {
+		// Only show these options if some form of progress bar is enabled
+		if (this.plugin.settings.progressBarDisplayMode !== "none") {
 			new Setting(containerEl)
 				.setName(t("Support hover to show progress info"))
 				.setDesc(
@@ -326,7 +332,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				.setName(t("Count sub children of current Task"))
 				.setDesc(
 					t(
-						"Toggle this to allow this plugin to count sub tasks when generating progress bar	."
+						"Toggle this to allow this plugin to count sub tasks when generating progress bar."
 					)
 				)
 				.addToggle((toggle) =>
@@ -338,7 +344,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						})
 				);
 
-			this.displayNumberToProgressbar(containerEl);
+			// Only show the number settings for modes that include text display
+			if (
+				this.plugin.settings.progressBarDisplayMode === "text" ||
+				this.plugin.settings.progressBarDisplayMode === "both"
+			) {
+				this.displayNumberToProgressbar(containerEl);
+			}
 
 			new Setting(containerEl)
 				.setName(t("Hide progress bars"))
@@ -434,30 +446,142 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		}
 	}
 
-	// Renamed from showNumberToProgressbar() to match the pattern
 	private displayNumberToProgressbar(containerEl: HTMLElement): void {
+		// Add setting for display mode
 		new Setting(containerEl)
-			.setName(t("Add number to the Progress Bar"))
-			.setDesc(
-				t(
-					"Toggle this to allow this plugin to add tasks number to progress bar."
-				)
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.addNumberToProgressBar)
-					.onChange(async (value) => {
-						this.plugin.settings.addNumberToProgressBar = value;
+			.setName(t("Progress format"))
+			.setDesc(t("Choose how to display the task progress"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("percentage", t("Percentage (75%)"))
+					.addOption(
+						"bracketPercentage",
+						t("Bracketed percentage ([75%])")
+					)
+					.addOption("fraction", t("Fraction (3/4)"))
+					.addOption(
+						"bracketFraction",
+						t("Bracketed fraction ([3/4])")
+					)
+					.addOption("detailed", t("Detailed ([3✓ 1⟳ 0✗ 1? / 5])"))
+					.addOption("custom", t("Custom format"))
+					.addOption("range-based", t("Range-based text"))
+					.setValue(
+						this.plugin.settings.displayMode || "bracketFraction"
+					)
+					.onChange(async (value: any) => {
+						this.plugin.settings.displayMode = value;
 						this.applySettingsUpdate();
-					})
-			);
+						this.display();
+					});
+			});
 
-		if (this.plugin.settings.addNumberToProgressBar) {
+		// Show custom format setting only when custom format is selected
+		if (this.plugin.settings.displayMode === "custom") {
+			new Setting(containerEl)
+				.setName(t("Custom format"))
+				.setDesc(
+					t(
+						"Use placeholders like {{COMPLETED}}, {{TOTAL}}, {{PERCENT}}, etc."
+					)
+				)
+				.addTextArea((text) => {
+					text.inputEl.toggleClass("custom-format-textarea", true);
+					text.setPlaceholder("[{{COMPLETED}}/{{TOTAL}}]")
+						.setValue(
+							this.plugin.settings.customFormat ||
+								"[{{COMPLETED}}/{{TOTAL}}]"
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.customFormat = value;
+							this.applySettingsUpdate();
+						});
+				});
+
+			// Add help text for available placeholders
+			new Setting(containerEl)
+				.setName(t("Available placeholders"))
+				.setDesc(
+					t(
+						"Available placeholders: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}"
+					)
+				);
+
+			// Show examples of advanced formats using expressions
+			containerEl.createEl("div", {
+				cls: "setting-item-name",
+				text: t("Expression examples:"),
+			});
+
+			const exampleContainer = containerEl.createEl("div", {
+				cls: "expression-examples",
+			});
+
+			const examples = [
+				{
+					name: t("Text Progress Bar"),
+					code: '[${="=".repeat(Math.floor(data.percentages.completed/10)) + " ".repeat(10-Math.floor(data.percentages.completed/10))}] {{PERCENT}}%',
+				},
+				{
+					name: t("Emoji Progress Bar"),
+					code: '${="⬛".repeat(Math.floor(data.percentages.completed/10)) + "⬜".repeat(10-Math.floor(data.percentages.completed/10))} {{PERCENT}}%',
+				},
+				{
+					name: t("Color-coded Status"),
+					code: "{{COMPLETED}}/{{TOTAL}} ${=data.percentages.completed < 30 ? '🔴' : data.percentages.completed < 70 ? '🟠' : '🟢'}",
+				},
+				{
+					name: t("Status with Icons"),
+					code: "[{{COMPLETED_SYMBOL}}:{{COMPLETED}} {{IN_PROGRESS_SYMBOL}}:{{IN_PROGRESS}} {{PLANNED_SYMBOL}}:{{PLANNED}} / {{TOTAL}}]",
+				},
+			];
+
+			examples.forEach((example) => {
+				const exampleItem = exampleContainer.createEl("div", {
+					cls: "expression-example-item",
+				});
+
+				exampleItem.createEl("div", {
+					cls: "expression-example-name",
+					text: example.name,
+				});
+
+				const codeEl = exampleItem.createEl("code", {
+					cls: "expression-example-code",
+					text: example.code,
+				});
+
+				const useButton = exampleItem.createEl("button", {
+					cls: "expression-example-use",
+					text: t("Use"),
+				});
+
+				useButton.addEventListener("click", () => {
+					// 修复：正确设置自定义格式并立即调用applySettingsUpdate
+					this.plugin.settings.customFormat = example.code;
+					this.applySettingsUpdate();
+
+					// 更新展示的输入框内容
+					const inputs = containerEl.querySelectorAll("input");
+					for (const input of Array.from(inputs)) {
+						if (input.placeholder === "[{{COMPLETED}}/{{TOTAL}}]") {
+							input.value = example.code;
+							break;
+						}
+					}
+				});
+			});
+		}
+		// Only show legacy percentage toggle for range-based or when displayMode is not set
+		else if (
+			this.plugin.settings.displayMode === "range-based" ||
+			!this.plugin.settings.displayMode
+		) {
 			new Setting(containerEl)
 				.setName(t("Show percentage"))
 				.setDesc(
 					t(
-						"Toggle this to allow this plugin to show percentage in the progress bar."
+						"Toggle this to show percentage instead of completed/total count."
 					)
 				)
 				.addToggle((toggle) =>
@@ -469,12 +593,16 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						})
 				);
 
-			if (this.plugin.settings.showPercentage) {
+			// If percentage display and range-based mode is selected
+			if (
+				this.plugin.settings.showPercentage &&
+				this.plugin.settings.displayMode === "range-based"
+			) {
 				new Setting(containerEl)
-					.setName(t("Customize progress text"))
+					.setName(t("Customize progress ranges"))
 					.setDesc(
 						t(
-							"Toggle this to customize text representation for different progress percentage ranges."
+							"Toggle this to customize the text for different progress ranges."
 						)
 					)
 					.addToggle((toggle) =>
@@ -486,6 +614,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 								this.plugin.settings.customizeProgressRanges =
 									value;
 								this.applySettingsUpdate();
+								this.display();
 							})
 					);
 

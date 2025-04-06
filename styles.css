@@ -1678,3 +1678,43 @@ settings:
 .task-genius-settings-header {
 	display: none;
 }
+
+/* Expression examples in settings */
+.expression-examples {
+	margin-top: 8px;
+	border-radius: 5px;
+}
+
+.expression-example-item {
+	margin-bottom: 12px;
+	padding: 8px;
+	border-radius: 4px;
+	/* background-color: var(--background-primary); */
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.expression-example-name {
+	font-weight: bold;
+}
+
+.expression-example-code {
+	padding: 4px 8px;
+	background-color: var(--background-secondary);
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	overflow-wrap: break-word;
+}
+
+.expression-example-use {
+	align-self: flex-end;
+	margin-top: 4px;
+}
+
+.custom-format-textarea {
+	height: 200px;
+	width: 100%;
+}
