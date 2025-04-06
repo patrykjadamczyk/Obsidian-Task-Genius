@@ -368,7 +368,10 @@ class TaskProgressBarWidget extends WidgetType {
 	}
 
 	changeNumber() {
-		if (this.plugin?.settings.addNumberToProgressBar) {
+		if (
+			this.plugin?.settings.progressBarDisplayMode === "both" ||
+			this.plugin?.settings.progressBarDisplayMode === "text"
+		) {
 			let text = formatProgressText(
 				{
 					completed: this.completed,
@@ -389,17 +392,17 @@ class TaskProgressBarWidget extends WidgetType {
 			} else {
 				this.numberEl.innerText = text;
 			}
-		} else if (this.numberEl) {
-			this.numberEl.innerText = `[${this.completed}/${this.total}]`;
 		}
 	}
 
 	toDOM() {
 		if (
-			!this.plugin?.settings.addNumberToProgressBar &&
-			this.numberEl !== undefined
+			this.plugin?.settings.progressBarDisplayMode === "both" ||
+			this.plugin?.settings.progressBarDisplayMode === "text"
 		) {
-			this.numberEl.detach();
+			if (this.numberEl !== undefined) {
+				this.numberEl.detach();
+			}
 		}
 
 		if (this.progressBarEl !== undefined) {
@@ -409,7 +412,8 @@ class TaskProgressBarWidget extends WidgetType {
 		}
 
 		this.progressBarEl = createSpan(
-			this.plugin?.settings.addNumberToProgressBar
+			this.plugin?.settings.progressBarDisplayMode === "both" ||
+				this.plugin?.settings.progressBarDisplayMode === "text"
 				? "cm-task-progress-bar with-number"
 				: "cm-task-progress-bar",
 			(el) => {
@@ -479,8 +483,7 @@ class TaskProgressBarWidget extends WidgetType {
 		// Check if text progress should be shown (either as the only option or together with graphic bar)
 		const showText =
 			this.plugin?.settings.progressBarDisplayMode === "text" ||
-			this.plugin?.settings.progressBarDisplayMode === "both" ||
-			this.plugin?.settings.addNumberToProgressBar;
+			this.plugin?.settings.progressBarDisplayMode === "both";
 
 		if (showText && this.total) {
 			const text = formatProgressText(

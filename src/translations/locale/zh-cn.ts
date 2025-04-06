@@ -424,6 +424,44 @@ const translations = {
 	"Make the text mark in source mode follow the task status cycle when clicked.":
 		"点击时使源码模式中的文本标记跟随任务状态循环。",
 	"Status name": "状态名称",
+	"Progress display mode": "进度显示模式",
+	"Choose how to display task progress": "选择如何显示任务进度",
+	"No progress indicators": "无进度指示器",
+	"Graphical progress bar": "图形进度条",
+	"Text progress indicator": "文本进度指示器",
+	"Both graphical and text": "图形和文本都显示",
+	"Toggle this to allow this plugin to count sub tasks when generating progress bar.":
+		"切换此选项以允许此插件在生成进度条时计算子任务。",
+	"Progress format": "进度格式",
+	"Choose how to display the task progress": "选择如何显示任务进度",
+	"Percentage (75%)": "百分比 (75%)",
+	"Bracketed percentage ([75%])": "带括号的百分比 ([75%])",
+	"Fraction (3/4)": "分数 (3/4)",
+	"Bracketed fraction ([3/4])": "带括号的分数 ([3/4])",
+	"Detailed ([3✓ 1⟳ 0✗ 1? / 5])": "详细 ([3✓ 1⟳ 0✗ 1? / 5])",
+	"Custom format": "自定义格式",
+	"Range-based text": "基于范围的文本",
+	"Use placeholders like {{COMPLETED}}, {{TOTAL}}, {{PERCENT}}, etc.":
+		"使用占位符如 {{COMPLETED}}、{{TOTAL}}、{{PERCENT}} 等。",
+	"Preview:": "预览：",
+	"Available placeholders": "可用占位符",
+	"Available placeholders: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}":
+		"可用占位符：{{COMPLETED}}、{{TOTAL}}、{{IN_PROGRESS}}、{{ABANDONED}}、{{PLANNED}}、{{NOT_STARTED}}、{{PERCENT}}、{{COMPLETED_SYMBOL}}、{{IN_PROGRESS_SYMBOL}}、{{ABANDONED_SYMBOL}}、{{PLANNED_SYMBOL}}",
+	"Expression examples": "表达式示例",
+	"Examples of advanced formats using expressions":
+		"使用表达式的高级格式示例",
+	"Text Progress Bar": "文本进度条",
+	"Emoji Progress Bar": "表情符号进度条",
+	"Color-coded Status": "颜色编码状态",
+	"Status with Icons": "带图标的状态",
+	Preview: "预览",
+	Use: "使用",
+	"Toggle this to show percentage instead of completed/total count.":
+		"切换此选项以显示百分比而不是已完成/总计数。",
+	"Customize progress ranges": "自定义进度范围",
+	"Toggle this to customize the text for different progress ranges.":
+		"切换此选项以自定义不同进度范围的文本。",
+	"Apply Theme": "应用主题",
 };
 
 export default translations;

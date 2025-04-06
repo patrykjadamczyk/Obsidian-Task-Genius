@@ -5,6 +5,7 @@ import {
 	Modal,
 	setIcon,
 	ButtonComponent,
+	TextAreaComponent,
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
@@ -310,23 +311,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName(t("Enable heading progress bars"))
-				.setDesc(
-					t(
-						"Add progress bars to headings to show progress of all tasks under that heading."
-					)
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.plugin.settings.enableHeadingProgressBar)
-						.onChange(async (value) => {
-							this.plugin.settings.enableHeadingProgressBar =
-								value;
-							this.applySettingsUpdate();
-						})
-				);
-
-			new Setting(containerEl)
 				.setName(t("Count sub children of current Task"))
 				.setDesc(
 					t(
@@ -476,29 +460,25 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Show custom format setting only when custom format is selected
 		if (this.plugin.settings.displayMode === "custom") {
+			const fragment = document.createDocumentFragment();
+			fragment.createEl("div", {
+				cls: "custom-format-placeholder-info",
+				text: t(
+					"Use placeholders like {{COMPLETED}}, {{TOTAL}}, {{PERCENT}}, etc."
+				),
+			});
+
+			fragment.createEl("div", {
+				cls: "custom-format-placeholder-info",
+				text: t(
+					"Available placeholders: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}"
+				),
+			});
+
 			new Setting(containerEl)
 				.setName(t("Custom format"))
-				.setDesc(
-					t(
-						"Use placeholders like {{COMPLETED}}, {{TOTAL}}, {{PERCENT}}, etc."
-					)
-				)
-				.addTextArea((text) => {
-					text.inputEl.toggleClass("custom-format-textarea", true);
-					text.setPlaceholder("[{{COMPLETED}}/{{TOTAL}}]")
-						.setValue(
-							this.plugin.settings.customFormat ||
-								"[{{COMPLETED}}/{{TOTAL}}]"
-						)
-						.onChange(async (value) => {
-							this.plugin.settings.customFormat = value;
-							this.applySettingsUpdate();
-							// 更新预览
-							this.updateFormatPreview(containerEl, value);
-						});
-				});
+				.setDesc(fragment);
 
-			// 添加预览区域
 			const previewEl = containerEl.createDiv({
 				cls: "custom-format-preview-container",
 			});
@@ -518,14 +498,33 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				this.plugin.settings.customFormat || "[{{COMPLETED}}/{{TOTAL}}]"
 			);
 
-			// Add help text for available placeholders
-			new Setting(containerEl)
-				.setName(t("Available placeholders"))
-				.setDesc(
-					t(
-						"Available placeholders: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}"
-					)
-				);
+			const textarea = containerEl.createEl(
+				"div",
+				{
+					cls: "custom-format-textarea-container",
+				},
+				(el) => {
+					const textAreaComponent = new TextAreaComponent(el);
+					textAreaComponent.inputEl.toggleClass(
+						"custom-format-textarea",
+						true
+					);
+					textAreaComponent
+						.setPlaceholder("[{{COMPLETED}}/{{TOTAL}}]")
+						.setValue(
+							this.plugin.settings.customFormat ||
+								"[{{COMPLETED}}/{{TOTAL}}]"
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.customFormat = value;
+							this.applySettingsUpdate();
+							// 更新预览
+							this.updateFormatPreview(containerEl, value);
+						});
+				}
+			);
+
+			// 添加预览区域
 
 			// Show examples of advanced formats using expressions
 			new Setting(containerEl)

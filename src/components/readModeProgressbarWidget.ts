@@ -111,6 +111,7 @@ function addHeadingProgressBars(
 	tasksByHeading: Map<HTMLElement | null, HTMLElement[]>,
 	type: "dataview" | "normal"
 ) {
+	if (!plugin.settings.addTaskProgressBarToHeading) return;
 	tasksByHeading.forEach((tasks, heading) => {
 		// Skip if heading is null or tasks array is empty
 		if (!heading || tasks.length === 0) return;
@@ -141,9 +142,11 @@ export function updateProgressBarInElement({
 		return;
 	}
 
+	console.log(plugin.settings.addTaskProgressBarToHeading);
+
 	// Handle heading elements directly
 	if (
-		plugin.settings.enableHeadingProgressBar &&
+		plugin.settings.addTaskProgressBarToHeading &&
 		element.children[0] &&
 		element.children[0].matches("h1, h2, h3, h4, h5, h6")
 	) {
@@ -263,7 +266,7 @@ export function updateProgressBarInElement({
 		loadProgressbar(plugin, groupedElements, "normal");
 
 		// Add heading progress bars if enabled in settings
-		if (plugin.settings.enableHeadingProgressBar) {
+		if (plugin.settings.addTaskProgressBarToHeading) {
 			const tasksByHeading = groupTasksByHeading(element);
 			addHeadingProgressBars(plugin, tasksByHeading, "normal");
 		}
@@ -277,7 +280,7 @@ export function updateProgressBarInElement({
 		loadProgressbar(plugin, groupedElements, "dataview");
 
 		// Add heading progress bars if enabled in settings
-		if (plugin.settings.enableHeadingProgressBar === true) {
+		if (plugin.settings.addTaskProgressBarToHeading) {
 			const tasksByHeading = groupTasksByHeading(
 				parentElement as HTMLElement
 			);
