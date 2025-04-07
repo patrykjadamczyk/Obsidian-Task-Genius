@@ -56,6 +56,7 @@ import { Notice } from "obsidian";
 import { t } from "./translations/helper";
 import { TaskManager } from "./utils/TaskManager";
 import { TaskView, TASK_VIEW_TYPE } from "./pages/TaskView";
+import "./styles/global.css";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;

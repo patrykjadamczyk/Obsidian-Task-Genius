@@ -14,6 +14,7 @@ import { foldable, syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import { RegExpCursor } from "./regexp-cursor";
 import TaskProgressBarPlugin, { showPopoverWithProgressBar } from "..";
 import { shouldHideProgressBarInLivePriview } from "../utils";
+import "../styles/progressbar.css";
 
 interface Tasks {
 	completed: number;

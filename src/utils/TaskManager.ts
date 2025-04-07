@@ -49,6 +49,10 @@ export class TaskManager extends Component {
 	private options: TaskManagerOptions;
 	/** Whether the manager has been initialized */
 	private initialized: boolean = false;
+	/** Whether initialization is currently in progress */
+	private isInitializing: boolean = false;
+	/** Whether we should trigger update events after initialization */
+	private updateEventPending: boolean = false;
 	/** Local-storage backed cache of metadata objects. */
 	persister: LocalStorageCache;
 
@@ -151,119 +155,187 @@ export class TaskManager extends Component {
 	 */
 	public async initialize(): Promise<void> {
 		if (this.initialized) return;
+		if (this.isInitializing) {
+			this.log("Initialization already in progress, skipping");
+			this.updateEventPending = true; // Mark event as pending when init completes
+			return;
+		}
 
+		this.isInitializing = true;
+		this.updateEventPending = true; // We'll trigger the event when done
 		this.log("Initializing task manager");
 
-		// 重置索引缓存，确保从空白开始
-		this.indexer.resetCache();
-
-		// 获取所有Markdown文件
-		const files = this.vault.getMarkdownFiles();
-		this.log(`Found ${files.length} files to index`);
-
-		// 尝试从缓存加载任务数据并清理不存在的文件缓存
 		try {
-			const currentFilePaths = files.map((file) => file.path);
-			const cleared = await this.persister.synchronize(currentFilePaths);
-			if (cleared.size > 0) {
-				this.log(
-					`Dropped ${cleared.size} out-of-date file task caches`
-				);
-			}
-		} catch (error) {
-			console.error("Error synchronizing task cache:", error);
-		}
+			// 重置索引缓存，确保从空白开始
+			this.indexer.resetCache();
 
-		if (this.workerManager && files.length > 0) {
+			// 获取所有Markdown文件
+			const files = this.vault.getMarkdownFiles();
+			this.log(`Found ${files.length} files to index`);
+
+			// 尝试从缓存加载任务数据并清理不存在的文件缓存
 			try {
-				// 分批处理文件以避免过度占用内存
-				const batchSize = 50;
-				let importedCount = 0;
-				let cachedCount = 0;
-
-				for (let i = 0; i < files.length; i += batchSize) {
-					const batch = files.slice(i, i + batchSize);
+				const currentFilePaths = files.map((file) => file.path);
+				const cleared = await this.persister.synchronize(
+					currentFilePaths
+				);
+				if (cleared.size > 0) {
 					this.log(
-						`Processing batch ${
-							Math.floor(i / batchSize) + 1
-						}/${Math.ceil(files.length / batchSize)} (${
-							batch.length
-						} files)`
+						`Dropped ${cleared.size} out-of-date file task caches`
 					);
+				}
+			} catch (error) {
+				console.error("Error synchronizing task cache:", error);
+			}
 
-					// 处理批次中的每个文件
-					for (const file of batch) {
-						// 尝试从缓存加载
-						try {
-							const cached = await this.persister.loadFile<
-								Task[]
-							>(file.path);
-							if (
-								cached &&
-								cached.time >= file.stat.mtime &&
-								cached.version === this.version
-							) {
-								// 使用缓存数据更新索引
-								this.indexer.updateIndexWithTasks(
-									file.path,
-									cached.data
+			if (this.workerManager && files.length > 0) {
+				try {
+					// 分批处理文件以避免过度占用内存
+					const batchSize = 50;
+					let importedCount = 0;
+					let cachedCount = 0;
+
+					for (let i = 0; i < files.length; i += batchSize) {
+						const batch = files.slice(i, i + batchSize);
+						this.log(
+							`Processing batch ${
+								Math.floor(i / batchSize) + 1
+							}/${Math.ceil(files.length / batchSize)} (${
+								batch.length
+							} files)`
+						);
+
+						// 处理批次中的每个文件
+						for (const file of batch) {
+							// 尝试从缓存加载
+							try {
+								const cached = await this.persister.loadFile<
+									Task[]
+								>(file.path);
+								if (
+									cached &&
+									cached.time >= file.stat.mtime &&
+									cached.version === this.version
+								) {
+									// 使用缓存数据更新索引
+									this.indexer.updateIndexWithTasks(
+										file.path,
+										cached.data
+									);
+									this.log(
+										`Loaded ${cached.data.length} tasks from cache for ${file.path}`
+									);
+									cachedCount++;
+								} else {
+									// 缓存不存在或已过期，使用worker处理
+									// 不要触发事件 - 我们会在初始化完成后一次性触发
+									await this.processFileWithoutEvents(file);
+									importedCount++;
+								}
+							} catch (error) {
+								console.error(
+									`Error processing file ${file.path}:`,
+									error
 								);
-								this.log(
-									`Loaded ${cached.data.length} tasks from cache for ${file.path}`
-								);
-								cachedCount++;
-							} else {
-								// 缓存不存在或已过期，使用worker处理
-								await this.processFileWithWorker(file);
+								// 出错时使用主线程处理
+								await this.indexer.indexFile(file);
 								importedCount++;
 							}
-						} catch (error) {
-							console.error(
-								`Error processing file ${file.path}:`,
-								error
-							);
-							// 出错时使用主线程处理
-							await this.indexer.indexFile(file);
-							importedCount++;
 						}
+
+						// 在批次之间让出时间给主线程
+						await new Promise((resolve) => setTimeout(resolve, 0));
 					}
 
-					// 在批次之间让出时间给主线程
-					await new Promise((resolve) => setTimeout(resolve, 0));
+					this.log(
+						`Completed worker-based indexing (${importedCount} imported, ${cachedCount} from cache)`
+					);
+				} catch (error) {
+					console.error(
+						"Error using workers for initial indexing:",
+						error
+					);
+					this.log("Falling back to single-threaded indexing");
+
+					// 如果使用worker失败，重新初始化索引并使用单线程处理
+					this.indexer.resetCache();
+					await this.fallbackToMainThreadIndexing(files);
 				}
-
-				this.log(
-					`Completed worker-based indexing (${importedCount} imported, ${cachedCount} from cache)`
-				);
-			} catch (error) {
-				console.error(
-					"Error using workers for initial indexing:",
-					error
-				);
-				this.log("Falling back to single-threaded indexing");
-
-				// 如果使用worker失败，重新初始化索引并使用单线程处理
-				this.indexer.resetCache();
+			} else {
+				// 没有worker或没有文件时，使用单线程索引
 				await this.fallbackToMainThreadIndexing(files);
 			}
-		} else {
-			// 没有worker或没有文件时，使用单线程索引
-			await this.fallbackToMainThreadIndexing(files);
+
+			this.initialized = true;
+			const totalTasks = this.indexer.getCache().tasks.size;
+			this.log(`Task manager initialized with ${totalTasks} tasks`);
+
+			// Trigger task cache updated event once initialization is complete
+			if (this.updateEventPending) {
+				this.app.workspace.trigger(
+					"task-genius:task-cache-updated",
+					this.indexer.getCache()
+				);
+				this.updateEventPending = false; // Reset the pending flag
+			}
+		} catch (error) {
+			console.error("Task manager initialization failed:", error);
+			this.updateEventPending = false; // Reset on error
+		} finally {
+			this.isInitializing = false;
 		}
-
-		this.initialized = true;
-		const totalTasks = this.indexer.getCache().tasks.size;
-		this.log(`Task manager initialized with ${totalTasks} tasks`);
-
-		// Trigger task cache updated event
-		this.app.workspace.trigger(
-			"task-genius:task-cache-updated",
-			this.indexer.getCache()
-		);
 	}
 
 	/**
-	 * Process a file using worker and update cache
+	 * Process a file using worker without triggering events - used during initialization
+	 */
+	private async processFileWithoutEvents(file: TFile): Promise<void> {
+		if (!this.workerManager) {
+			// If worker manager is not available, use main thread processing
+			await this.indexer.indexFile(file);
+			// Cache the results
+			const tasks = this.getTasksForFile(file.path);
+			if (tasks.length > 0) {
+				await this.persister.storeFile(file.path, tasks);
+			}
+			return;
+		}
+
+		try {
+			// Use the worker to process the file
+			const tasks = await this.workerManager.processFile(file);
+
+			// Update the index with the tasks
+			this.indexer.updateIndexWithTasks(file.path, tasks);
+
+			// Store tasks in cache if there are any
+			if (tasks.length > 0) {
+				await this.persister.storeFile(file.path, tasks);
+				this.log(
+					`Processed and cached ${tasks.length} tasks in ${file.path}`
+				);
+			} else {
+				// If no tasks were found, remove the file from cache
+				await this.persister.removeFile(file.path);
+			}
+
+			// No event triggering in this version
+		} catch (error) {
+			console.error(`Worker error processing ${file.path}:`, error);
+			// Fall back to main thread indexing
+			await this.indexer.indexFile(file);
+			// Cache the results after main thread processing
+			const tasks = this.getTasksForFile(file.path);
+			if (tasks.length > 0) {
+				await this.persister.storeFile(file.path, tasks);
+			}
+
+			// No event triggering in this version
+		}
+	}
+
+	/**
+	 * Process a file using worker and update cache (with event triggering)
 	 */
 	private async processFileWithWorker(file: TFile): Promise<void> {
 		if (!this.workerManager) {
@@ -295,11 +367,15 @@ export class TaskManager extends Component {
 				await this.persister.removeFile(file.path);
 			}
 
-			// Trigger task cache updated event
-			this.app.workspace.trigger(
-				"task-genius:task-cache-updated",
-				this.indexer.getCache()
-			);
+			// Only trigger events if we're not in the process of initializing
+			// This prevents circular event triggering during initialization
+			if (!this.isInitializing) {
+				// Trigger task cache updated event
+				this.app.workspace.trigger(
+					"task-genius:task-cache-updated",
+					this.indexer.getCache()
+				);
+			}
 		} catch (error) {
 			console.error(`Worker error processing ${file.path}:`, error);
 			// Fall back to main thread indexing
@@ -310,11 +386,14 @@ export class TaskManager extends Component {
 				await this.persister.storeFile(file.path, tasks);
 			}
 
-			// Trigger task cache updated event
-			this.app.workspace.trigger(
-				"task-genius:task-cache-updated",
-				this.indexer.getCache()
-			);
+			// Only trigger events if we're not in the process of initializing
+			if (!this.isInitializing) {
+				// Trigger task cache updated event
+				this.app.workspace.trigger(
+					"task-genius:task-cache-updated",
+					this.indexer.getCache()
+				);
+			}
 		}
 	}
 
@@ -399,11 +478,15 @@ export class TaskManager extends Component {
 			`Completed main-thread indexing (${importedCount} imported, ${cachedCount} from cache)`
 		);
 
-		// Trigger task cache updated event after completing indexing
-		this.app.workspace.trigger(
-			"task-genius:task-cache-updated",
-			this.indexer.getCache()
-		);
+		// After all files are processed, only trigger the event at the end of batch processing
+		// This helps prevent recursive event triggering during initialization
+		if (!this.isInitializing) {
+			// Trigger task cache updated event after completing indexing
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
+		}
 	}
 
 	/**
@@ -411,14 +494,35 @@ export class TaskManager extends Component {
 	 */
 	public async indexFile(file: TFile): Promise<void> {
 		if (!this.initialized) {
+			if (this.isInitializing) {
+				this.log(
+					`Skipping indexFile for ${file.path} - initialization in progress`
+				);
+				return;
+			}
+
+			this.log(`Need to initialize before indexing file: ${file.path}`);
 			await this.initialize();
+
+			// If initialization failed, return early
+			if (!this.initialized) {
+				console.warn(
+					`Cannot index ${file.path} - initialization failed`
+				);
+				return;
+			}
 		}
 
 		this.log(`Indexing file: ${file.path}`);
 
 		// Use the worker if available
 		if (this.workerManager) {
-			await this.processFileWithWorker(file);
+			// During initialization, use the method without event triggering
+			if (this.isInitializing) {
+				await this.processFileWithoutEvents(file);
+			} else {
+				await this.processFileWithWorker(file);
+			}
 		} else {
 			// Use main thread indexing
 			await this.indexer.indexFile(file);
@@ -436,11 +540,14 @@ export class TaskManager extends Component {
 				}
 			}
 
-			// Trigger task cache updated event
-			this.app.workspace.trigger(
-				"task-genius:task-cache-updated",
-				this.indexer.getCache()
-			);
+			// Only trigger events if not initializing
+			if (!this.isInitializing) {
+				// Trigger task cache updated event
+				this.app.workspace.trigger(
+					"task-genius:task-cache-updated",
+					this.indexer.getCache()
+				);
+			}
 		}
 	}
 
@@ -519,7 +626,19 @@ export class TaskManager extends Component {
 	): Task[] {
 		if (!this.initialized) {
 			console.warn("Task manager not initialized, initializing now");
-			this.initialize();
+			// Instead of calling initialize() directly which causes recursion,
+			// schedule it for the next event loop and return empty results for now
+			setTimeout(() => {
+				if (!this.initialized) {
+					this.initialize().catch((error) => {
+						console.error(
+							"Error during delayed initialization:",
+							error
+						);
+					});
+				}
+			}, 0);
+			return [];
 		}
 
 		return this.indexer.queryTasks(filters, sortBy);

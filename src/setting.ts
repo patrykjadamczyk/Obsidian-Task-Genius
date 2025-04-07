@@ -17,6 +17,7 @@ import { t } from "./translations/helper";
 import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
 import { DEFAULT_SETTINGS } from "./common/setting-definition";
 import { formatProgressText } from "./editor-ext/progressBarWidget";
+import "./styles/setting.css";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;

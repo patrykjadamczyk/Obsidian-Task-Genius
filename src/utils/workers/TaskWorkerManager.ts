@@ -278,52 +278,96 @@ export class TaskWorkerManager extends Component {
 		// 创建一个结果映射
 		const resultMap = new Map<string, Task[]>();
 
-		// 将文件分成更小的批次，避免一次性提交太多任务
-		const subBatchSize = 10;
+		try {
+			// 将文件分成更小的批次，避免一次性提交太多任务
+			const batchSize = 10;
+			// 限制并发处理的文件数
+			const concurrencyLimit = Math.min(this.options.maxWorkers * 2, 5);
 
-		for (let i = 0; i < files.length; i += subBatchSize) {
-			const subBatch = files.slice(i, i + subBatchSize);
+			// 使用一个简单的信号量来控制并发
+			let activePromises = 0;
+			const processingQueue: Array<() => Promise<void>> = [];
 
-			// 为每个文件创建Promise
-			const promises: Promise<Task[]>[] = [];
+			// 辅助函数，处理队列中的下一个任务
+			const processNext = async () => {
+				if (processingQueue.length === 0) return;
 
-			// 队列每个文件供处理，使用指定的优先级
-			for (const file of subBatch) {
-				promises.push(this.processFile(file, priority));
-			}
+				if (activePromises < concurrencyLimit) {
+					activePromises++;
+					const nextTask = processingQueue.shift();
+					if (nextTask) {
+						try {
+							await nextTask();
+						} catch (error) {
+							console.error(
+								"Error processing batch task:",
+								error
+							);
+						} finally {
+							activePromises--;
+							// 继续处理队列
+							await processNext();
+						}
+					}
+				}
+			};
 
-			// 等待所有子批次文件处理完成
-			try {
-				const results = await Promise.all(promises);
+			for (let i = 0; i < files.length; i += batchSize) {
+				const subBatch = files.slice(i, i + batchSize);
 
-				// 将结果添加到结果映射
-				subBatch.forEach((file, index) => {
-					resultMap.set(file.path, results[index]);
+				// 为子批次创建处理任务并添加到队列
+				processingQueue.push(async () => {
+					// 为每个文件创建Promise
+					const subBatchPromises = subBatch.map(async (file) => {
+						try {
+							const tasks = await this.processFile(
+								file,
+								priority
+							);
+							resultMap.set(file.path, tasks);
+							return { file, tasks };
+						} catch (error) {
+							console.error(
+								`Error processing file ${file.path}:`,
+								error
+							);
+							return { file, tasks: [] };
+						}
+					});
+
+					// 等待所有子批次文件处理完成
+					const results = await Promise.all(subBatchPromises);
+
+					// 更新进度
+					this.processedFiles += results.length;
+					const progress = Math.round(
+						(this.processedFiles / this.totalFilesToProcess) * 100
+					);
+					if (
+						progress % 10 === 0 ||
+						this.processedFiles === this.totalFilesToProcess
+					) {
+						this.log(
+							`Batch progress: ${progress}% (${this.processedFiles}/${this.totalFilesToProcess})`
+						);
+					}
 				});
 
-				// 更新进度
-				this.processedFiles += subBatch.length;
-				const progress = Math.round(
-					(this.processedFiles / this.totalFilesToProcess) * 100
-				);
-				if (progress % 10 === 0) {
-					this.log(
-						`Batch progress: ${progress}% (${this.processedFiles}/${this.totalFilesToProcess})`
-					);
-				}
-
-				// 在批次间稍作等待，避免阻塞UI
-				if (i + subBatchSize < files.length) {
-					await new Promise((resolve) => setTimeout(resolve, 5));
-				}
-			} catch (error) {
-				console.error(`Error processing sub-batch:`, error);
-				// 继续处理下一个子批次
+				// 启动处理队列
+				processNext();
 			}
+
+			// 等待所有队列中的任务完成
+			while (activePromises > 0 || processingQueue.length > 0) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+		} catch (error) {
+			console.error("Error during batch processing:", error);
+		} finally {
+			this.isProcessingBatch = false;
+			this.log(`Completed batch processing of ${files.length} files`);
 		}
 
-		this.isProcessingBatch = false;
-		this.log(`Completed batch processing of ${files.length} files`);
 		return resultMap;
 	}
 

@@ -2,7 +2,9 @@ import { ItemView, WorkspaceLeaf, TFile, Plugin, setIcon } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent, ViewMode } from "../components/task-view/sidebar";
 import { ContentComponent } from "../components/task-view/content";
+import { ForecastComponent } from "../components/task-view/forecast";
 import { TaskDetailsComponent } from "../components/task-view/details";
+import "../styles/view.css";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -13,6 +15,7 @@ export class TaskView extends ItemView {
 	// Component references
 	private sidebarComponent: SidebarComponent;
 	private contentComponent: ContentComponent;
+	private forecastComponent: ForecastComponent;
 	private detailsComponent: TaskDetailsComponent;
 
 	// UI state management
@@ -20,6 +23,7 @@ export class TaskView extends ItemView {
 	private isDetailsVisible: boolean = false;
 	private sidebarToggleBtn: HTMLElement;
 	private detailsToggleBtn: HTMLElement;
+	private currentViewMode: ViewMode = "inbox";
 
 	// Data management
 	private tasks: Task[] = [];
@@ -75,6 +79,12 @@ export class TaskView extends ItemView {
 		this.contentComponent = new ContentComponent(this.rootContainerEl);
 		this.addChild(this.contentComponent);
 		this.contentComponent.load();
+
+		// Create the forecast component (initially hidden)
+		this.forecastComponent = new ForecastComponent(this.rootContainerEl);
+		this.addChild(this.forecastComponent);
+		this.forecastComponent.load();
+		this.forecastComponent.containerEl.style.display = "none";
 
 		// Create the details component
 		this.detailsComponent = new TaskDetailsComponent(
@@ -158,18 +168,32 @@ export class TaskView extends ItemView {
 	private setupComponentEvents() {
 		// Sidebar events
 		this.sidebarComponent.onViewModeChanged = (mode: ViewMode) => {
-			this.contentComponent.setViewMode(
-				mode,
-				mode === "projects"
-					? this.sidebarComponent.getSelectedProject()
-					: null
-			);
+			this.currentViewMode = mode;
+
+			// Toggle between forecast and regular content views
+			if (mode === "forecast") {
+				this.contentComponent.containerEl.style.display = "none";
+				this.forecastComponent.containerEl.style.display = "";
+				this.forecastComponent.setTasks(this.tasks);
+			} else {
+				this.contentComponent.containerEl.style.display = "";
+				this.forecastComponent.containerEl.style.display = "none";
+				this.contentComponent.setViewMode(
+					mode,
+					mode === "projects"
+						? this.sidebarComponent.getSelectedProject()
+						: null
+				);
+			}
 
 			// Hide details panel when view mode changes
 			this.toggleDetailsVisibility(false);
 		};
 
 		this.sidebarComponent.onProjectSelected = (project: string) => {
+			// Always use content component for project view
+			this.contentComponent.containerEl.style.display = "";
+			this.forecastComponent.containerEl.style.display = "none";
 			this.contentComponent.setViewMode("projects", project);
 
 			// Hide details panel when project is selected
@@ -185,6 +209,18 @@ export class TaskView extends ItemView {
 		};
 
 		this.contentComponent.onTaskCompleted = async (task: Task) => {
+			await this.toggleTaskCompletion(task);
+		};
+
+		// Forecast events
+		this.forecastComponent.onTaskSelected = (task: Task) => {
+			this.detailsComponent.showTaskDetails(task);
+
+			// Show details panel when task is selected
+			this.toggleDetailsVisibility(true);
+		};
+
+		this.forecastComponent.onTaskCompleted = async (task: Task) => {
 			await this.toggleTaskCompletion(task);
 		};
 
@@ -209,8 +245,9 @@ export class TaskView extends ItemView {
 		// Initialize the sidebar project tree
 		await this.sidebarComponent.initializeProjectTree(this.tasks);
 
-		// Set tasks in content component
+		// Set tasks in components
 		this.contentComponent.setTasks(this.tasks);
+		this.forecastComponent.setTasks(this.tasks);
 	}
 
 	private async toggleTaskCompletion(task: Task) {
@@ -232,6 +269,11 @@ export class TaskView extends ItemView {
 
 		// Update the task in our content component
 		this.contentComponent.updateTask(updatedTask);
+
+		// Update the task in forecast component if it's visible
+		if (this.currentViewMode === "forecast") {
+			this.forecastComponent.updateTask(updatedTask);
+		}
 
 		// If this is the currently selected task, update details
 		const selectedTask = this.contentComponent.getSelectedTask();
