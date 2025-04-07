@@ -5,6 +5,7 @@ export class TaskDetailsComponent extends Component {
 	public containerEl: HTMLElement;
 	private contentEl: HTMLElement;
 	private currentTask: Task | null = null;
+	private isVisible: boolean = true;
 
 	// Events
 	public onTaskEdit: (task: Task) => void;
@@ -32,7 +33,11 @@ export class TaskDetailsComponent extends Component {
 	}
 
 	public showTaskDetails(task: Task) {
-		if (!task) return;
+		if (!task) {
+			this.currentTask = null;
+			this.showEmptyState();
+			return;
+		}
 
 		this.currentTask = task;
 
@@ -159,6 +164,26 @@ export class TaskDetailsComponent extends Component {
 		if (editor) {
 			editor.setCursor({ line: task.line, ch: 0 });
 			editor.focus();
+		}
+	}
+
+	public setVisible(visible: boolean) {
+		this.isVisible = visible;
+
+		if (visible) {
+			this.containerEl.show();
+			this.containerEl.addClass("visible");
+			this.containerEl.removeClass("hidden");
+		} else {
+			this.containerEl.addClass("hidden");
+			this.containerEl.removeClass("visible");
+
+			// Optionally hide with animation, then truly hide
+			setTimeout(() => {
+				if (!this.isVisible) {
+					this.containerEl.hide();
+				}
+			}, 300); // match animation duration
 		}
 	}
 

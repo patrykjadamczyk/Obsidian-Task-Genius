@@ -7,10 +7,12 @@ export class SidebarComponent extends Component {
 	// UI elements
 	public containerEl: HTMLElement;
 	private projectTreeEl: HTMLElement;
+	private navEl: HTMLElement;
 
 	// State
 	private selectedProject: string | null = null;
 	private selectedViewMode: ViewMode = "forecast";
+	private isCollapsed: boolean = false;
 
 	// Events
 	public onProjectSelected: (project: string) => void;
@@ -36,11 +38,11 @@ export class SidebarComponent extends Component {
 	}
 
 	private createSidebarNavigation() {
-		const navEl = this.containerEl.createDiv({ cls: "sidebar-nav" });
+		this.navEl = this.containerEl.createDiv({ cls: "sidebar-nav" });
 
 		// Create navigation items
 		const createNavItem = (id: ViewMode, text: string, icon: string) => {
-			const item = navEl.createDiv({ cls: "sidebar-nav-item" });
+			const item = this.navEl.createDiv({ cls: "sidebar-nav-item" });
 			item.dataset.view = id;
 
 			const iconEl = item.createDiv({ cls: "sidebar-nav-icon" });
@@ -179,6 +181,26 @@ export class SidebarComponent extends Component {
 		// Trigger the callback
 		if (this.onViewModeChanged) {
 			this.onViewModeChanged(mode);
+		}
+	}
+
+	public setCollapsed(collapsed: boolean) {
+		this.isCollapsed = collapsed;
+		this.containerEl.toggleClass("collapsed", collapsed);
+
+		// When collapsed, hide all text elements and tree
+		if (collapsed) {
+			this.projectTreeEl.hide();
+
+			// Hide text elements
+			const textEls = this.navEl.querySelectorAll(".sidebar-nav-text");
+			textEls.forEach((el) => el.addClass("hidden"));
+		} else {
+			this.projectTreeEl.show();
+
+			// Show text elements
+			const textEls = this.navEl.querySelectorAll(".sidebar-nav-text");
+			textEls.forEach((el) => el.removeClass("hidden"));
 		}
 	}
 
