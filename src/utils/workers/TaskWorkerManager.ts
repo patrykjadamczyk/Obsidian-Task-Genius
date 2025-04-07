@@ -12,6 +12,7 @@ import {
 } from "./TaskIndexWorkerMessage";
 
 // Import worker and utilities
+// @ts-ignore Ignore type error for worker import
 import TaskWorker from "./TaskIndex.worker";
 import { Deferred, deferred } from "./deferred";
 

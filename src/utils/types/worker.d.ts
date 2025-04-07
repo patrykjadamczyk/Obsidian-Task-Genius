@@ -1,5 +1,5 @@
 /** @hidden */
-declare module "src/utils/workers/TaskIndex.worker.ts" {
+declare module "*/TaskIndex.worker" {
     const WorkerFactory: new () => Worker;
     export default WorkerFactory;
 }
