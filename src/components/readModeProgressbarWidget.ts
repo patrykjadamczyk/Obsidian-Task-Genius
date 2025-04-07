@@ -142,8 +142,6 @@ export function updateProgressBarInElement({
 		return;
 	}
 
-	console.log(plugin.settings.addTaskProgressBarToHeading);
-
 	// Handle heading elements directly
 	if (
 		plugin.settings.addTaskProgressBarToHeading &&

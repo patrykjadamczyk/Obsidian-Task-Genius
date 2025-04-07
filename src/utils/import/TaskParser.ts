@@ -2,7 +2,7 @@
  * Optimized task parser focused on task data only
  */
 
-import { CachedMetadata, FileStats, TFile } from "obsidian";
+import { CachedMetadata, Component, FileStats, ListItemCache, TFile } from "obsidian";
 import { Task, TaskParserConfig } from "../types/TaskIndex";
 import { v4 as uuidv4 } from "uuid";
 
@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
  * Default configuration for the task parser
  */
 export const DEFAULT_TASK_PARSER_CONFIG: TaskParserConfig = {
-	taskRegex: /^([\s>]*- \[(.)\])\s*(.*)$/m,
+	taskRegex: /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/m,
 	startDateFormat: "📅 YYYY-MM-DD",
 	dueDateFormat: "⏳ YYYY-MM-DD",
 	scheduledDateFormat: "⏰ YYYY-MM-DD",
@@ -28,12 +28,12 @@ export const DEFAULT_TASK_PARSER_CONFIG: TaskParserConfig = {
 	},
 };
 
-export class TaskParser {
+export class TaskParser extends Component {
 	// Regular expressions for parsing task components
 	private readonly startDateRegex = /📅 (\d{4}-\d{2}-\d{2})/;
 	private readonly completedDateRegex = /✅ (\d{4}-\d{2}-\d{2})/;
-	private readonly dueDateRegex = /⏳ (\d{4}-\d{2}-\d{2})/;
-	private readonly scheduledDateRegex = /⏰ (\d{4}-\d{2}-\d{2})/;
+	private readonly dueDateRegex = /⏳\s(\d{4}-\d{2}-\d{2})/;
+	private readonly scheduledDateRegex = /⏰\s(\d{4}-\d{2}-\d{2})/;
 	private readonly recurrenceRegex = /🔁 (.*?)(?=\s|$)/;
 	private readonly tagRegex = /#[\w\/-]+/g;
 	private readonly contextRegex = /@[\w-]+/g;
@@ -43,68 +43,143 @@ export class TaskParser {
 	private config: TaskParserConfig;
 
 	constructor(config: Partial<TaskParserConfig> = {}) {
+		super();
 		this.config = { ...DEFAULT_TASK_PARSER_CONFIG, ...config };
 	}
 
 	/**
-	 * Parse a task from a text line
+	 * Parse a task from a text line and list item metadata
 	 */
-	parseTask(text: string, filePath: string, lineNum: number): Task | null {
-		const match = text.match(this.config.taskRegex);
-		if (!match) return null;
+	parseTask(
+		text: string, 
+		filePath: string, 
+		lineNum: number, 
+		listItem?: ListItemCache
+	): Task | null {
+		// If we have list item metadata, use it to determine if this is a task
+		if (listItem) {
+			if (listItem.task === undefined) {
+				// This list item is not a task
+				return null;
+			}
+            
+			// Get task content by removing the checkbox part
+			const contentMatch = text.match(/^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/);
+			if (!contentMatch) return null;
+			
+			// Content is now in capture group 5
+			const content = contentMatch[5];
+			if (!content) return null;
+			
+			const completed = listItem.task !== ' ';
 
-		const [, prefix, status, content] = match;
-		const completed = status.toLowerCase() === "x";
+			// Create the task object
+			const task: Task = {
+				id: uuidv4(),
+				content: content.trim(),
+				filePath,
+				line: lineNum,
+				completed,
+				originalMarkdown: text,
+				tags: [],
+				children: [],
+			};
 
-		// Basic task info
-		const task: Task = {
-			id: uuidv4(),
-			content: content.trim(),
-			filePath,
-			line: lineNum,
-			completed,
-			originalMarkdown: text,
-			tags: [],
-			children: [],
-		};
+			// Extract metadata
+			this.extractDates(task, content);
+			this.extractTags(task, content);
+			this.extractContext(task, content);
+			this.extractPriority(task, content);
+			this.extractEstimatedTime(task, content);
+			this.extractRecurrence(task, content);
 
-		// Extract metadata
-		this.extractDates(task, content);
-		this.extractTags(task, content);
-		this.extractContext(task, content);
-		this.extractPriority(task, content);
-		this.extractEstimatedTime(task, content);
-		this.extractRecurrence(task, content);
+			return task;
+		} else {
+			// Fallback to regex-based parsing when list item metadata is not available
+			const match = text.match(this.config.taskRegex);
+			if (!match) return null;
 
-		return task;
+			// Adjust indices based on the updated regex
+			const [, , , , status, content] = match;
+			if (!content) return null;
+			
+			const completed = status.toLowerCase() === "x";
+
+			// Basic task info
+			const task: Task = {
+				id: uuidv4(),
+				content: content.trim(),
+				filePath,
+				line: lineNum,
+				completed,
+				originalMarkdown: text,
+				tags: [],
+				children: [],
+			};
+
+			// Extract metadata
+			this.extractDates(task, content);
+			this.extractTags(task, content);
+			this.extractContext(task, content);
+			this.extractPriority(task, content);
+			this.extractEstimatedTime(task, content);
+			this.extractRecurrence(task, content);
+
+			return task;
+		}
 	}
 
 	/**
 	 * Extract dates from task content
 	 */
 	private extractDates(task: Task, content: string): void {
-		// Start date
-		const startDateMatch = content.match(this.startDateRegex);
+		// Add more comprehensive date matching for various date formats
+		// Start date - both emoji and regular formats
+		const startDateMatch = content.match(this.startDateRegex) || 
+			content.match(/start(?:s|ed)?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
+		
 		if (startDateMatch) {
-			task.startDate = new Date(startDateMatch[1]).getTime();
+			try {
+				task.startDate = new Date(startDateMatch[1]).getTime();
+			} catch (e) {
+				console.error("Failed to parse start date:", startDateMatch[1], e);
+			}
 		}
 
-		// Due date
-		const dueDateMatch = content.match(this.dueDateRegex);
+		// Due date - both emoji and regular formats
+		const dueDateMatch = content.match(this.dueDateRegex) || 
+			content.match(/due(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
+		
 		if (dueDateMatch) {
-			task.dueDate = new Date(dueDateMatch[1]).getTime();
+			try {
+				task.dueDate = new Date(dueDateMatch[1]).getTime();
+			} catch (e) {
+				console.error("Failed to parse due date:", dueDateMatch[1], e);
+			}
 		}
 
-		// Scheduled date
-		const scheduledDateMatch = content.match(this.scheduledDateRegex);
+		// Scheduled date - both emoji and regular formats
+		const scheduledDateMatch = content.match(this.scheduledDateRegex) || 
+			content.match(/scheduled?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
+		
 		if (scheduledDateMatch) {
-			task.scheduledDate = new Date(scheduledDateMatch[1]).getTime();
+			try {
+				task.scheduledDate = new Date(scheduledDateMatch[1]).getTime();
+			} catch (e) {
+				console.error("Failed to parse scheduled date:", scheduledDateMatch[1], e);
+			}
 		}
 
-		// Completion date
-		const completedDateMatch = content.match(this.completedDateRegex);
+		// Completion date - both emoji and regular formats
+		const completedDateMatch = content.match(this.completedDateRegex) || 
+			content.match(/completed?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
+		
 		if (completedDateMatch) {
-			task.completedDate = new Date(completedDateMatch[1]).getTime();
+			try {
+				task.completedDate = new Date(completedDateMatch[1]).getTime();
+			} catch (e) {
+				console.error("Failed to parse completion date:", completedDateMatch[1], e);
+			}
 		}
 	}
 
@@ -197,46 +272,93 @@ export class TaskParser {
 	): Promise<Task[]> {
 		const lines = fileContent.split("\n");
 		const tasks: Task[] = [];
-
-		for (let i = 0; i < lines.length; i++) {
-			const line = lines[i];
-			const task = this.parseTask(line, file.path, i);
-
-			if (task) {
-				tasks.push(task);
+		const tasksByLine: Record<number, Task> = {};
+		
+		// If we have metadata with list items, use it to identify tasks
+		if (metadata?.listItems && metadata.listItems.length > 0) {
+			// Get list items that are tasks (have a task property)
+			const taskListItems = metadata.listItems.filter(item => item.task !== undefined);
+			
+			// Process each task list item
+			for (const listItem of taskListItems) {
+				const lineNum = listItem.position.start.line;
+				if (lineNum >= 0 && lineNum < lines.length) {
+					const line = lines[lineNum];
+					
+					try {
+						const task = this.parseTask(line, file.path, lineNum, listItem);
+						
+						if (task) {
+							tasks.push(task);
+							tasksByLine[lineNum] = task;
+						}
+					} catch (error) {
+						console.error(`Error parsing task at line ${lineNum} in file ${file.path}:`, error);
+						console.error(`Line content: "${line}"`);
+						console.error(`ListItem:`, listItem);
+					}
+				}
 			}
+			
+			// Build parent-child relationships using metadata
+			for (const listItem of taskListItems) {
+				const lineNum = listItem.position.start.line;
+				const task = tasksByLine[lineNum];
+				
+				if (task && listItem.parent >= 0) {
+					const parentTask = tasksByLine[listItem.parent];
+					if (parentTask) {
+						task.parent = parentTask.id;
+						parentTask.children.push(task.id);
+					}
+				}
+			}
+		} else {
+			// Fallback to regex-based parsing when metadata is not available
+			for (let i = 0; i < lines.length; i++) {
+				const line = lines[i];
+				try {
+					const task = this.parseTask(line, file.path, i);
+					
+					if (task) {
+						tasks.push(task);
+						tasksByLine[i] = task;
+					}
+				} catch (error) {
+					console.error(`Error parsing task at line ${i} in file ${file.path}:`, error);
+					console.error(`Line content: "${line}"`);
+				}
+			}
+			
+			// Build parent-child relationships based on indentation
+			this.buildTaskHierarchyByIndent(tasks);
 		}
-
-		// Build parent-child relationships
-		this.buildTaskHierarchy(tasks);
-
+		
 		return tasks;
 	}
 
 	/**
-	 * Build parent-child relationships between tasks
+	 * Build parent-child relationships between tasks based on indentation
+	 * Used as fallback when metadata is not available
 	 */
-	private buildTaskHierarchy(tasks: Task[]): void {
-		// This is a simple indent-based approach
-		// A more sophisticated implementation would use Obsidian's list item metadata
-
+	private buildTaskHierarchyByIndent(tasks: Task[]): void {
 		// Sort tasks by line number
 		tasks.sort((a, b) => a.line - b.line);
-
+		
 		// Build parent-child relationships based on indentation
 		for (let i = 0; i < tasks.length; i++) {
 			const currentTask = tasks[i];
 			const currentIndent = this.getIndentLevel(
 				currentTask.originalMarkdown
 			);
-
+			
 			// Look for potential parent tasks (must be before current task and have less indentation)
 			for (let j = i - 1; j >= 0; j--) {
 				const potentialParent = tasks[j];
 				const parentIndent = this.getIndentLevel(
 					potentialParent.originalMarkdown
 				);
-
+				
 				if (parentIndent < currentIndent) {
 					// Found a parent
 					currentTask.parent = potentialParent.id;

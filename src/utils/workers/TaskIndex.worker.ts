@@ -18,19 +18,60 @@ import {
  * Regular expressions for parsing task components
  */
 const TASK_REGEX = /^([\s>]*- \[(.)\])\s*(.*)$/m;
-const START_DATE_REGEX = /📅 (\d{4}-\d{2}-\d{2})/;
-const COMPLETED_DATE_REGEX = /✅ (\d{4}-\d{2}-\d{2})/;
-const DUE_DATE_REGEX = /⏳ (\d{4}-\d{2}-\d{2})/;
-const SCHEDULED_DATE_REGEX = /⏰ (\d{4}-\d{2}-\d{2})/;
-const RECURRENCE_REGEX = /🔁 (.*?)(?=\s|$)/;
 const TAG_REGEX = /#[\w\/-]+/g;
 const CONTEXT_REGEX = /@[\w-]+/g;
-const PRIORITY_REGEX = /🔼|⏫|🔽|⏬️|🔺|\[#[A-C]\]/;
+
+/**
+ * Task symbols and formatting
+ */
+const DEFAULT_SYMBOLS = {
+	prioritySymbols: {
+		Highest: '🔺',
+		High: '⏫',
+		Medium: '🔼',
+		Low: '🔽',
+		Lowest: '⏬',
+		None: '',
+	},
+	startDateSymbol: '🛫',
+	createdDateSymbol: '➕',
+	scheduledDateSymbol: '⏳',
+	dueDateSymbol: '📅',
+	doneDateSymbol: '✅',
+	cancelledDateSymbol: '❌',
+	recurrenceSymbol: '🔁',
+	onCompletionSymbol: '🏁',
+	dependsOnSymbol: '⛔',
+	idSymbol: '🆔',
+};
+
+// Helper function to create date field regex
+
+function dateFieldRegex(symbols: string) {
+    return fieldRegex(symbols, '(\\d{4}-\\d{2}-\\d{2})');
+}
+
+function fieldRegex(symbols: string, valueRegexString: string) {
+    // \uFE0F? allows an optional Variant Selector 16 on emojis.
+    let source = symbols + '\uFE0F?';
+    if (valueRegexString !== '') {
+        source += ' *' + valueRegexString;
+    }
+    return new RegExp(source, 'u');
+}
+
+// Regular expressions for task metadata
+const START_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.startDateSymbol);
+const COMPLETED_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.doneDateSymbol);
+const DUE_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.dueDateSymbol);
+const SCHEDULED_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.scheduledDateSymbol);
+const RECURRENCE_REGEX = fieldRegex(DEFAULT_SYMBOLS.recurrenceSymbol, '([a-zA-Z0-9, !]+)');
+const PRIORITY_REGEX = /🔼|⏫|🔽|⏬|🔺|\[#[A-C]\]/;
 const PRIORITY_MAP: Record<string, number> = {
-	"⏫": 3, // High
-	"🔼": 2, // Medium
-	"🔽": 1, // Low
-	"⏬️": 1, // Lowest
+	"⏫": 4, // High
+	"🔼": 3, // Medium
+	"🔽": 2, // Low
+	"⏬": 1, // Lowest
 	"🔺": 5, // Highest
 	"[#A]": 4, // High (letter format)
 	"[#B]": 3, // Medium (letter format)
@@ -222,6 +263,7 @@ function processFile(
 		};
 	} catch (error) {
 		console.error(`Error processing file ${filePath}:`, error);
+		// 重新抛出错误，让外层调用者处理
 		throw error;
 	}
 }
@@ -232,85 +274,68 @@ function processFile(
 function parseTasksFromListItems(filePath: string, content: string, listItems: any[]): Task[] {
 	const tasks: Task[] = [];
 	const lines = content.split(/\r?\n/);
+	const tasksByLine: Record<number, Task> = {};
 	
-	// 遍历所有列表项，找出任务项
-	for (const item of listItems) {
-		// 只处理任务项（有task属性的列表项）
-		if (item.task !== undefined) {
-			const line = item.position?.start?.line;
-			if (line === undefined) continue;
-			
-			const lineContent = lines[line];
-			if (!lineContent) continue;
-			
-			// 基本任务信息
-			const task: Task = {
-				id: `${filePath}-L${line}`,
-				content: extractTaskContent(lineContent),
-				filePath,
-				line,
-				completed: item.task !== ' ', // 空格表示未完成
-				originalMarkdown: lineContent,
-				tags: [],
-				children: [],
-			};
-			
-			// 提取元数据
-			extractDates(task, task.content);
-			extractTags(task, task.content);
-			extractContext(task, task.content);
-			extractPriority(task, task.content);
-			
-			tasks.push(task);
-		}
+	// 过滤出任务项（有task属性的列表项）
+	const taskListItems = listItems.filter(item => item.task !== undefined);
+	
+	// 第一步：解析所有任务
+	for (const item of taskListItems) {
+		const line = item.position?.start?.line;
+		if (line === undefined || line >= lines.length) continue;
+		
+		const lineContent = lines[line];
+		if (!lineContent) continue;
+		
+		// 提取任务内容
+		const contentMatch = lineContent.match(/^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/);
+		if (!contentMatch) continue;
+		
+		// 任务内容在第5个捕获组
+		const taskContent = contentMatch[5];
+		if (!taskContent) continue;
+		
+		// 基本任务信息
+		const task: Task = {
+			id: `${filePath}-L${line}`,
+			content: taskContent.trim(),
+			filePath,
+			line,
+			completed: item.task !== ' ', // 空格表示未完成
+			originalMarkdown: lineContent,
+			tags: [],
+			children: [],
+		};
+		
+		// 提取元数据
+		extractDates(task, taskContent);
+		extractTags(task, taskContent);
+		extractContext(task, taskContent);
+		extractPriority(task, taskContent);
+		
+		tasks.push(task);
+		tasksByLine[line] = task;
 	}
 	
-	// 构建父子关系
-	buildTaskHierarchyFromListItems(tasks, listItems);
-	
-	return tasks;
-}
-
-/**
- * 从任务文本中提取实际内容（移除checkbox部分）
- */
-function extractTaskContent(line: string): string {
-	const taskMatch = line.match(TASK_REGEX);
-	if (taskMatch) {
-		return taskMatch[3].trim();
-	}
-	return line.trim();
-}
-
-/**
- * 从 ListItemCache 构建任务层级关系
- */
-function buildTaskHierarchyFromListItems(tasks: Task[], listItems: any[]): void {
-	// 创建行号到任务的映射
-	const lineToTask = new Map<number, Task>();
-	tasks.forEach(task => {
-		lineToTask.set(task.line, task);
-	});
-	
-	// 建立父子关系
-	for (const item of listItems) {
-		if (item.task !== undefined) {
-			const line = item.position?.start?.line;
-			if (line === undefined) continue;
-			
-			const task = lineToTask.get(line);
-			if (!task) continue;
-			
-			// 查找父任务
-			if (item.parent > 0) { // 正数表示父项的行号
-				const parentTask = lineToTask.get(item.parent);
-				if (parentTask) {
-					task.parent = parentTask.id;
-					parentTask.children.push(task.id);
-				}
+	// 第二步：构建父子关系
+	for (const item of taskListItems) {
+		const line = item.position?.start?.line;
+		if (line === undefined) continue;
+		
+		const task = tasksByLine[line];
+		if (!task) continue;
+		
+		// 如果parent是正数，表示父项的行号
+		if (item.parent >= 0) {
+			const parentTask = tasksByLine[item.parent];
+			if (parentTask) {
+				task.parent = parentTask.id;
+				parentTask.children.push(task.id);
 			}
 		}
 	}
+	
+	return tasks;
 }
 
 /**
@@ -355,21 +380,27 @@ function processBatch(
 	};
 }
 
-/**
- * Web worker message handler
- */
+// Remove the self.onmessage handler and export the functionality directly
 self.onmessage = async (event) => {
 	try {
 		const message = event.data as IndexerCommand;
 
 		if (message.type === "parseTasks") {
-			const result = processFile(
-				message.filePath,
-				message.content,
-				message.stats,
-				message.metadata
-			);
-			self.postMessage(result);
+			try {
+				const result = processFile(
+					message.filePath,
+					message.content,
+					message.stats,
+					message.metadata
+				);
+				self.postMessage(result);
+			} catch (error) {
+				self.postMessage({
+					type: "error",
+					error: error instanceof Error ? error.message : String(error),
+					filePath: message.filePath
+				} as ErrorResult);
+			}
 		} else if (message.type === "batchIndex") {
 			const result = processBatch(message.files);
 			self.postMessage(result);
@@ -386,3 +417,4 @@ self.onmessage = async (event) => {
 		} as ErrorResult);
 	}
 };
+

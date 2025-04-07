@@ -52,9 +52,10 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		super();
 		this.taskCache = this.initEmptyCache();
 		this.parser = new TaskParser(config);
+		this.addChild(this.parser);
 
-		// Setup file change listeners for incremental updates
-		this.setupEventListeners();
+		// // Setup file change listeners for incremental updates
+		// this.setupEventListeners();
 	}
 
 	/**
@@ -184,6 +185,10 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 
 	/**
 	 * Index a single file
+	 * 
+	 * This is an optimized version that only handles updating the index,
+	 * not parsing the tasks. Actual task parsing should be done by a worker
+	 * and the results passed directly to updateIndexWithTasks.
 	 */
 	public async indexFile(file: TFile): Promise<void> {
 		try {
@@ -199,34 +204,44 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 			const fileContent = await this.vault.cachedRead(file);
 			const metadata = this.metadataCache.getFileCache(file);
 
-			// Parse tasks
+			// Parse tasks - in the main indexer we still need to do this
+			// But in normal operations, this should be done by a worker
 			const tasks = await this.parser.parseTasksFromFile(
 				file,
 				fileContent,
 				metadata ?? undefined
 			);
 
-			// Remove existing tasks for this file first
-			this.removeFileFromIndex(file);
-
-			// Update cache with new tasks
-			const fileTaskIds = new Set<string>();
-
-			for (const task of tasks) {
-				// Store task in main task map
-				this.taskCache.tasks.set(task.id, task);
-				fileTaskIds.add(task.id);
-
-				// Update all indexes
-				this.updateIndexMaps(task);
-			}
-
-			// Update file index
-			this.taskCache.files.set(file.path, fileTaskIds);
-			this.lastIndexTime.set(file.path, Date.now());
+			// Update the index with the parsed tasks
+			this.updateIndexWithTasks(file.path, tasks);
 		} catch (error) {
 			console.error(`Error indexing file ${file.path}:`, error);
 		}
+	}
+
+	/**
+	 * Update the index with tasks parsed by a worker
+	 * This method should be called after task parsing is done
+	 */
+	public updateIndexWithTasks(filePath: string, tasks: Task[]): void {
+		// Remove existing tasks for this file first
+		this.removeFileFromIndex(filePath);
+
+		// Update cache with new tasks
+		const fileTaskIds = new Set<string>();
+
+		for (const task of tasks) {
+			// Store task in main task map
+			this.taskCache.tasks.set(task.id, task);
+			fileTaskIds.add(task.id);
+
+			// Update all indexes
+			this.updateIndexMaps(task);
+		}
+
+		// Update file index
+		this.taskCache.files.set(filePath, fileTaskIds);
+		this.lastIndexTime.set(filePath, Date.now());
 	}
 
 	/**
@@ -239,8 +254,9 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	/**
 	 * Remove a file from the index
 	 */
-	private removeFileFromIndex(file: TFile): void {
-		const taskIds = this.taskCache.files.get(file.path);
+	private removeFileFromIndex(file: TFile | string): void {
+		const filePath = typeof file === 'string' ? file : file.path;
+		const taskIds = this.taskCache.files.get(filePath);
 		if (!taskIds) return;
 
 		// Remove each task from all indexes
@@ -255,8 +271,8 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		}
 
 		// Remove from file index
-		this.taskCache.files.delete(file.path);
-		this.lastIndexTime.delete(file.path);
+		this.taskCache.files.delete(filePath);
+		this.lastIndexTime.delete(filePath);
 	}
 
 	/**
@@ -900,5 +916,13 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	 */
 	public async deleteTask(taskId: string): Promise<void> {
 		throw new Error("Not implemented");
+	}
+
+	/**
+	 * Reset the task cache to empty
+	 */
+	public resetCache(): void {
+		this.taskCache = this.initEmptyCache();
+		this.lastIndexTime.clear();
 	}
 }
