@@ -17,6 +17,7 @@ esbuild
 		},
 		minify: prod ? true : false,
 		entryPoints: ["src/index.ts"],
+		plugins: [inlineWorkerPlugin({ workerName: "Datacore Indexer" })],
 		bundle: true,
 		external: [
 			"obsidian",

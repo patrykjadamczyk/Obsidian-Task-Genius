@@ -68,6 +68,7 @@ interface Task {
 class TaskParser {
   // Regular expressions for Tasks plugin syntax
   private readonly startDateRegex = /📅 (\d{4}-\d{2}-\d{2})/;
+  private readonly completedDateRegex = /✅ (\d{4}-\d{2}-\d{2})/;
   private readonly dueDateRegex = /⏳ (\d{4}-\d{2}-\d{2})/;
   private readonly scheduledDateRegex = /⏰ (\d{4}-\d{2}-\d{2})/;
   private readonly recurrenceRegex = /🔁 (.*?)(?=\s|$)/;
