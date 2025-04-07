@@ -42,6 +42,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.0.0
         version: 6.36.3
+      '@datastructures-js/queue':
+        specifier: ^4.2.3
+        version: 4.2.3
       '@types/node':
         specifier: ^16.11.6
         version: 16.18.126
@@ -148,6 +151,9 @@ packages:
 
   '@codemirror/view@6.36.3':
     resolution: {integrity: sha512-N2bilM47QWC8Hnx0rMdDxO2x2ImJ1FvZWXubwKgjeoOrWwEiFrtpA7SFHcuZ+o2Ze2VzbkgbzWVj4+V18LVkeg==}
+
+  '@datastructures-js/queue@4.2.3':
+    resolution: {integrity: sha512-GWVMorC/xi2V2ta+Z/CPgPGHL2ZJozcj48g7y2nIX5GIGZGRrbShSHgvMViJwHJurUzJYOdIdRZnWDRrROFwJA==}
 
   '@electron/get@2.0.3':
     resolution: {integrity: sha512-Qkzpg2s9GnVV2I2BjRksUi43U5e6+zaQMcjoJy0C+C5oxaKl+fmckGDQFtRpZpZV0NQekuZZ+tGz7EA9TVnQtQ==}
@@ -1569,6 +1575,8 @@ snapshots:
       '@codemirror/state': 6.5.2
       style-mod: 4.1.2
       w3c-keyname: 2.2.8
+
+  '@datastructures-js/queue@4.2.3': {}
 
   '@electron/get@2.0.3':
     dependencies:

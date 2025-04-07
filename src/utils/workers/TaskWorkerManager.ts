@@ -2,7 +2,7 @@
  * Manager for task indexing web workers
  */
 
-import { TFile, Vault } from "obsidian";
+import { Component, ListItemCache, MetadataCache, TFile, Vault } from "obsidian";
 import { Task } from "../types/TaskIndex";
 import {
 	BatchIndexCommand,
@@ -12,10 +12,14 @@ import {
 	IndexerResult,
 	ParseTasksCommand,
 	TaskParseResult,
-} from "./TaskIndexWorker";
+} from "./TaskIndexWorkerMessage";
 
-// Import worker
-import TaskWorker from "./TaskIndexWorker";
+// Import worker and utilities
+import TaskWorker from "TaskIndexWorker";
+import { Deferred, deferred } from "./deferred";
+
+// Using similar queue structure as importer.ts
+import { Queue } from "@datastructures-js/queue";
 
 /**
  * Options for worker pool
@@ -39,57 +43,64 @@ export const DEFAULT_WORKER_OPTIONS: WorkerPoolOptions = {
 };
 
 /**
- * Task callback type
+ * A worker in the pool of executing workers
  */
-export type TaskCallback<T> = (error: Error | null, result?: T) => void;
-
-/**
- * Task request interface
- */
-interface TaskRequest {
-	/** Command to process */
-	command: IndexerCommand;
-	/** Callback to call with result */
-	callback: TaskCallback<IndexerResult>;
+interface PoolWorker {
+	/** The id of this worker */
+	id: number;
+	/** The raw underlying worker */
+	worker: Worker;
+	/** UNIX time indicating the next time this worker is available for execution */
+	availableAt: number;
+	/** The active task this worker is processing, if any */
+	active?: [TFile, Deferred<any>, number];
 }
 
 /**
- * Worker data for pool
+ * Task metadata from Obsidian cache
  */
-interface WorkerData {
-	/** Worker instance */
-	worker: Worker;
-	/** Whether the worker is busy */
-	busy: boolean;
-	/** Last time this worker finished a task */
-	lastTaskFinished: number;
-	/** Number of tasks processed */
-	tasksProcessed: number;
-	/** Total processing time */
-	totalProcessingTime: number;
+interface TaskMetadata {
+	/** List item cache information */
+	listItems?: ListItemCache[];
+	/** Raw file content */
+	content: string;
+	/** File stats */
+	stats: {
+		ctime: number;
+		mtime: number;
+		size: number;
+	};
 }
 
 /**
  * Worker pool for task processing
  */
-export class TaskWorkerManager {
+export class TaskWorkerManager extends Component {
 	/** Worker pool */
-	private workers: WorkerData[] = [];
-	/** Queue of pending tasks */
-	private taskQueue: TaskRequest[] = [];
+	private workers: Map<number, PoolWorker> = new Map();
+	/** Task queue */
+	private queue: Queue<[TFile, Deferred<any>]> = new Queue();
+	/** Map of outstanding tasks by file path */
+	private outstanding: Map<string, Promise<any>> = new Map();
 	/** Whether the pool is currently active */
 	private active: boolean = true;
-	/** Options for the worker pool */
+	/** Worker pool options */
 	private options: WorkerPoolOptions;
 	/** Vault instance */
 	private vault: Vault;
+	/** Metadata cache for accessing file metadata */
+	private metadataCache: MetadataCache;
+	/** Next worker ID to assign */
+	private nextWorkerId: number = 0;
 
 	/**
 	 * Create a new worker pool
 	 */
-	constructor(vault: Vault, options: Partial<WorkerPoolOptions> = {}) {
+	constructor(vault: Vault, metadataCache: MetadataCache, options: Partial<WorkerPoolOptions> = {}) {
+		super();
 		this.options = { ...DEFAULT_WORKER_OPTIONS, ...options };
 		this.vault = vault;
+		this.metadataCache = metadataCache;
 
 		// Initialize workers up to max
 		this.initializeWorkers();
@@ -106,43 +117,20 @@ export class TaskWorkerManager {
 
 		for (let i = 0; i < workerCount; i++) {
 			try {
-				const worker = new Worker(
-					URL.createObjectURL(
-						new Blob([`importScripts('${TaskWorker}')`], {
-							type: "application/javascript",
-						})
-					)
-				);
-
-				// Setup worker message handler
-				worker.onmessage = (event) => {
-					this.handleWorkerMessage(worker, event.data);
-				};
-
-				worker.onerror = (event) => {
-					console.error("Worker error:", event);
-				};
-
-				this.workers.push({
-					worker,
-					busy: false,
-					lastTaskFinished: Date.now(),
-					tasksProcessed: 0,
-					totalProcessingTime: 0,
-				});
-
-				this.log(`Initialized worker #${i + 1}`);
+				const worker = this.newWorker();
+				this.workers.set(worker.id, worker);
+				this.log(`Initialized worker #${worker.id}`);
 			} catch (error) {
 				console.error("Failed to initialize worker:", error);
 			}
 		}
 
 		this.log(
-			`Initialized ${this.workers.length} workers (requested ${workerCount})`
+			`Initialized ${this.workers.size} workers (requested ${workerCount})`
 		);
 
 		// Check if we have any workers
-		if (this.workers.length === 0) {
+		if (this.workers.size === 0) {
 			console.warn(
 				"No workers could be initialized, falling back to main thread processing"
 			);
@@ -150,291 +138,260 @@ export class TaskWorkerManager {
 	}
 
 	/**
+	 * Create a new worker
+	 */
+	private newWorker(): PoolWorker {
+		const workerId = this.nextWorkerId++;
+		
+		let worker = new Worker(
+			URL.createObjectURL(
+				new Blob([`importScripts('${TaskWorker}')`], {
+					type: "application/javascript",
+				})
+			)
+		);
+
+		const poolWorker: PoolWorker = {
+			id: workerId,
+			worker,
+			availableAt: Date.now(),
+		};
+
+		worker.onmessage = (evt) => this.finish(poolWorker, evt.data);
+		worker.onerror = (event) => {
+			console.error("Worker error:", event);
+			
+			// If there's an active task, reject it
+			if (poolWorker.active) {
+				poolWorker.active[1].reject("Worker error");
+				poolWorker.active = undefined;
+			}
+		};
+
+		return poolWorker;
+	}
+
+	/**
 	 * Process a single file for tasks
 	 */
-	public processFile(file: TFile, callback: TaskCallback<Task[]>): void {
-		this.vault
-			.cachedRead(file)
-			.then((content) => {
-				// Create file stats (adapting to the worker's needs)
-				const stats = {
-					ctime: file.stat.ctime,
-					mtime: file.stat.mtime,
-					size: file.stat.size,
-				};
+	public processFile(file: TFile): Promise<Task[]> {
+		// De-bounce repeated requests for the same file
+		let existing = this.outstanding.get(file.path);
+		if (existing) return existing;
 
-				const command: ParseTasksCommand = {
-					type: "parseTasks",
-					filePath: file.path,
-					content,
-					stats,
-				};
+		let promise = deferred<Task[]>();
 
-				this.queueTask(command, (error, result) => {
-					if (error) {
-						callback(error);
-						return;
-					}
-
-					if (!result || result.type === "error") {
-						callback(
-							new Error(
-								(result as ErrorResult)?.error ||
-									"Unknown error"
-							)
-						);
-						return;
-					}
-
-					if (result.type === "parseResult") {
-						const parseResult = result as TaskParseResult;
-						callback(null, parseResult.tasks);
-					} else {
-						callback(
-							new Error(`Unexpected result type: ${result.type}`)
-						);
-					}
-				});
-			})
-			.catch((error) => {
-				callback(error);
-			});
+		this.outstanding.set(file.path, promise);
+		this.queue.enqueue([file, promise]);
+		this.schedule();
+		
+		return promise;
 	}
 
 	/**
 	 * Process multiple files in a batch
 	 */
-	public processBatch(
-		files: TFile[],
-		callback: TaskCallback<Map<string, Task[]>>
-	): void {
-		// Read all files first
-		Promise.all(
-			files.map((file) =>
-				this.vault.cachedRead(file).then((content) => ({
-					file,
-					content,
-				}))
-			)
-		)
-			.then((fileContents) => {
-				const command: BatchIndexCommand = {
-					type: "batchIndex",
-					files: fileContents.map(({ file, content }) => ({
-						path: file.path,
-						content,
-						stats: {
-							ctime: file.stat.ctime,
-							mtime: file.stat.mtime,
-							size: file.stat.size,
-						},
-					})),
-				};
-
-				this.queueTask(command, (error, result) => {
-					if (error) {
-						callback(error);
-						return;
-					}
-
-					if (!result || result.type === "error") {
-						callback(
-							new Error(
-								(result as ErrorResult)?.error ||
-									"Unknown error"
-							)
-						);
-						return;
-					}
-
-					if (result.type === "batchResult") {
-						const batchResult = result as BatchIndexResult;
-						// This is just a summary, not the actual tasks
-						callback(
-							new Error("Batch result does not include tasks")
-						);
-					} else if (result.type === "parseResult") {
-						// Single file result, convert to map
-						const parseResult = result as TaskParseResult;
-						const resultMap = new Map<string, Task[]>();
-						resultMap.set(parseResult.filePath, parseResult.tasks);
-						callback(null, resultMap);
-					} else {
-						callback(
-							new Error(`Unexpected result type: ${result.type}`)
-						);
-					}
-				});
-			})
-			.catch((error) => {
-				callback(error);
+	public processBatch(files: TFile[]): Promise<Map<string, Task[]>> {
+		const promises: Promise<Task[]>[] = [];
+		
+		// Queue each file for processing
+		for (const file of files) {
+			promises.push(this.processFile(file));
+		}
+		
+		// Combine all results into a map
+		return Promise.all(promises).then(results => {
+			const resultMap = new Map<string, Task[]>();
+			files.forEach((file, index) => {
+				resultMap.set(file.path, results[index]);
 			});
-	}
-
-	/**
-	 * Queue a task for processing by a worker
-	 */
-	private queueTask(
-		command: IndexerCommand,
-		callback: TaskCallback<IndexerResult>
-	): void {
-		this.taskQueue.push({
-			command,
-			callback,
+			return resultMap;
 		});
-
-		this.processQueue();
 	}
 
 	/**
-	 * Process the task queue
+	 * Get task metadata from the file and Obsidian cache
 	 */
-	private processQueue(): void {
-		if (!this.active || this.taskQueue.length === 0) {
-			return;
-		}
+	private async getTaskMetadata(file: TFile): Promise<TaskMetadata> {
+		// Get file content
+		const content = await this.vault.cachedRead(file);
+		
+		// Get file metadata from Obsidian cache
+		const fileCache = this.metadataCache.getFileCache(file);
+		
+		return {
+			listItems: fileCache?.listItems,
+			content,
+			stats: {
+				ctime: file.stat.ctime,
+				mtime: file.stat.mtime,
+				size: file.stat.size,
+			}
+		};
+	}
 
-		// Try to find an available worker
-		const availableWorker = this.getAvailableWorker();
-		if (!availableWorker) {
-			// No available workers, will retry when a worker becomes available
-			return;
-		}
+	/**
+	 * Execute next task from the queue
+	 */
+	private schedule(): void {
+		if (this.queue.size() === 0 || !this.active) return;
 
-		// Get the next task
-		const task = this.taskQueue.shift();
-		if (!task) {
-			return;
-		}
+		const worker = this.availableWorker();
+		if (!worker) return;
 
-		// Mark the worker as busy
-		availableWorker.busy = true;
+		const [file, promise] = this.queue.dequeue()!;
+		worker.active = [file, promise, Date.now()];
 
 		try {
-			// Send the task to the worker
-			availableWorker.worker.postMessage(task.command);
-
-			// Store the callback with the worker so we can call it when the worker responds
-			(availableWorker as any).currentTask = task;
-			(availableWorker as any).taskStartTime = Date.now();
-
-			this.log(`Sent task to worker: ${task.command.type}`);
+			this.getTaskMetadata(file).then(metadata => {
+				const command: ParseTasksCommand = {
+					type: "parseTasks",
+					filePath: file.path,
+					content: metadata.content,
+					stats: metadata.stats,
+					metadata: {
+						listItems: metadata.listItems || [],
+						fileCache: this.metadataCache.getFileCache(file) || undefined
+					}
+				};
+				
+				worker.worker.postMessage(command);
+			}).catch(error => {
+				console.error(`Error reading file ${file.path}:`, error);
+				promise.reject(error);
+				worker.active = undefined;
+				
+				// Try to process next task
+				this.schedule();
+			});
 		} catch (error) {
-			// Failed to send task to worker
-			console.error("Failed to send task to worker:", error);
-
-			// Mark the worker as available again
-			availableWorker.busy = false;
-
-			// Call the callback with the error
-			task.callback(error as Error);
-
-			// Try to process the next task
-			this.processQueue();
+			console.error(`Error processing file ${file.path}:`, error);
+			promise.reject(error);
+			worker.active = undefined;
+			
+			// Try to process next task
+			this.schedule();
 		}
 	}
 
 	/**
-	 * Handle a message from a worker
+	 * Handle worker completion and process result
 	 */
-	private handleWorkerMessage(worker: Worker, data: IndexerResult): void {
-		// Find the worker data
-		const workerData = this.workers.find((w) => w.worker === worker);
-		if (!workerData) {
-			console.error("Received message from unknown worker:", data);
+	private finish(worker: PoolWorker, data: IndexerResult): void {
+		if (!worker.active) {
+			console.log(
+				"Received a stale worker message. Ignoring.",
+				data
+			);
 			return;
 		}
 
-		// Get the task that was being processed
-		const task = (workerData as any).currentTask as TaskRequest | undefined;
-		const taskStartTime = (workerData as any).taskStartTime as
-			| number
-			| undefined;
+		const [file, promise, start] = worker.active;
 
-		// Update worker stats
-		workerData.busy = false;
-		workerData.lastTaskFinished = Date.now();
-		workerData.tasksProcessed++;
-
-		if (taskStartTime) {
-			const processingTime = Date.now() - taskStartTime;
-			workerData.totalProcessingTime += processingTime;
-
-			// Apply throttling based on CPU utilization
-			const delay = Math.round(
-				(processingTime * (1 - this.options.cpuUtilization)) /
-					this.options.cpuUtilization
-			);
-			if (delay > 0) {
-				// Delay before this worker processes another task
-				setTimeout(() => {
-					// Process next task if there are any
-					this.processQueue();
-				}, delay);
-
-				this.log(
-					`Worker throttled for ${delay}ms (processed in ${processingTime}ms)`
-				);
-				return;
-			}
-		}
-
-		// Clear the current task
-		(workerData as any).currentTask = undefined;
-		(workerData as any).taskStartTime = undefined;
-
-		// Call the callback with the result
-		if (task) {
-			if (data.type === "error") {
-				task.callback(new Error((data as ErrorResult).error));
-			} else {
-				task.callback(null, data);
-			}
+		// Resolve or reject the promise based on result
+		if (data.type === "error") {
+			promise.reject(new Error((data as ErrorResult).error));
+		} else if (data.type === "parseResult") {
+			const parseResult = data as TaskParseResult;
+			promise.resolve(parseResult.tasks);
+		} else if (data.type === "batchResult") {
+			// For batch results, we handle differently as we don't have tasks directly
+			promise.reject(new Error("Batch results should be handled by processBatch"));
 		} else {
-			console.error(
-				"Received message from worker with no associated task:",
-				data
-			);
+			promise.reject(new Error(`Unexpected result type: ${(data as any).type}`));
 		}
 
-		// Process next task if there are any
-		this.processQueue();
+		// Remove from outstanding tasks
+		this.outstanding.delete(file.path);
+
+		// Check if we should remove this worker (if we're over capacity)
+		if (this.workers.size > this.options.maxWorkers) {
+			this.workers.delete(worker.id);
+			this.terminate(worker);
+		} else {
+			// Calculate delay based on CPU utilization target
+			const now = Date.now();
+			const processingTime = now - start;
+			const throttle = Math.max(0.1, this.options.cpuUtilization) - 1.0;
+			const delay = processingTime * throttle;
+
+			worker.active = undefined;
+
+			if (delay <= 0) {
+				worker.availableAt = now;
+				this.schedule();
+			} else {
+				worker.availableAt = now + delay;
+				setTimeout(() => this.schedule(), delay);
+			}
+		}
 	}
 
 	/**
 	 * Get an available worker
 	 */
-	private getAvailableWorker(): WorkerData | undefined {
-		// First, look for a non-busy worker
-		for (const worker of this.workers) {
-			if (!worker.busy) {
+	private availableWorker(): PoolWorker | undefined {
+		const now = Date.now();
+		
+		// Find a worker that's not busy and is available
+		for (const worker of this.workers.values()) {
+			if (!worker.active && worker.availableAt <= now) {
 				return worker;
 			}
+		}
+
+		// Create a new worker if we haven't reached capacity
+		if (this.workers.size < this.options.maxWorkers) {
+			const worker = this.newWorker();
+			this.workers.set(worker.id, worker);
+			return worker;
 		}
 
 		return undefined;
 	}
 
 	/**
+	 * Terminate a worker
+	 */
+	private terminate(worker: PoolWorker): void {
+		worker.worker.terminate();
+		
+		if (worker.active) {
+			worker.active[1].reject("Terminated");
+			worker.active = undefined;
+		}
+		
+		this.log(`Terminated worker #${worker.id}`);
+	}
+
+	/**
+	 * Reset throttling for all workers
+	 */
+	public unthrottle(): void {
+		const now = Date.now();
+		for (const worker of this.workers.values()) {
+			worker.availableAt = now;
+		}
+		this.schedule();
+	}
+
+	/**
 	 * Shutdown the worker pool
 	 */
-	public shutdown(): void {
+	public onunload(): void {
 		this.active = false;
 
 		// Terminate all workers
-		for (const worker of this.workers) {
-			worker.worker.terminate();
+		for (const worker of this.workers.values()) {
+			this.terminate(worker);
+			this.workers.delete(worker.id);
 		}
 
-		// Clear the workers array
-		this.workers = [];
-
-		// Clear the task queue and call all callbacks with an error
-		for (const task of this.taskQueue) {
-			task.callback(new Error("Worker pool shut down"));
+		// Clear all remaining queued tasks and reject their promises
+		while (!this.queue.isEmpty()) {
+			const [_, promise] = this.queue.dequeue()!;
+			promise.reject("Terminated");
 		}
-
-		this.taskQueue = [];
 
 		this.log("Worker pool shut down");
 	}
@@ -443,7 +400,7 @@ export class TaskWorkerManager {
 	 * Get the number of pending tasks
 	 */
 	public getPendingTaskCount(): number {
-		return this.taskQueue.length;
+		return this.queue.size();
 	}
 
 	/**

@@ -4,63 +4,15 @@
 
 import { FileStats } from "obsidian";
 import { Task } from "../types/TaskIndex";
-
-/** Command to parse task from a file */
-export interface ParseTasksCommand {
-	type: "parseTasks";
-	filePath: string;
-	content: string;
-	stats: FileStats;
-}
-
-/** Command to batch index multiple files */
-export interface BatchIndexCommand {
-	type: "batchIndex";
-	files: {
-		path: string;
-		content: string;
-		stats: FileStats;
-	}[];
-}
-
-/** Available commands that can be sent to the worker */
-export type IndexerCommand = ParseTasksCommand | BatchIndexCommand;
-
-/** Result of task parsing */
-export interface TaskParseResult {
-	type: "parseResult";
-	filePath: string;
-	tasks: Task[];
-	stats: {
-		totalTasks: number;
-		completedTasks: number;
-		processingTimeMs: number;
-	};
-}
-
-/** Result of batch indexing */
-export interface BatchIndexResult {
-	type: "batchResult";
-	results: {
-		filePath: string;
-		taskCount: number;
-	}[];
-	stats: {
-		totalFiles: number;
-		totalTasks: number;
-		processingTimeMs: number;
-	};
-}
-
-/** Result of a worker operation or error */
-export type IndexerResult = TaskParseResult | BatchIndexResult | ErrorResult;
-
-/** Error response */
-export interface ErrorResult {
-	type: "error";
-	error: string;
-	filePath?: string;
-}
+import { 
+	BatchIndexCommand, 
+	BatchIndexResult, 
+	ErrorResult, 
+	IndexerCommand, 
+	IndexerResult, 
+	ParseTasksCommand, 
+	TaskParseResult 
+} from "./TaskIndexWorkerMessage";
 
 /**
  * Regular expressions for parsing task components
@@ -239,12 +191,23 @@ function getIndentLevel(line: string): number {
 function processFile(
 	filePath: string,
 	content: string,
-	stats: FileStats
+	stats: FileStats,
+	metadata?: { listItems?: any[] }
 ): TaskParseResult {
 	const startTime = performance.now();
 
 	try {
-		const tasks = parseTasksFromContent(filePath, content);
+		// 如果提供了 listItems 元数据，优先利用它来构建任务
+		let tasks: Task[] = [];
+		
+		if (metadata?.listItems && metadata.listItems.length > 0) {
+			// 使用 Obsidian 的元数据缓存来构建任务
+			tasks = parseTasksFromListItems(filePath, content, metadata.listItems);
+		} else {
+			// 回退到正则表达式解析
+			tasks = parseTasksFromContent(filePath, content);
+		}
+		
 		const completedTasks = tasks.filter((t) => t.completed).length;
 
 		return {
@@ -260,6 +223,93 @@ function processFile(
 	} catch (error) {
 		console.error(`Error processing file ${filePath}:`, error);
 		throw error;
+	}
+}
+
+/**
+ * Parse tasks from Obsidian's ListItemCache
+ */
+function parseTasksFromListItems(filePath: string, content: string, listItems: any[]): Task[] {
+	const tasks: Task[] = [];
+	const lines = content.split(/\r?\n/);
+	
+	// 遍历所有列表项，找出任务项
+	for (const item of listItems) {
+		// 只处理任务项（有task属性的列表项）
+		if (item.task !== undefined) {
+			const line = item.position?.start?.line;
+			if (line === undefined) continue;
+			
+			const lineContent = lines[line];
+			if (!lineContent) continue;
+			
+			// 基本任务信息
+			const task: Task = {
+				id: `${filePath}-L${line}`,
+				content: extractTaskContent(lineContent),
+				filePath,
+				line,
+				completed: item.task !== ' ', // 空格表示未完成
+				originalMarkdown: lineContent,
+				tags: [],
+				children: [],
+			};
+			
+			// 提取元数据
+			extractDates(task, task.content);
+			extractTags(task, task.content);
+			extractContext(task, task.content);
+			extractPriority(task, task.content);
+			
+			tasks.push(task);
+		}
+	}
+	
+	// 构建父子关系
+	buildTaskHierarchyFromListItems(tasks, listItems);
+	
+	return tasks;
+}
+
+/**
+ * 从任务文本中提取实际内容（移除checkbox部分）
+ */
+function extractTaskContent(line: string): string {
+	const taskMatch = line.match(TASK_REGEX);
+	if (taskMatch) {
+		return taskMatch[3].trim();
+	}
+	return line.trim();
+}
+
+/**
+ * 从 ListItemCache 构建任务层级关系
+ */
+function buildTaskHierarchyFromListItems(tasks: Task[], listItems: any[]): void {
+	// 创建行号到任务的映射
+	const lineToTask = new Map<number, Task>();
+	tasks.forEach(task => {
+		lineToTask.set(task.line, task);
+	});
+	
+	// 建立父子关系
+	for (const item of listItems) {
+		if (item.task !== undefined) {
+			const line = item.position?.start?.line;
+			if (line === undefined) continue;
+			
+			const task = lineToTask.get(line);
+			if (!task) continue;
+			
+			// 查找父任务
+			if (item.parent > 0) { // 正数表示父项的行号
+				const parentTask = lineToTask.get(item.parent);
+				if (parentTask) {
+					task.parent = parentTask.id;
+					parentTask.children.push(task.id);
+				}
+			}
+		}
 	}
 }
 
@@ -316,7 +366,8 @@ self.onmessage = async (event) => {
 			const result = processFile(
 				message.filePath,
 				message.content,
-				message.stats
+				message.stats,
+				message.metadata
 			);
 			self.postMessage(result);
 		} else if (message.type === "batchIndex") {

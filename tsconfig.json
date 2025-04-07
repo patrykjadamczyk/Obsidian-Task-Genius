@@ -13,5 +13,5 @@
 		"allowSyntheticDefaultImports": true,
 		"types": ["obsidian-typings"]
 	},
-	"include": ["**/*.ts"]
+	"include": ["**/*.ts", "src/utils/types/**/*.d.ts"]
 }
