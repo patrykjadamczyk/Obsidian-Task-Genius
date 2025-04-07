@@ -55,6 +55,7 @@ import { MarkdownView } from "obsidian";
 import { Notice } from "obsidian";
 import { t } from "./translations/helper";
 import { TaskManager } from "./utils/TaskManager";
+import { TaskView, TASK_VIEW_TYPE } from "./pages/TaskView";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -145,16 +146,22 @@ export default class TaskProgressBarPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Initialize task manager
-		this.taskManager = new TaskManager(this.app, this.app.vault, this.app.metadataCache, this.manifest.version, {
-			useWorkers: true,
-			debug: true // Set to true for debugging
-		});
+		this.taskManager = new TaskManager(
+			this.app,
+			this.app.vault,
+			this.app.metadataCache,
+			this.manifest.version,
+			{
+				useWorkers: true,
+				debug: true, // Set to true for debugging
+			}
+		);
 
 		this.registerCommands();
 		this.registerEditorExt();
 
 		this.addSettingTab(new TaskProgressBarSettingTab(this.app, this));
-		
+
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {
 				if (this.settings.enablePriorityKeyboardShortcuts) {
@@ -221,7 +228,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 		this.app.workspace.onLayoutReady(() => {
 			// Initialize task manager after the layout is ready
-			this.taskManager.initialize().catch(error => {
+			this.taskManager.initialize().catch((error) => {
 				console.error("Failed to initialize task manager:", error);
 			});
 
@@ -276,6 +283,23 @@ export default class TaskProgressBarPlugin extends Plugin {
 		}
 
 		this.addChild(this.taskManager);
+
+		// Register the TaskView
+		this.registerView(TASK_VIEW_TYPE, (leaf) => new TaskView(leaf, this));
+
+		// Add a ribbon icon for opening the TaskView
+		this.addRibbonIcon("check-square", "Task genius view", () => {
+			this.activateTaskView();
+		});
+
+		// Add a command to open the TaskView
+		this.addCommand({
+			id: "open-task-genius-view",
+			name: t("Open Task Genius View"),
+			callback: () => {
+				this.activateTaskView();
+			},
+		});
 	}
 
 	registerCommands() {
@@ -292,7 +316,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 					console.error("Failed to refresh task index:", error);
 					new Notice(t("Failed to refresh task index"));
 				}
-			}
+			},
 		});
 
 		// Add command for cycling task status forward
@@ -559,9 +583,25 @@ export default class TaskProgressBarPlugin extends Plugin {
 	}
 
 	// Helper method to set priority at cursor position
-	
-}
 
+	async activateTaskView() {
+		const { workspace } = this.app;
+
+		// Check if view is already open
+		const existingLeaf = workspace.getLeavesOfType(TASK_VIEW_TYPE)[0];
+
+		if (existingLeaf) {
+			// If view is already open, just reveal it
+			workspace.revealLeaf(existingLeaf);
+			return;
+		}
+
+		// Otherwise, create a new leaf in the right split and open the view
+		const leaf = workspace.getLeaf("tab");
+		await leaf.setViewState({ type: TASK_VIEW_TYPE });
+		workspace.revealLeaf(leaf);
+	}
+}
 
 function setPriorityAtCursor(editor: Editor, priority: string) {
 	const cursor = editor.getCursor();
@@ -626,10 +666,7 @@ function removePriorityAtCursor(editor: Editor) {
 		cm.dispatch({
 			changes: {
 				from: lineStart + (match.index || 0),
-				to:
-					lineStart +
-					(match.index || 0) +
-					(match[0]?.length || 0),
+				to: lineStart + (match.index || 0) + (match[0]?.length || 0),
 				insert: "",
 			},
 			annotations: [priorityChangeAnnotation.of(true)],

@@ -254,6 +254,12 @@ export class TaskManager extends Component {
 		this.initialized = true;
 		const totalTasks = this.indexer.getCache().tasks.size;
 		this.log(`Task manager initialized with ${totalTasks} tasks`);
+
+		// Trigger task cache updated event
+		this.app.workspace.trigger(
+			"task-genius:task-cache-updated",
+			this.indexer.getCache()
+		);
 	}
 
 	/**
@@ -288,6 +294,12 @@ export class TaskManager extends Component {
 				// If no tasks were found, remove the file from cache
 				await this.persister.removeFile(file.path);
 			}
+
+			// Trigger task cache updated event
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
 		} catch (error) {
 			console.error(`Worker error processing ${file.path}:`, error);
 			// Fall back to main thread indexing
@@ -297,6 +309,12 @@ export class TaskManager extends Component {
 			if (tasks.length > 0) {
 				await this.persister.storeFile(file.path, tasks);
 			}
+
+			// Trigger task cache updated event
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
 		}
 	}
 
@@ -380,6 +398,12 @@ export class TaskManager extends Component {
 		this.log(
 			`Completed main-thread indexing (${importedCount} imported, ${cachedCount} from cache)`
 		);
+
+		// Trigger task cache updated event after completing indexing
+		this.app.workspace.trigger(
+			"task-genius:task-cache-updated",
+			this.indexer.getCache()
+		);
 	}
 
 	/**
@@ -411,6 +435,12 @@ export class TaskManager extends Component {
 					await this.persister.removeFile(file.path);
 				}
 			}
+
+			// Trigger task cache updated event
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
 		}
 	}
 
@@ -420,6 +450,12 @@ export class TaskManager extends Component {
 	private syncWorkerResults(filePath: string, tasks: Task[]): void {
 		// Directly update the indexer with the worker results
 		this.indexer.updateIndexWithTasks(filePath, tasks);
+
+		// Trigger task cache updated event
+		this.app.workspace.trigger(
+			"task-genius:task-cache-updated",
+			this.indexer.getCache()
+		);
 	}
 
 	/**
@@ -441,6 +477,12 @@ export class TaskManager extends Component {
 		try {
 			this.persister.removeFile(oldPath);
 			this.log(`Removed ${oldPath} from cache`);
+
+			// Trigger task cache updated event
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
 		} catch (error) {
 			console.error(`Error removing ${oldPath} from cache:`, error);
 		}
@@ -457,6 +499,12 @@ export class TaskManager extends Component {
 		try {
 			this.persister.removeFile(file.path);
 			this.log(`Removed ${file.path} from cache`);
+
+			// Trigger task cache updated event
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
 		} catch (error) {
 			console.error(`Error removing ${file.path} from cache:`, error);
 		}
