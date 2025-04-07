@@ -1680,12 +1680,12 @@ settings:
 }
 
 /* Expression examples in settings */
-.expression-examples {
+.task-genius-settings .expression-examples {
 	margin-top: 8px;
 	border-radius: 5px;
 }
 
-.expression-example-item {
+.task-genius-settings .expression-example-item {
 	margin-bottom: var(--size-4-3);
 	padding: var(--size-4-2);
 	padding-left: var(--size-4-3);
@@ -1698,11 +1698,11 @@ settings:
 	border: 1px solid var(--background-modifier-border);
 }
 
-.expression-example-name {
+.task-genius-settings .expression-example-name {
 	font-weight: bold;
 }
 
-.expression-example-code {
+.task-genius-settings .expression-example-code {
 	padding: 4px 8px;
 	background-color: var(--background-secondary);
 	border-radius: 4px;
@@ -1712,19 +1712,19 @@ settings:
 	user-select: text;
 }
 
-.expression-example-use {
+.task-genius-settings .expression-example-use {
 	align-self: flex-end;
 	margin-top: 4px;
 }
 
-.custom-format-textarea {
+.task-genius-settings .custom-format-textarea {
 	height: 200px;
 	width: 100%;
 	font-family: var(--font-monospace);
 	resize: vertical;
 }
 
-.custom-format-preview-container {
+.task-genius-settings .custom-format-preview-container {
 	margin-bottom: var(--size-4-3);
 	padding: var(--size-4-3);
 	border-radius: var(--radius-s);
@@ -1733,33 +1733,33 @@ settings:
 	flex-direction: column;
 }
 
-.custom-format-preview-label {
+.task-genius-settings .custom-format-preview-label {
 	font-weight: bold;
 	margin-bottom: var(--size-4-2);
 	color: var(--text-muted);
 }
 
-.custom-format-preview-content {
+.task-genius-settings .custom-format-preview-content {
 	padding: var(--size-4-2);
 	background-color: var(--background-primary);
 	border-radius: var(--radius-s);
 	font-family: var(--font-interface);
 }
 
-.custom-format-placeholder-info {
+.task-genius-settings .custom-format-placeholder-info {
 	margin-top: var(--size-4-2);
 	margin-bottom: var(--size-4-2);
 
 	user-select: text;
 }
 
-.custom-format-preview-error,
-.expression-preview-error {
+.task-genius-settings .custom-format-preview-error,
+.task-genius-settings .expression-preview-error {
 	color: var(--text-error);
 }
 
 /* 表达式示例预览样式 */
-.expression-example-preview {
+.task-genius-settings .expression-example-preview {
 	margin-top: var(--size-4-2);
 	padding: var(--size-4-2);
 	background-color: var(--background-primary-alt);

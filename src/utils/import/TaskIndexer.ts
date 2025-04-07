@@ -185,7 +185,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 
 	/**
 	 * Index a single file
-	 * 
+	 *
 	 * This is an optimized version that only handles updating the index,
 	 * not parsing the tasks. Actual task parsing should be done by a worker
 	 * and the results passed directly to updateIndexWithTasks.
@@ -255,7 +255,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	 * Remove a file from the index
 	 */
 	private removeFileFromIndex(file: TFile | string): void {
-		const filePath = typeof file === 'string' ? file : file.path;
+		const filePath = typeof file === "string" ? file : file.path;
 		const taskIds = this.taskCache.files.get(filePath);
 		if (!taskIds) return;
 

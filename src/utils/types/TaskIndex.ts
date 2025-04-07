@@ -2,7 +2,7 @@
  * Optimized task indexing system focused on task-related data only
  */
 
-import { Component, TFile } from "obsidian";
+import { Component, EventRef, TFile } from "obsidian";
 
 /** Core task data structure */
 export interface Task {

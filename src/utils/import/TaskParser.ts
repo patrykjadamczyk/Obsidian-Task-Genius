@@ -2,7 +2,13 @@
  * Optimized task parser focused on task data only
  */
 
-import { CachedMetadata, Component, FileStats, ListItemCache, TFile } from "obsidian";
+import {
+	CachedMetadata,
+	Component,
+	FileStats,
+	ListItemCache,
+	TFile,
+} from "obsidian";
 import { Task, TaskParserConfig } from "../types/TaskIndex";
 import { v4 as uuidv4 } from "uuid";
 
@@ -51,9 +57,9 @@ export class TaskParser extends Component {
 	 * Parse a task from a text line and list item metadata
 	 */
 	parseTask(
-		text: string, 
-		filePath: string, 
-		lineNum: number, 
+		text: string,
+		filePath: string,
+		lineNum: number,
 		listItem?: ListItemCache
 	): Task | null {
 		// If we have list item metadata, use it to determine if this is a task
@@ -62,16 +68,18 @@ export class TaskParser extends Component {
 				// This list item is not a task
 				return null;
 			}
-            
+
 			// Get task content by removing the checkbox part
-			const contentMatch = text.match(/^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/);
+			const contentMatch = text.match(
+				/^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/
+			);
 			if (!contentMatch) return null;
-			
+
 			// Content is now in capture group 5
 			const content = contentMatch[5];
 			if (!content) return null;
-			
-			const completed = listItem.task !== ' ';
+
+			const completed = listItem.task !== " ";
 
 			// Create the task object
 			const task: Task = {
@@ -102,7 +110,7 @@ export class TaskParser extends Component {
 			// Adjust indices based on the updated regex
 			const [, , , , status, content] = match;
 			if (!content) return null;
-			
+
 			const completed = status.toLowerCase() === "x";
 
 			// Basic task info
@@ -135,21 +143,29 @@ export class TaskParser extends Component {
 	private extractDates(task: Task, content: string): void {
 		// Add more comprehensive date matching for various date formats
 		// Start date - both emoji and regular formats
-		const startDateMatch = content.match(this.startDateRegex) || 
-			content.match(/start(?:s|ed)?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
-		
+		const startDateMatch =
+			content.match(this.startDateRegex) ||
+			content.match(
+				/start(?:s|ed)?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i
+			);
+
 		if (startDateMatch) {
 			try {
 				task.startDate = new Date(startDateMatch[1]).getTime();
 			} catch (e) {
-				console.error("Failed to parse start date:", startDateMatch[1], e);
+				console.error(
+					"Failed to parse start date:",
+					startDateMatch[1],
+					e
+				);
 			}
 		}
 
 		// Due date - both emoji and regular formats
-		const dueDateMatch = content.match(this.dueDateRegex) || 
+		const dueDateMatch =
+			content.match(this.dueDateRegex) ||
 			content.match(/due(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
-		
+
 		if (dueDateMatch) {
 			try {
 				task.dueDate = new Date(dueDateMatch[1]).getTime();
@@ -159,26 +175,40 @@ export class TaskParser extends Component {
 		}
 
 		// Scheduled date - both emoji and regular formats
-		const scheduledDateMatch = content.match(this.scheduledDateRegex) || 
-			content.match(/scheduled?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
-		
+		const scheduledDateMatch =
+			content.match(this.scheduledDateRegex) ||
+			content.match(
+				/scheduled?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i
+			);
+
 		if (scheduledDateMatch) {
 			try {
 				task.scheduledDate = new Date(scheduledDateMatch[1]).getTime();
 			} catch (e) {
-				console.error("Failed to parse scheduled date:", scheduledDateMatch[1], e);
+				console.error(
+					"Failed to parse scheduled date:",
+					scheduledDateMatch[1],
+					e
+				);
 			}
 		}
 
 		// Completion date - both emoji and regular formats
-		const completedDateMatch = content.match(this.completedDateRegex) || 
-			content.match(/completed?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i);
-		
+		const completedDateMatch =
+			content.match(this.completedDateRegex) ||
+			content.match(
+				/completed?(?:\s+on)?(?:\s*:\s*|\s+)(\d{4}-\d{2}-\d{2})/i
+			);
+
 		if (completedDateMatch) {
 			try {
 				task.completedDate = new Date(completedDateMatch[1]).getTime();
 			} catch (e) {
-				console.error("Failed to parse completion date:", completedDateMatch[1], e);
+				console.error(
+					"Failed to parse completion date:",
+					completedDateMatch[1],
+					e
+				);
 			}
 		}
 	}
@@ -273,38 +303,48 @@ export class TaskParser extends Component {
 		const lines = fileContent.split("\n");
 		const tasks: Task[] = [];
 		const tasksByLine: Record<number, Task> = {};
-		
+
 		// If we have metadata with list items, use it to identify tasks
 		if (metadata?.listItems && metadata.listItems.length > 0) {
 			// Get list items that are tasks (have a task property)
-			const taskListItems = metadata.listItems.filter(item => item.task !== undefined);
-			
+			const taskListItems = metadata.listItems.filter(
+				(item) => item.task !== undefined
+			);
+
 			// Process each task list item
 			for (const listItem of taskListItems) {
 				const lineNum = listItem.position.start.line;
 				if (lineNum >= 0 && lineNum < lines.length) {
 					const line = lines[lineNum];
-					
+
 					try {
-						const task = this.parseTask(line, file.path, lineNum, listItem);
-						
+						const task = this.parseTask(
+							line,
+							file.path,
+							lineNum,
+							listItem
+						);
+
 						if (task) {
 							tasks.push(task);
 							tasksByLine[lineNum] = task;
 						}
 					} catch (error) {
-						console.error(`Error parsing task at line ${lineNum} in file ${file.path}:`, error);
+						console.error(
+							`Error parsing task at line ${lineNum} in file ${file.path}:`,
+							error
+						);
 						console.error(`Line content: "${line}"`);
 						console.error(`ListItem:`, listItem);
 					}
 				}
 			}
-			
+
 			// Build parent-child relationships using metadata
 			for (const listItem of taskListItems) {
 				const lineNum = listItem.position.start.line;
 				const task = tasksByLine[lineNum];
-				
+
 				if (task && listItem.parent >= 0) {
 					const parentTask = tasksByLine[listItem.parent];
 					if (parentTask) {
@@ -319,21 +359,24 @@ export class TaskParser extends Component {
 				const line = lines[i];
 				try {
 					const task = this.parseTask(line, file.path, i);
-					
+
 					if (task) {
 						tasks.push(task);
 						tasksByLine[i] = task;
 					}
 				} catch (error) {
-					console.error(`Error parsing task at line ${i} in file ${file.path}:`, error);
+					console.error(
+						`Error parsing task at line ${i} in file ${file.path}:`,
+						error
+					);
 					console.error(`Line content: "${line}"`);
 				}
 			}
-			
+
 			// Build parent-child relationships based on indentation
 			this.buildTaskHierarchyByIndent(tasks);
 		}
-		
+
 		return tasks;
 	}
 
@@ -344,21 +387,21 @@ export class TaskParser extends Component {
 	private buildTaskHierarchyByIndent(tasks: Task[]): void {
 		// Sort tasks by line number
 		tasks.sort((a, b) => a.line - b.line);
-		
+
 		// Build parent-child relationships based on indentation
 		for (let i = 0; i < tasks.length; i++) {
 			const currentTask = tasks[i];
 			const currentIndent = this.getIndentLevel(
 				currentTask.originalMarkdown
 			);
-			
+
 			// Look for potential parent tasks (must be before current task and have less indentation)
 			for (let j = i - 1; j >= 0; j--) {
 				const potentialParent = tasks[j];
 				const parentIndent = this.getIndentLevel(
 					potentialParent.originalMarkdown
 				);
-				
+
 				if (parentIndent < currentIndent) {
 					// Found a parent
 					currentTask.parent = potentialParent.id;

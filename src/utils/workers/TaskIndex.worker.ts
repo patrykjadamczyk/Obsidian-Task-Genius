@@ -4,14 +4,14 @@
 
 import { FileStats } from "obsidian";
 import { Task } from "../types/TaskIndex";
-import { 
-	BatchIndexCommand, 
-	BatchIndexResult, 
-	ErrorResult, 
-	IndexerCommand, 
-	IndexerResult, 
-	ParseTasksCommand, 
-	TaskParseResult 
+import {
+	BatchIndexCommand,
+	BatchIndexResult,
+	ErrorResult,
+	IndexerCommand,
+	IndexerResult,
+	ParseTasksCommand,
+	TaskParseResult,
 } from "./TaskIndexWorkerMessage";
 
 /**
@@ -26,46 +26,51 @@ const CONTEXT_REGEX = /@[\w-]+/g;
  */
 const DEFAULT_SYMBOLS = {
 	prioritySymbols: {
-		Highest: '🔺',
-		High: '⏫',
-		Medium: '🔼',
-		Low: '🔽',
-		Lowest: '⏬',
-		None: '',
+		Highest: "🔺",
+		High: "⏫",
+		Medium: "🔼",
+		Low: "🔽",
+		Lowest: "⏬",
+		None: "",
 	},
-	startDateSymbol: '🛫',
-	createdDateSymbol: '➕',
-	scheduledDateSymbol: '⏳',
-	dueDateSymbol: '📅',
-	doneDateSymbol: '✅',
-	cancelledDateSymbol: '❌',
-	recurrenceSymbol: '🔁',
-	onCompletionSymbol: '🏁',
-	dependsOnSymbol: '⛔',
-	idSymbol: '🆔',
+	startDateSymbol: "🛫",
+	createdDateSymbol: "➕",
+	scheduledDateSymbol: "⏳",
+	dueDateSymbol: "📅",
+	doneDateSymbol: "✅",
+	cancelledDateSymbol: "❌",
+	recurrenceSymbol: "🔁",
+	onCompletionSymbol: "🏁",
+	dependsOnSymbol: "⛔",
+	idSymbol: "🆔",
 };
 
 // Helper function to create date field regex
 
 function dateFieldRegex(symbols: string) {
-    return fieldRegex(symbols, '(\\d{4}-\\d{2}-\\d{2})');
+	return fieldRegex(symbols, "(\\d{4}-\\d{2}-\\d{2})");
 }
 
 function fieldRegex(symbols: string, valueRegexString: string) {
-    // \uFE0F? allows an optional Variant Selector 16 on emojis.
-    let source = symbols + '\uFE0F?';
-    if (valueRegexString !== '') {
-        source += ' *' + valueRegexString;
-    }
-    return new RegExp(source, 'u');
+	// \uFE0F? allows an optional Variant Selector 16 on emojis.
+	let source = symbols + "\uFE0F?";
+	if (valueRegexString !== "") {
+		source += " *" + valueRegexString;
+	}
+	return new RegExp(source, "u");
 }
 
 // Regular expressions for task metadata
 const START_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.startDateSymbol);
 const COMPLETED_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.doneDateSymbol);
 const DUE_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.dueDateSymbol);
-const SCHEDULED_DATE_REGEX = dateFieldRegex(DEFAULT_SYMBOLS.scheduledDateSymbol);
-const RECURRENCE_REGEX = fieldRegex(DEFAULT_SYMBOLS.recurrenceSymbol, '([a-zA-Z0-9, !]+)');
+const SCHEDULED_DATE_REGEX = dateFieldRegex(
+	DEFAULT_SYMBOLS.scheduledDateSymbol
+);
+const RECURRENCE_REGEX = fieldRegex(
+	DEFAULT_SYMBOLS.recurrenceSymbol,
+	"([a-zA-Z0-9, !]+)"
+);
 const PRIORITY_REGEX = /🔼|⏫|🔽|⏬|🔺|\[#[A-C]\]/;
 const PRIORITY_MAP: Record<string, number> = {
 	"⏫": 4, // High
@@ -240,15 +245,19 @@ function processFile(
 	try {
 		// 如果提供了 listItems 元数据，优先利用它来构建任务
 		let tasks: Task[] = [];
-		
+
 		if (metadata?.listItems && metadata.listItems.length > 0) {
 			// 使用 Obsidian 的元数据缓存来构建任务
-			tasks = parseTasksFromListItems(filePath, content, metadata.listItems);
+			tasks = parseTasksFromListItems(
+				filePath,
+				content,
+				metadata.listItems
+			);
 		} else {
 			// 回退到正则表达式解析
 			tasks = parseTasksFromContent(filePath, content);
 		}
-		
+
 		const completedTasks = tasks.filter((t) => t.completed).length;
 
 		return {
@@ -271,60 +280,66 @@ function processFile(
 /**
  * Parse tasks from Obsidian's ListItemCache
  */
-function parseTasksFromListItems(filePath: string, content: string, listItems: any[]): Task[] {
+function parseTasksFromListItems(
+	filePath: string,
+	content: string,
+	listItems: any[]
+): Task[] {
 	const tasks: Task[] = [];
 	const lines = content.split(/\r?\n/);
 	const tasksByLine: Record<number, Task> = {};
-	
+
 	// 过滤出任务项（有task属性的列表项）
-	const taskListItems = listItems.filter(item => item.task !== undefined);
-	
+	const taskListItems = listItems.filter((item) => item.task !== undefined);
+
 	// 第一步：解析所有任务
 	for (const item of taskListItems) {
 		const line = item.position?.start?.line;
 		if (line === undefined || line >= lines.length) continue;
-		
+
 		const lineContent = lines[line];
 		if (!lineContent) continue;
-		
+
 		// 提取任务内容
-		const contentMatch = lineContent.match(/^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/);
+		const contentMatch = lineContent.match(
+			/^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/
+		);
 		if (!contentMatch) continue;
-		
+
 		// 任务内容在第5个捕获组
 		const taskContent = contentMatch[5];
 		if (!taskContent) continue;
-		
+
 		// 基本任务信息
 		const task: Task = {
 			id: `${filePath}-L${line}`,
 			content: taskContent.trim(),
 			filePath,
 			line,
-			completed: item.task !== ' ', // 空格表示未完成
+			completed: item.task !== " ", // 空格表示未完成
 			originalMarkdown: lineContent,
 			tags: [],
 			children: [],
 		};
-		
+
 		// 提取元数据
 		extractDates(task, taskContent);
 		extractTags(task, taskContent);
 		extractContext(task, taskContent);
 		extractPriority(task, taskContent);
-		
+
 		tasks.push(task);
 		tasksByLine[line] = task;
 	}
-	
+
 	// 第二步：构建父子关系
 	for (const item of taskListItems) {
 		const line = item.position?.start?.line;
 		if (line === undefined) continue;
-		
+
 		const task = tasksByLine[line];
 		if (!task) continue;
-		
+
 		// 如果parent是正数，表示父项的行号
 		if (item.parent >= 0) {
 			const parentTask = tasksByLine[item.parent];
@@ -334,7 +349,7 @@ function parseTasksFromListItems(filePath: string, content: string, listItems: a
 			}
 		}
 	}
-	
+
 	return tasks;
 }
 
@@ -397,8 +412,9 @@ self.onmessage = async (event) => {
 			} catch (error) {
 				self.postMessage({
 					type: "error",
-					error: error instanceof Error ? error.message : String(error),
-					filePath: message.filePath
+					error:
+						error instanceof Error ? error.message : String(error),
+					filePath: message.filePath,
 				} as ErrorResult);
 			}
 		} else if (message.type === "batchIndex") {
@@ -417,4 +433,3 @@ self.onmessage = async (event) => {
 		} as ErrorResult);
 	}
 };
-

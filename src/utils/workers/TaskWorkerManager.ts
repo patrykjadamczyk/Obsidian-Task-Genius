@@ -2,7 +2,13 @@
  * Manager for task indexing web workers
  */
 
-import { Component, ListItemCache, MetadataCache, TFile, Vault } from "obsidian";
+import {
+	Component,
+	ListItemCache,
+	MetadataCache,
+	TFile,
+	Vault,
+} from "obsidian";
 import { Task } from "../types/TaskIndex";
 import {
 	ErrorResult,
@@ -44,9 +50,9 @@ export const DEFAULT_WORKER_OPTIONS: WorkerPoolOptions = {
  * Task priority levels
  */
 enum TaskPriority {
-	HIGH = 0,   // 高优先级 - 用于初始化和用户交互任务
+	HIGH = 0, // 高优先级 - 用于初始化和用户交互任务
 	NORMAL = 1, // 普通优先级 - 用于标准的文件索引更新
-	LOW = 2,    // 低优先级 - 用于批量后台任务
+	LOW = 2, // 低优先级 - 用于批量后台任务
 }
 
 /**
@@ -123,7 +129,11 @@ export class TaskWorkerManager extends Component {
 	/**
 	 * Create a new worker pool
 	 */
-	constructor(vault: Vault, metadataCache: MetadataCache, options: Partial<WorkerPoolOptions> = {}) {
+	constructor(
+		vault: Vault,
+		metadataCache: MetadataCache,
+		options: Partial<WorkerPoolOptions> = {}
+	) {
 		super();
 		this.options = { ...DEFAULT_WORKER_OPTIONS, ...options };
 		this.vault = vault;
@@ -174,23 +184,33 @@ export class TaskWorkerManager extends Component {
 			availableAt: Date.now(),
 		};
 
-		worker.worker.onmessage = (evt: MessageEvent) => this.finish(worker, evt.data);
+		worker.worker.onmessage = (evt: MessageEvent) =>
+			this.finish(worker, evt.data);
 		worker.worker.onerror = (event: ErrorEvent) => {
 			console.error("Worker error:", event);
-			
+
 			// If there's an active task, retry or reject it
 			if (worker.active) {
 				const [file, promise, retries, priority] = worker.active;
-				
+
 				if (retries < this.maxRetries) {
 					// Retry the task
-					this.log(`Retrying task for ${file.path} (attempt ${retries + 1})`);
-					this.queueTaskWithPriority(file, promise, priority, retries + 1);
+					this.log(
+						`Retrying task for ${file.path} (attempt ${
+							retries + 1
+						})`
+					);
+					this.queueTaskWithPriority(
+						file,
+						promise,
+						priority,
+						retries + 1
+					);
 				} else {
 					// Max retries reached, reject the promise
 					promise.reject("Worker error after max retries");
 				}
-				
+
 				worker.active = undefined;
 				this.schedule();
 			}
@@ -202,28 +222,36 @@ export class TaskWorkerManager extends Component {
 	/**
 	 * Process a single file for tasks
 	 */
-	public processFile(file: TFile, priority: TaskPriority = TaskPriority.NORMAL): Promise<Task[]> {
+	public processFile(
+		file: TFile,
+		priority: TaskPriority = TaskPriority.NORMAL
+	): Promise<Task[]> {
 		// De-bounce repeated requests for the same file
 		let existing = this.outstanding.get(file.path);
 		if (existing) return existing;
 
 		let promise = deferred<Task[]>();
 		this.outstanding.set(file.path, promise);
-		
+
 		this.queueTaskWithPriority(file, promise, priority);
 		return promise;
 	}
-	
+
 	/**
 	 * Queue a task with specified priority
 	 */
-	private queueTaskWithPriority(file: TFile, promise: Deferred<Task[]>, priority: TaskPriority, retries: number = 0): void {
+	private queueTaskWithPriority(
+		file: TFile,
+		promise: Deferred<Task[]>,
+		priority: TaskPriority,
+		retries: number = 0
+	): void {
 		this.queues[priority].enqueue({
 			file,
 			promise,
-			priority
+			priority,
 		});
-		
+
 		// If this is the first retry, schedule immediately
 		if (retries === 0) {
 			this.schedule();
@@ -233,60 +261,67 @@ export class TaskWorkerManager extends Component {
 	/**
 	 * Process multiple files in a batch
 	 */
-	public async processBatch(files: TFile[], priority: TaskPriority = TaskPriority.HIGH): Promise<Map<string, Task[]>> {
+	public async processBatch(
+		files: TFile[],
+		priority: TaskPriority = TaskPriority.HIGH
+	): Promise<Map<string, Task[]>> {
 		if (files.length === 0) {
 			return new Map<string, Task[]>();
 		}
-		
+
 		this.isProcessingBatch = true;
 		this.processedFiles = 0;
 		this.totalFilesToProcess = files.length;
-		
+
 		this.log(`Processing batch of ${files.length} files`);
-		
+
 		// 创建一个结果映射
 		const resultMap = new Map<string, Task[]>();
-		
+
 		// 将文件分成更小的批次，避免一次性提交太多任务
 		const subBatchSize = 10;
-		
+
 		for (let i = 0; i < files.length; i += subBatchSize) {
 			const subBatch = files.slice(i, i + subBatchSize);
-			
+
 			// 为每个文件创建Promise
 			const promises: Promise<Task[]>[] = [];
-			
+
 			// 队列每个文件供处理，使用指定的优先级
 			for (const file of subBatch) {
 				promises.push(this.processFile(file, priority));
 			}
-			
+
 			// 等待所有子批次文件处理完成
 			try {
 				const results = await Promise.all(promises);
-				
+
 				// 将结果添加到结果映射
 				subBatch.forEach((file, index) => {
 					resultMap.set(file.path, results[index]);
 				});
-				
+
 				// 更新进度
 				this.processedFiles += subBatch.length;
-				const progress = Math.round((this.processedFiles / this.totalFilesToProcess) * 100);
+				const progress = Math.round(
+					(this.processedFiles / this.totalFilesToProcess) * 100
+				);
 				if (progress % 10 === 0) {
-					this.log(`Batch progress: ${progress}% (${this.processedFiles}/${this.totalFilesToProcess})`);
+					this.log(
+						`Batch progress: ${progress}% (${this.processedFiles}/${this.totalFilesToProcess})`
+					);
 				}
-				
+
 				// 在批次间稍作等待，避免阻塞UI
 				if (i + subBatchSize < files.length) {
-					await new Promise(resolve => setTimeout(resolve, 5));
+					await new Promise((resolve) => setTimeout(resolve, 5));
 				}
 			} catch (error) {
 				console.error(`Error processing sub-batch:`, error);
 				// 继续处理下一个子批次
 			}
 		}
-		
+
 		this.isProcessingBatch = false;
 		this.log(`Completed batch processing of ${files.length} files`);
 		return resultMap;
@@ -298,10 +333,10 @@ export class TaskWorkerManager extends Component {
 	private async getTaskMetadata(file: TFile): Promise<TaskMetadata> {
 		// Get file content
 		const content = await this.vault.cachedRead(file);
-		
+
 		// Get file metadata from Obsidian cache
 		const fileCache = this.metadataCache.getFileCache(file);
-		
+
 		return {
 			listItems: fileCache?.listItems,
 			content,
@@ -309,7 +344,7 @@ export class TaskWorkerManager extends Component {
 				ctime: file.stat.ctime,
 				mtime: file.stat.mtime,
 				size: file.stat.size,
-			}
+			},
 		};
 	}
 
@@ -318,19 +353,19 @@ export class TaskWorkerManager extends Component {
 	 */
 	private schedule(): void {
 		if (!this.active) return;
-		
+
 		// 检查所有队列，按优先级从高到低获取任务
 		let queueItem: QueueItem | undefined;
-		
+
 		for (let priority = 0; priority < this.queues.length; priority++) {
 			if (!this.queues[priority].isEmpty()) {
 				queueItem = this.queues[priority].dequeue();
 				break;
 			}
 		}
-		
+
 		if (!queueItem) return; // 所有队列都为空
-		
+
 		const worker = this.availableWorker();
 		if (!worker) {
 			// 没有可用的工作线程，将任务重新入队
@@ -342,38 +377,42 @@ export class TaskWorkerManager extends Component {
 		worker.active = [file, promise, 0, priority]; // 0 表示重试次数
 
 		try {
-			this.getTaskMetadata(file).then(metadata => {
-				const command: ParseTasksCommand = {
-					type: "parseTasks",
-					filePath: file.path,
-					content: metadata.content,
-					stats: metadata.stats,
-					metadata: {
-						listItems: metadata.listItems || [],
-						fileCache: this.metadataCache.getFileCache(file) || undefined
-					}
-				};
-				
-				worker.worker.postMessage(command);
-			}).catch(error => {
-				console.error(`Error reading file ${file.path}:`, error);
-				promise.reject(error);
-				worker.active = undefined;
-				
-				// 移除未完成的任务
-				this.outstanding.delete(file.path);
-				
-				// 处理下一个任务
-				this.schedule();
-			});
+			this.getTaskMetadata(file)
+				.then((metadata) => {
+					const command: ParseTasksCommand = {
+						type: "parseTasks",
+						filePath: file.path,
+						content: metadata.content,
+						stats: metadata.stats,
+						metadata: {
+							listItems: metadata.listItems || [],
+							fileCache:
+								this.metadataCache.getFileCache(file) ||
+								undefined,
+						},
+					};
+
+					worker.worker.postMessage(command);
+				})
+				.catch((error) => {
+					console.error(`Error reading file ${file.path}:`, error);
+					promise.reject(error);
+					worker.active = undefined;
+
+					// 移除未完成的任务
+					this.outstanding.delete(file.path);
+
+					// 处理下一个任务
+					this.schedule();
+				});
 		} catch (error) {
 			console.error(`Error processing file ${file.path}:`, error);
 			promise.reject(error);
 			worker.active = undefined;
-			
+
 			// 移除未完成的任务
 			this.outstanding.delete(file.path);
-			
+
 			// 处理下一个任务
 			this.schedule();
 		}
@@ -384,10 +423,7 @@ export class TaskWorkerManager extends Component {
 	 */
 	private finish(worker: PoolWorker, data: IndexerResult): void {
 		if (!worker.active) {
-			console.log(
-				"Received a stale worker message. Ignoring.",
-				data
-			);
+			console.log("Received a stale worker message. Ignoring.", data);
 			return;
 		}
 
@@ -397,10 +433,17 @@ export class TaskWorkerManager extends Component {
 		if (data.type === "error") {
 			// 错误处理 - 如果没有超过重试次数，重试
 			const errorResult = data as ErrorResult;
-			
+
 			if (retries < this.maxRetries) {
-				this.log(`Retrying task for ${file.path} due to error: ${errorResult.error}`);
-				this.queueTaskWithPriority(file, promise, priority, retries + 1);
+				this.log(
+					`Retrying task for ${file.path} due to error: ${errorResult.error}`
+				);
+				this.queueTaskWithPriority(
+					file,
+					promise,
+					priority,
+					retries + 1
+				);
 			} else {
 				promise.reject(new Error(errorResult.error));
 				this.outstanding.delete(file.path);
@@ -411,10 +454,14 @@ export class TaskWorkerManager extends Component {
 			this.outstanding.delete(file.path);
 		} else if (data.type === "batchResult") {
 			// For batch results, we handle differently as we don't have tasks directly
-			promise.reject(new Error("Batch results should be handled by processBatch"));
+			promise.reject(
+				new Error("Batch results should be handled by processBatch")
+			);
 			this.outstanding.delete(file.path);
 		} else {
-			promise.reject(new Error(`Unexpected result type: ${(data as any).type}`));
+			promise.reject(
+				new Error(`Unexpected result type: ${(data as any).type}`)
+			);
 			this.outstanding.delete(file.path);
 		}
 
@@ -425,7 +472,7 @@ export class TaskWorkerManager extends Component {
 		} else {
 			// Calculate delay based on CPU utilization target
 			const now = Date.now();
-			const processingTime = worker.active ? (now - worker.availableAt) : 0;
+			const processingTime = worker.active ? now - worker.availableAt : 0;
 			const throttle = Math.max(0.1, this.options.cpuUtilization) - 1.0;
 			const delay = Math.max(0, processingTime * throttle);
 
@@ -446,7 +493,7 @@ export class TaskWorkerManager extends Component {
 	 */
 	private availableWorker(): PoolWorker | undefined {
 		const now = Date.now();
-		
+
 		// Find a worker that's not busy and is available
 		for (const worker of this.workers.values()) {
 			if (!worker.active && worker.availableAt <= now) {
@@ -469,12 +516,12 @@ export class TaskWorkerManager extends Component {
 	 */
 	private terminate(worker: PoolWorker): void {
 		worker.worker.terminate();
-		
+
 		if (worker.active) {
 			worker.active[1].reject("Terminated");
 			worker.active = undefined;
 		}
-		
+
 		this.log(`Terminated worker #${worker.id}`);
 	}
 
@@ -521,20 +568,28 @@ export class TaskWorkerManager extends Component {
 	public getPendingTaskCount(): number {
 		return this.queues.reduce((total, queue) => total + queue.size(), 0);
 	}
-	
+
 	/**
 	 * Get the current batch processing progress
 	 */
-	public getBatchProgress(): { current: number, total: number, percentage: number } {
+	public getBatchProgress(): {
+		current: number;
+		total: number;
+		percentage: number;
+	} {
 		return {
 			current: this.processedFiles,
 			total: this.totalFilesToProcess,
-			percentage: this.totalFilesToProcess > 0 
-				? Math.round((this.processedFiles / this.totalFilesToProcess) * 100) 
-				: 0
+			percentage:
+				this.totalFilesToProcess > 0
+					? Math.round(
+							(this.processedFiles / this.totalFilesToProcess) *
+								100
+					  )
+					: 0,
 		};
 	}
-	
+
 	/**
 	 * Check if the worker pool is currently processing a batch
 	 */
