@@ -1,17 +1,86 @@
-import { Component, ExtraButtonComponent, TFile } from "obsidian";
+import {
+	Component,
+	ExtraButtonComponent,
+	TFile,
+	ButtonComponent,
+	DropdownComponent,
+	TextComponent,
+	moment,
+	App,
+	Menu,
+	debounce,
+} from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
+import TaskProgressBarPlugin from "../../index";
+import { TaskProgressBarSettings } from "../../common/setting-definition";
+import "../../styles/task-details.css";
+
+function getStatus(task: Task, settings: TaskProgressBarSettings) {
+	const status = Object.keys(settings.taskStatuses).find((key) => {
+		return settings.taskStatuses[key as keyof typeof settings.taskStatuses]
+			.split("|")
+			.includes(task.status);
+	});
+
+	const statusTextMap = {
+		notStarted: "Not Started",
+		abandoned: "Abandoned",
+		planned: "Planned",
+		completed: "Completed",
+		inProgress: "In Progress",
+	};
+
+	return statusTextMap[status as keyof typeof statusTextMap] || "No status";
+}
+
+function getStatusText(status: string, settings: TaskProgressBarSettings) {
+	const statusTextMap = {
+		notStarted: "Not Started",
+		abandoned: "Abandoned",
+		planned: "Planned",
+		completed: "Completed",
+		inProgress: "In Progress",
+	};
+
+	return statusTextMap[status as keyof typeof statusTextMap] || "No status";
+}
+
+function createTaskCheckbox(
+	status: string,
+	task: Task,
+	container: HTMLElement
+) {
+	const checkbox = container.createEl("input", {
+		cls: "task-list-item-checkbox",
+		type: "checkbox",
+		attr: {
+			disabled: status === task.status,
+		},
+	});
+	checkbox.dataset.task = status;
+	if (status !== " ") {
+		checkbox.checked = true;
+	}
+}
 
 export class TaskDetailsComponent extends Component {
 	public containerEl: HTMLElement;
 	private contentEl: HTMLElement;
 	private currentTask: Task | null = null;
 	private isVisible: boolean = true;
+	private isEditing: boolean = false;
+	private editFormEl: HTMLElement | null = null;
 
 	// Events
 	public onTaskEdit: (task: Task) => void;
+	public onTaskUpdate: (task: Task, updatedTask: Task) => Promise<void>;
 	public onTaskToggleComplete: (task: Task) => void;
 
-	constructor(private parentEl: HTMLElement, private app: any) {
+	constructor(
+		private parentEl: HTMLElement,
+		private app: App,
+		private plugin: TaskProgressBarPlugin
+	) {
 		super();
 	}
 
@@ -39,9 +108,8 @@ export class TaskDetailsComponent extends Component {
 			return;
 		}
 
-		console.log(task);
-
 		this.currentTask = task;
+		this.isEditing = false;
 
 		// Clear existing content
 		this.containerEl.empty();
@@ -70,9 +138,84 @@ export class TaskDetailsComponent extends Component {
 		nameEl.setText(task.content);
 
 		// Task status
-		const statusEl = this.contentEl.createDiv({ cls: "details-status" });
-		const statusText = task.completed ? "Completed" : "Incomplete";
-		statusEl.setText(statusText);
+		this.contentEl.createDiv({ cls: "details-status-container" }, (el) => {
+			const labelEl = el.createDiv({ cls: "details-status-label" });
+			labelEl.setText("Status");
+
+			const statusEl = el.createDiv({ cls: "details-status" });
+			statusEl.setText(getStatus(task, this.plugin.settings));
+		});
+
+		this.contentEl.createDiv({ cls: "details-status-selector" }, (el) => {
+			const allStatuses = Object.keys(
+				this.plugin.settings.taskStatuses
+			).map((status) => {
+				return this.plugin.settings.taskStatuses[
+					status as keyof typeof this.plugin.settings.taskStatuses
+				].split("|")[0]; // Get the first status from each group
+			});
+
+			// Create five side-by-side status elements
+			allStatuses.forEach((status) => {
+				const statusEl = el.createEl("div", {
+					cls:
+						"status-option" +
+						(status === task.status ? " current-status" : ""),
+					attr: {
+						"aria-label": getStatus(task, this.plugin.settings),
+					},
+				});
+
+				// Create checkbox-like element for the status
+				createTaskCheckbox(status, task, statusEl);
+			});
+
+			const moreStatus = el.createEl("div", {
+				cls: "more-status",
+			});
+			const moreStatusBtn = new ExtraButtonComponent(moreStatus)
+				.setIcon("ellipsis")
+				.onClick(() => {
+					const menu = new Menu();
+					for (const status of Object.keys(
+						this.plugin.settings.taskStatusMarks
+					)) {
+						menu.addItem((item) => {
+							item.titleEl.createEl(
+								"span",
+								{
+									cls: "status-option-checkbox",
+								},
+								(el) => {
+									createTaskCheckbox(status, task, el);
+								}
+							);
+							item.titleEl.createEl("span", {
+								cls: "status-option",
+								text: status,
+							});
+							console.log(item);
+							item.onClick(() => {
+								this.onTaskUpdate(task, {
+									...task,
+									status: this.plugin.settings
+										.taskStatusMarks[
+										status as keyof typeof this.plugin.settings.taskStatusMarks
+									],
+								});
+							});
+						});
+					}
+					const rect =
+						moreStatusBtn.extraSettingsEl?.getBoundingClientRect();
+					if (rect) {
+						menu.showAtPosition({
+							x: rect.left,
+							y: rect.bottom + 10,
+						});
+					}
+				});
+		});
 
 		// Task metadata
 		const metaEl = this.contentEl.createDiv({ cls: "details-metadata" });
@@ -90,6 +233,13 @@ export class TaskDetailsComponent extends Component {
 		if (task.startDate) {
 			const startDateText = new Date(task.startDate).toLocaleDateString();
 			this.addMetadataField(metaEl, "Start Date", startDateText);
+		}
+
+		if (task.scheduledDate) {
+			const scheduledDateText = new Date(
+				task.scheduledDate
+			).toLocaleDateString();
+			this.addMetadataField(metaEl, "Scheduled Date", scheduledDateText);
 		}
 
 		if (task.completedDate) {
@@ -117,19 +267,26 @@ export class TaskDetailsComponent extends Component {
 			this.addMetadataField(metaEl, "Context", task.context);
 		}
 
+		if (task.recurrence) {
+			this.addMetadataField(metaEl, "Recurrence", task.recurrence);
+		}
+
 		// Task file location
 		this.addMetadataField(metaEl, "File", task.filePath);
 
-		// Add edit controls
+		// Add action controls
 		const actionsEl = this.contentEl.createDiv({ cls: "details-actions" });
 
-		// Edit button
-		const editBtn = actionsEl.createEl("button", {
-			cls: "details-edit-btn",
-		});
-		editBtn.setText("Edit Task");
+		// Edit in panel button
+		this.showEditForm(task);
 
-		this.registerDomEvent(editBtn, "click", () => {
+		// Edit in file button
+		const editInFileBtn = actionsEl.createEl("button", {
+			cls: "details-edit-file-btn",
+		});
+		editInFileBtn.setText("Edit in File");
+
+		this.registerDomEvent(editInFileBtn, "click", () => {
 			if (this.onTaskEdit) {
 				this.onTaskEdit(task);
 			} else {
@@ -148,6 +305,276 @@ export class TaskDetailsComponent extends Component {
 				this.onTaskToggleComplete(task);
 			}
 		});
+	}
+
+	private showEditForm(task: Task) {
+		if (!task) return;
+
+		this.isEditing = true;
+
+		// Create edit form
+		this.editFormEl = this.contentEl.createDiv({
+			cls: "details-edit-form",
+		});
+
+		// Task content/title
+		const contentField = this.createFormField(
+			this.editFormEl,
+			"Task Title"
+		);
+		const contentInput = new TextComponent(contentField);
+		contentInput.setValue(task.content);
+		contentInput.inputEl.addClass("details-edit-content");
+
+		// Project dropdown
+		const projectField = this.createFormField(this.editFormEl, "Project");
+		const projectInput = new TextComponent(projectField);
+		projectInput.setValue(task.project || "");
+
+		// Tags field
+		const tagsField = this.createFormField(this.editFormEl, "Tags");
+		const tagsInput = new TextComponent(tagsField);
+		tagsInput.setValue(task.tags ? task.tags.join(", ") : "");
+		tagsField
+			.createSpan({ cls: "field-description" })
+			.setText("Comma separated");
+
+		// Context field
+		const contextField = this.createFormField(this.editFormEl, "Context");
+		const contextInput = new TextComponent(contextField);
+		contextInput.setValue(task.context || "");
+
+		// Priority dropdown
+		const priorityField = this.createFormField(this.editFormEl, "Priority");
+		const priorityDropdown = new DropdownComponent(priorityField);
+		priorityDropdown.addOption("", "None");
+		priorityDropdown.addOption("1", "Low");
+		priorityDropdown.addOption("2", "Medium");
+		priorityDropdown.addOption("3", "High");
+		if (task.priority) {
+			priorityDropdown.setValue(task.priority.toString());
+		} else {
+			priorityDropdown.setValue("");
+		}
+
+		// Due date
+		const dueDateField = this.createFormField(this.editFormEl, "Due Date");
+		const dueDateInput = new TextComponent(dueDateField);
+		if (task.dueDate) {
+			dueDateInput.setValue(moment(task.dueDate).format("YYYY-MM-DD"));
+		}
+		dueDateField
+			.createSpan({ cls: "field-description" })
+			.setText("YYYY-MM-DD");
+
+		// Start date
+		const startDateField = this.createFormField(
+			this.editFormEl,
+			"Start Date"
+		);
+		const startDateInput = new TextComponent(startDateField);
+		if (task.startDate) {
+			startDateInput.setValue(
+				moment(task.startDate).format("YYYY-MM-DD")
+			);
+		}
+		startDateField
+			.createSpan({ cls: "field-description" })
+			.setText("YYYY-MM-DD");
+
+		// Scheduled date
+		const scheduledDateField = this.createFormField(
+			this.editFormEl,
+			"Scheduled Date"
+		);
+		const scheduledDateInput = new TextComponent(scheduledDateField);
+		if (task.scheduledDate) {
+			scheduledDateInput.setValue(
+				moment(task.scheduledDate).format("YYYY-MM-DD")
+			);
+		}
+		scheduledDateField
+			.createSpan({ cls: "field-description" })
+			.setText("YYYY-MM-DD");
+
+		// Recurrence pattern
+		const recurrenceField = this.createFormField(
+			this.editFormEl,
+			"Recurrence"
+		);
+		const recurrenceInput = new TextComponent(recurrenceField);
+		recurrenceInput.setValue(task.recurrence || "");
+		recurrenceField
+			.createSpan({ cls: "field-description" })
+			.setText("e.g. every day, every 2 weeks");
+
+		// Create a debounced save function
+		const saveTask = debounce(async () => {
+			// Create updated task object
+			const updatedTask: Task = { ...task };
+
+			// Update task properties
+			updatedTask.content = contentInput.getValue();
+			updatedTask.project = projectInput.getValue() || undefined;
+
+			// Parse tags
+			const tagsValue = tagsInput.getValue();
+			updatedTask.tags = tagsValue
+				? tagsValue
+						.split(",")
+						.map((tag) => tag.trim())
+						.filter((tag) => tag)
+				: [];
+
+			updatedTask.context = contextInput.getValue() || undefined;
+
+			// Parse priority
+			const priorityValue = priorityDropdown.getValue();
+			updatedTask.priority = priorityValue
+				? parseInt(priorityValue)
+				: undefined;
+
+			// Parse dates
+			const dueDateValue = dueDateInput.getValue();
+			updatedTask.dueDate = dueDateValue
+				? moment(dueDateValue, "YYYY-MM-DD").valueOf()
+				: undefined;
+
+			const startDateValue = startDateInput.getValue();
+			updatedTask.startDate = startDateValue
+				? moment(startDateValue, "YYYY-MM-DD").valueOf()
+				: undefined;
+
+			const scheduledDateValue = scheduledDateInput.getValue();
+			updatedTask.scheduledDate = scheduledDateValue
+				? moment(scheduledDateValue, "YYYY-MM-DD").valueOf()
+				: undefined;
+
+			updatedTask.recurrence = recurrenceInput.getValue() || undefined;
+
+			// Call the update callback
+			if (this.onTaskUpdate) {
+				try {
+					await this.onTaskUpdate(task, updatedTask);
+
+					// Update the current task reference but don't redraw the UI
+					this.currentTask = updatedTask;
+				} catch (error) {
+					console.error("Failed to update task:", error);
+					// TODO: Show error message to user
+				}
+			}
+		}, 800); // 800ms debounce time
+
+		// Register blur events for all input elements
+		const registerBlurEvent = (
+			el: HTMLInputElement | HTMLSelectElement
+		) => {
+			this.registerDomEvent(el, "blur", () => {
+				saveTask();
+			});
+		};
+
+		// Register all input elements
+		registerBlurEvent(contentInput.inputEl);
+		registerBlurEvent(projectInput.inputEl);
+		registerBlurEvent(tagsInput.inputEl);
+		registerBlurEvent(contextInput.inputEl);
+		registerBlurEvent(priorityDropdown.selectEl);
+		registerBlurEvent(dueDateInput.inputEl);
+		registerBlurEvent(startDateInput.inputEl);
+		registerBlurEvent(scheduledDateInput.inputEl);
+		registerBlurEvent(recurrenceInput.inputEl);
+
+		// Buttons
+		const buttonsEl = this.editFormEl.createDiv({
+			cls: "details-form-buttons",
+		});
+
+		// Save button - still keep it for explicit saves
+		// const saveBtn = new ButtonComponent(buttonsEl);
+		// saveBtn.setButtonText("Save Changes").setCta();
+		// saveBtn.onClick(async () => {
+		// 	// Cancel any pending debounced saves
+		// 	saveTask.cancel();
+
+		// 	// Create updated task object
+		// 	const updatedTask: Task = { ...task };
+
+		// 	// Update task properties
+		// 	updatedTask.content = contentInput.getValue();
+		// 	updatedTask.project = projectInput.getValue() || undefined;
+
+		// 	// Parse tags
+		// 	const tagsValue = tagsInput.getValue();
+		// 	updatedTask.tags = tagsValue
+		// 		? tagsValue
+		// 				.split(",")
+		// 				.map((tag) => tag.trim())
+		// 				.filter((tag) => tag)
+		// 		: [];
+
+		// 	updatedTask.context = contextInput.getValue() || undefined;
+
+		// 	// Parse priority
+		// 	const priorityValue = priorityDropdown.getValue();
+		// 	updatedTask.priority = priorityValue
+		// 		? parseInt(priorityValue)
+		// 		: undefined;
+
+		// 	// Parse dates
+		// 	const dueDateValue = dueDateInput.getValue();
+		// 	updatedTask.dueDate = dueDateValue
+		// 		? moment(dueDateValue, "YYYY-MM-DD").valueOf()
+		// 		: undefined;
+
+		// 	const startDateValue = startDateInput.getValue();
+		// 	updatedTask.startDate = startDateValue
+		// 		? moment(startDateValue, "YYYY-MM-DD").valueOf()
+		// 		: undefined;
+
+		// 	const scheduledDateValue = scheduledDateInput.getValue();
+		// 	updatedTask.scheduledDate = scheduledDateValue
+		// 		? moment(scheduledDateValue, "YYYY-MM-DD").valueOf()
+		// 		: undefined;
+
+		// 	updatedTask.recurrence = recurrenceInput.getValue() || undefined;
+
+		// 	// Call the update callback
+		// 	if (this.onTaskUpdate) {
+		// 		try {
+		// 			await this.onTaskUpdate(task, updatedTask);
+
+		// 			// Show the updated task details
+		// 			this.showTaskDetails(updatedTask);
+		// 		} catch (error) {
+		// 			console.error("Failed to update task:", error);
+		// 			// TODO: Show error message to user
+		// 		}
+		// 	}
+		// });
+
+		// // Cancel button
+		// const cancelBtn = new ButtonComponent(buttonsEl);
+		// cancelBtn.setButtonText("Cancel");
+		// cancelBtn.onClick(() => {
+		// 	// Cancel any pending debounced saves
+		// 	saveTask.cancel();
+
+		// 	// Revert back to view mode
+		// 	this.setVisible(false);
+		// });
+	}
+
+	private createFormField(
+		container: HTMLElement,
+		label: string
+	): HTMLElement {
+		const fieldEl = container.createDiv({ cls: "details-form-field" });
+
+		fieldEl.createDiv({ cls: "details-form-label" }).setText(label);
+
+		return fieldEl.createDiv({ cls: "details-form-input" });
 	}
 
 	private addMetadataField(
@@ -203,6 +630,10 @@ export class TaskDetailsComponent extends Component {
 
 	public getCurrentTask(): Task | null {
 		return this.currentTask;
+	}
+
+	public isCurrentlyEditing(): boolean {
+		return this.isEditing;
 	}
 
 	onunload() {

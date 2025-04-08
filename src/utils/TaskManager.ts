@@ -727,6 +727,188 @@ export class TaskManager extends Component {
 	}
 
 	/**
+	 * Update an existing task
+	 * This method updates both the task index and the task in the file
+	 */
+	public async updateTask(updatedTask: Task): Promise<void> {
+		// Get the original task to compare changes
+		const originalTask = this.indexer.getTaskById(updatedTask.id);
+		if (!originalTask) {
+			throw new Error(`Task with ID ${updatedTask.id} not found`);
+		}
+
+		try {
+			// Get the file from the vault
+			const file = this.vault.getAbstractFileByPath(updatedTask.filePath);
+			if (!(file instanceof TFile)) {
+				throw new Error(`File not found: ${updatedTask.filePath}`);
+			}
+
+			// Read the file content
+			const content = await this.vault.read(file);
+			const lines = content.split("\n");
+
+			// Get the line with the task
+			const taskLine = lines[updatedTask.line];
+			if (!taskLine) {
+				throw new Error(
+					`Task line ${updatedTask.line} not found in file ${updatedTask.filePath}`
+				);
+			}
+
+			// Build the updated task line
+			let updatedLine = taskLine;
+
+			// Update the task content (description)
+			if (originalTask.content !== updatedTask.content) {
+				// Replace the content part after the checkbox
+				// This regex looks for the checkbox pattern and preserves it
+				updatedLine = updatedLine.replace(
+					/(\s*[-*+]\s*\[[^\]]*\]\s*).*$/,
+					`$1${updatedTask.content}`
+				);
+			}
+
+			// Update completion status if changed
+			if (originalTask.completed !== updatedTask.completed) {
+				const statusMark = updatedTask.completed ? "x" : " ";
+				updatedLine = updatedLine.replace(
+					/(\s*[-*+]\s*\[)[^\]]*(\]\s*)/,
+					`$1${statusMark}$2`
+				);
+			}
+
+			// Helper function to add or update a property in the task line
+			const updateTaskProperty = (
+				line: string,
+				property: string,
+				value: string | undefined,
+				originalValue: string | undefined
+			): string => {
+				if (value === originalValue) return line; // No change needed
+
+				const propertyPattern = new RegExp(
+					`\\s+${property}:\\s*[^\\s]+`
+				);
+
+				if (!value) {
+					// Remove the property if the new value is empty/undefined
+					return line.replace(propertyPattern, "");
+				} else if (propertyPattern.test(line)) {
+					// Update existing property
+					return line.replace(
+						propertyPattern,
+						` ${property}: ${value}`
+					);
+				} else {
+					// Add new property at the end of the line
+					return `${line} ${property}: ${value}`;
+				}
+			};
+
+			// Update project
+			updatedLine = updateTaskProperty(
+				updatedLine,
+				"project",
+				updatedTask.project,
+				originalTask.project
+			);
+
+			// Format date to string in YYYY-MM-DD format
+			const formatDate = (
+				date: number | undefined
+			): string | undefined => {
+				if (!date) return undefined;
+				const d = new Date(date);
+				return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+					2,
+					"0"
+				)}-${String(d.getDate()).padStart(2, "0")}`;
+			};
+
+			// Update dates
+			updatedLine = updateTaskProperty(
+				updatedLine,
+				"due",
+				formatDate(updatedTask.dueDate),
+				formatDate(originalTask.dueDate)
+			);
+
+			updatedLine = updateTaskProperty(
+				updatedLine,
+				"start",
+				formatDate(updatedTask.startDate),
+				formatDate(originalTask.startDate)
+			);
+
+			updatedLine = updateTaskProperty(
+				updatedLine,
+				"scheduled",
+				formatDate(updatedTask.scheduledDate),
+				formatDate(originalTask.scheduledDate)
+			);
+
+			// Update context and tags
+			// For simplicity, we'll just handle context directly
+			updatedLine = updateTaskProperty(
+				updatedLine,
+				"context",
+				updatedTask.context,
+				originalTask.context
+			);
+
+			// Update priority
+			if (updatedTask.priority !== originalTask.priority) {
+				// Remove existing priority
+				updatedLine = updatedLine.replace(/\s+\[\!+\]/g, "");
+
+				// Add new priority if set
+				if (updatedTask.priority) {
+					const priorityMarkers = "!".repeat(updatedTask.priority);
+					updatedLine = `${updatedLine} [${priorityMarkers}]`;
+				}
+			}
+
+			// Update recurrence
+			updatedLine = updateTaskProperty(
+				updatedLine,
+				"repeat",
+				updatedTask.recurrence,
+				originalTask.recurrence
+			);
+
+			// Update the line in the file
+			if (updatedLine !== taskLine) {
+				lines[updatedTask.line] = updatedLine;
+				await this.vault.modify(file, lines.join("\n"));
+			}
+
+			// Update the task in the indexer
+			// We'll temporarily update the task in memory and then reindex the file
+			// to ensure all indices are properly updated
+			this.indexer.updateIndexWithTasks(updatedTask.filePath, [
+				updatedTask,
+			]);
+
+			// Store in cache
+			await this.persister.storeFile(updatedTask.filePath, [updatedTask]);
+
+			// Trigger the task update event
+			this.app.workspace.trigger(
+				"task-genius:task-cache-updated",
+				this.indexer.getCache()
+			);
+
+			this.log(
+				`Updated task ${updatedTask.id} in file ${updatedTask.filePath}`
+			);
+		} catch (error) {
+			console.error("Error updating task:", error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Force reindex all tasks by clearing all current indices and rebuilding from scratch
 	 */
 	public async forceReindex(): Promise<void> {

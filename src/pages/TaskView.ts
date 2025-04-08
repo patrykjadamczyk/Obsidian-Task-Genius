@@ -5,6 +5,7 @@ import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";
 import { TaskDetailsComponent } from "../components/task-view/details";
 import "../styles/view.css";
+import TaskProgressBarPlugin from "../index";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -28,7 +29,7 @@ export class TaskView extends ItemView {
 	// Data management
 	private tasks: Task[] = [];
 
-	constructor(leaf: WorkspaceLeaf, private plugin: Plugin) {
+	constructor(leaf: WorkspaceLeaf, private plugin: TaskProgressBarPlugin) {
 		super(leaf);
 	}
 
@@ -89,7 +90,8 @@ export class TaskView extends ItemView {
 		// Create the details component
 		this.detailsComponent = new TaskDetailsComponent(
 			this.rootContainerEl,
-			this.app
+			this.app,
+			this.plugin
 		);
 		this.addChild(this.detailsComponent);
 		this.detailsComponent.load();
@@ -166,71 +168,64 @@ export class TaskView extends ItemView {
 	}
 
 	private setupComponentEvents() {
-		// Sidebar events
-		this.sidebarComponent.onViewModeChanged = (mode: ViewMode) => {
-			this.currentViewMode = mode;
+		// Handle task selection from content area
+		this.contentComponent.onTaskSelected = (task: Task) => {
+			if (task) {
+				this.detailsComponent.showTaskDetails(task);
+				this.toggleDetailsVisibility(true);
+			}
+		};
 
-			// Toggle between forecast and regular content views
-			if (mode === "forecast") {
+		// Handle task completion toggle from details panel
+		this.detailsComponent.onTaskToggleComplete = (task) => {
+			this.toggleTaskCompletion(task);
+		};
+
+		// Handle task edit from details panel
+		this.detailsComponent.onTaskEdit = (task) => {
+			this.editTask(task);
+		};
+
+		// Handle task updates from the details panel
+		this.detailsComponent.onTaskUpdate = async (
+			originalTask,
+			updatedTask
+		) => {
+			await this.updateTask(originalTask, updatedTask);
+		};
+
+		// Handle project selection from sidebar
+		this.sidebarComponent.onProjectSelected = (project: string) => {
+			this.contentComponent.setViewMode("projects", project);
+		};
+
+		// Handle view mode changes from sidebar
+		this.sidebarComponent.onViewModeChanged = (viewMode: ViewMode) => {
+			this.currentViewMode = viewMode;
+
+			// Toggle visibility of components based on view mode
+			if (viewMode === "forecast") {
 				this.contentComponent.containerEl.style.display = "none";
 				this.forecastComponent.containerEl.style.display = "";
 				this.forecastComponent.setTasks(this.tasks);
 			} else {
-				this.contentComponent.containerEl.style.display = "";
 				this.forecastComponent.containerEl.style.display = "none";
-				this.contentComponent.setViewMode(
-					mode,
-					mode === "projects"
-						? this.sidebarComponent.getSelectedProject()
-						: null
-				);
+				this.contentComponent.containerEl.style.display = "";
+				this.contentComponent.setViewMode(viewMode);
 			}
-
-			// Hide details panel when view mode changes
-			this.toggleDetailsVisibility(false);
 		};
 
-		this.sidebarComponent.onProjectSelected = (project: string) => {
-			// Always use content component for project view
-			this.contentComponent.containerEl.style.display = "";
-			this.forecastComponent.containerEl.style.display = "none";
-			this.contentComponent.setViewMode("projects", project);
-
-			// Hide details panel when project is selected
-			this.toggleDetailsVisibility(false);
-		};
-
-		// Content events
-		this.contentComponent.onTaskSelected = (task: Task) => {
-			this.detailsComponent.showTaskDetails(task);
-
-			// Show details panel when task is selected
-			this.toggleDetailsVisibility(true);
-		};
-
-		this.contentComponent.onTaskCompleted = async (task: Task) => {
-			await this.toggleTaskCompletion(task);
-		};
-
-		// Forecast events
+		// Handle task selection from forecast view
 		this.forecastComponent.onTaskSelected = (task: Task) => {
-			this.detailsComponent.showTaskDetails(task);
-
-			// Show details panel when task is selected
-			this.toggleDetailsVisibility(true);
+			if (task) {
+				this.detailsComponent.showTaskDetails(task);
+				this.toggleDetailsVisibility(true);
+			}
 		};
 
-		this.forecastComponent.onTaskCompleted = async (task: Task) => {
-			await this.toggleTaskCompletion(task);
-		};
-
-		// Details events
-		this.detailsComponent.onTaskEdit = async (task: Task) => {
-			await this.editTask(task);
-		};
-
-		this.detailsComponent.onTaskToggleComplete = async (task: Task) => {
-			await this.toggleTaskCompletion(task);
+		// Handle task completion toggle from forecast view
+		this.forecastComponent.onTaskCompleted = (task: Task) => {
+			this.toggleTaskCompletion(task);
 		};
 	}
 
@@ -280,6 +275,27 @@ export class TaskView extends ItemView {
 		if (selectedTask && selectedTask.id === updatedTask.id) {
 			this.detailsComponent.showTaskDetails(updatedTask);
 		}
+	}
+
+	private async updateTask(originalTask: Task, updatedTask: Task) {
+		// Get active task manager from plugin
+		const taskManager = (this.plugin as any).taskManager;
+		if (!taskManager) {
+			throw new Error("Task manager not available");
+		}
+
+		// Update the task
+		await taskManager.updateTask(updatedTask);
+
+		// Update the task in our content component
+		this.contentComponent.updateTask(updatedTask);
+
+		// Update the task in forecast component if it's visible
+		if (this.currentViewMode === "forecast") {
+			this.forecastComponent.updateTask(updatedTask);
+		}
+
+		return updatedTask;
 	}
 
 	private async editTask(task: Task) {
