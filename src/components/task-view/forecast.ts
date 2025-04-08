@@ -2,6 +2,7 @@ import { Component, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { CalendarComponent } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
+import { t } from "../../translations/helper";
 
 interface DateSection {
 	title: string;
@@ -14,7 +15,6 @@ export class ForecastComponent extends Component {
 	// UI Elements
 	public containerEl: HTMLElement;
 	private forecastHeaderEl: HTMLElement;
-	private titleEl: HTMLElement;
 	private settingsEl: HTMLElement;
 	private calendarContainerEl: HTMLElement;
 	private dueSoonContainerEl: HTMLElement;
@@ -383,7 +383,7 @@ export class ForecastComponent extends Component {
 			const emptyEl = this.dueSoonContainerEl.createDiv({
 				cls: "due-soon-empty",
 			});
-			emptyEl.setText("No upcoming tasks");
+			emptyEl.setText(t("No upcoming tasks"));
 		}
 	}
 

@@ -22,9 +22,24 @@ export class TaskListItemComponent extends Component {
 		}
 
 		// Task checkbox for completion status
-		const checkboxEl = document.createElement("div");
-		checkboxEl.className = "task-checkbox";
-		checkboxEl.innerHTML = this.task.completed ? "✓" : "○";
+		const checkboxEl = createEl(
+			"div",
+			{
+				cls: "task-checkbox",
+			},
+			(el) => {
+				// Create a checkbox input element
+				const checkbox = el.createEl("input", {
+					cls: "task-list-item-checkbox",
+					type: "checkbox",
+				});
+				checkbox.dataset.task = this.task.status;
+				if (this.task.status !== " ") {
+					checkbox.checked = true;
+				}
+			}
+		);
+
 		this.element.appendChild(checkboxEl);
 
 		// Task content

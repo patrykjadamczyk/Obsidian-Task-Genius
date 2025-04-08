@@ -232,4 +232,20 @@ export class LocalStorageCache {
 			return { totalFiles: 0, cacheSize: 0 };
 		}
 	}
+
+	/**
+	 * Clear all entries from the cache
+	 */
+	public async clear(): Promise<void> {
+		if (!this.initialized) await this.initialize();
+
+		try {
+			await this.persister.clear();
+		} catch (error) {
+			console.error("Error clearing cache:", error);
+
+			// Fallback if clear fails: try to recreate the storage
+			await this.recreate();
+		}
+	}
 }

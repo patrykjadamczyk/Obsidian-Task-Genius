@@ -16,6 +16,8 @@ export interface Task {
 	line: number;
 	/** Whether the task is completed or not */
 	completed: boolean;
+	/** Status of the task */
+	status: string;
 	/** Original markdown text */
 	originalMarkdown: string;
 

@@ -1,4 +1,4 @@
-import { Component, TFile } from "obsidian";
+import { Component, ExtraButtonComponent, TFile } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 
 export class TaskDetailsComponent extends Component {
@@ -39,6 +39,8 @@ export class TaskDetailsComponent extends Component {
 			return;
 		}
 
+		console.log(task);
+
 		this.currentTask = task;
 
 		// Clear existing content
@@ -47,6 +49,18 @@ export class TaskDetailsComponent extends Component {
 		// Create details header
 		const headerEl = this.containerEl.createDiv({ cls: "details-header" });
 		headerEl.setText("Task Details");
+
+		headerEl.createEl(
+			"div",
+			{
+				cls: "details-close-btn",
+			},
+			(el) => {
+				new ExtraButtonComponent(el).setIcon("x").onClick(() => {
+					this.setVisible(false);
+				});
+			}
+		);
 
 		// Create content container
 		this.contentEl = this.containerEl.createDiv({ cls: "details-content" });

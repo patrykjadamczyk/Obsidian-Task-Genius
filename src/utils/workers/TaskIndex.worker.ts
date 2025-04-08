@@ -109,6 +109,7 @@ function parseTasksFromContent(filePath: string, content: string): Task[] {
 				filePath,
 				line: i,
 				completed,
+				status: status.trim(),
 				originalMarkdown: line,
 				tags: [],
 				children: [],
@@ -317,6 +318,7 @@ function parseTasksFromListItems(
 			filePath,
 			line,
 			completed: item.task !== " ", // 空格表示未完成
+			status: item.task,
 			originalMarkdown: lineContent,
 			tags: [],
 			children: [],

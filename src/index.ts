@@ -320,6 +320,24 @@ export default class TaskProgressBarPlugin extends Plugin {
 			},
 		});
 
+		// Add command to force reindex all tasks by clearing cache
+		this.addCommand({
+			id: "force-reindex-tasks",
+			name: t("Force reindex all tasks"),
+			callback: async () => {
+				try {
+					new Notice(
+						t("Clearing task cache and rebuilding index...")
+					);
+					await this.taskManager.forceReindex();
+					new Notice(t("Task index completely rebuilt"));
+				} catch (error) {
+					console.error("Failed to force reindex tasks:", error);
+					new Notice(t("Failed to force reindex tasks"));
+				}
+			},
+		});
+
 		// Add command for cycling task status forward
 		this.addCommand({
 			id: "cycle-task-status-forward",

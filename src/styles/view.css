@@ -1,5 +1,5 @@
 .task-sidebar.collapsed {
-	width: 40px;
+	width: 52px;
 	overflow: hidden;
 }
 
@@ -11,7 +11,7 @@
 }
 
 .task-sidebar .panel-toggle-container {
-	right: 8px;
+	right: 12px;
 	background-color: var(--background-primary);
 }
 
@@ -34,7 +34,7 @@
 
 .panel-toggle-btn:hover {
 	opacity: 1;
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 }
 
 /* Sidebar Navigation */
@@ -56,11 +56,11 @@
 }
 
 .sidebar-nav-item:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .sidebar-nav-item.selected {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 	font-weight: 600;
 }
 
@@ -88,6 +88,8 @@
 .task-sidebar.collapsed .sidebar-nav-item {
 	padding: 8px 10px;
 	justify-content: center;
+	width: var(--size-4-9);
+	flex-shrink: 0;
 }
 
 .task-sidebar.collapsed .sidebar-nav-icon {
@@ -229,11 +231,11 @@
 }
 
 .tree-item:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .tree-item.selected {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .tree-item-icon {
@@ -389,7 +391,7 @@
 }
 
 .sidebar-nav-item.selected {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 	color: var(--text-accent);
 }
 
@@ -432,11 +434,11 @@
 }
 
 .tree-item:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .tree-item.selected {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 	color: var(--text-accent);
 }
 
@@ -556,11 +558,11 @@
 }
 
 .task-item:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .task-item.selected {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .task-item.task-completed .task-content {
@@ -575,16 +577,12 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border: 1px solid var(--text-muted);
-	border-radius: 50%;
 	color: var(--text-normal);
 	cursor: pointer;
 	flex-shrink: 0;
 }
 
 .task-item.task-completed .task-checkbox {
-	background-color: var(--interactive-accent);
-	border-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
@@ -797,7 +795,7 @@
 
 .calendar-nav-btn:hover {
 	opacity: 1;
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .calendar-today-btn {
@@ -810,7 +808,7 @@
 }
 
 .calendar-today-btn:hover {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .calendar-grid {
@@ -849,7 +847,7 @@
 }
 
 .calendar-day.selected {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 }
 
 .calendar-day.today {
@@ -995,7 +993,6 @@
 /* Stats Bar */
 .forecast-stats {
 	display: flex;
-	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .stat-item {

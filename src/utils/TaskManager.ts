@@ -727,6 +727,38 @@ export class TaskManager extends Component {
 	}
 
 	/**
+	 * Force reindex all tasks by clearing all current indices and rebuilding from scratch
+	 */
+	public async forceReindex(): Promise<void> {
+		this.log("Force reindexing all tasks");
+
+		// Reset initialization state
+		this.initialized = false;
+
+		// Clear all caches
+		this.indexer.resetCache();
+
+		// Clear the persister cache
+		try {
+			await this.persister.clear();
+			this.log("Cleared all cached task data");
+		} catch (error) {
+			console.error("Error clearing cache:", error);
+		}
+
+		// Re-initialize everything
+		await this.initialize();
+
+		// Trigger an update event
+		this.app.workspace.trigger(
+			"task-genius:task-cache-updated",
+			this.indexer.getCache()
+		);
+
+		this.log("Force reindex complete");
+	}
+
+	/**
 	 * Log a message if debugging is enabled
 	 */
 	private log(message: string): void {

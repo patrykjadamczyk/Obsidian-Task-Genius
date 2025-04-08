@@ -186,7 +186,7 @@
 }
 
 .task-genius-settings .settings-tab-active {
-	background-color: var(--background-modifier-active);
+	background-color: var(--background-modifier-border-hover);
 	font-weight: bold;
 }
 
