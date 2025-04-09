@@ -6,7 +6,7 @@ import {
 } from "obsidian";
 import { DEFAULT_SYMBOLS } from "../common/default-symbol";
 
-function clearAllMarks(markdown: string): string {
+export function clearAllMarks(markdown: string): string {
 	if (!markdown) return markdown;
 
 	// Remove task metadata symbols and their associated dates/values

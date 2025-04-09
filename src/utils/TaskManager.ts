@@ -921,15 +921,23 @@ export class TaskManager extends Component {
 				await this.vault.modify(file, lines.join("\n"));
 			}
 
+			const currentTasks = this.getTasksForFile(
+				updatedTask.filePath
+			).filter((task) => task.id !== updatedTask.id);
+
 			// Update the task in the indexer
 			// We'll temporarily update the task in memory and then reindex the file
 			// to ensure all indices are properly updated
 			this.indexer.updateIndexWithTasks(updatedTask.filePath, [
+				...currentTasks,
 				updatedTask,
 			]);
 
 			// Store in cache
-			await this.persister.storeFile(updatedTask.filePath, [updatedTask]);
+			await this.persister.storeFile(updatedTask.filePath, [
+				...currentTasks,
+				updatedTask,
+			]);
 
 			// Trigger the task update event
 			this.app.workspace.trigger(

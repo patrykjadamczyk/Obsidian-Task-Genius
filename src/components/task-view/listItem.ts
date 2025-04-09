@@ -10,6 +10,10 @@ export class TaskListItemComponent extends Component {
 	public onTaskCompleted: (task: Task) => void;
 
 	private markdownRenderer: MarkdownRendererComponent;
+	private containerEl: HTMLElement;
+	private contentEl: HTMLElement;
+
+	private metadataEl: HTMLElement;
 
 	constructor(
 		private task: Task,
@@ -17,13 +21,14 @@ export class TaskListItemComponent extends Component {
 		private app: App
 	) {
 		super();
+
+		this.element = createEl("div", {
+			cls: "task-item",
+			attr: { "data-task-id": this.task.id },
+		});
 	}
 
 	onload() {
-		this.element = document.createElement("div");
-		this.element.className = "task-item";
-		this.element.dataset.taskId = this.task.id;
-
 		if (this.task.completed) {
 			this.element.classList.add("task-completed");
 		}
@@ -48,25 +53,25 @@ export class TaskListItemComponent extends Component {
 		);
 
 		this.element.appendChild(checkboxEl);
-
+		this.containerEl = this.element.createDiv({
+			cls: "task-item-container",
+		});
 		// Task content
-		const contentEl = document.createElement("div");
-		contentEl.className = "task-item-content";
-		this.element.appendChild(contentEl);
+		this.contentEl = document.createElement("div");
+		this.contentEl.className = "task-item-content";
+		this.containerEl.appendChild(this.contentEl);
 
-		this.markdownRenderer = new MarkdownRendererComponent(
-			this.app,
-			contentEl,
-			this.task.filePath
-		);
-		this.addChild(this.markdownRenderer);
+		this.renderMarkdown();
 
-		this.markdownRenderer.render(this.task.originalMarkdown);
+		this.metadataEl = this.containerEl.createDiv({
+			cls: "task-item-metadata",
+		});
 
 		// Due date if available
 		if (this.task.dueDate) {
-			const dueEl = document.createElement("div");
-			dueEl.className = "task-due-date";
+			const dueEl = this.metadataEl.createEl("div", {
+				cls: "task-due-date",
+			});
 			const dueDate = new Date(this.task.dueDate);
 
 			const today = new Date();
@@ -90,16 +95,15 @@ export class TaskListItemComponent extends Component {
 			}
 
 			dueEl.textContent = dateText;
-			this.element.appendChild(dueEl);
 		}
 
 		// Project badge if available and not in project view
 		if (this.task.project && this.viewMode !== "projects") {
-			const projectEl = document.createElement("div");
-			projectEl.className = "task-project";
+			const projectEl = this.metadataEl.createEl("div", {
+				cls: "task-project",
+			});
 			projectEl.textContent =
 				this.task.project.split("/").pop() || this.task.project;
-			this.element.appendChild(projectEl);
 		}
 
 		// Priority indicator if available
@@ -131,15 +135,51 @@ export class TaskListItemComponent extends Component {
 		});
 	}
 
+	private renderMarkdown() {
+		// Clear existing content if needed
+		if (this.markdownRenderer) {
+			this.removeChild(this.markdownRenderer);
+		}
+
+		// Create new renderer
+		this.markdownRenderer = new MarkdownRendererComponent(
+			this.app,
+			this.contentEl,
+			this.task.filePath
+		);
+		this.addChild(this.markdownRenderer);
+
+		// Render the markdown content
+		this.markdownRenderer.render(this.task.originalMarkdown);
+	}
+
 	public getTask(): Task {
 		return this.task;
 	}
 
 	public updateTask(task: Task) {
+		const oldTask = this.task;
 		this.task = task;
-		// Re-render the component with the updated task
-		this.onunload();
-		this.onload();
+
+		// Update completion status
+		if (oldTask.completed !== task.completed) {
+			if (task.completed) {
+				this.element.classList.add("task-completed");
+			} else {
+				this.element.classList.remove("task-completed");
+			}
+		}
+
+		// If only the content changed, just update the markdown
+		if (oldTask.originalMarkdown !== task.originalMarkdown) {
+			// Just re-render the markdown content
+			this.contentEl.empty();
+			this.renderMarkdown();
+		} else {
+			// Full refresh needed for other changes
+			this.element.empty();
+			this.onload();
+		}
 	}
 
 	public setSelected(selected: boolean) {
@@ -151,6 +191,6 @@ export class TaskListItemComponent extends Component {
 	}
 
 	onunload() {
-		this.element.remove();
+		this.element.detach();
 	}
 }

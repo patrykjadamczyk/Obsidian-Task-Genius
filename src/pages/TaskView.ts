@@ -85,7 +85,10 @@ export class TaskView extends ItemView {
 		this.contentComponent.load();
 
 		// Create the forecast component (initially hidden)
-		this.forecastComponent = new ForecastComponent(this.rootContainerEl);
+		this.forecastComponent = new ForecastComponent(
+			this.rootContainerEl,
+			this.plugin.app
+		);
 		this.addChild(this.forecastComponent);
 		this.forecastComponent.load();
 		this.forecastComponent.containerEl.style.display = "none";

@@ -1,4 +1,4 @@
-import { Component, setIcon } from "obsidian";
+import { App, Component, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { CalendarComponent } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
@@ -21,6 +21,7 @@ export class ForecastComponent extends Component {
 	private taskContainerEl: HTMLElement;
 	private taskListContainerEl: HTMLElement;
 	private focusBarEl: HTMLElement;
+	private titleEl: HTMLElement;
 	private statsContainerEl: HTMLElement;
 
 	// Child components
@@ -40,7 +41,7 @@ export class ForecastComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
-	constructor(private parentEl: HTMLElement) {
+	constructor(private parentEl: HTMLElement, private app: App) {
 		super();
 	}
 
