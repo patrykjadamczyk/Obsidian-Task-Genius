@@ -77,7 +77,10 @@ export class TaskView extends ItemView {
 		this.createSidebarToggle();
 
 		// Create the content component
-		this.contentComponent = new ContentComponent(this.rootContainerEl);
+		this.contentComponent = new ContentComponent(
+			this.rootContainerEl,
+			this.plugin.app
+		);
 		this.addChild(this.contentComponent);
 		this.contentComponent.load();
 
@@ -279,7 +282,7 @@ export class TaskView extends ItemView {
 
 	private async updateTask(originalTask: Task, updatedTask: Task) {
 		// Get active task manager from plugin
-		const taskManager = (this.plugin as any).taskManager;
+		const taskManager = (this.plugin as TaskProgressBarPlugin).taskManager;
 		if (!taskManager) {
 			throw new Error("Task manager not available");
 		}

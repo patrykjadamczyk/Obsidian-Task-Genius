@@ -1,5 +1,6 @@
-import { Component } from "obsidian";
+import { App, Component } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
+import { MarkdownRendererComponent } from "../MarkdownRenderer";
 
 export class TaskListItemComponent extends Component {
 	public element: HTMLElement;
@@ -8,7 +9,13 @@ export class TaskListItemComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
-	constructor(private task: Task, private viewMode: string) {
+	private markdownRenderer: MarkdownRendererComponent;
+
+	constructor(
+		private task: Task,
+		private viewMode: string,
+		private app: App
+	) {
 		super();
 	}
 
@@ -44,9 +51,17 @@ export class TaskListItemComponent extends Component {
 
 		// Task content
 		const contentEl = document.createElement("div");
-		contentEl.className = "task-content";
-		contentEl.textContent = this.task.content;
+		contentEl.className = "task-item-content";
 		this.element.appendChild(contentEl);
+
+		this.markdownRenderer = new MarkdownRendererComponent(
+			this.app,
+			contentEl,
+			this.task.filePath
+		);
+		this.addChild(this.markdownRenderer);
+
+		this.markdownRenderer.render(this.task.originalMarkdown);
 
 		// Due date if available
 		if (this.task.dueDate) {
@@ -94,13 +109,7 @@ export class TaskListItemComponent extends Component {
 
 			// Priority icon based on level
 			let icon = "•";
-			if (this.task.priority === 3) {
-				icon = "!!!";
-			} else if (this.task.priority === 2) {
-				icon = "!!";
-			} else {
-				icon = "!";
-			}
+			icon = "!".repeat(this.task.priority);
 
 			priorityEl.textContent = icon;
 			this.element.appendChild(priorityEl);

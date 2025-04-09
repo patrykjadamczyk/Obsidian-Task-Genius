@@ -61,6 +61,8 @@ function createTaskCheckbox(
 	if (status !== " ") {
 		checkbox.checked = true;
 	}
+
+	return checkbox;
 }
 
 export class TaskDetailsComponent extends Component {
@@ -150,9 +152,12 @@ export class TaskDetailsComponent extends Component {
 			const allStatuses = Object.keys(
 				this.plugin.settings.taskStatuses
 			).map((status) => {
-				return this.plugin.settings.taskStatuses[
-					status as keyof typeof this.plugin.settings.taskStatuses
-				].split("|")[0]; // Get the first status from each group
+				return {
+					status: status,
+					text: this.plugin.settings.taskStatuses[
+						status as keyof typeof this.plugin.settings.taskStatuses
+					].split("|")[0],
+				}; // Get the first status from each group
 			});
 
 			// Create five side-by-side status elements
@@ -160,14 +165,27 @@ export class TaskDetailsComponent extends Component {
 				const statusEl = el.createEl("div", {
 					cls:
 						"status-option" +
-						(status === task.status ? " current-status" : ""),
+						(status.text === task.status ? " current-status" : ""),
 					attr: {
-						"aria-label": getStatus(task, this.plugin.settings),
+						"aria-label": getStatusText(
+							status.status,
+							this.plugin.settings
+						),
 					},
 				});
 
 				// Create checkbox-like element for the status
-				createTaskCheckbox(status, task, statusEl);
+				const checkbox = createTaskCheckbox(
+					status.text,
+					task,
+					statusEl
+				);
+				this.registerDomEvent(checkbox, "click", () => {
+					this.onTaskUpdate(task, {
+						...task,
+						status: status.text,
+					});
+				});
 			});
 
 			const moreStatus = el.createEl("div", {
@@ -251,10 +269,24 @@ export class TaskDetailsComponent extends Component {
 
 		if (task.priority) {
 			let priorityText = "Low";
-			if (task.priority === 3) {
-				priorityText = "High";
-			} else if (task.priority === 2) {
-				priorityText = "Medium";
+			switch (task.priority) {
+				case 1:
+					priorityText = "Lowest";
+					break;
+				case 2:
+					priorityText = "Low";
+					break;
+				case 3:
+					priorityText = "Medium";
+					break;
+				case 4:
+					priorityText = "High";
+					break;
+				case 5:
+					priorityText = "Highest";
+					break;
+				default:
+					priorityText = "Low";
 			}
 			this.addMetadataField(metaEl, "Priority", priorityText);
 		}
@@ -348,9 +380,11 @@ export class TaskDetailsComponent extends Component {
 		const priorityField = this.createFormField(this.editFormEl, "Priority");
 		const priorityDropdown = new DropdownComponent(priorityField);
 		priorityDropdown.addOption("", "None");
-		priorityDropdown.addOption("1", "Low");
-		priorityDropdown.addOption("2", "Medium");
-		priorityDropdown.addOption("3", "High");
+		priorityDropdown.addOption("1", "⏬️ Lowest");
+		priorityDropdown.addOption("2", "🔽 Low");
+		priorityDropdown.addOption("3", "🔼 Medium");
+		priorityDropdown.addOption("4", "⏫ High");
+		priorityDropdown.addOption("5", "🔺 Highest");
 		if (task.priority) {
 			priorityDropdown.setValue(task.priority.toString());
 		} else {
@@ -359,43 +393,41 @@ export class TaskDetailsComponent extends Component {
 
 		// Due date
 		const dueDateField = this.createFormField(this.editFormEl, "Due Date");
-		const dueDateInput = new TextComponent(dueDateField);
+		const dueDateInput = dueDateField.createEl("input", {
+			type: "date",
+			cls: "date-input",
+		});
 		if (task.dueDate) {
-			dueDateInput.setValue(moment(task.dueDate).format("YYYY-MM-DD"));
+			dueDateInput.value = moment(task.dueDate).format("YYYY-MM-DD");
 		}
-		dueDateField
-			.createSpan({ cls: "field-description" })
-			.setText("YYYY-MM-DD");
 
 		// Start date
 		const startDateField = this.createFormField(
 			this.editFormEl,
 			"Start Date"
 		);
-		const startDateInput = new TextComponent(startDateField);
+		const startDateInput = startDateField.createEl("input", {
+			type: "date",
+			cls: "date-input",
+		});
 		if (task.startDate) {
-			startDateInput.setValue(
-				moment(task.startDate).format("YYYY-MM-DD")
-			);
+			startDateInput.value = moment(task.startDate).format("YYYY-MM-DD");
 		}
-		startDateField
-			.createSpan({ cls: "field-description" })
-			.setText("YYYY-MM-DD");
 
 		// Scheduled date
 		const scheduledDateField = this.createFormField(
 			this.editFormEl,
 			"Scheduled Date"
 		);
-		const scheduledDateInput = new TextComponent(scheduledDateField);
+		const scheduledDateInput = scheduledDateField.createEl("input", {
+			type: "date",
+			cls: "date-input",
+		});
 		if (task.scheduledDate) {
-			scheduledDateInput.setValue(
-				moment(task.scheduledDate).format("YYYY-MM-DD")
+			scheduledDateInput.value = moment(task.scheduledDate).format(
+				"YYYY-MM-DD"
 			);
 		}
-		scheduledDateField
-			.createSpan({ cls: "field-description" })
-			.setText("YYYY-MM-DD");
 
 		// Recurrence pattern
 		const recurrenceField = this.createFormField(
@@ -434,31 +466,78 @@ export class TaskDetailsComponent extends Component {
 				? parseInt(priorityValue)
 				: undefined;
 
-			// Parse dates
-			const dueDateValue = dueDateInput.getValue();
-			updatedTask.dueDate = dueDateValue
-				? moment(dueDateValue, "YYYY-MM-DD").valueOf()
-				: undefined;
+			// Parse dates and check if they've changed
+			const dueDateValue = dueDateInput.value;
+			if (dueDateValue) {
+				const newDueDate = moment(dueDateValue, "YYYY-MM-DD").valueOf();
+				// Only update if the date has changed or is different from the original
+				if (task.dueDate !== newDueDate) {
+					updatedTask.dueDate = newDueDate;
+				} else {
+					updatedTask.dueDate = task.dueDate;
+				}
+			} else if (!dueDateValue && task.dueDate) {
+				// Only update if field was cleared and previously had a value
+				updatedTask.dueDate = undefined;
+			} else {
+				// Keep original value if both are empty/undefined
+				updatedTask.dueDate = task.dueDate;
+			}
 
-			const startDateValue = startDateInput.getValue();
-			updatedTask.startDate = startDateValue
-				? moment(startDateValue, "YYYY-MM-DD").valueOf()
-				: undefined;
+			const startDateValue = startDateInput.value;
+			if (startDateValue) {
+				const newStartDate = moment(
+					startDateValue,
+					"YYYY-MM-DD"
+				).valueOf();
+				// Only update if the date has changed or is different from the original
+				if (task.startDate !== newStartDate) {
+					updatedTask.startDate = newStartDate;
+				} else {
+					updatedTask.startDate = task.startDate;
+				}
+			} else if (!startDateValue && task.startDate) {
+				// Only update if field was cleared and previously had a value
+				updatedTask.startDate = undefined;
+			} else {
+				// Keep original value if both are empty/undefined
+				updatedTask.startDate = task.startDate;
+			}
 
-			const scheduledDateValue = scheduledDateInput.getValue();
-			updatedTask.scheduledDate = scheduledDateValue
-				? moment(scheduledDateValue, "YYYY-MM-DD").valueOf()
-				: undefined;
+			const scheduledDateValue = scheduledDateInput.value;
+			if (scheduledDateValue) {
+				const newScheduledDate = moment(
+					scheduledDateValue,
+					"YYYY-MM-DD"
+				).valueOf();
+				// Only update if the date has changed or is different from the original
+				if (task.scheduledDate !== newScheduledDate) {
+					updatedTask.scheduledDate = newScheduledDate;
+				} else {
+					updatedTask.scheduledDate = task.scheduledDate;
+				}
+			} else if (!scheduledDateValue && task.scheduledDate) {
+				// Only update if field was cleared and previously had a value
+				updatedTask.scheduledDate = undefined;
+			} else {
+				// Keep original value if both are empty/undefined
+				updatedTask.scheduledDate = task.scheduledDate;
+			}
 
 			updatedTask.recurrence = recurrenceInput.getValue() || undefined;
 
-			// Call the update callback
-			if (this.onTaskUpdate) {
+			// Check if any task data has changed before updating
+			const hasChanges =
+				JSON.stringify(task) !== JSON.stringify(updatedTask);
+
+			// Call the update callback only if there are changes
+			if (this.onTaskUpdate && hasChanges) {
 				try {
 					await this.onTaskUpdate(task, updatedTask);
 
 					// Update the current task reference but don't redraw the UI
 					this.currentTask = updatedTask;
+					this.showTaskDetails(updatedTask);
 				} catch (error) {
 					console.error("Failed to update task:", error);
 					// TODO: Show error message to user
@@ -475,95 +554,28 @@ export class TaskDetailsComponent extends Component {
 			});
 		};
 
+		// Register change events for date inputs
+		const registerDateChangeEvent = (el: HTMLInputElement) => {
+			this.registerDomEvent(el, "change", () => {
+				saveTask();
+			});
+		};
+
 		// Register all input elements
 		registerBlurEvent(contentInput.inputEl);
 		registerBlurEvent(projectInput.inputEl);
 		registerBlurEvent(tagsInput.inputEl);
 		registerBlurEvent(contextInput.inputEl);
 		registerBlurEvent(priorityDropdown.selectEl);
-		registerBlurEvent(dueDateInput.inputEl);
-		registerBlurEvent(startDateInput.inputEl);
-		registerBlurEvent(scheduledDateInput.inputEl);
+		registerBlurEvent(dueDateInput);
+		registerBlurEvent(startDateInput);
+		registerBlurEvent(scheduledDateInput);
 		registerBlurEvent(recurrenceInput.inputEl);
 
-		// Buttons
-		const buttonsEl = this.editFormEl.createDiv({
-			cls: "details-form-buttons",
-		});
-
-		// Save button - still keep it for explicit saves
-		// const saveBtn = new ButtonComponent(buttonsEl);
-		// saveBtn.setButtonText("Save Changes").setCta();
-		// saveBtn.onClick(async () => {
-		// 	// Cancel any pending debounced saves
-		// 	saveTask.cancel();
-
-		// 	// Create updated task object
-		// 	const updatedTask: Task = { ...task };
-
-		// 	// Update task properties
-		// 	updatedTask.content = contentInput.getValue();
-		// 	updatedTask.project = projectInput.getValue() || undefined;
-
-		// 	// Parse tags
-		// 	const tagsValue = tagsInput.getValue();
-		// 	updatedTask.tags = tagsValue
-		// 		? tagsValue
-		// 				.split(",")
-		// 				.map((tag) => tag.trim())
-		// 				.filter((tag) => tag)
-		// 		: [];
-
-		// 	updatedTask.context = contextInput.getValue() || undefined;
-
-		// 	// Parse priority
-		// 	const priorityValue = priorityDropdown.getValue();
-		// 	updatedTask.priority = priorityValue
-		// 		? parseInt(priorityValue)
-		// 		: undefined;
-
-		// 	// Parse dates
-		// 	const dueDateValue = dueDateInput.getValue();
-		// 	updatedTask.dueDate = dueDateValue
-		// 		? moment(dueDateValue, "YYYY-MM-DD").valueOf()
-		// 		: undefined;
-
-		// 	const startDateValue = startDateInput.getValue();
-		// 	updatedTask.startDate = startDateValue
-		// 		? moment(startDateValue, "YYYY-MM-DD").valueOf()
-		// 		: undefined;
-
-		// 	const scheduledDateValue = scheduledDateInput.getValue();
-		// 	updatedTask.scheduledDate = scheduledDateValue
-		// 		? moment(scheduledDateValue, "YYYY-MM-DD").valueOf()
-		// 		: undefined;
-
-		// 	updatedTask.recurrence = recurrenceInput.getValue() || undefined;
-
-		// 	// Call the update callback
-		// 	if (this.onTaskUpdate) {
-		// 		try {
-		// 			await this.onTaskUpdate(task, updatedTask);
-
-		// 			// Show the updated task details
-		// 			this.showTaskDetails(updatedTask);
-		// 		} catch (error) {
-		// 			console.error("Failed to update task:", error);
-		// 			// TODO: Show error message to user
-		// 		}
-		// 	}
-		// });
-
-		// // Cancel button
-		// const cancelBtn = new ButtonComponent(buttonsEl);
-		// cancelBtn.setButtonText("Cancel");
-		// cancelBtn.onClick(() => {
-		// 	// Cancel any pending debounced saves
-		// 	saveTask.cancel();
-
-		// 	// Revert back to view mode
-		// 	this.setVisible(false);
-		// });
+		// Register change events for date inputs
+		registerDateChangeEvent(dueDateInput);
+		registerDateChangeEvent(startDateInput);
+		registerDateChangeEvent(scheduledDateInput);
 	}
 
 	private createFormField(

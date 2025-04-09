@@ -558,7 +558,8 @@ export class ForecastComponent extends Component {
 			section.tasks.forEach((task) => {
 				const taskComponent = new TaskListItemComponent(
 					task,
-					"forecast"
+					"forecast",
+					this.app
 				);
 
 				// Set up event handlers

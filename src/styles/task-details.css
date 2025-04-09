@@ -61,6 +61,7 @@
 	flex-direction: column;
 	gap: var(--size-4-2);
 	overflow-y: auto;
+	padding-bottom: max(var(--safe-area-inset-bottom), var(--size-4-8));
 }
 
 .details-name {
@@ -200,6 +201,15 @@
 	border-radius: 4px;
 	border: 1px solid var(--background-modifier-border);
 	background-color: var(--background-primary);
+}
+
+.date-input {
+	width: 100%;
+	padding: 6px 8px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
 }
 
 .field-description {

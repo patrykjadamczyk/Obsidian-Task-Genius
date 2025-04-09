@@ -5,45 +5,17 @@
 import { FileStats } from "obsidian";
 import { Task } from "../types/TaskIndex";
 import {
-	BatchIndexCommand,
 	BatchIndexResult,
 	ErrorResult,
 	IndexerCommand,
-	IndexerResult,
-	ParseTasksCommand,
 	TaskParseResult,
 } from "./TaskIndexWorkerMessage";
-
-/**
- * Regular expressions for parsing task components
- */
-const TASK_REGEX = /^([\s>]*- \[(.)\])\s*(.*)$/m;
-const TAG_REGEX = /#[\w\/-]+/g;
-const CONTEXT_REGEX = /@[\w-]+/g;
-
-/**
- * Task symbols and formatting
- */
-const DEFAULT_SYMBOLS = {
-	prioritySymbols: {
-		Highest: "🔺",
-		High: "⏫",
-		Medium: "🔼",
-		Low: "🔽",
-		Lowest: "⏬",
-		None: "",
-	},
-	startDateSymbol: "🛫",
-	createdDateSymbol: "➕",
-	scheduledDateSymbol: "⏳",
-	dueDateSymbol: "📅",
-	doneDateSymbol: "✅",
-	cancelledDateSymbol: "❌",
-	recurrenceSymbol: "🔁",
-	onCompletionSymbol: "🏁",
-	dependsOnSymbol: "⛔",
-	idSymbol: "🆔",
-};
+import {
+	DEFAULT_SYMBOLS,
+	TASK_REGEX,
+	TAG_REGEX,
+	CONTEXT_REGEX,
+} from "../../common/default-symbol";
 
 // Helper function to create date field regex
 

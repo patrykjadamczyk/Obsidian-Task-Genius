@@ -739,8 +739,8 @@ export class TaskManager extends Component {
 
 		try {
 			// Get the file from the vault
-			const file = this.vault.getAbstractFileByPath(updatedTask.filePath);
-			if (!(file instanceof TFile)) {
+			const file = this.vault.getFileByPath(updatedTask.filePath);
+			if (!(file instanceof TFile) || !file) {
 				throw new Error(`File not found: ${updatedTask.filePath}`);
 			}
 
@@ -755,6 +755,10 @@ export class TaskManager extends Component {
 					`Task line ${updatedTask.line} not found in file ${updatedTask.filePath}`
 				);
 			}
+
+			// Extract and preserve indentation
+			const indentMatch = taskLine.match(/^(\s*)/);
+			const indentation = indentMatch ? indentMatch[0] : "";
 
 			// Build the updated task line
 			let updatedLine = taskLine;
@@ -778,42 +782,6 @@ export class TaskManager extends Component {
 				);
 			}
 
-			// Helper function to add or update a property in the task line
-			const updateTaskProperty = (
-				line: string,
-				property: string,
-				value: string | undefined,
-				originalValue: string | undefined
-			): string => {
-				if (value === originalValue) return line; // No change needed
-
-				const propertyPattern = new RegExp(
-					`\\s+${property}:\\s*[^\\s]+`
-				);
-
-				if (!value) {
-					// Remove the property if the new value is empty/undefined
-					return line.replace(propertyPattern, "");
-				} else if (propertyPattern.test(line)) {
-					// Update existing property
-					return line.replace(
-						propertyPattern,
-						` ${property}: ${value}`
-					);
-				} else {
-					// Add new property at the end of the line
-					return `${line} ${property}: ${value}`;
-				}
-			};
-
-			// Update project
-			updatedLine = updateTaskProperty(
-				updatedLine,
-				"project",
-				updatedTask.project,
-				originalTask.project
-			);
-
 			// Format date to string in YYYY-MM-DD format
 			const formatDate = (
 				date: number | undefined
@@ -826,56 +794,126 @@ export class TaskManager extends Component {
 				)}-${String(d.getDate()).padStart(2, "0")}`;
 			};
 
-			// Update dates
-			updatedLine = updateTaskProperty(
-				updatedLine,
-				"due",
-				formatDate(updatedTask.dueDate),
-				formatDate(originalTask.dueDate)
+			// Remove existing metadata symbols
+			// Due dates
+			updatedLine = updatedLine.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "");
+			// Start dates
+			updatedLine = updatedLine.replace(/🛫\s*\d{4}-\d{2}-\d{2}/g, "");
+			// Scheduled dates
+			updatedLine = updatedLine.replace(/⏳\s*\d{4}-\d{2}-\d{2}/g, "");
+			// Completion dates
+			updatedLine = updatedLine.replace(/✅\s*\d{4}-\d{2}-\d{2}/g, "");
+			// Priority markers
+			updatedLine = updatedLine.replace(
+				/\s+(🔼|🔽|⏫|⏬|🔺|\[#[A-C]\])/g,
+				""
 			);
+			// Recurrence
+			updatedLine = updatedLine.replace(/🔁\s*[a-zA-Z0-9, !]+/g, "");
 
-			updatedLine = updateTaskProperty(
-				updatedLine,
-				"start",
-				formatDate(updatedTask.startDate),
-				formatDate(originalTask.startDate)
-			);
+			// Add updated metadata at the end of the line
+			const metadata = [];
 
-			updatedLine = updateTaskProperty(
-				updatedLine,
-				"scheduled",
-				formatDate(updatedTask.scheduledDate),
-				formatDate(originalTask.scheduledDate)
-			);
-
-			// Update context and tags
-			// For simplicity, we'll just handle context directly
-			updatedLine = updateTaskProperty(
-				updatedLine,
-				"context",
-				updatedTask.context,
-				originalTask.context
-			);
-
-			// Update priority
-			if (updatedTask.priority !== originalTask.priority) {
-				// Remove existing priority
-				updatedLine = updatedLine.replace(/\s+\[\!+\]/g, "");
-
-				// Add new priority if set
-				if (updatedTask.priority) {
-					const priorityMarkers = "!".repeat(updatedTask.priority);
-					updatedLine = `${updatedLine} [${priorityMarkers}]`;
+			// Add priority if set
+			if (updatedTask.priority) {
+				let priorityMarker = "";
+				switch (updatedTask.priority) {
+					case 5:
+						priorityMarker = "🔺";
+						break; // Highest
+					case 4:
+						priorityMarker = "⏫";
+						break; // High
+					case 3:
+						priorityMarker = "🔼";
+						break; // Medium
+					case 2:
+						priorityMarker = "🔽";
+						break; // Low
+					case 1:
+						priorityMarker = "⏬";
+						break; // Lowest
+					default:
+						priorityMarker = "";
+				}
+				if (priorityMarker) {
+					metadata.push(priorityMarker);
 				}
 			}
 
-			// Update recurrence
-			updatedLine = updateTaskProperty(
-				updatedLine,
-				"repeat",
-				updatedTask.recurrence,
-				originalTask.recurrence
-			);
+			// Add dates if set
+			if (updatedTask.dueDate) {
+				metadata.push(`📅 ${formatDate(updatedTask.dueDate)}`);
+			}
+
+			if (updatedTask.startDate) {
+				metadata.push(`🛫 ${formatDate(updatedTask.startDate)}`);
+			}
+
+			if (updatedTask.scheduledDate) {
+				metadata.push(`⏳ ${formatDate(updatedTask.scheduledDate)}`);
+			}
+
+			if (updatedTask.completedDate && updatedTask.completed) {
+				metadata.push(`✅ ${formatDate(updatedTask.completedDate)}`);
+			}
+
+			// Add recurrence if set
+			if (updatedTask.recurrence) {
+				metadata.push(`🔁 ${updatedTask.recurrence}`);
+			}
+
+			// Update project tag
+			// First, remove any existing project tag
+			updatedLine = updatedLine.replace(/#project\/[^\s]+/g, "");
+			// Add new project tag if set
+			if (updatedTask.project) {
+				metadata.push(`#project/${updatedTask.project}`);
+			}
+
+			// Update context
+			// First, remove any existing context
+			updatedLine = updatedLine.replace(/@[^\s]+/g, "");
+			// Add new context if set
+			if (updatedTask.context) {
+				metadata.push(`@${updatedTask.context}`);
+			}
+
+			// Add all tags that aren't project tags
+			if (updatedTask.tags) {
+				const nonProjectTags = updatedTask.tags.filter(
+					(tag) => !tag.startsWith("#project/")
+				);
+
+				// Remove existing non-project tags
+				for (const tag of originalTask.tags || []) {
+					if (!tag.startsWith("#project/")) {
+						updatedLine = updatedLine.replace(
+							new RegExp(
+								tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+									"\\b",
+								"g"
+							),
+							""
+						);
+					}
+				}
+
+				// Add new non-project tags
+				metadata.push(...nonProjectTags);
+			}
+
+			// Append all metadata to the line
+			if (metadata.length > 0) {
+				// Clean up any duplicate spaces but preserve the task structure
+				updatedLine = updatedLine.trim();
+				updatedLine = `${updatedLine} ${metadata.join(" ")}`;
+			}
+
+			// Ensure indentation is preserved by adding it back
+			if (indentation && !updatedLine.startsWith(indentation)) {
+				updatedLine = `${indentation}${updatedLine.trimStart()}`;
+			}
 
 			// Update the line in the file
 			if (updatedLine !== taskLine) {

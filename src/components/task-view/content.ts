@@ -1,4 +1,4 @@
-import { Component } from "obsidian";
+import { App, Component } from "obsidian";
 import { Task, TaskFilter } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { ViewMode } from "./sidebar";
@@ -30,7 +30,7 @@ export class ContentComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
-	constructor(private parentEl: HTMLElement) {
+	constructor(private parentEl: HTMLElement, private app: App) {
 		super();
 	}
 
@@ -314,7 +314,8 @@ export class ContentComponent extends Component {
 			const task = this.filteredTasks[i];
 			const taskComponent = new TaskListItemComponent(
 				task,
-				this.currentViewMode
+				this.currentViewMode,
+				this.app
 			);
 
 			// Set up event handlers
