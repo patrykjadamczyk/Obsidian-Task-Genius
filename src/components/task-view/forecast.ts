@@ -760,6 +760,8 @@ export class ForecastComponent extends Component {
 		// Get tasks for selected date
 		const selectedDateTasks = this.getTasksForDate(this.selectedDate);
 
+		console.log(selectedDateTasks);
+
 		if (selectedDateTasks.length > 0) {
 			// Create a section just for this date
 			this.dateSections = [
@@ -795,7 +797,7 @@ export class ForecastComponent extends Component {
 		console.log(this.allTasks, startTimestamp);
 
 		return this.allTasks.filter((task) => {
-			if (task.dueDate && !task.completed) {
+			if (task.dueDate) {
 				const dueDate = new Date(task.dueDate);
 				dueDate.setHours(0, 0, 0, 0);
 				return dueDate.getTime() === startTimestamp;

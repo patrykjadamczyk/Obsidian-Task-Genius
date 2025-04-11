@@ -67,35 +67,133 @@ export class TaskListItemComponent extends Component {
 			cls: "task-item-metadata",
 		});
 
-		// Due date if available
-		if (this.task.dueDate) {
-			const dueEl = this.metadataEl.createEl("div", {
-				cls: "task-due-date",
-			});
-			const dueDate = new Date(this.task.dueDate);
+		// Display dates based on task completion status
+		if (!this.task.completed) {
+			// For incomplete tasks, show due, scheduled, and start dates
 
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
+			// Due date if available
+			if (this.task.dueDate) {
+				const dueEl = this.metadataEl.createEl("div", {
+					cls: ["task-date", "task-due-date"],
+				});
+				const dueDate = new Date(this.task.dueDate);
 
-			const tomorrow = new Date(today);
-			tomorrow.setDate(tomorrow.getDate() + 1);
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
 
-			// Format date
-			let dateText = "";
-			if (dueDate.getTime() < today.getTime()) {
-				dateText = "Overdue";
-				dueEl.classList.add("task-overdue");
-			} else if (dueDate.getTime() === today.getTime()) {
-				dateText = "Today";
-				dueEl.classList.add("task-due-today");
-			} else if (dueDate.getTime() === tomorrow.getTime()) {
-				dateText = "Tomorrow";
-			} else {
-				dateText = dueDate.toLocaleDateString();
+				const tomorrow = new Date(today);
+				tomorrow.setDate(tomorrow.getDate() + 1);
+
+				// Format date
+				let dateText = "";
+				if (dueDate.getTime() < today.getTime()) {
+					dateText = "Overdue";
+					dueEl.classList.add("task-overdue");
+				} else if (dueDate.getTime() === today.getTime()) {
+					dateText = "Today";
+					dueEl.classList.add("task-due-today");
+				} else if (dueDate.getTime() === tomorrow.getTime()) {
+					dateText = "Tomorrow";
+				} else {
+					dateText = dueDate.toLocaleDateString("en-US", {
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+					});
+				}
+
+				dueEl.textContent = dateText;
+				dueEl.setAttribute("aria-label", dueDate.toLocaleDateString());
 			}
 
-			dueEl.textContent = dateText;
-			dueEl.setAttribute("aria-label", dueDate.toLocaleDateString());
+			// Scheduled date if available
+			if (this.task.scheduledDate) {
+				const scheduledEl = this.metadataEl.createEl("div", {
+					cls: ["task-date", "task-scheduled-date"],
+				});
+				const scheduledDate = new Date(this.task.scheduledDate);
+
+				scheduledEl.textContent = scheduledDate.toLocaleDateString(
+					"en-US",
+					{
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+					}
+				);
+				scheduledEl.setAttribute(
+					"aria-label",
+					scheduledDate.toLocaleDateString()
+				);
+			}
+
+			// Start date if available
+			if (this.task.startDate) {
+				const startEl = this.metadataEl.createEl("div", {
+					cls: ["task-date", "task-start-date"],
+				});
+				const startDate = new Date(this.task.startDate);
+
+				startEl.textContent = startDate.toLocaleDateString("en-US", {
+					year: "numeric",
+					month: "long",
+					day: "numeric",
+				});
+				startEl.setAttribute(
+					"aria-label",
+					startDate.toLocaleDateString()
+				);
+			}
+
+			// Recurrence if available
+			if (this.task.recurrence) {
+				const recurrenceEl = this.metadataEl.createEl("div", {
+					cls: "task-date task-recurrence",
+				});
+				recurrenceEl.textContent = this.task.recurrence;
+			}
+		} else {
+			// For completed tasks, show completion date
+			if (this.task.completedDate) {
+				const completedEl = this.metadataEl.createEl("div", {
+					cls: ["task-date", "task-done-date"],
+				});
+				const completedDate = new Date(this.task.completedDate);
+
+				completedEl.textContent = completedDate.toLocaleDateString(
+					"en-US",
+					{
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+					}
+				);
+				completedEl.setAttribute(
+					"aria-label",
+					completedDate.toLocaleDateString()
+				);
+			}
+
+			// Created date if available
+			if (this.task.createdDate) {
+				const createdEl = this.metadataEl.createEl("div", {
+					cls: ["task-date", "task-created-date"],
+				});
+				const createdDate = new Date(this.task.createdDate);
+
+				createdEl.textContent = createdDate.toLocaleDateString(
+					"en-US",
+					{
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+					}
+				);
+				createdEl.setAttribute(
+					"aria-label",
+					createdDate.toLocaleDateString()
+				);
+			}
 		}
 
 		// Project badge if available and not in project view

@@ -3,6 +3,8 @@ import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent, ViewMode } from "../components/task-view/sidebar";
 import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";
+import { TagsComponent } from "../components/task-view/tags";
+import { ProjectsComponent } from "../components/task-view/projects";
 import { TaskDetailsComponent } from "../components/task-view/details";
 import "../styles/view.css";
 import TaskProgressBarPlugin from "../index";
@@ -17,6 +19,8 @@ export class TaskView extends ItemView {
 	private sidebarComponent: SidebarComponent;
 	private contentComponent: ContentComponent;
 	private forecastComponent: ForecastComponent;
+	private tagsComponent: TagsComponent;
+	private projectsComponent: ProjectsComponent;
 	private detailsComponent: TaskDetailsComponent;
 
 	// UI state management
@@ -92,6 +96,24 @@ export class TaskView extends ItemView {
 		this.addChild(this.forecastComponent);
 		this.forecastComponent.load();
 		this.forecastComponent.containerEl.style.display = "none";
+
+		// Create the tags component (initially hidden)
+		this.tagsComponent = new TagsComponent(
+			this.rootContainerEl,
+			this.plugin.app
+		);
+		this.addChild(this.tagsComponent);
+		this.tagsComponent.load();
+		this.tagsComponent.containerEl.style.display = "none";
+
+		// Create the projects component (initially hidden)
+		this.projectsComponent = new ProjectsComponent(
+			this.rootContainerEl,
+			this.plugin.app
+		);
+		this.addChild(this.projectsComponent);
+		this.projectsComponent.load();
+		this.projectsComponent.containerEl.style.display = "none";
 
 		// Create the details component
 		this.detailsComponent = new TaskDetailsComponent(
@@ -202,20 +224,50 @@ export class TaskView extends ItemView {
 
 		// Handle project selection from sidebar
 		this.sidebarComponent.onProjectSelected = (project: string) => {
-			this.contentComponent.setViewMode("projects", project);
+			// Set projects view mode with the selected project
+			this.currentViewMode = "projects";
+			// Hide other components and show projects component
+			this.contentComponent.containerEl.style.display = "none";
+			this.forecastComponent.containerEl.style.display = "none";
+			this.tagsComponent.containerEl.style.display = "none";
+			this.projectsComponent.containerEl.style.display = "";
+			// Initialize projects component with the selected project
+			this.projectsComponent.setTasks(this.tasks);
+			// Manually select the project
+			const projectItems =
+				this.projectsComponent.containerEl.querySelectorAll(
+					".project-list-item"
+				);
+			projectItems.forEach((item) => {
+				const itemProject = item.getAttribute("data-project");
+				if (itemProject === project) {
+					// Simulate a click on the project item
+					item.dispatchEvent(new MouseEvent("click"));
+				}
+			});
 		};
 
 		// Handle view mode changes from sidebar
 		this.sidebarComponent.onViewModeChanged = (viewMode: ViewMode) => {
 			this.currentViewMode = viewMode;
 
+			// Hide all content components first
+			this.contentComponent.containerEl.style.display = "none";
+			this.forecastComponent.containerEl.style.display = "none";
+			this.tagsComponent.containerEl.style.display = "none";
+			this.projectsComponent.containerEl.style.display = "none";
+
 			// Toggle visibility of components based on view mode
 			if (viewMode === "forecast") {
-				this.contentComponent.containerEl.style.display = "none";
 				this.forecastComponent.containerEl.style.display = "";
 				this.forecastComponent.setTasks(this.tasks);
+			} else if (viewMode === "tags") {
+				this.tagsComponent.containerEl.style.display = "";
+				this.tagsComponent.setTasks(this.tasks);
+			} else if (viewMode === "projects") {
+				this.projectsComponent.containerEl.style.display = "";
+				this.projectsComponent.setTasks(this.tasks);
 			} else {
-				this.forecastComponent.containerEl.style.display = "none";
 				this.contentComponent.containerEl.style.display = "";
 				this.contentComponent.setViewMode(viewMode);
 			}
@@ -233,6 +285,32 @@ export class TaskView extends ItemView {
 		this.forecastComponent.onTaskCompleted = (task: Task) => {
 			this.toggleTaskCompletion(task);
 		};
+
+		// Handle task selection from tags view
+		this.tagsComponent.onTaskSelected = (task: Task) => {
+			if (task) {
+				this.detailsComponent.showTaskDetails(task);
+				this.toggleDetailsVisibility(true);
+			}
+		};
+
+		// Handle task completion toggle from tags view
+		this.tagsComponent.onTaskCompleted = (task: Task) => {
+			this.toggleTaskCompletion(task);
+		};
+
+		// Handle task selection from projects view
+		this.projectsComponent.onTaskSelected = (task: Task) => {
+			if (task) {
+				this.detailsComponent.showTaskDetails(task);
+				this.toggleDetailsVisibility(true);
+			}
+		};
+
+		// Handle task completion toggle from projects view
+		this.projectsComponent.onTaskCompleted = (task: Task) => {
+			this.toggleTaskCompletion(task);
+		};
 	}
 
 	private async loadTasks() {
@@ -244,11 +322,13 @@ export class TaskView extends ItemView {
 		this.tasks = taskManager.getAllTasks();
 
 		// Initialize the sidebar project tree
-		await this.sidebarComponent.initializeProjectTree(this.tasks);
+		// await this.sidebarComponent.initializeProjectTree(this.tasks);
 
 		// Set tasks in components
 		this.contentComponent.setTasks(this.tasks);
 		this.forecastComponent.setTasks(this.tasks);
+		this.tagsComponent.setTasks(this.tasks);
+		this.projectsComponent.setTasks(this.tasks);
 	}
 
 	private async toggleTaskCompletion(task: Task) {
@@ -268,12 +348,16 @@ export class TaskView extends ItemView {
 		// Update the task
 		await taskManager.updateTask(updatedTask);
 
-		// Update the task in our content component
+		// Update the task in all components
 		this.contentComponent.updateTask(updatedTask);
 
-		// Update the task in forecast component if it's visible
+		// Update in the appropriate view component
 		if (this.currentViewMode === "forecast") {
 			this.forecastComponent.updateTask(updatedTask);
+		} else if (this.currentViewMode === "tags") {
+			this.tagsComponent.updateTask(updatedTask);
+		} else if (this.currentViewMode === "projects") {
+			this.projectsComponent.updateTask(updatedTask);
 		}
 
 		// If this is the currently selected task, update details
@@ -293,12 +377,16 @@ export class TaskView extends ItemView {
 		// Update the task
 		await taskManager.updateTask(updatedTask);
 
-		// Update the task in our content component
+		// Update the task in all components
 		this.contentComponent.updateTask(updatedTask);
 
-		// Update the task in forecast component if it's visible
+		// Update in the appropriate view component
 		if (this.currentViewMode === "forecast") {
 			this.forecastComponent.updateTask(updatedTask);
+		} else if (this.currentViewMode === "tags") {
+			this.tagsComponent.updateTask(updatedTask);
+		} else if (this.currentViewMode === "projects") {
+			this.projectsComponent.updateTask(updatedTask);
 		}
 
 		return updatedTask;
