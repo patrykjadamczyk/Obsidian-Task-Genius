@@ -1,7 +1,9 @@
-import { App, Component } from "obsidian";
+import { App, Component, setIcon } from "obsidian";
 import { Task, TaskFilter } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { ViewMode } from "./sidebar";
+import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
+import { TaskTreeItemComponent } from "./treeItem";
 
 export class ContentComponent extends Component {
 	public containerEl: HTMLElement;
@@ -25,6 +27,8 @@ export class ContentComponent extends Component {
 	private currentViewMode: ViewMode = "forecast";
 	private selectedProject: string | null = null;
 	private focusFilter: string | null = null;
+	private isTreeView: boolean = false;
+	private treeComponents: TaskTreeItemComponent[] = [];
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -75,15 +79,26 @@ export class ContentComponent extends Component {
 			},
 		});
 
-		// Focus filter button
-		const focusEl = this.headerEl.createDiv({ cls: "focus-filter" });
-		this.focusBtn = focusEl.createEl("button", { cls: "focus-button" });
-		this.focusBtn.setText("Focus");
-
-		// Event listeners
-		this.registerDomEvent(this.focusBtn, "click", () => {
-			this.toggleFocusFilter();
+		// View toggle button
+		const viewToggleBtn = this.headerEl.createDiv({
+			cls: "view-toggle-btn",
 		});
+		setIcon(viewToggleBtn, "list");
+		viewToggleBtn.setAttribute("aria-label", "Toggle list/tree view");
+
+		this.registerDomEvent(viewToggleBtn, "click", () => {
+			this.toggleViewMode();
+		});
+
+		// Focus filter button
+		// const focusEl = this.headerEl.createDiv({ cls: "focus-filter" });
+		// this.focusBtn = focusEl.createEl("button", { cls: "focus-button" });
+		// this.focusBtn.setText("Focus");
+
+		// // Event listeners
+		// this.registerDomEvent(this.focusBtn, "click", () => {
+		// 	this.toggleFocusFilter();
+		// });
 
 		this.registerDomEvent(this.filterInput, "input", () => {
 			this.filterTasks(this.filterInput.value);
@@ -116,20 +131,35 @@ export class ContentComponent extends Component {
 		);
 	}
 
-	private toggleFocusFilter() {
-		// Toggle focus state
-		if (this.focusFilter) {
-			this.focusFilter = null;
-			this.focusBtn.setText("Focus");
-			this.focusBtn.classList.remove("focused");
-		} else {
-			// Just an example - you could focus on a specific project or context
-			this.focusFilter = "Work";
-			this.focusBtn.setText("Unfocus");
-			this.focusBtn.classList.add("focused");
+	// private toggleFocusFilter() {
+	// 	// Toggle focus state
+	// 	if (this.focusFilter) {
+	// 		this.focusFilter = null;
+	// 		this.focusBtn.setText("Focus");
+	// 		this.focusBtn.classList.remove("focused");
+	// 	} else {
+	// 		// Just an example - you could focus on a specific project or context
+	// 		this.focusFilter = "Work";
+	// 		this.focusBtn.setText("Unfocus");
+	// 		this.focusBtn.classList.add("focused");
+	// 	}
+
+	// 	this.applyFilters();
+	// 	this.refreshTaskList();
+	// }
+
+	private toggleViewMode() {
+		this.isTreeView = !this.isTreeView;
+
+		// Update toggle button icon
+		const viewToggleBtn = this.headerEl.querySelector(
+			".view-toggle-btn"
+		) as HTMLElement;
+		if (viewToggleBtn) {
+			setIcon(viewToggleBtn, this.isTreeView ? "git-branch" : "list");
 		}
 
-		this.applyFilters();
+		// Refresh the task list with the new view mode
 		this.refreshTaskList();
 	}
 
@@ -292,17 +322,84 @@ export class ContentComponent extends Component {
 		});
 		this.taskComponents = [];
 
-		// Load first batch of tasks
-		this.loadTaskBatch(0, this.taskPageSize);
+		// Clean up old tree components
+		this.treeComponents.forEach((component) => {
+			component.unload();
+		});
+		this.treeComponents = [];
 
-		// Add a load marker at the end if there are more tasks
-		if (this.filteredTasks.length > this.taskPageSize) {
-			const loadMarker = this.taskListEl.createDiv({
-				cls: "task-item task-load-marker",
-				attr: { "data-task-id": "load-marker" },
+		// Render based on view mode
+		if (this.isTreeView) {
+			this.renderTreeView();
+		} else {
+			// Load first batch of tasks in list view
+			this.loadTaskBatch(0, this.taskPageSize);
+
+			// Add a load marker at the end if there are more tasks
+			if (this.filteredTasks.length > this.taskPageSize) {
+				const loadMarker = this.taskListEl.createDiv({
+					cls: "task-item task-load-marker",
+					attr: { "data-task-id": "load-marker" },
+				});
+
+				this.taskListObserver.observe(loadMarker);
+			}
+		}
+	}
+
+	private renderTreeView() {
+		// Convert tasks to tree structure
+		const rootTasks = tasksToTree(this.filteredTasks);
+		const taskMap = new Map<string, Task>();
+		this.filteredTasks.forEach((task) => taskMap.set(task.id, task));
+
+		// Render root tasks with their children
+		rootTasks.forEach((rootTask) => {
+			// Find direct children
+			const childTasks = this.filteredTasks.filter(
+				(task) => task.parent === rootTask.id
+			);
+
+			const treeComponent = new TaskTreeItemComponent(
+				rootTask,
+				this.currentViewMode,
+				this.app,
+				0,
+				childTasks
+			);
+
+			// Set up event handlers
+			treeComponent.onTaskSelected = (selectedTask) => {
+				this.selectTask(selectedTask);
+				if (this.onTaskSelected) {
+					this.onTaskSelected(selectedTask);
+				}
+			};
+
+			treeComponent.onTaskCompleted = (task) => {
+				console.log("task completed", task);
+				if (this.onTaskCompleted) {
+					this.onTaskCompleted(task);
+				}
+			};
+
+			// Load component
+			this.addChild(treeComponent);
+			treeComponent.load();
+
+			// Add to DOM
+			this.taskListEl.appendChild(treeComponent.element);
+
+			// Store for later cleanup
+			this.treeComponents.push(treeComponent);
+		});
+
+		// Add empty state if no tasks
+		if (rootTasks.length === 0) {
+			const emptyEl = this.taskListEl.createDiv({
+				cls: "task-empty-state",
 			});
-
-			this.taskListObserver.observe(loadMarker);
+			emptyEl.setText("No tasks found");
 		}
 	}
 
@@ -434,6 +531,11 @@ export class ContentComponent extends Component {
 
 		// Clean up task components
 		this.taskComponents.forEach((component) => {
+			component.unload();
+		});
+
+		// Clean up tree components
+		this.treeComponents.forEach((component) => {
 			component.unload();
 		});
 

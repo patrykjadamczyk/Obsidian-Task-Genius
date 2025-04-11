@@ -31,10 +31,21 @@
 	margin-top: 4px;
 }
 
+.forecast-actions {
+	display: flex;
+	gap: var(--size-4-2);
+	align-items: center;
+	justify-content: center;
+}
+
 .forecast-settings {
 	cursor: pointer;
 	opacity: 0.7;
 	transition: opacity 0.2s ease;
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .forecast-settings:hover {

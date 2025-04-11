@@ -3,6 +3,8 @@ import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/project-view.css";
+import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
+import { TaskTreeItemComponent } from "./treeItem";
 
 interface SelectedProjects {
 	projects: string[];
@@ -22,6 +24,7 @@ export class ProjectsComponent extends Component {
 
 	// Child components
 	private taskComponents: TaskListItemComponent[] = [];
+	private treeComponents: TaskTreeItemComponent[] = [];
 
 	// State
 	private allTasks: Task[] = [];
@@ -32,6 +35,7 @@ export class ProjectsComponent extends Component {
 		isMultiSelect: false,
 	};
 	private allProjectsMap: Map<string, Set<string>> = new Map(); // project -> taskIds
+	private isTreeView: boolean = false;
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -131,6 +135,17 @@ export class ProjectsComponent extends Component {
 			cls: "projects-task-count",
 		});
 		taskCountEl.setText("0 tasks");
+
+		// Add view toggle button
+		const viewToggleBtn = taskHeaderEl.createDiv({
+			cls: "view-toggle-btn",
+		});
+		setIcon(viewToggleBtn, "list");
+		viewToggleBtn.setAttribute("aria-label", t("Toggle list/tree view"));
+
+		this.registerDomEvent(viewToggleBtn, "click", () => {
+			this.toggleViewMode();
+		});
 
 		// Task list container
 		this.taskListContainerEl = this.taskContainerEl.createDiv({
@@ -288,6 +303,21 @@ export class ProjectsComponent extends Component {
 		}
 	}
 
+	private toggleViewMode() {
+		this.isTreeView = !this.isTreeView;
+
+		// Update toggle button icon
+		const viewToggleBtn = this.taskContainerEl.querySelector(
+			".view-toggle-btn"
+		) as HTMLElement;
+		if (viewToggleBtn) {
+			setIcon(viewToggleBtn, this.isTreeView ? "git-branch" : "list");
+		}
+
+		// Update tasks display
+		this.renderTaskList();
+	}
+
 	private updateSelectedTasks() {
 		if (this.selectedProjects.projects.length === 0) {
 			this.renderEmptyTaskList();
@@ -341,6 +371,12 @@ export class ProjectsComponent extends Component {
 		});
 		this.taskComponents = [];
 
+		// Clean up existing tree components
+		this.treeComponents.forEach((component) => {
+			component.unload();
+		});
+		this.treeComponents = [];
+
 		// Clear container
 		this.taskListContainerEl.empty();
 
@@ -379,6 +415,15 @@ export class ProjectsComponent extends Component {
 			return;
 		}
 
+		// Render tasks based on view mode
+		if (this.isTreeView) {
+			this.renderTreeView();
+		} else {
+			this.renderListView();
+		}
+	}
+
+	private renderListView() {
 		// Render each task
 		this.filteredTasks.forEach((task) => {
 			const taskComponent = new TaskListItemComponent(
@@ -409,6 +454,52 @@ export class ProjectsComponent extends Component {
 
 			// Store for later cleanup
 			this.taskComponents.push(taskComponent);
+		});
+	}
+
+	private renderTreeView() {
+		// Convert tasks to tree structure
+		const rootTasks = tasksToTree(this.filteredTasks);
+		const taskMap = new Map<string, Task>();
+		this.filteredTasks.forEach((task) => taskMap.set(task.id, task));
+
+		// Render root tasks with their children
+		rootTasks.forEach((rootTask) => {
+			// Find direct children
+			const childTasks = this.filteredTasks.filter(
+				(task) => task.parent === rootTask.id
+			);
+
+			const treeComponent = new TaskTreeItemComponent(
+				rootTask,
+				"projects",
+				this.app,
+				0,
+				childTasks
+			);
+
+			// Set up event handlers
+			treeComponent.onTaskSelected = (selectedTask) => {
+				if (this.onTaskSelected) {
+					this.onTaskSelected(selectedTask);
+				}
+			};
+
+			treeComponent.onTaskCompleted = (task) => {
+				if (this.onTaskCompleted) {
+					this.onTaskCompleted(task);
+				}
+			};
+
+			// Load component
+			this.addChild(treeComponent);
+			treeComponent.load();
+
+			// Add to DOM
+			this.taskListContainerEl.appendChild(treeComponent.element);
+
+			// Store for later cleanup
+			this.treeComponents.push(treeComponent);
 		});
 	}
 
@@ -482,6 +573,11 @@ export class ProjectsComponent extends Component {
 	onunload() {
 		// Clean up task components
 		this.taskComponents.forEach((component) => {
+			component.unload();
+		});
+
+		// Clean up tree components
+		this.treeComponents.forEach((component) => {
 			component.unload();
 		});
 

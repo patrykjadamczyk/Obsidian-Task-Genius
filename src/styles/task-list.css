@@ -11,10 +11,15 @@
 	padding: 8px 16px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	cursor: pointer;
+	gap: var(--size-2-3);
 }
 
 .task-item:hover {
 	background-color: var(--background-secondary-alt);
+}
+
+.task-children-container .task-item:hover {
+	background-color: var(--background-secondary);
 }
 
 .task-item.selected {
@@ -35,7 +40,6 @@
 }
 
 .task-checkbox {
-	margin-right: 12px;
 	width: 16px;
 	height: 16px;
 	display: flex;
@@ -79,7 +83,7 @@
 	font-size: var(--font-ui-small);
 	color: var(--text-faint);
 	white-space: nowrap;
-	background-color: var(--background-secondary-alt);
+	background-color: var(--background-modifier-active-hover);
 	padding: var(--size-2-1) var(--size-2-3);
 	border-radius: var(--radius-s);
 	opacity: 0.5;

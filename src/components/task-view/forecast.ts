@@ -5,6 +5,8 @@ import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/forecast.css";
 import "../../styles/calendar.css";
+import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
+import { TaskTreeItemComponent } from "./treeItem";
 
 interface DateSection {
 	title: string;
@@ -40,6 +42,8 @@ export class ForecastComponent extends Component {
 	private dateSections: DateSection[] = [];
 	private focusFilter: string | null = null;
 	private windowFocusHandler: () => void;
+	private isTreeView: boolean = false;
+	private treeComponents: TaskTreeItemComponent[] = [];
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -144,11 +148,42 @@ export class ForecastComponent extends Component {
 		});
 		countEl.setText("0 actions, 0 projects");
 
+		// View toggle and settings
+		const actionsContainer = this.forecastHeaderEl.createDiv({
+			cls: "forecast-actions",
+		});
+
+		// List/Tree toggle button
+		const viewToggleBtn = actionsContainer.createDiv({
+			cls: "view-toggle-btn",
+		});
+		setIcon(viewToggleBtn, "list");
+		viewToggleBtn.setAttribute("aria-label", t("Toggle list/tree view"));
+
+		this.registerDomEvent(viewToggleBtn, "click", () => {
+			this.toggleViewMode();
+		});
+
 		// Settings button
-		this.settingsEl = this.forecastHeaderEl.createDiv({
+		this.settingsEl = actionsContainer.createDiv({
 			cls: "forecast-settings",
 		});
 		setIcon(this.settingsEl, "settings");
+	}
+
+	private toggleViewMode() {
+		this.isTreeView = !this.isTreeView;
+
+		// Update toggle button icon
+		const viewToggleBtn = this.forecastHeaderEl.querySelector(
+			".view-toggle-btn"
+		) as HTMLElement;
+		if (viewToggleBtn) {
+			setIcon(viewToggleBtn, this.isTreeView ? "git-branch" : "list");
+		}
+
+		// Update sections display
+		this.refreshDateSections();
 	}
 
 	private createFocusBar() {
@@ -580,6 +615,12 @@ export class ForecastComponent extends Component {
 		// Clear container
 		this.taskListContainerEl.empty();
 
+		// Clean up old tree components if any
+		this.treeComponents.forEach((component) => {
+			component.unload();
+		});
+		this.treeComponents = [];
+
 		// Render each section
 		this.dateSections.forEach((section) => {
 			const sectionEl = this.taskListContainerEl.createDiv({
@@ -631,37 +672,12 @@ export class ForecastComponent extends Component {
 				section.isExpanded ? taskListEl.show() : taskListEl.hide();
 			});
 
-			// Create task items
-			section.tasks.forEach((task) => {
-				const taskComponent = new TaskListItemComponent(
-					task,
-					"forecast",
-					this.app
-				);
-
-				// Set up event handlers
-				taskComponent.onTaskSelected = (selectedTask) => {
-					if (this.onTaskSelected) {
-						this.onTaskSelected(selectedTask);
-					}
-				};
-
-				taskComponent.onTaskCompleted = (task) => {
-					if (this.onTaskCompleted) {
-						this.onTaskCompleted(task);
-					}
-				};
-
-				// Load component
-				this.addChild(taskComponent);
-				taskComponent.load();
-
-				// Add to DOM
-				taskListEl.appendChild(taskComponent.element);
-
-				// Store for later cleanup
-				this.taskComponents.push(taskComponent);
-			});
+			// Render tasks based on view mode
+			if (this.isTreeView) {
+				this.renderTreeView(section.tasks, taskListEl);
+			} else {
+				this.renderListView(section.tasks, taskListEl);
+			}
 		});
 
 		// Add empty state if no sections
@@ -671,6 +687,86 @@ export class ForecastComponent extends Component {
 			});
 			emptyEl.setText("No tasks scheduled");
 		}
+	}
+
+	private renderListView(tasks: Task[], containerEl: HTMLElement) {
+		// Create task items (flat list view)
+		tasks.forEach((task) => {
+			const taskComponent = new TaskListItemComponent(
+				task,
+				"forecast",
+				this.app
+			);
+
+			// Set up event handlers
+			taskComponent.onTaskSelected = (selectedTask) => {
+				if (this.onTaskSelected) {
+					this.onTaskSelected(selectedTask);
+				}
+			};
+
+			taskComponent.onTaskCompleted = (task) => {
+				if (this.onTaskCompleted) {
+					this.onTaskCompleted(task);
+				}
+			};
+
+			// Load component
+			this.addChild(taskComponent);
+			taskComponent.load();
+
+			// Add to DOM
+			containerEl.appendChild(taskComponent.element);
+
+			// Store for later cleanup
+			this.taskComponents.push(taskComponent);
+		});
+	}
+
+	private renderTreeView(tasks: Task[], containerEl: HTMLElement) {
+		// Convert tasks to tree structure
+		const rootTasks = tasksToTree(tasks);
+		const taskMap = new Map<string, Task>();
+		tasks.forEach((task) => taskMap.set(task.id, task));
+
+		// Render root tasks with their children
+		rootTasks.forEach((rootTask) => {
+			// Find direct children
+			const childTasks = tasks.filter(
+				(task) => task.parent === rootTask.id
+			);
+
+			const treeComponent = new TaskTreeItemComponent(
+				rootTask,
+				"forecast",
+				this.app,
+				0,
+				childTasks
+			);
+
+			// Set up event handlers
+			treeComponent.onTaskSelected = (selectedTask) => {
+				if (this.onTaskSelected) {
+					this.onTaskSelected(selectedTask);
+				}
+			};
+
+			treeComponent.onTaskCompleted = (task) => {
+				if (this.onTaskCompleted) {
+					this.onTaskCompleted(task);
+				}
+			};
+
+			// Load component
+			this.addChild(treeComponent);
+			treeComponent.load();
+
+			// Add to DOM
+			containerEl.appendChild(treeComponent.element);
+
+			// Store for later cleanup
+			this.treeComponents.push(treeComponent);
+		});
 	}
 
 	private formatDate(date: Date): string {
@@ -832,6 +928,12 @@ export class ForecastComponent extends Component {
 
 	onunload() {
 		// No need to manually remove DOM event listeners registered with this.registerDomEvent
+
+		// Clean up tree components if any
+		this.treeComponents.forEach((component) => {
+			component.unload();
+		});
+
 		this.containerEl.empty();
 		this.containerEl.remove();
 	}
