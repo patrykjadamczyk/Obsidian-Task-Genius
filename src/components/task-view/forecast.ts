@@ -618,7 +618,7 @@ export class ForecastComponent extends Component {
 			});
 
 			if (!section.isExpanded) {
-				taskListEl.style.display = "none";
+				taskListEl.hide();
 			}
 
 			// Register toggle event
@@ -628,7 +628,7 @@ export class ForecastComponent extends Component {
 					toggleEl,
 					section.isExpanded ? "chevron-down" : "chevron-right"
 				);
-				taskListEl.style.display = section.isExpanded ? "" : "none";
+				section.isExpanded ? taskListEl.show() : taskListEl.hide();
 			});
 
 			// Create task items

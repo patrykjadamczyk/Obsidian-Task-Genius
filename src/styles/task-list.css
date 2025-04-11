@@ -29,6 +29,9 @@
 .task-item .markdown-block.markdown-renderer > p:only-child {
 	padding: 0;
 	margin: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .task-checkbox {
@@ -56,6 +59,9 @@
 
 .task-item-container {
 	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .task-item-metadata {

@@ -133,7 +133,7 @@ export class TaskView extends ItemView {
 		);
 		this.addChild(this.forecastComponent);
 		this.forecastComponent.load();
-		this.forecastComponent.containerEl.style.display = "none";
+		this.forecastComponent.containerEl.hide();
 
 		// Create the tags component (initially hidden)
 		this.tagsComponent = new TagsComponent(
@@ -142,7 +142,7 @@ export class TaskView extends ItemView {
 		);
 		this.addChild(this.tagsComponent);
 		this.tagsComponent.load();
-		this.tagsComponent.containerEl.style.display = "none";
+		this.tagsComponent.containerEl.hide();
 
 		// Create the projects component (initially hidden)
 		this.projectsComponent = new ProjectsComponent(
@@ -151,7 +151,7 @@ export class TaskView extends ItemView {
 		);
 		this.addChild(this.projectsComponent);
 		this.projectsComponent.load();
-		this.projectsComponent.containerEl.style.display = "none";
+		this.projectsComponent.containerEl.hide();
 
 		// Create the details component
 		this.detailsComponent = new TaskDetailsComponent(
