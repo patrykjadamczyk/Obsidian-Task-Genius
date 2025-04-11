@@ -405,6 +405,15 @@ export class CalendarComponent extends Component {
 		this.generateCalendar();
 	}
 
+	public setCurrentDate(date: Date) {
+		// Update the current date
+		this.currentDate = new Date(date);
+		this.currentDate.setHours(0, 0, 0, 0);
+
+		// Regenerate the calendar to update "today" highlighting
+		this.generateCalendar();
+	}
+
 	onunload() {
 		this.containerEl.empty();
 		this.containerEl.remove();

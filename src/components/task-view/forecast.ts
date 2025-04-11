@@ -33,9 +33,11 @@ export class ForecastComponent extends Component {
 	private pastDueTasks: Task[] = [];
 	private todayTasks: Task[] = [];
 	private futureTasks: Task[] = [];
-	private selectedDate: Date = new Date();
+	private selectedDate: Date;
+	private currentDate: Date;
 	private dateSections: DateSection[] = [];
 	private focusFilter: string | null = null;
+	private windowFocusHandler: () => void;
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -43,6 +45,10 @@ export class ForecastComponent extends Component {
 
 	constructor(private parentEl: HTMLElement, private app: App) {
 		super();
+		// Initialize dates
+		this.currentDate = new Date();
+		this.currentDate.setHours(0, 0, 0, 0);
+		this.selectedDate = new Date(this.currentDate);
 	}
 
 	onload() {
@@ -61,6 +67,55 @@ export class ForecastComponent extends Component {
 
 		// Right column: create task sections by date
 		this.createRightColumn(contentContainer);
+
+		// Set up window focus handler
+		this.windowFocusHandler = () => {
+			// Update current date when window regains focus
+			const newCurrentDate = new Date();
+			newCurrentDate.setHours(0, 0, 0, 0);
+
+			// Store previous current date for comparison
+			const oldCurrentDate = new Date(this.currentDate);
+			oldCurrentDate.setHours(0, 0, 0, 0);
+
+			// Update current date
+			this.currentDate = newCurrentDate;
+
+			// Update the calendar's current date
+			this.calendarComponent.setCurrentDate(this.currentDate);
+
+			// Only update selected date if it's older than the new current date
+			// and the selected date was previously on the current date
+			const selectedDateTimestamp = new Date(this.selectedDate).setHours(
+				0,
+				0,
+				0,
+				0
+			);
+			const oldCurrentTimestamp = oldCurrentDate.getTime();
+			const newCurrentTimestamp = newCurrentDate.getTime();
+
+			// Check if selectedDate equals oldCurrentDate (was on "today")
+			// and if the new current date is after the selected date
+			if (
+				selectedDateTimestamp === oldCurrentTimestamp &&
+				selectedDateTimestamp < newCurrentTimestamp
+			) {
+				// Update selected date to the new current date
+				this.selectedDate = new Date(newCurrentDate);
+				// Update the calendar's selected date
+				this.calendarComponent.selectDate(this.selectedDate);
+			}
+
+			// Update tasks categorization and UI
+			this.categorizeTasks();
+			this.updateTaskStats();
+			this.updateDueSoonSection();
+			this.refreshDateSections();
+		};
+
+		// Register the window focus event
+		this.registerDomEvent(window, "focus", this.windowFocusHandler);
 	}
 
 	private createForecastHeader() {
@@ -138,7 +193,15 @@ export class ForecastComponent extends Component {
 
 		// Set up calendar events
 		this.calendarComponent.onDateSelected = (date, tasks) => {
-			this.selectedDate = date;
+			// Create a new date object to ensure we're working with a clean date
+			const selectedDate = new Date(date);
+			selectedDate.setHours(0, 0, 0, 0);
+
+			this.selectedDate = selectedDate;
+
+			// Update the Coming Up section first
+			this.updateDueSoonSection();
+			// Then refresh the date sections in the right panel
 			this.refreshDateSections();
 		};
 	}
@@ -255,7 +318,8 @@ export class ForecastComponent extends Component {
 	}
 
 	private categorizeTasks() {
-		const today = new Date();
+		// Use currentDate as today
+		const today = new Date(this.currentDate);
 		today.setHours(0, 0, 0, 0);
 		const todayTimestamp = today.getTime();
 
@@ -318,18 +382,19 @@ export class ForecastComponent extends Component {
 		// Clear existing content
 		this.dueSoonContainerEl.empty();
 
-		// Get the next 7 days from today
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
+		// Use the current selected date as the starting point
+		// Always create a new date object to avoid reference issues
+		const baseDate = new Date(this.selectedDate);
+		baseDate.setHours(0, 0, 0, 0);
 
 		const dueSoonItems: { date: Date; tasks: Task[] }[] = [];
 
-		// Process tasks due in the next week
+		// Process tasks due in the next 15 days from the selected date
 		for (let i = 0; i < 15; i++) {
-			const date = new Date(today);
+			const date = new Date(baseDate);
 			date.setDate(date.getDate() + i);
 
-			// Skip today since it's shown in the stats bar
+			// Skip current day since it's shown in the stats bar
 			if (i === 0) continue;
 
 			const tasksForDay = this.getTasksForDate(date);
@@ -369,7 +434,12 @@ export class ForecastComponent extends Component {
 			const countEl = itemEl.createDiv({
 				cls: "due-soon-count",
 			});
-			countEl.setText(item.tasks.length.toString());
+
+			// Properly format the task count
+			const taskCount = item.tasks.length;
+			countEl.setText(
+				`${taskCount} ${taskCount === 1 ? "Task" : "Tasks"}`
+			);
 
 			// Add click handler to select this date
 			this.registerDomEvent(itemEl, "click", () => {
@@ -422,8 +492,8 @@ export class ForecastComponent extends Component {
 		// Today section
 		if (this.todayTasks.length > 0) {
 			this.dateSections.push({
-				title: "Today — " + this.formatDate(new Date()),
-				date: new Date(),
+				title: "Today — " + this.formatDate(this.currentDate),
+				date: new Date(this.currentDate),
 				tasks: this.todayTasks,
 				isExpanded: true,
 			});
@@ -453,7 +523,7 @@ export class ForecastComponent extends Component {
 			const date = new Date(dateKey);
 			const tasks = dateMap.get(dateKey)!;
 
-			const today = new Date();
+			const today = new Date(this.currentDate);
 			today.setHours(0, 0, 0, 0);
 
 			const dayDiff = Math.round(
@@ -649,8 +719,8 @@ export class ForecastComponent extends Component {
 		} else if (this.focusFilter === "today") {
 			this.dateSections = [
 				{
-					title: "Today — " + this.formatDate(new Date()),
-					date: new Date(),
+					title: "Today — " + this.formatDate(this.currentDate),
+					date: new Date(this.currentDate),
 					tasks: this.todayTasks,
 					isExpanded: true,
 				},
@@ -660,7 +730,7 @@ export class ForecastComponent extends Component {
 			this.createDateSections();
 			// Filter out past due and today
 			this.dateSections = this.dateSections.filter((section) => {
-				const today = new Date();
+				const today = new Date(this.currentDate);
 				today.setHours(0, 0, 0, 0);
 				return section.date.getTime() > today.getTime();
 			});
@@ -680,6 +750,13 @@ export class ForecastComponent extends Component {
 			return;
 		}
 
+		// Clear existing content and components first
+		this.taskComponents.forEach((component) => {
+			component.unload();
+		});
+		this.taskComponents = [];
+		this.taskListContainerEl.empty();
+
 		// Get tasks for selected date
 		const selectedDateTasks = this.getTasksForDate(this.selectedDate);
 
@@ -697,19 +774,25 @@ export class ForecastComponent extends Component {
 		} else {
 			// If no tasks on the selected date, show empty state
 			this.dateSections = [];
-			this.renderDateSections();
+
+			// Add empty state with selected date information
+			const emptyEl = this.taskListContainerEl.createDiv({
+				cls: "forecast-empty-state",
+			});
+			emptyEl.setText(
+				`No tasks scheduled for ${this.formatDate(this.selectedDate)}`
+			);
 		}
 	}
 
 	private getTasksForDate(date: Date): Task[] {
+		if (!date) return [];
+
 		const startOfDay = new Date(date);
 		startOfDay.setHours(0, 0, 0, 0);
 
-		const endOfDay = new Date(date);
-		endOfDay.setHours(23, 59, 59, 999);
-
 		const startTimestamp = startOfDay.getTime();
-		const endTimestamp = endOfDay.getTime();
+		console.log(this.allTasks, startTimestamp);
 
 		return this.allTasks.filter((task) => {
 			if (task.dueDate && !task.completed) {
@@ -740,6 +823,7 @@ export class ForecastComponent extends Component {
 	}
 
 	onunload() {
+		// No need to manually remove DOM event listeners registered with this.registerDomEvent
 		this.containerEl.empty();
 		this.containerEl.remove();
 	}

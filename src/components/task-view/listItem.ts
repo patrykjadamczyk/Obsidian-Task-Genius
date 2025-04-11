@@ -95,6 +95,7 @@ export class TaskListItemComponent extends Component {
 			}
 
 			dueEl.textContent = dateText;
+			dueEl.setAttribute("aria-label", dueDate.toLocaleDateString());
 		}
 
 		// Project badge if available and not in project view

@@ -289,7 +289,7 @@ function parseTasksFromListItems(
 			content: taskContent.trim(),
 			filePath,
 			line,
-			completed: item.task !== " ", // 空格表示未完成
+			completed: !["x", "X"].includes(item.task), // 空格表示未完成
 			status: item.task,
 			originalMarkdown: lineContent,
 			tags: [],
