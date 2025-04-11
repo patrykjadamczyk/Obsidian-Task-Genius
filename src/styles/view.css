@@ -412,3 +412,7 @@
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
+
+.task-genius-action-btn {
+	--icon-size: 16px;
+}

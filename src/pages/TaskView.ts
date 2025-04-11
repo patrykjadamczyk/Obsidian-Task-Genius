@@ -1,4 +1,11 @@
-import { ItemView, WorkspaceLeaf, TFile, Plugin, setIcon } from "obsidian";
+import {
+	ItemView,
+	WorkspaceLeaf,
+	TFile,
+	Plugin,
+	setIcon,
+	ExtraButtonComponent,
+} from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent, ViewMode } from "../components/task-view/sidebar";
 import { ContentComponent } from "../components/task-view/content";
@@ -8,6 +15,7 @@ import { ProjectsComponent } from "../components/task-view/projects";
 import { TaskDetailsComponent } from "../components/task-view/details";
 import "../styles/view.css";
 import TaskProgressBarPlugin from "../index";
+import { QuickCaptureModal } from "src/components/QuickCaptureModal";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -69,6 +77,33 @@ export class TaskView extends ItemView {
 
 		// Initially hide details panel since no task is selected
 		this.toggleDetailsVisibility(false);
+
+		this.addAction("check-square", "capture", () => {
+			const modal = new QuickCaptureModal(this.plugin.app, this.plugin);
+			modal.open();
+		});
+
+		// @ts-expect-error internal obsidian api
+		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
+		// @ts-expect-error internal obsidian api
+		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).createEl(
+			"span",
+			{
+				cls: "task-genius-action-btn",
+			},
+			(el: HTMLElement) => {
+				new ExtraButtonComponent(el)
+					.setIcon("check-square")
+					.setTooltip("Capture")
+					.onClick(() => {
+						const modal = new QuickCaptureModal(
+							this.plugin.app,
+							this.plugin
+						);
+						modal.open();
+					});
+			}
+		);
 	}
 
 	private initializeComponents() {
