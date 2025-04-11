@@ -327,6 +327,7 @@ export class ContentComponent extends Component {
 			};
 
 			taskComponent.onTaskCompleted = (task) => {
+				console.log("task completed", task);
 				if (this.onTaskCompleted) {
 					this.onTaskCompleted(task);
 				}

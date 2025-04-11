@@ -3,6 +3,8 @@ import { Task } from "../../utils/types/TaskIndex";
 import { CalendarComponent } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
+import "../../styles/forecast.css";
+import "../../styles/calendar.css";
 
 interface DateSection {
 	title: string;
@@ -106,7 +108,11 @@ export class ForecastComponent extends Component {
 				// Update the calendar's selected date
 				this.calendarComponent.selectDate(this.selectedDate);
 			}
-
+			// If the date hasn't changed (still the same day), don't refresh
+			if (oldCurrentTimestamp === newCurrentTimestamp) {
+				// Skip refreshing if it's still the same day
+				return;
+			}
 			// Update tasks categorization and UI
 			this.categorizeTasks();
 			this.updateTaskStats();

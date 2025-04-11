@@ -1,6 +1,7 @@
 import { App, Component } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
+import "../../styles/task-list.css";
 
 export class TaskListItemComponent extends Component {
 	public element: HTMLElement;
@@ -49,6 +50,19 @@ export class TaskListItemComponent extends Component {
 				if (this.task.status !== " ") {
 					checkbox.checked = true;
 				}
+
+				this.registerDomEvent(checkbox, "click", (event) => {
+					event.stopPropagation();
+
+					if (this.onTaskCompleted) {
+						this.onTaskCompleted(this.task);
+					}
+
+					if (this.task.status === " ") {
+						checkbox.checked = true;
+						checkbox.dataset.task = "x";
+					}
+				});
 			}
 		);
 
@@ -222,14 +236,6 @@ export class TaskListItemComponent extends Component {
 		this.registerDomEvent(this.element, "click", () => {
 			if (this.onTaskSelected) {
 				this.onTaskSelected(this.task);
-			}
-		});
-
-		// Checkbox click handler to toggle completion
-		this.registerDomEvent(checkboxEl, "click", (e) => {
-			e.stopPropagation();
-			if (this.onTaskCompleted) {
-				this.onTaskCompleted(this.task);
 			}
 		});
 	}

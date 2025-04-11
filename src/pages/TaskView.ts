@@ -62,7 +62,10 @@ export class TaskView extends ItemView {
 		await this.loadTasks();
 
 		// Set default view
-		this.sidebarComponent.setViewMode("inbox");
+		this.sidebarComponent.setViewMode(
+			(this.app.loadLocalStorage("task-genius:view-mode") as ViewMode) ||
+				"inbox"
+		);
 
 		// Initially hide details panel since no task is selected
 		this.toggleDetailsVisibility(false);
@@ -204,6 +207,10 @@ export class TaskView extends ItemView {
 			}
 		};
 
+		this.contentComponent.onTaskCompleted = (task: Task) => {
+			this.toggleTaskCompletion(task);
+		};
+
 		// Handle task completion toggle from details panel
 		this.detailsComponent.onTaskToggleComplete = (task) => {
 			this.toggleTaskCompletion(task);
@@ -227,10 +234,10 @@ export class TaskView extends ItemView {
 			// Set projects view mode with the selected project
 			this.currentViewMode = "projects";
 			// Hide other components and show projects component
-			this.contentComponent.containerEl.style.display = "none";
-			this.forecastComponent.containerEl.style.display = "none";
-			this.tagsComponent.containerEl.style.display = "none";
-			this.projectsComponent.containerEl.style.display = "";
+			this.contentComponent.containerEl.hide();
+			this.forecastComponent.containerEl.hide();
+			this.tagsComponent.containerEl.hide();
+			this.projectsComponent.containerEl.show();
 			// Initialize projects component with the selected project
 			this.projectsComponent.setTasks(this.tasks);
 			// Manually select the project
@@ -252,25 +259,27 @@ export class TaskView extends ItemView {
 			this.currentViewMode = viewMode;
 
 			// Hide all content components first
-			this.contentComponent.containerEl.style.display = "none";
-			this.forecastComponent.containerEl.style.display = "none";
-			this.tagsComponent.containerEl.style.display = "none";
-			this.projectsComponent.containerEl.style.display = "none";
+			this.contentComponent.containerEl.hide();
+			this.forecastComponent.containerEl.hide();
+			this.tagsComponent.containerEl.hide();
+			this.projectsComponent.containerEl.hide();
 
 			// Toggle visibility of components based on view mode
 			if (viewMode === "forecast") {
-				this.forecastComponent.containerEl.style.display = "";
+				this.forecastComponent.containerEl.show();
 				this.forecastComponent.setTasks(this.tasks);
 			} else if (viewMode === "tags") {
-				this.tagsComponent.containerEl.style.display = "";
+				this.tagsComponent.containerEl.show();
 				this.tagsComponent.setTasks(this.tasks);
 			} else if (viewMode === "projects") {
-				this.projectsComponent.containerEl.style.display = "";
+				this.projectsComponent.containerEl.show();
 				this.projectsComponent.setTasks(this.tasks);
 			} else {
-				this.contentComponent.containerEl.style.display = "";
+				this.contentComponent.containerEl.show();
 				this.contentComponent.setViewMode(viewMode);
 			}
+
+			this.app.saveLocalStorage("task-genius:view-mode", viewMode);
 		};
 
 		// Handle task selection from forecast view
@@ -315,7 +324,7 @@ export class TaskView extends ItemView {
 
 	private async loadTasks() {
 		// Get active task manager from plugin
-		const taskManager = (this.plugin as any).taskManager;
+		const taskManager = (this.plugin as TaskProgressBarPlugin).taskManager;
 		if (!taskManager) return;
 
 		// Get all tasks
@@ -341,8 +350,11 @@ export class TaskView extends ItemView {
 			updatedTask.completedDate = undefined;
 		}
 
+		console.log("toggleTaskCompletion", updatedTask);
+
 		// Get active task manager from plugin
-		const taskManager = (this.plugin as any).taskManager;
+		const taskManager = (this.plugin as TaskProgressBarPlugin).taskManager;
+		console.log("taskManager", taskManager);
 		if (!taskManager) return;
 
 		// Update the task

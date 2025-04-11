@@ -2,6 +2,7 @@ import { App, Component, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
+import "../../styles/tag-view.css";
 
 interface SelectedTags {
 	tags: string[];
