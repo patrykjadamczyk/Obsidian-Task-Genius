@@ -589,26 +589,31 @@ export class InboxComponent extends Component {
 		if (this.isTreeView) {
 			if (this.nextRootTaskIndex < this.rootTasks.length) {
 				console.log("Loading more TREE tasks");
-				// Rebuild or reuse task map
 				const taskMap = new Map<string, Task>();
 				this.filteredTasks.forEach((task) =>
 					taskMap.set(task.id, task)
 				);
-				// Load next batch of root tasks
 				const newEnd = this.loadRootTaskBatch(
 					this.nextRootTaskIndex,
 					this.taskPageSize,
 					taskMap
 				);
-				// Check if we need to re-add the marker *after* loading
-				if (newEnd >= this.rootTasks.length) {
-					this.removeLoadMarker(); // No more tasks, remove marker
+
+				// Explicitly manage the marker after loading tree items
+				this.removeLoadMarker(); // Remove the old marker
+
+				if (newEnd < this.rootTasks.length) {
+					// More root tasks exist, add a new marker at the end
+					this.addLoadMarker();
 				} else {
-					// Ensure marker is still observed if needed
-					// The marker should have been added previously if newEnd < rootTasks.length
+					// No more tasks to load
+					console.log("All tree tasks loaded.");
 				}
 			} else {
-				console.log("No more tree tasks to load.");
+				// Should not happen if logic is correct, but handle defensively
+				console.log(
+					"No more tree tasks to load (triggered when index >= total)."
+				);
 				this.removeLoadMarker();
 			}
 		} else {
@@ -621,13 +626,22 @@ export class InboxComponent extends Component {
 					currentCount,
 					this.taskPageSize
 				);
-				// Check if we need to re-add the marker
-				if (newEnd >= this.filteredTasks.length) {
-					this.removeLoadMarker(); // No more tasks, remove marker
+
+				// Explicitly manage the marker after loading list items
+				this.removeLoadMarker(); // Remove the old marker regardless
+
+				if (newEnd < this.filteredTasks.length) {
+					// More tasks exist, add a new marker at the end
+					this.addLoadMarker();
+				} else {
+					// No more tasks to load, marker remains removed
+					console.log("All list tasks loaded.");
 				}
-				// Ensure marker is still observed if needed
 			} else {
-				console.log("No more list tasks to load.");
+				// This case might happen if triggered erroneously, ensure marker is gone
+				console.log(
+					"No more list tasks to load (triggered when count >= total)."
+				);
 				this.removeLoadMarker();
 			}
 		}
