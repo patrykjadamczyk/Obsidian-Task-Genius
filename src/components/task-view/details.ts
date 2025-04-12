@@ -56,6 +56,7 @@ function createTaskCheckbox(
 		cls: "task-list-item-checkbox",
 		type: "checkbox",
 	});
+	console.log("status", status, task.status);
 	checkbox.dataset.task = status;
 	if (status !== " ") {
 		checkbox.checked = true;
@@ -208,6 +209,10 @@ export class TaskDetailsComponent extends Component {
 					for (const status of Object.keys(
 						this.plugin.settings.taskStatusMarks
 					)) {
+						const mark =
+							this.plugin.settings.taskStatusMarks[
+								status as keyof typeof this.plugin.settings.taskStatusMarks
+							];
 						menu.addItem((item) => {
 							item.titleEl.createEl(
 								"span",
@@ -215,21 +220,17 @@ export class TaskDetailsComponent extends Component {
 									cls: "status-option-checkbox",
 								},
 								(el) => {
-									createTaskCheckbox(status, task, el);
+									createTaskCheckbox(mark, task, el);
 								}
 							);
 							item.titleEl.createEl("span", {
 								cls: "status-option",
 								text: status,
 							});
-							console.log(item);
 							item.onClick(() => {
 								this.onTaskUpdate(task, {
 									...task,
-									status: this.plugin.settings
-										.taskStatusMarks[
-										status as keyof typeof this.plugin.settings.taskStatusMarks
-									],
+									status: mark,
 								});
 							});
 						});

@@ -97,9 +97,28 @@
 	align-items: center;
 }
 
+.menu-item-title:has(.status-option) {
+	display: flex;
+	align-items: center;
+
+	gap: 4px;
+}
+
+.menu-item:has(.status-option-checkbox) .menu-item-icon {
+	display: none;
+}
+
+.status-option-checkbox {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
 .status-option {
 	display: flex;
 	justify-content: center;
+
+	text-transform: uppercase;
 }
 
 .status-option.current-status {
