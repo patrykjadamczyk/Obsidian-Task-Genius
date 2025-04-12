@@ -37,6 +37,8 @@ export class TaskView extends ItemView {
 	private sidebarToggleBtn: HTMLElement;
 	private detailsToggleBtn: HTMLElement;
 	private currentViewMode: ViewMode = "inbox";
+	private currentSelectedTaskId: string | null = null;
+	private lastToggleTimestamp: number = 0;
 
 	// Data management
 	private tasks: Task[] = [];
@@ -231,15 +233,17 @@ export class TaskView extends ItemView {
 			this.detailsToggleBtn,
 			visible ? "chevron-right" : "chevron-left"
 		);
+
+		// Clear selected task ID if panel is hidden
+		if (!visible) {
+			this.currentSelectedTaskId = null;
+		}
 	}
 
 	private setupComponentEvents() {
 		// Handle task selection from content area
 		this.contentComponent.onTaskSelected = (task: Task) => {
-			if (task) {
-				this.detailsComponent.showTaskDetails(task);
-				this.toggleDetailsVisibility(true);
-			}
+			this.handleTaskSelection(task);
 		};
 
 		this.contentComponent.onTaskCompleted = (task: Task) => {
@@ -319,10 +323,7 @@ export class TaskView extends ItemView {
 
 		// Handle task selection from forecast view
 		this.forecastComponent.onTaskSelected = (task: Task) => {
-			if (task) {
-				this.detailsComponent.showTaskDetails(task);
-				this.toggleDetailsVisibility(true);
-			}
+			this.handleTaskSelection(task);
 		};
 
 		// Handle task completion toggle from forecast view
@@ -332,10 +333,7 @@ export class TaskView extends ItemView {
 
 		// Handle task selection from tags view
 		this.tagsComponent.onTaskSelected = (task: Task) => {
-			if (task) {
-				this.detailsComponent.showTaskDetails(task);
-				this.toggleDetailsVisibility(true);
-			}
+			this.handleTaskSelection(task);
 		};
 
 		// Handle task completion toggle from tags view
@@ -345,16 +343,61 @@ export class TaskView extends ItemView {
 
 		// Handle task selection from projects view
 		this.projectsComponent.onTaskSelected = (task: Task) => {
-			if (task) {
-				this.detailsComponent.showTaskDetails(task);
-				this.toggleDetailsVisibility(true);
-			}
+			this.handleTaskSelection(task);
 		};
 
 		// Handle task completion toggle from projects view
 		this.projectsComponent.onTaskCompleted = (task: Task) => {
 			this.toggleTaskCompletion(task);
 		};
+	}
+
+	private handleTaskSelection(task: Task) {
+		if (task) {
+			const now = Date.now();
+			const timeSinceLastToggle = now - this.lastToggleTimestamp;
+
+			if (this.currentSelectedTaskId !== task.id) {
+				this.currentSelectedTaskId = task.id;
+				this.detailsComponent.showTaskDetails(task);
+				this.toggleDetailsVisibility(true);
+				this.lastToggleTimestamp = now; // Record timestamp for show
+				return;
+			}
+
+			// If the same task is clicked and details are visible, hide details
+			if (
+				this.isDetailsVisible &&
+				this.currentSelectedTaskId === task.id
+			) {
+				// Only hide if sufficient time has passed since the last toggle action
+				// to prevent immediate closure after opening due to potential double events.
+				if (timeSinceLastToggle > 100) {
+					// 100ms threshold
+					this.toggleDetailsVisibility(false);
+					this.lastToggleTimestamp = now; // Record timestamp for hide
+				} else {
+					// Optional: Log ignored event for debugging
+					// console.log("Ignoring rapid toggle-off event.");
+				}
+			} else {
+				// Store the selected task ID *before* potentially showing the panel
+				const previousSelectedTaskId = this.currentSelectedTaskId;
+				this.currentSelectedTaskId = task.id;
+
+				// Show details for the clicked task
+				this.detailsComponent.showTaskDetails(task);
+
+				// Toggle visibility to true if it wasn't already visible
+				if (!this.isDetailsVisible) {
+					this.toggleDetailsVisibility(true);
+					this.lastToggleTimestamp = now; // Record timestamp for show
+				} else if (previousSelectedTaskId !== task.id) {
+					// Optional: Update timestamp if different task selected while visible
+					// this.lastToggleTimestamp = now;
+				}
+			}
+		}
 	}
 
 	private async loadTasks() {

@@ -67,7 +67,7 @@ function createTaskCheckbox(
 export class TaskDetailsComponent extends Component {
 	public containerEl: HTMLElement;
 	private contentEl: HTMLElement;
-	private currentTask: Task | null = null;
+	public currentTask: Task | null = null;
 	private isVisible: boolean = true;
 	private isEditing: boolean = false;
 	private editFormEl: HTMLElement | null = null;
@@ -107,6 +107,7 @@ export class TaskDetailsComponent extends Component {
 	}
 
 	public showTaskDetails(task: Task) {
+		console.log("showTaskDetails", task);
 		if (!task) {
 			this.currentTask = null;
 			this.showEmptyState();
@@ -634,6 +635,7 @@ export class TaskDetailsComponent extends Component {
 	}
 
 	public setVisible(visible: boolean) {
+		console.log("setVisible", visible);
 		this.isVisible = visible;
 
 		if (visible) {
