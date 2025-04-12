@@ -66,11 +66,11 @@
 
 /* Project group headers */
 .review-projects-group-header {
-	font-size: 0.8em;
+	font-size: 10px;
 	font-weight: 600;
-	color: var(--text-muted);
+	color: var(--text-faint);
 	text-transform: uppercase;
-	padding: 8px 12px 4px;
+	padding: 4px 8px 4px;
 	margin-top: 12px;
 	letter-spacing: 0.5px;
 }
@@ -81,9 +81,10 @@
 
 /* Project items in the sidebar */
 .review-project-item {
+	--icon-size: var(--size-4-4);
 	display: flex;
 	align-items: center;
-	padding: 6px 12px;
+	padding: 4px 8px;
 	cursor: pointer;
 	border-radius: var(--radius-s);
 	margin-bottom: 2px;
@@ -152,12 +153,39 @@
 	color: var(--text-accent);
 }
 
+.review-frequency:hover {
+	color: var(--text-normal);
+	text-decoration: underline;
+}
+
 .review-last-date {
 	color: var(--text-normal);
 }
 
 .review-no-settings {
 	font-style: italic;
+}
+
+/* Filter information */
+.review-filter-info {
+	margin-top: 10px;
+	padding: 6px 10px;
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	font-size: 0.85em;
+	color: var(--text-muted);
+	border-left: 3px solid var(--text-accent);
+}
+
+.review-filter-toggle {
+	cursor: pointer;
+	text-decoration: underline;
+	color: var(--text-accent);
+	margin-left: 5px;
+}
+
+.review-filter-toggle:hover {
+	color: var(--text-accent-hover);
 }
 
 .review-task-list {

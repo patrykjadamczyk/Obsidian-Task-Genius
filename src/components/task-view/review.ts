@@ -212,6 +212,7 @@ class ReviewConfigureModal extends Modal {
 			projectName: this.projectName,
 			frequency: this.frequency,
 			lastReviewed: this.existingSetting?.lastReviewed || null,
+			reviewedTasks: this.existingSetting?.reviewedTasks || [],
 		};
 
 		// Update plugin settings
@@ -251,6 +252,7 @@ export class ReviewComponent extends Component {
 		tasks: [],
 		setting: null,
 	};
+	private showAllTasks: boolean = false; // Default to filtered view
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -534,9 +536,122 @@ export class ReviewComponent extends Component {
 		}
 
 		// Filter tasks for the selected project
-		this.selectedProject.tasks = this.allTasks.filter(
+		const allProjectTasks = this.allTasks.filter(
 			(task) => task.project === this.selectedProject.project
 		);
+
+		// Get review settings for the selected project
+		const reviewSetting = this.selectedProject.setting;
+
+		// Array to store filtered tasks that should be displayed
+		let filteredTasks: Task[] = [];
+
+		// Clear any existing filter info
+		const taskHeaderContent = this.taskHeaderEl.querySelector(
+			".review-header-content"
+		);
+		const existingFilterInfo = taskHeaderContent?.querySelector(
+			".review-filter-info"
+		);
+		if (existingFilterInfo) {
+			existingFilterInfo.remove();
+		}
+
+		if (reviewSetting && reviewSetting.lastReviewed && !this.showAllTasks) {
+			// If project has been reviewed before and we're not showing all tasks, filter the tasks
+			const lastReviewDate = reviewSetting.lastReviewed;
+			const reviewedTaskIds = new Set(reviewSetting.reviewedTasks || []);
+
+			// Filter tasks to only show:
+			// 1. Tasks that were created after the last review date
+			// 2. Tasks that existed during last review but weren't completed then and still aren't completed
+			// 3. Tasks that are in progress (might have been modified since last review)
+			filteredTasks = allProjectTasks.filter((task) => {
+				// Always include incomplete new tasks (created after last review)
+				if (task.createdDate && task.createdDate > lastReviewDate) {
+					return true;
+				}
+
+				// If task was already reviewed in previous review and is now completed, exclude it
+				if (reviewedTaskIds.has(task.id) && task.completed) {
+					return false;
+				}
+
+				// Include tasks that were reviewed before but aren't completed yet
+				if (reviewedTaskIds.has(task.id) && !task.completed) {
+					return true;
+				}
+
+				// Include tasks that weren't reviewed before (they might be older tasks
+				// that were added to this project after the last review)
+				if (!reviewedTaskIds.has(task.id)) {
+					return true;
+				}
+
+				return false;
+			});
+
+			// Add a message about filtered tasks if some were filtered out
+			if (
+				filteredTasks.length < allProjectTasks.length &&
+				taskHeaderContent
+			) {
+				const filterInfo = taskHeaderContent.createDiv({
+					cls: "review-filter-info",
+				});
+
+				const hiddenTasks =
+					allProjectTasks.length - filteredTasks.length;
+				const filterText = filterInfo.createSpan({
+					text: t(
+						`Showing new and in-progress tasks only. ${hiddenTasks} completed tasks from previous reviews are hidden.`
+					),
+				});
+
+				// Add toggle link
+				const toggleLink = filterInfo.createSpan({
+					cls: "review-filter-toggle",
+					text: t("Show all tasks"),
+				});
+
+				this.registerDomEvent(toggleLink, "click", () => {
+					this.toggleShowAllTasks();
+				});
+			}
+		} else {
+			// If the project has never been reviewed or we're showing all tasks
+			filteredTasks = allProjectTasks;
+
+			// If we're explicitly showing all tasks, display this info
+			if (
+				this.showAllTasks &&
+				taskHeaderContent &&
+				reviewSetting?.lastReviewed
+			) {
+				const filterInfo = taskHeaderContent.createDiv({
+					cls: "review-filter-info",
+				});
+
+				const filterText = filterInfo.createSpan({
+					text: t(
+						"Showing all tasks, including completed tasks from previous reviews."
+					),
+				});
+
+				// Add toggle link
+				const toggleLink = filterInfo.createSpan({
+					cls: "review-filter-toggle",
+					text: t("Show only new and in-progress tasks"),
+				});
+
+				this.registerDomEvent(toggleLink, "click", () => {
+					this.toggleShowAllTasks();
+				});
+			}
+		}
+
+		// Update the selected project's tasks
+		this.selectedProject.tasks = filteredTasks;
 
 		// Sort tasks (example: by due date, then priority)
 		this.selectedProject.tasks.sort((a, b) => {
@@ -561,6 +676,14 @@ export class ReviewComponent extends Component {
 		});
 
 		this.renderTaskList();
+	}
+
+	/**
+	 * Toggle between showing all tasks or only new and in-progress tasks
+	 */
+	private toggleShowAllTasks() {
+		this.showAllTasks = !this.showAllTasks;
+		this.updateSelectedProjectTasks();
 	}
 
 	private renderTaskList() {
@@ -631,10 +754,17 @@ export class ReviewComponent extends Component {
 		if (setting.frequency) {
 			// Frequency Text
 			const frequencyText = `${t("Review every")} ${setting.frequency}`;
-			reviewInfoEl.createSpan({
-				cls: "review-frequency",
-				text: frequencyText,
-			});
+			reviewInfoEl.createSpan(
+				{
+					cls: "review-frequency",
+					text: frequencyText,
+				},
+				(el) => {
+					this.registerDomEvent(el, "click", () => {
+						this.openConfigureModal(projectName, setting);
+					});
+				}
+			);
 
 			// Separator
 			reviewInfoEl.createSpan({ cls: "review-separator", text: "•" });
@@ -658,15 +788,6 @@ export class ReviewComponent extends Component {
 			});
 			this.registerDomEvent(reviewButton, "click", () => {
 				this.markProjectAsReviewed(projectName);
-			});
-
-			// Add "Edit Review Schedule" button
-			const editButton = reviewButtonContainer.createEl("button", {
-				cls: "review-edit-btn",
-				text: t("Edit Schedule"),
-			});
-			this.registerDomEvent(editButton, "click", () => {
-				this.openConfigureModal(projectName, setting);
 			});
 		} else {
 			// No review settings configured message
@@ -718,15 +839,23 @@ export class ReviewComponent extends Component {
 
 	/**
 	 * Mark a project as reviewed, updating the last reviewed timestamp
+	 * and recording the IDs of current tasks that have been reviewed
 	 */
 	private async markProjectAsReviewed(projectName: string) {
 		console.log(`Marking ${projectName} as reviewed...`);
 		const now = Date.now();
 		const currentSettings = this.plugin.settings.reviewSettings;
 
+		// Get all current tasks for this project
+		const projectTasks = this.allTasks.filter(
+			(task) => task.project === projectName
+		);
+		const taskIds = projectTasks.map((task) => task.id);
+
 		if (currentSettings[projectName]) {
-			// Update the last reviewed timestamp
+			// Update the last reviewed timestamp and record current task IDs
 			currentSettings[projectName].lastReviewed = now;
+			currentSettings[projectName].reviewedTasks = taskIds;
 
 			// Save settings via plugin
 			await this.plugin.saveSettings();
@@ -735,16 +864,43 @@ export class ReviewComponent extends Component {
 			this.selectedProject.setting = currentSettings[projectName];
 
 			// Show notice
-			new Notice(t(`${projectName} marked as reviewed`));
+			new Notice(
+				t(
+					`${projectName} marked as reviewed with ${taskIds.length} tasks`
+				)
+			);
+
+			// Update UI - need to refresh task list since we'll now filter out reviewed tasks
+			this.renderReviewHeader(projectName, currentSettings[projectName]);
+			this.updateSelectedProjectTasks();
+		} else {
+			// If the project doesn't have settings yet, create them
+			const newSetting: ProjectReviewSetting = {
+				projectName: projectName,
+				frequency: "weekly", // Default frequency
+				lastReviewed: now,
+				reviewedTasks: taskIds,
+			};
+
+			// Save the new settings
+			currentSettings[projectName] = newSetting;
+			await this.plugin.saveSettings();
+
+			// Update local state
+			this.selectedProject.setting = newSetting;
+			this.reviewableProjects.set(projectName, newSetting);
+
+			// Show notice
+			new Notice(
+				t(
+					`${projectName} marked as reviewed with ${taskIds.length} tasks`
+				)
+			);
 
 			// Update UI
-			this.renderReviewHeader(projectName, currentSettings[projectName]);
-		} else {
-			console.error(
-				"Could not find settings to mark project as reviewed:",
-				projectName
-			);
-			new Notice(t("Error updating review status"));
+			this.renderReviewHeader(projectName, newSetting);
+			this.renderProjectsList(); // Also refresh the project list to update styling
+			this.updateSelectedProjectTasks();
 		}
 	}
 
@@ -822,35 +978,75 @@ export class ReviewComponent extends Component {
 		// If the updated task belongs to the currently selected project,
 		// update the task list directly.
 		if (this.selectedProject.project === updatedTask.project) {
+			// Check if task should be in the current filtered view
+			let shouldBeInFilteredView = true;
+
+			// Apply filtering logic if we're not showing all tasks
+			if (
+				!this.showAllTasks &&
+				this.selectedProject.setting?.lastReviewed
+			) {
+				const lastReviewDate =
+					this.selectedProject.setting.lastReviewed;
+				const reviewedTaskIds = new Set(
+					this.selectedProject.setting.reviewedTasks || []
+				);
+
+				// Use the same filtering logic as in updateSelectedProjectTasks
+				// New task since last review
+				if (
+					updatedTask.createdDate &&
+					updatedTask.createdDate > lastReviewDate
+				) {
+					shouldBeInFilteredView = true;
+				}
+				// Existing task that was completed
+				else if (
+					reviewedTaskIds.has(updatedTask.id) &&
+					updatedTask.completed
+				) {
+					shouldBeInFilteredView = false;
+				}
+				// Existing incomplete task
+				else if (
+					reviewedTaskIds.has(updatedTask.id) &&
+					!updatedTask.completed
+				) {
+					shouldBeInFilteredView = true;
+				}
+				// Task not in last review
+				else if (!reviewedTaskIds.has(updatedTask.id)) {
+					shouldBeInFilteredView = true;
+				}
+			}
+
 			const taskIndexSelected = this.selectedProject.tasks.findIndex(
 				(t) => t.id === updatedTask.id
 			);
 
 			if (taskIndexSelected !== -1) {
-				// Task exists in the current view, update it
-				this.selectedProject.tasks[taskIndexSelected] = updatedTask;
-				// Find and update the specific component
-				const component = this.taskComponents.find(
-					(c) => c.getTask().id === updatedTask.id
-				);
-				if (component) {
-					component.updateTask(updatedTask);
-					// Maybe re-sort component order if sorting criteria changed (e.g., due date)
-					// For simplicity, a full re-render of the list might be easier:
-					// this.updateSelectedProjectTasks(); // This re-sorts and re-renders
+				// Task exists in the current view
+				if (shouldBeInFilteredView) {
+					// Update it if it should still be visible
+					this.selectedProject.tasks[taskIndexSelected] = updatedTask;
+					// Find and update the specific component
+					const component = this.taskComponents.find(
+						(c) => c.getTask().id === updatedTask.id
+					);
+					if (component) {
+						component.updateTask(updatedTask);
+					} else {
+						// Component not found? Should not happen if task was in list.
+						this.updateSelectedProjectTasks();
+					}
 				} else {
-					// Component not found? Should not happen if task was in list.
-					// Might need a full refresh just in case.
+					// Task should no longer be visible, refresh the list
 					this.updateSelectedProjectTasks();
 				}
-			} else {
-				// Task wasn't in the list before (e.g., added or moved here), rerender list
+			} else if (shouldBeInFilteredView) {
+				// Task wasn't in the list before but should be now, refresh list
 				this.updateSelectedProjectTasks();
 			}
-		} else {
-			// Task updated doesn't belong to the currently selected project.
-			// No visual change needed in the right pane unless the task *moved* from here.
-			// The 'needsUIRefresh' check earlier handles cases where the project list itself changes.
 		}
 	}
 
