@@ -71,8 +71,9 @@ export class TaskListItemComponent extends Component {
 			cls: "task-item-container",
 		});
 		// Task content
-		this.contentEl = document.createElement("div");
-		this.contentEl.className = "task-item-content";
+		this.contentEl = createDiv({
+			cls: "task-item-content",
+		});
 		this.containerEl.appendChild(this.contentEl);
 
 		this.renderMarkdown();
@@ -235,8 +236,9 @@ export class TaskListItemComponent extends Component {
 
 		// Priority indicator if available
 		if (this.task.priority) {
-			const priorityEl = document.createElement("div");
-			priorityEl.className = `task-priority priority-${this.task.priority}`;
+			const priorityEl = createDiv({
+				cls: ["task-priority", `priority-${this.task.priority}`],
+			});
 
 			// Priority icon based on level
 			let icon = "•";

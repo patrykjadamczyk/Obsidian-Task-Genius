@@ -43,9 +43,12 @@ export class TaskTreeItemComponent extends Component {
 
 	onload() {
 		// Create task item container
-		this.element = document.createElement("div");
-		this.element.className = "task-item tree-task-item";
-		this.element.dataset.taskId = this.task.id;
+		this.element = createDiv({
+			cls: ["task-item", "tree-task-item"],
+			attr: {
+				"data-task-id": this.task.id,
+			},
+		});
 
 		// Create parent container
 		this.parentContainer = this.element.createDiv({
@@ -305,8 +308,9 @@ export class TaskTreeItemComponent extends Component {
 
 		// Priority indicator if available
 		if (this.task.priority) {
-			const priorityEl = document.createElement("div");
-			priorityEl.className = `task-priority priority-${this.task.priority}`;
+			const priorityEl = createDiv({
+				cls: ["task-priority", `priority-${this.task.priority}`],
+			});
 
 			// Priority icon based on level
 			let icon = "•";
@@ -346,9 +350,9 @@ export class TaskTreeItemComponent extends Component {
 		this.childrenContainer.empty();
 
 		// Set visibility based on expanded state
-		this.childrenContainer.style.display = this.isExpanded
-			? "block"
-			: "none";
+		this.isExpanded
+			? this.childrenContainer.show()
+			: this.childrenContainer.hide();
 
 		// Render each direct child task passed via constructor
 		this.childTasks.forEach((childTask) => {
