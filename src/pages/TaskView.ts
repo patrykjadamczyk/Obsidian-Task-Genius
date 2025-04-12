@@ -12,6 +12,7 @@ import { InboxComponent } from "../components/task-view/inbox";
 import { ForecastComponent } from "../components/task-view/forecast";
 import { TagsComponent } from "../components/task-view/tags";
 import { ProjectsComponent } from "../components/task-view/projects";
+import { ReviewComponent } from "../components/task-view/review";
 import { TaskDetailsComponent } from "../components/task-view/details";
 import "../styles/view.css";
 import TaskProgressBarPlugin from "../index";
@@ -29,6 +30,7 @@ export class TaskView extends ItemView {
 	private forecastComponent: ForecastComponent;
 	private tagsComponent: TagsComponent;
 	private projectsComponent: ProjectsComponent;
+	private reviewComponent: ReviewComponent;
 	private detailsComponent: TaskDetailsComponent;
 
 	// UI state management
@@ -123,7 +125,8 @@ export class TaskView extends ItemView {
 		// Create the content component
 		this.contentComponent = new InboxComponent(
 			this.rootContainerEl,
-			this.plugin.app
+			this.plugin.app,
+			this.plugin
 		);
 		this.addChild(this.contentComponent);
 		this.contentComponent.load();
@@ -154,6 +157,16 @@ export class TaskView extends ItemView {
 		this.addChild(this.projectsComponent);
 		this.projectsComponent.load();
 		this.projectsComponent.containerEl.hide();
+
+		// Create the review component (initially hidden)
+		this.reviewComponent = new ReviewComponent(
+			this.rootContainerEl,
+			this.plugin.app,
+			this.plugin
+		);
+		this.addChild(this.reviewComponent);
+		this.reviewComponent.load();
+		this.reviewComponent.containerEl.hide();
 
 		// Create the details component
 		this.detailsComponent = new TaskDetailsComponent(
@@ -302,6 +315,7 @@ export class TaskView extends ItemView {
 			this.forecastComponent.containerEl.hide();
 			this.tagsComponent.containerEl.hide();
 			this.projectsComponent.containerEl.hide();
+			this.reviewComponent.containerEl.hide();
 
 			// Toggle visibility of components based on view mode
 			if (viewMode === "forecast") {
@@ -313,6 +327,10 @@ export class TaskView extends ItemView {
 			} else if (viewMode === "projects") {
 				this.projectsComponent.containerEl.show();
 				this.projectsComponent.setTasks(this.tasks);
+			} else if (viewMode === "review") {
+				this.reviewComponent.containerEl.show();
+				this.reviewComponent.setTasks(this.tasks);
+				this.reviewComponent.refreshReviewSettings();
 			} else {
 				this.contentComponent.containerEl.show();
 				this.contentComponent.setViewMode(viewMode);
@@ -348,6 +366,14 @@ export class TaskView extends ItemView {
 
 		// Handle task completion toggle from projects view
 		this.projectsComponent.onTaskCompleted = (task: Task) => {
+			this.toggleTaskCompletion(task);
+		};
+
+		// Added event handlers for ReviewComponent
+		this.reviewComponent.onTaskSelected = (task: Task) => {
+			this.handleTaskSelection(task);
+		};
+		this.reviewComponent.onTaskCompleted = (task: Task) => {
 			this.toggleTaskCompletion(task);
 		};
 	}
@@ -416,6 +442,13 @@ export class TaskView extends ItemView {
 		this.forecastComponent.setTasks(this.tasks);
 		this.tagsComponent.setTasks(this.tasks);
 		this.projectsComponent.setTasks(this.tasks);
+		this.reviewComponent.setTasks(this.tasks);
+
+		// Refresh review settings if the review view is currently active
+		// (or maybe always refresh settings data?)
+		if (this.currentViewMode === "review") {
+			this.reviewComponent.refreshReviewSettings();
+		}
 	}
 
 	private async toggleTaskCompletion(task: Task) {
@@ -440,16 +473,20 @@ export class TaskView extends ItemView {
 
 		// Update the task in all components
 		this.contentComponent.updateTask(updatedTask);
-
-		// Update in the appropriate view component
-		if (this.currentViewMode === "forecast") {
-			this.forecastComponent.updateTask(updatedTask);
-		} else if (this.currentViewMode === "tags") {
-			this.tagsComponent.updateTask(updatedTask);
-		} else if (this.currentViewMode === "projects") {
-			this.projectsComponent.updateTask(updatedTask);
+		switch (this.currentViewMode) {
+			case "inbox":
+				this.contentComponent.updateTask(updatedTask);
+				break;
+			case "forecast":
+				this.forecastComponent.updateTask(updatedTask);
+				break;
+			case "projects":
+				this.projectsComponent.updateTask(updatedTask);
+				break;
+			case "review":
+				this.reviewComponent.updateTask(updatedTask);
+				break;
 		}
-
 		// If this is the currently selected task, update details
 		const selectedTask = this.contentComponent.getSelectedTask();
 		if (selectedTask && selectedTask.id === updatedTask.id) {
@@ -469,14 +506,19 @@ export class TaskView extends ItemView {
 
 		// Update the task in all components
 		this.contentComponent.updateTask(updatedTask);
-
-		// Update in the appropriate view component
-		if (this.currentViewMode === "forecast") {
-			this.forecastComponent.updateTask(updatedTask);
-		} else if (this.currentViewMode === "tags") {
-			this.tagsComponent.updateTask(updatedTask);
-		} else if (this.currentViewMode === "projects") {
-			this.projectsComponent.updateTask(updatedTask);
+		switch (this.currentViewMode) {
+			case "inbox":
+				this.contentComponent.updateTask(updatedTask);
+				break;
+			case "forecast":
+				this.forecastComponent.updateTask(updatedTask);
+				break;
+			case "projects":
+				this.projectsComponent.updateTask(updatedTask);
+				break;
+			case "review":
+				this.reviewComponent.updateTask(updatedTask);
+				break;
 		}
 
 		return updatedTask;

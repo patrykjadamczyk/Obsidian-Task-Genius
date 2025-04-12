@@ -4,6 +4,9 @@ import { TaskListItemComponent } from "./listItem";
 import { ViewMode } from "./sidebar";
 import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
+import { t } from "../../translations/helper";
+import { ProjectReviewSetting } from "../../common/setting-definition";
+import TaskProgressBarPlugin from "../../index"; // Path used in TaskView.ts
 
 export class InboxComponent extends Component {
 	public containerEl: HTMLElement;
@@ -36,7 +39,11 @@ export class InboxComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
-	constructor(private parentEl: HTMLElement, private app: App) {
+	constructor(
+		private parentEl: HTMLElement,
+		private app: App,
+		private plugin: TaskProgressBarPlugin
+	) {
 		super();
 	}
 
@@ -92,15 +99,15 @@ export class InboxComponent extends Component {
 			this.toggleViewMode();
 		});
 
-		// Focus filter button
-		this.focusBtn = this.headerEl.createDiv({ cls: "focus-filter" });
-		this.focusBtn.createEl("button", { cls: "focus-button" });
-		this.focusBtn.setText("Focus");
+		// // Focus filter button
+		// this.focusBtn = this.headerEl.createDiv({ cls: "focus-filter" });
+		// this.focusBtn.createEl("button", { cls: "focus-button" });
+		// this.focusBtn.setText("Focus");
 
 		// Event listeners
-		this.registerDomEvent(this.focusBtn, "click", () => {
-			this.toggleFocusFilter();
-		});
+		// this.registerDomEvent(this.focusBtn, "click", () => {
+		// 	this.toggleFocusFilter();
+		// });
 
 		this.registerDomEvent(this.filterInput, "input", () => {
 			this.filterTasks(this.filterInput.value);
