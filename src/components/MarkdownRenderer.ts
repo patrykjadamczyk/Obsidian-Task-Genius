@@ -71,7 +71,8 @@ export class MarkdownRendererComponent extends Component {
 	constructor(
 		private app: App,
 		container: HTMLElement,
-		sourcePath: string = ""
+		sourcePath: string = "",
+		private hideMarks: boolean = true
 	) {
 		super();
 		this.container = container;
@@ -131,6 +132,11 @@ export class MarkdownRendererComponent extends Component {
 	 * Split markdown content into blocks based on double line breaks
 	 */
 	private splitIntoBlocks(markdown: string): string[] {
+		if (!this.hideMarks) {
+			return markdown
+				.split(/\n\s*\n/)
+				.filter((block) => block.trim().length > 0);
+		}
 		// Split on double newlines (paragraph breaks)
 		return clearAllMarks(markdown)
 			.split(/\n\s*\n/)

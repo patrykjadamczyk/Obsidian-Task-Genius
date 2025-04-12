@@ -86,7 +86,7 @@
 	background-color: var(--background-modifier-active-hover);
 	padding: var(--size-2-1) var(--size-2-3);
 	border-radius: var(--radius-s);
-	opacity: 0.5;
+	opacity: 0.8;
 }
 
 .task-item:hover .task-date {

@@ -102,7 +102,9 @@ export class TaskView extends ItemView {
 					.onClick(() => {
 						const modal = new QuickCaptureModal(
 							this.plugin.app,
-							this.plugin
+							this.plugin,
+							{},
+							true
 						);
 						modal.open();
 					});
@@ -215,7 +217,12 @@ export class TaskView extends ItemView {
 		this.detailsToggleBtn.toggleClass("panel-toggle-btn", true);
 
 		this.addAction("check-square", "capture", () => {
-			const modal = new QuickCaptureModal(this.plugin.app, this.plugin);
+			const modal = new QuickCaptureModal(
+				this.plugin.app,
+				this.plugin,
+				{},
+				true
+			);
 			modal.open();
 		});
 	}
