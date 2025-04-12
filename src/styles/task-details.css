@@ -102,8 +102,15 @@
 	justify-content: center;
 }
 
+.status-option.current-status {
+	outline-offset: 2px;
+	outline: 1px solid
+		hsl(var(--accent-h), var(--accent-s), var(--accent-l), 0.3);
+	outline-style: dashed;
+}
+
 .status-option:not(.current-status) {
-	opacity: 0.5;
+	opacity: 0.8;
 }
 
 .status-option:not(.current-status):hover {

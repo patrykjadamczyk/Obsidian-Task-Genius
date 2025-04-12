@@ -95,7 +95,7 @@
 	display: flex;
 	flex-direction: column;
 	overflow-y: auto;
-	background-color: var(--background-secondary);
+	background-color: var(--background-secondary-alt);
 }
 
 .forecast-right-column {
@@ -248,19 +248,19 @@
 	background-color: var(--background-secondary-alt);
 }
 
-.section-toggle {
+.date-section-header .section-toggle {
 	margin-right: 8px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 }
 
-.section-title {
+.date-section-header .section-title {
 	flex: 1;
 	font-weight: 500;
 }
 
-.section-count {
+.date-section-header .section-count {
 	font-size: 0.8em;
 	color: var(--text-muted);
 	background-color: var(--background-modifier-border);

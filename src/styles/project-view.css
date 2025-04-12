@@ -45,6 +45,10 @@
 	font-size: 14px;
 }
 
+.multi-select-mode .projects-multi-select-btn {
+	color: var(--color-accent);
+}
+
 .projects-multi-select-btn {
 	cursor: pointer;
 	color: var(--text-muted);

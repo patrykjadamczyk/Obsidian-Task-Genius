@@ -219,6 +219,20 @@ export class TaskListItemComponent extends Component {
 				this.task.project.split("/").pop() || this.task.project;
 		}
 
+		// Tags if available
+		if (this.task.tags && this.task.tags.length > 0) {
+			const tagsContainer = this.metadataEl.createEl("div", {
+				cls: "task-tags-container",
+			});
+
+			this.task.tags.forEach((tag) => {
+				const tagEl = tagsContainer.createEl("span", {
+					cls: "task-tag",
+					text: tag.startsWith("#") ? tag : `#${tag}`,
+				});
+			});
+		}
+
 		// Priority indicator if available
 		if (this.task.priority) {
 			const priorityEl = document.createElement("div");

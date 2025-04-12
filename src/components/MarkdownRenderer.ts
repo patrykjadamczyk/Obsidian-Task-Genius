@@ -37,6 +37,9 @@ export function clearAllMarks(markdown: string): string {
 	// Remove priority markers
 	cleanedMarkdown = cleanedMarkdown.replace(/🔼|⏫|🔽|⏬|🔺|\[#[A-C]\]/g, "");
 
+	// Remove tags from content since they'll be shown as metadata
+	cleanedMarkdown = cleanedMarkdown.replace(/#[\w\/-]+\s*/g, "");
+
 	// Remove recurrence information
 	const recurrenceRegex = new RegExp(
 		`${DEFAULT_SYMBOLS.recurrenceSymbol}\\uFE0F? *[a-zA-Z0-9, !]+`,

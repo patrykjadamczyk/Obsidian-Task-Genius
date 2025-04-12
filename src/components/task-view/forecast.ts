@@ -164,11 +164,11 @@ export class ForecastComponent extends Component {
 			this.toggleViewMode();
 		});
 
-		// Settings button
-		this.settingsEl = actionsContainer.createDiv({
-			cls: "forecast-settings",
-		});
-		setIcon(this.settingsEl, "settings");
+		// // Settings button
+		// this.settingsEl = actionsContainer.createDiv({
+		// 	cls: "forecast-settings",
+		// });
+		// setIcon(this.settingsEl, "settings");
 	}
 
 	private toggleViewMode() {

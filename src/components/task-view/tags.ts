@@ -12,6 +12,12 @@ interface SelectedTags {
 	isMultiSelect: boolean;
 }
 
+interface TagSection {
+	tag: string;
+	tasks: Task[];
+	isExpanded: boolean;
+}
+
 export class TagsComponent extends Component {
 	// UI Elements
 	public containerEl: HTMLElement;
@@ -29,6 +35,7 @@ export class TagsComponent extends Component {
 	// State
 	private allTasks: Task[] = [];
 	private filteredTasks: Task[] = [];
+	private tagSections: TagSection[] = [];
 	private selectedTags: SelectedTags = {
 		tags: [],
 		tasks: [],
@@ -377,7 +384,7 @@ export class TagsComponent extends Component {
 			return;
 		}
 
-		// Get tasks that have ALL the selected tags (AND logic)
+		// Get tasks that have ANY of the selected tags (OR logic)
 		console.log(this.selectedTags.tags);
 		const taskSets: Set<string>[] = this.selectedTags.tags.map((tag) => {
 			// For each selected tag, include tasks from child tags
@@ -403,15 +410,13 @@ export class TagsComponent extends Component {
 		if (taskSets.length === 0) {
 			this.filteredTasks = [];
 		} else {
-			// Start with the first set
-			let resultTaskIds = new Set<string>(taskSets[0]);
+			// Join all sets (OR logic)
+			const resultTaskIds = new Set<string>();
 
-			// Intersect with other sets
-			for (let i = 1; i < taskSets.length; i++) {
-				resultTaskIds = new Set(
-					[...resultTaskIds].filter((id) => taskSets[i].has(id))
-				);
-			}
+			// Union all sets
+			taskSets.forEach((set) => {
+				set.forEach((id) => resultTaskIds.add(id));
+			});
 
 			console.log(resultTaskIds);
 
@@ -440,6 +445,47 @@ export class TagsComponent extends Component {
 				return dueDateA - dueDateB;
 			});
 		}
+
+		// Group tasks by tags for sectioned display
+		this.createTagSections();
+	}
+
+	private createTagSections() {
+		// Clear sections
+		this.tagSections = [];
+
+		// Create a map to store tasks by tag
+		const tagTaskMap = new Map<string, Task[]>();
+
+		// Group tasks by the tags they match
+		this.selectedTags.tags.forEach((tag) => {
+			const tasksForTag = this.filteredTasks.filter((task) => {
+				if (!task.tags) return false;
+
+				// Check if the task has this tag or any child tag
+				return task.tags.some(
+					(taskTag) =>
+						taskTag === tag ||
+						(taskTag !== tag && taskTag.startsWith(tag + "/"))
+				);
+			});
+
+			if (tasksForTag.length > 0) {
+				tagTaskMap.set(tag, tasksForTag);
+			}
+		});
+
+		// Create sections for each tag
+		tagTaskMap.forEach((tasks, tag) => {
+			this.tagSections.push({
+				tag: tag,
+				tasks: tasks,
+				isExpanded: true,
+			});
+		});
+
+		// Sort sections by tag name
+		this.tagSections.sort((a, b) => a.tag.localeCompare(b.tag));
 
 		// Update the task list
 		this.renderTaskList();
@@ -497,12 +543,104 @@ export class TagsComponent extends Component {
 			return;
 		}
 
-		// Render tasks based on view mode
-		if (this.isTreeView) {
-			this.renderTreeView();
-		} else {
-			this.renderListView();
+		// Render tag sections
+		this.renderTagSections();
+	}
+
+	private renderTagSections() {
+		// If there's only one tag or in tree view mode, use a simplified display
+		if (this.isTreeView || this.selectedTags.tags.length === 1) {
+			if (this.isTreeView) {
+				this.renderTreeView();
+			} else {
+				this.renderListView();
+			}
+			return;
 		}
+
+		// Render each tag section
+		this.tagSections.forEach((section) => {
+			const sectionEl = this.taskListContainerEl.createDiv({
+				cls: "task-tag-section",
+			});
+
+			// Section header
+			const headerEl = sectionEl.createDiv({
+				cls: "tag-section-header",
+			});
+
+			// Expand/collapse toggle
+			const toggleEl = headerEl.createDiv({
+				cls: "section-toggle",
+			});
+			setIcon(
+				toggleEl,
+				section.isExpanded ? "chevron-down" : "chevron-right"
+			);
+
+			// Section title
+			const titleEl = headerEl.createDiv({
+				cls: "section-title",
+			});
+			titleEl.setText(`#${section.tag.replace("#", "")}`);
+
+			// Task count badge
+			const countEl = headerEl.createDiv({
+				cls: "section-count",
+			});
+			countEl.setText(`${section.tasks.length}`);
+
+			// Task container (initially hidden if collapsed)
+			const taskListEl = sectionEl.createDiv({
+				cls: "section-tasks",
+			});
+
+			if (!section.isExpanded) {
+				taskListEl.hide();
+			}
+
+			// Register toggle event
+			this.registerDomEvent(headerEl, "click", () => {
+				section.isExpanded = !section.isExpanded;
+				setIcon(
+					toggleEl,
+					section.isExpanded ? "chevron-down" : "chevron-right"
+				);
+				section.isExpanded ? taskListEl.show() : taskListEl.hide();
+			});
+
+			// Render tasks for this section
+			section.tasks.forEach((task) => {
+				const taskComponent = new TaskListItemComponent(
+					task,
+					"tags",
+					this.app
+				);
+
+				// Set up event handlers
+				taskComponent.onTaskSelected = (selectedTask) => {
+					if (this.onTaskSelected) {
+						this.onTaskSelected(selectedTask);
+					}
+				};
+
+				taskComponent.onTaskCompleted = (completedTask) => {
+					if (this.onTaskCompleted) {
+						this.onTaskCompleted(completedTask);
+					}
+				};
+
+				// Load component
+				this.addChild(taskComponent);
+				taskComponent.load();
+
+				// Add to DOM
+				taskListEl.appendChild(taskComponent.element);
+
+				// Store for later cleanup
+				this.taskComponents.push(taskComponent);
+			});
+		});
 	}
 
 	private renderListView() {

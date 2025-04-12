@@ -41,6 +41,7 @@ export class TaskView extends ItemView {
 	private detailsToggleBtn: HTMLElement;
 	private currentViewMode: ViewMode = "inbox";
 	private currentSelectedTaskId: string | null = null;
+	private currentSelectedTaskDOM: HTMLElement | null = null;
 	private lastToggleTimestamp: number = 0;
 
 	// Data management
