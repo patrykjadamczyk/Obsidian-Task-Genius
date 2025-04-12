@@ -127,6 +127,9 @@ export interface TaskProgressBarSettings {
 		}>;
 	};
 
+	// View settings
+	enableView: boolean;
+
 	// Review settings - Added
 	reviewSettings: Record<string, ProjectReviewSetting>; // Keyed by project name
 }
@@ -297,4 +300,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Review settings - Added
 	reviewSettings: {},
+
+	// View settings
+	enableView: true,
 };

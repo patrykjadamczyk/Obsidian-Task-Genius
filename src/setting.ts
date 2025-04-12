@@ -38,6 +38,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		},
 		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
 		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
+		{ id: "view-settings", name: t("View"), icon: "layout" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
 
@@ -217,6 +218,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Date & Priority Tab
 		const datePrioritySection = this.createTabSection("date-priority");
 		this.displayDatePrioritySettings(datePrioritySection);
+
+		// View Settings Tab
+		const viewSettingsSection = this.createTabSection("view-settings");
+		this.displayViewSettings(viewSettingsSection);
 
 		// About Tab
 		const aboutSection = this.createTabSection("about");
@@ -2428,6 +2433,27 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					});
 				});
 		}
+	}
+
+	private displayViewSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("View"))
+			.setDesc(
+				t(
+					"Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way."
+				)
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable task genius view"))
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.enableView);
+				toggle.onChange((value) => {
+					this.plugin.settings.enableView = value;
+					this.applySettingsUpdate();
+				});
+			});
 	}
 
 	private displayAboutSettings(containerEl: HTMLElement): void {

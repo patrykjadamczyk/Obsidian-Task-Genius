@@ -6,6 +6,7 @@ import {
 	setIcon,
 	ExtraButtonComponent,
 	ButtonComponent,
+	Menu,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent, ViewMode } from "../components/task-view/sidebar";
@@ -56,7 +57,7 @@ export class TaskView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Task Genius";
+		return "Task Genius View";
 	}
 
 	getIcon(): string {
@@ -88,7 +89,7 @@ export class TaskView extends ItemView {
 		// Initially hide details panel since no task is selected
 		this.toggleDetailsVisibility(false);
 
-		this.createDetailsToggle();
+		this.createActionButtons();
 
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).createEl(
@@ -206,7 +207,7 @@ export class TaskView extends ItemView {
 			});
 	}
 
-	private createDetailsToggle() {
+	private createActionButtons() {
 		this.detailsToggleBtn = this.addAction(
 			"panel-right-dashed",
 			"details",
@@ -226,6 +227,19 @@ export class TaskView extends ItemView {
 			);
 			modal.open();
 		});
+	}
+
+	onPaneMenu(menu: Menu) {
+		menu.addItem((item) => {
+			item.setTitle("Settings");
+			item.setIcon("gear");
+			item.onClick(() => {
+				this.app.setting.open();
+				this.app.setting.openTabById(this.plugin.manifest.id);
+			});
+		});
+
+		return menu;
 	}
 
 	private toggleSidebar() {

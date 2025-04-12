@@ -147,16 +147,20 @@ export default class TaskProgressBarPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Initialize task manager
-		this.taskManager = new TaskManager(
-			this.app,
-			this.app.vault,
-			this.app.metadataCache,
-			this.manifest.version,
-			{
-				useWorkers: true,
-				debug: true, // Set to true for debugging
-			}
-		);
+		if (this.settings.enableView) {
+			this.taskManager = new TaskManager(
+				this.app,
+				this.app.vault,
+				this.app.metadataCache,
+				this.manifest.version,
+				{
+					useWorkers: true,
+					debug: true, // Set to true for debugging
+				}
+			);
+
+			this.addChild(this.taskManager);
+		}
 
 		this.registerCommands();
 		this.registerEditorExt();
@@ -228,11 +232,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 		);
 
 		this.app.workspace.onLayoutReady(() => {
-			// Initialize task manager after the layout is ready
-			this.taskManager.initialize().catch((error) => {
-				console.error("Failed to initialize task manager:", error);
-			});
-
 			if (this.settings.autoCompleteParent) {
 				this.registerEditorExtension([
 					autoCompleteParentExtension(this.app, this),
@@ -262,6 +261,36 @@ export default class TaskProgressBarPlugin extends Plugin {
 					ctx: ctx,
 				});
 			});
+
+			if (this.settings.enableView) {
+				// Initialize task manager after the layout is ready
+				this.taskManager.initialize().catch((error) => {
+					console.error("Failed to initialize task manager:", error);
+				});
+
+				// Register the TaskView
+				this.registerView(
+					TASK_VIEW_TYPE,
+					(leaf) => new TaskView(leaf, this)
+				);
+
+				// Add a ribbon icon for opening the TaskView
+				this.addRibbonIcon(
+					"list-check",
+					t("Open Task Genius view"),
+					() => {
+						this.activateTaskView();
+					}
+				);
+				// Add a command to open the TaskView
+				this.addCommand({
+					id: "open-task-genius-view",
+					name: t("Open Task Genius view"),
+					callback: () => {
+						this.activateTaskView();
+					},
+				});
+			}
 		});
 
 		// Migrate old presets to use the new filterMode setting
@@ -282,25 +311,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 				);
 			await this.saveSettings();
 		}
-
-		this.addChild(this.taskManager);
-
-		// Register the TaskView
-		this.registerView(TASK_VIEW_TYPE, (leaf) => new TaskView(leaf, this));
-
-		// Add a ribbon icon for opening the TaskView
-		this.addRibbonIcon("check-square", "Task genius view", () => {
-			this.activateTaskView();
-		});
-
-		// Add a command to open the TaskView
-		this.addCommand({
-			id: "open-task-genius-view",
-			name: t("Open Task Genius View"),
-			callback: () => {
-				this.activateTaskView();
-			},
-		});
 
 		// Add a global command for quick capture from anywhere
 		this.addCommand({
@@ -381,40 +391,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 	}
 
 	registerCommands() {
-		// Add command to refresh the task index
-		this.addCommand({
-			id: "refresh-task-index",
-			name: t("Refresh task index"),
-			callback: async () => {
-				try {
-					new Notice(t("Refreshing task index..."));
-					await this.taskManager.initialize();
-					new Notice(t("Task index refreshed"));
-				} catch (error) {
-					console.error("Failed to refresh task index:", error);
-					new Notice(t("Failed to refresh task index"));
-				}
-			},
-		});
-
-		// Add command to force reindex all tasks by clearing cache
-		this.addCommand({
-			id: "force-reindex-tasks",
-			name: t("Force reindex all tasks"),
-			callback: async () => {
-				try {
-					new Notice(
-						t("Clearing task cache and rebuilding index...")
-					);
-					await this.taskManager.forceReindex();
-					new Notice(t("Task index completely rebuilt"));
-				} catch (error) {
-					console.error("Failed to force reindex tasks:", error);
-					new Notice(t("Failed to force reindex tasks"));
-				}
-			},
-		});
-
 		// Add command for cycling task status forward
 		this.addCommand({
 			id: "cycle-task-status-forward",
@@ -432,6 +408,42 @@ export default class TaskProgressBarPlugin extends Plugin {
 				return cycleTaskStatusBackward(checking, editor, ctx, this);
 			},
 		});
+
+		if (this.settings.enableView) {
+			// Add command to refresh the task index
+			this.addCommand({
+				id: "refresh-task-index",
+				name: t("Refresh task index"),
+				callback: async () => {
+					try {
+						new Notice(t("Refreshing task index..."));
+						await this.taskManager.initialize();
+						new Notice(t("Task index refreshed"));
+					} catch (error) {
+						console.error("Failed to refresh task index:", error);
+						new Notice(t("Failed to refresh task index"));
+					}
+				},
+			});
+
+			// Add command to force reindex all tasks by clearing cache
+			this.addCommand({
+				id: "force-reindex-tasks",
+				name: t("Force reindex all tasks"),
+				callback: async () => {
+					try {
+						new Notice(
+							t("Clearing task cache and rebuilding index...")
+						);
+						await this.taskManager.forceReindex();
+						new Notice(t("Task index completely rebuilt"));
+					} catch (error) {
+						console.error("Failed to force reindex tasks:", error);
+						new Notice(t("Failed to force reindex tasks"));
+					}
+				},
+			});
+		}
 
 		// Add priority keyboard shortcuts commands
 		if (this.settings.enablePriorityKeyboardShortcuts) {
