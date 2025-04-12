@@ -479,6 +479,12 @@ export class InboxComponent extends Component {
 				this.updateTask(task);
 			};
 
+			treeComponent.onTaskContextMenu = (event, task) => {
+				if (this.onTaskContextMenu) {
+					this.onTaskContextMenu(event, task);
+				}
+			};
+
 			// Load component
 			this.addChild(treeComponent);
 			treeComponent.load();

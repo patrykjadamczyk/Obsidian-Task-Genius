@@ -22,6 +22,8 @@ export class TaskTreeItemComponent extends Component {
 	public onTaskCompleted: (task: Task) => void;
 	public onToggleExpand: (taskId: string, isExpanded: boolean) => void;
 
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
+
 	private markdownRenderer: MarkdownRendererComponent;
 	private contentEl: HTMLElement;
 	private taskMap: Map<string, Task>;
@@ -48,6 +50,14 @@ export class TaskTreeItemComponent extends Component {
 			attr: {
 				"data-task-id": this.task.id,
 			},
+		});
+
+		this.registerDomEvent(this.element, "contextmenu", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			if (this.onTaskContextMenu) {
+				this.onTaskContextMenu(e, this.task);
+			}
 		});
 
 		// Create parent container
@@ -389,6 +399,12 @@ export class TaskTreeItemComponent extends Component {
 			childComponent.onToggleExpand = (taskId, isExpanded) => {
 				if (this.onToggleExpand) {
 					this.onToggleExpand(taskId, isExpanded);
+				}
+			};
+
+			childComponent.onTaskContextMenu = (event, task) => {
+				if (this.onTaskContextMenu) {
+					this.onTaskContextMenu(event, task);
 				}
 			};
 

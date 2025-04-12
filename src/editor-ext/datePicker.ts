@@ -47,7 +47,7 @@ class DatePickerWidget extends WidgetType {
 		});
 
 		const dateText = createSpan({
-			cls: "task-date",
+			cls: "task-date-text",
 			text: this.currentDate,
 		});
 

@@ -118,6 +118,8 @@ export class TaskView extends ItemView {
 		this.triggerViewUpdate();
 
 		this.checkAndCollapseSidebar();
+
+		this.loadTasks();
 	}
 
 	onResize(): void {
@@ -476,9 +478,16 @@ export class TaskView extends ItemView {
 						});
 						item.onClick(() => {
 							console.log("status", status, mark);
+							if (!task.completed && mark.toLowerCase() === "x") {
+								task.completedDate = Date.now();
+							} else {
+								task.completedDate = undefined;
+							}
 							this.updateTask(task, {
 								...task,
 								status: mark,
+								completed:
+									mark.toLowerCase() === "x" ? true : false,
 							});
 						});
 					});
@@ -585,8 +594,6 @@ export class TaskView extends ItemView {
 			updatedTask.completedDate = undefined;
 		}
 
-		console.log("toggleTaskCompletion", updatedTask);
-
 		// Get active task manager from plugin
 		const taskManager = (this.plugin as TaskProgressBarPlugin).taskManager;
 		console.log("taskManager", taskManager);
@@ -624,9 +631,6 @@ export class TaskView extends ItemView {
 		if (!taskManager) {
 			throw new Error("Task manager not available");
 		}
-
-		console.log("updateTask", originalTask, updatedTask);
-
 		// Update the task
 		await taskManager.updateTask(updatedTask);
 

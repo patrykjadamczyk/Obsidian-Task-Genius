@@ -727,6 +727,12 @@ export class TagsComponent extends Component {
 				}
 			};
 
+			treeComponent.onTaskContextMenu = (event, task) => {
+				if (this.onTaskContextMenu) {
+					this.onTaskContextMenu(event, task);
+				}
+			};
+
 			// Load component
 			this.addChild(treeComponent);
 			treeComponent.load();
