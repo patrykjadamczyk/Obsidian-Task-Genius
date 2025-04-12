@@ -1,4 +1,4 @@
-import { App, Component } from "obsidian";
+import { App, Component, Menu } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import "../../styles/task-list.css";
@@ -9,6 +9,8 @@ export class TaskListItemComponent extends Component {
 	// Events
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
+
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
 	private markdownRenderer: MarkdownRendererComponent;
 	private containerEl: HTMLElement;
@@ -30,6 +32,13 @@ export class TaskListItemComponent extends Component {
 	}
 
 	onload() {
+		this.registerDomEvent(this.element, "contextmenu", (event) => {
+			console.log("contextmenu", event, this.task);
+			if (this.onTaskContextMenu) {
+				this.onTaskContextMenu(event, this.task);
+			}
+		});
+
 		if (this.task.completed) {
 			this.element.classList.add("task-completed");
 		}

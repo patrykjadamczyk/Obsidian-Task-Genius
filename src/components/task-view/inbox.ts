@@ -39,6 +39,9 @@ export class InboxComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
+	// Context menu
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
+
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
@@ -408,6 +411,12 @@ export class InboxComponent extends Component {
 				console.log("task completed", task);
 				if (this.onTaskCompleted) {
 					this.onTaskCompleted(task);
+				}
+			};
+
+			taskComponent.onTaskContextMenu = (event, task) => {
+				if (this.onTaskContextMenu) {
+					this.onTaskContextMenu(event, task);
 				}
 			};
 

@@ -41,6 +41,9 @@ export class ProjectsComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
+	// Context menu
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
+
 	constructor(private parentEl: HTMLElement, private app: App) {
 		super();
 	}
@@ -442,6 +445,12 @@ export class ProjectsComponent extends Component {
 			taskComponent.onTaskCompleted = (completedTask) => {
 				if (this.onTaskCompleted) {
 					this.onTaskCompleted(completedTask);
+				}
+			};
+
+			taskComponent.onTaskContextMenu = (event, task) => {
+				if (this.onTaskContextMenu) {
+					this.onTaskContextMenu(event, task);
 				}
 			};
 

@@ -36,13 +36,21 @@
 .tree-task-item > div:first-of-type {
 	width: 100%;
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 6px;
 }
 
 /* Indentation for hierarchy */
 .task-indent {
 	flex-shrink: 0;
+}
+
+.task-item.tree-task-item .task-expand-toggle {
+	padding-top: var(--size-2-2);
+}
+
+.task-item .task-checkbox {
+	padding-top: var(--size-2-2);
 }
 
 /* Expand/collapse toggle */

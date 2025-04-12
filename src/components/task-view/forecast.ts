@@ -49,6 +49,9 @@ export class ForecastComponent extends Component {
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
 
+	// Context menu
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
+
 	constructor(private parentEl: HTMLElement, private app: App) {
 		super();
 		// Initialize dates
@@ -724,6 +727,12 @@ export class ForecastComponent extends Component {
 			taskComponent.onTaskCompleted = (task) => {
 				if (this.onTaskCompleted) {
 					this.onTaskCompleted(task);
+				}
+			};
+
+			taskComponent.onTaskContextMenu = (event, task) => {
+				if (this.onTaskContextMenu) {
+					this.onTaskContextMenu(event, task);
 				}
 			};
 

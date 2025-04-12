@@ -875,6 +875,7 @@ export class TaskManager extends Component {
 	public async updateTask(updatedTask: Task): Promise<void> {
 		// Get the original task to compare changes
 		const originalTask = this.indexer.getTaskById(updatedTask.id);
+		console.log("originalTask", originalTask);
 		if (!originalTask) {
 			throw new Error(`Task with ID ${updatedTask.id} not found`);
 		}
@@ -892,6 +893,7 @@ export class TaskManager extends Component {
 
 			// Get the line with the task
 			const taskLine = lines[updatedTask.line];
+			console.log("taskLine", taskLine);
 			if (!taskLine) {
 				throw new Error(
 					`Task line ${updatedTask.line} not found in file ${updatedTask.filePath}`
@@ -912,6 +914,14 @@ export class TaskManager extends Component {
 				updatedLine = updatedLine.replace(
 					/(\s*[-*+]\s*\[[^\]]*\]\s*).*$/,
 					`$1${updatedTask.content}`
+				);
+			}
+
+			const status = updatedTask.status;
+			if (status) {
+				updatedLine = updatedLine.replace(
+					/(\s*[-*+]\s*\[)[^\]]*(\]\s*)/,
+					`$1${status}$2`
 				);
 			}
 

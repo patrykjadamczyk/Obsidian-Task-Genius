@@ -15,7 +15,10 @@ import { ForecastComponent } from "../components/task-view/forecast";
 import { TagsComponent } from "../components/task-view/tags";
 import { ProjectsComponent } from "../components/task-view/projects";
 import { ReviewComponent } from "../components/task-view/review";
-import { TaskDetailsComponent } from "../components/task-view/details";
+import {
+	createTaskCheckbox,
+	TaskDetailsComponent,
+} from "../components/task-view/details";
 import "../styles/view.css";
 import TaskProgressBarPlugin from "../index";
 import { QuickCaptureModal } from "src/components/QuickCaptureModal";
@@ -409,6 +412,95 @@ export class TaskView extends ItemView {
 		this.reviewComponent.onTaskCompleted = (task: Task) => {
 			this.toggleTaskCompletion(task);
 		};
+
+		this.reviewComponent.onTaskContextMenu = (event, task) => {
+			this.handleTaskContextMenu(event, task, this.currentViewMode);
+		};
+
+		this.tagsComponent.onTaskContextMenu = (event, task) => {
+			this.handleTaskContextMenu(event, task, this.currentViewMode);
+		};
+
+		this.projectsComponent.onTaskContextMenu = (event, task) => {
+			this.handleTaskContextMenu(event, task, this.currentViewMode);
+		};
+
+		this.forecastComponent.onTaskContextMenu = (event, task) => {
+			this.handleTaskContextMenu(event, task, this.currentViewMode);
+		};
+
+		this.contentComponent.onTaskContextMenu = (event, task) => {
+			this.handleTaskContextMenu(event, task, this.currentViewMode);
+		};
+	}
+
+	private handleTaskContextMenu(
+		event: MouseEvent,
+		task: Task,
+		viewMode: ViewMode
+	) {
+		const menu = new Menu();
+
+		menu.addItem((item) => {
+			item.setTitle(t("Complete"));
+			item.setIcon("check-square");
+			item.onClick(() => {
+				this.toggleTaskCompletion(task);
+			});
+		})
+			.addItem((item) => {
+				item.setIcon("square-pen");
+				item.setTitle(t("Switch status"));
+				const submenu = item.setSubmenu();
+
+				for (const status of Object.keys(
+					this.plugin.settings.taskStatusMarks
+				)) {
+					const mark =
+						this.plugin.settings.taskStatusMarks[
+							status as keyof typeof this.plugin.settings.taskStatusMarks
+						];
+					submenu.addItem((item) => {
+						item.titleEl.createEl(
+							"span",
+							{
+								cls: "status-option-checkbox",
+							},
+							(el) => {
+								createTaskCheckbox(mark, task, el);
+							}
+						);
+						item.titleEl.createEl("span", {
+							cls: "status-option",
+							text: status,
+						});
+						item.onClick(() => {
+							console.log("status", status, mark);
+							this.updateTask(task, {
+								...task,
+								status: mark,
+							});
+						});
+					});
+				}
+			})
+			.addSeparator()
+			.addItem((item) => {
+				item.setTitle(t("Edit"));
+				item.setIcon("pencil");
+				item.onClick(() => {
+					this.handleTaskSelection(task);
+				});
+			})
+			.addItem((item) => {
+				item.setTitle(t("Edit in File"));
+				item.setIcon("pencil");
+				item.onClick(() => {
+					this.editTask(task);
+				});
+			});
+
+		menu.showAtMouseEvent(event);
 	}
 
 	private handleTaskSelection(task: Task) {
@@ -532,6 +624,8 @@ export class TaskView extends ItemView {
 		if (!taskManager) {
 			throw new Error("Task manager not available");
 		}
+
+		console.log("updateTask", originalTask, updatedTask);
 
 		// Update the task
 		await taskManager.updateTask(updatedTask);

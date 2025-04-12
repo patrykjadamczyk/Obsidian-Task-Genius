@@ -35,7 +35,10 @@ function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	return statusTextMap[status as keyof typeof statusTextMap] || "No status";
 }
 
-function getStatusText(status: string, settings: TaskProgressBarSettings) {
+export function getStatusText(
+	status: string,
+	settings: TaskProgressBarSettings
+) {
 	const statusTextMap = {
 		notStarted: "Not Started",
 		abandoned: "Abandoned",
@@ -47,7 +50,7 @@ function getStatusText(status: string, settings: TaskProgressBarSettings) {
 	return statusTextMap[status as keyof typeof statusTextMap] || "No status";
 }
 
-function createTaskCheckbox(
+export function createTaskCheckbox(
 	status: string,
 	task: Task,
 	container: HTMLElement
