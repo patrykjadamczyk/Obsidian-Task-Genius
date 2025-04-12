@@ -200,7 +200,7 @@ export class TaskView extends ItemView {
 		});
 		new ButtonComponent(this.sidebarToggleBtn)
 			.setIcon("panel-left-dashed")
-			.setTooltip("Toggle Sidebar")
+			.setTooltip(t("Toggle Sidebar"))
 			.setClass("clickable-icon")
 			.onClick(() => {
 				this.toggleSidebar();
@@ -210,7 +210,7 @@ export class TaskView extends ItemView {
 	private createActionButtons() {
 		this.detailsToggleBtn = this.addAction(
 			"panel-right-dashed",
-			"details",
+			t("Details"),
 			() => {
 				this.toggleDetailsVisibility(!this.isDetailsVisible);
 			}
