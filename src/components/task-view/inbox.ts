@@ -504,7 +504,6 @@ export class InboxComponent extends Component {
 		});
 		loadMarker.setText("Loading more...");
 		this.taskListObserver.observe(loadMarker);
-		console.log("Load marker added");
 	}
 
 	private removeLoadMarker() {

@@ -50,6 +50,7 @@ import {
 	taskFilterState,
 	migrateOldFilterOptions,
 } from "./editor-ext/filterTasks";
+import { Task } from "./utils/types/TaskIndex";
 import { QuickCaptureModal } from "./components/QuickCaptureModal";
 import { MarkdownView } from "obsidian";
 import { Notice } from "obsidian";
@@ -143,6 +144,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 	// Task manager instance
 	taskManager: TaskManager;
 
+	// Preloaded tasks:
+	preloadedTasks: Task[] = [];
+
 	async onload() {
 		await this.loadSettings();
 
@@ -153,6 +157,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 				this.app.vault,
 				this.app.metadataCache,
 				this.manifest.version,
+				this,
 				{
 					useWorkers: true,
 					debug: true, // Set to true for debugging

@@ -50,6 +50,8 @@ export class TaskView extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, private plugin: TaskProgressBarPlugin) {
 		super(leaf);
+
+		this.tasks = this.plugin.preloadedTasks;
 	}
 
 	getViewType(): string {
@@ -76,9 +78,6 @@ export class TaskView extends ItemView {
 
 		// Set up event listeners
 		this.registerEvents();
-
-		// Load initial data
-		await this.loadTasks();
 
 		// Set default view
 		this.sidebarComponent.setViewMode(
@@ -112,6 +111,8 @@ export class TaskView extends ItemView {
 					});
 			}
 		);
+
+		this.triggerViewUpdate();
 	}
 
 	private initializeComponents() {
@@ -447,11 +448,10 @@ export class TaskView extends ItemView {
 
 		// Get all tasks
 		this.tasks = taskManager.getAllTasks();
+		this.triggerViewUpdate();
+	}
 
-		// Initialize the sidebar project tree
-		// await this.sidebarComponent.initializeProjectTree(this.tasks);
-
-		// Set tasks in components
+	private async triggerViewUpdate() {
 		this.contentComponent.setTasks(this.tasks);
 		this.forecastComponent.setTasks(this.tasks);
 		this.tagsComponent.setTasks(this.tasks);

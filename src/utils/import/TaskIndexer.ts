@@ -919,10 +919,22 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	}
 
 	/**
-	 * Reset the task cache to empty
+	 * Reset the cache to empty
 	 */
 	public resetCache(): void {
 		this.taskCache = this.initEmptyCache();
-		this.lastIndexTime.clear();
+	}
+
+	/**
+	 * Set the cache from an external source (e.g. persisted cache)
+	 * @param cache The task cache to set
+	 */
+	public setCache(cache: TaskCache): void {
+		this.taskCache = cache;
+
+		// Update lastIndexTime for all files in the cache
+		for (const filePath of this.taskCache.files.keys()) {
+			this.lastIndexTime.set(filePath, Date.now());
+		}
 	}
 }

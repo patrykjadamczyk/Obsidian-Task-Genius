@@ -97,13 +97,13 @@ export class SidebarComponent extends Component {
 		this.containerEl.toggleClass("collapsed", collapsed);
 
 		// When collapsed, hide all text elements and tree
-		if (collapsed) {
+		if (collapsed && this.projectTreeEl) {
 			this.projectTreeEl.hide();
 
 			// Hide text elements
 			const textEls = this.navEl.querySelectorAll(".sidebar-nav-text");
 			textEls.forEach((el) => el.addClass("hidden"));
-		} else {
+		} else if (!collapsed && this.projectTreeEl) {
 			this.projectTreeEl.show();
 
 			// Show text elements

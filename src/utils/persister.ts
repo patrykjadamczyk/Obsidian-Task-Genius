@@ -248,4 +248,73 @@ export class LocalStorageCache {
 			await this.recreate();
 		}
 	}
+
+	/**
+	 * Store a consolidated cache of all tasks for faster loading
+	 * @param tasks A TaskCache object containing all task data
+	 */
+	public async storeConsolidatedCache<T = any>(
+		key: string,
+		data: T
+	): Promise<void> {
+		if (!this.initialized) await this.initialize();
+
+		try {
+			const cacheKey = `consolidated:${key}`;
+			await this.persister.setItem(cacheKey, {
+				version: this.version,
+				time: Date.now(),
+				data,
+			} as Cached<T>);
+		} catch (error) {
+			console.error(
+				`Error storing consolidated cache for ${key}:`,
+				error
+			);
+		}
+	}
+
+	/**
+	 * Load the consolidated tasks cache
+	 * @returns The cached TaskCache object or null if not found
+	 */
+	public async loadConsolidatedCache<T = any>(
+		key: string
+	): Promise<Cached<T> | null> {
+		if (!this.initialized) await this.initialize();
+
+		try {
+			const cacheKey = `consolidated:${key}`;
+			const data = await this.persister.getItem<Cached<T>>(cacheKey);
+			return data;
+		} catch (error) {
+			console.error(
+				`Error loading consolidated cache for ${key}:`,
+				error
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Get all cached files with their data
+	 * @returns Object with file paths as keys and cached data as values
+	 */
+	public async getAll<T = any>(): Promise<Record<string, Cached<T> | null>> {
+		if (!this.initialized) await this.initialize();
+
+		try {
+			const files = await this.allFiles();
+			const result: Record<string, Cached<T> | null> = {};
+
+			for (const file of files) {
+				result[file] = await this.loadFile<T>(file);
+			}
+
+			return result;
+		} catch (error) {
+			console.error("Error getting all cached files:", error);
+			return {};
+		}
+	}
 }
