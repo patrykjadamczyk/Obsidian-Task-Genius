@@ -8,7 +8,7 @@ import {
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent, ViewMode } from "../components/task-view/sidebar";
-import { ContentComponent } from "../components/task-view/content";
+import { InboxComponent } from "../components/task-view/inbox";
 import { ForecastComponent } from "../components/task-view/forecast";
 import { TagsComponent } from "../components/task-view/tags";
 import { ProjectsComponent } from "../components/task-view/projects";
@@ -25,7 +25,7 @@ export class TaskView extends ItemView {
 
 	// Component references
 	private sidebarComponent: SidebarComponent;
-	private contentComponent: ContentComponent;
+	private contentComponent: InboxComponent;
 	private forecastComponent: ForecastComponent;
 	private tagsComponent: TagsComponent;
 	private projectsComponent: ProjectsComponent;
@@ -119,7 +119,7 @@ export class TaskView extends ItemView {
 		this.createSidebarToggle();
 
 		// Create the content component
-		this.contentComponent = new ContentComponent(
+		this.contentComponent = new InboxComponent(
 			this.rootContainerEl,
 			this.plugin.app
 		);

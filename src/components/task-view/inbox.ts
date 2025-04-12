@@ -5,7 +5,7 @@ import { ViewMode } from "./sidebar";
 import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
 
-export class ContentComponent extends Component {
+export class InboxComponent extends Component {
 	public containerEl: HTMLElement;
 	private headerEl: HTMLElement;
 	private taskListEl: HTMLElement;
@@ -29,6 +29,8 @@ export class ContentComponent extends Component {
 	private focusFilter: string | null = null;
 	private isTreeView: boolean = false;
 	private treeComponents: TaskTreeItemComponent[] = [];
+	private rootTasks: Task[] = [];
+	private nextRootTaskIndex: number = 0;
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -91,14 +93,14 @@ export class ContentComponent extends Component {
 		});
 
 		// Focus filter button
-		// const focusEl = this.headerEl.createDiv({ cls: "focus-filter" });
-		// this.focusBtn = focusEl.createEl("button", { cls: "focus-button" });
-		// this.focusBtn.setText("Focus");
+		this.focusBtn = this.headerEl.createDiv({ cls: "focus-filter" });
+		this.focusBtn.createEl("button", { cls: "focus-button" });
+		this.focusBtn.setText("Focus");
 
-		// // Event listeners
-		// this.registerDomEvent(this.focusBtn, "click", () => {
-		// 	this.toggleFocusFilter();
-		// });
+		// Event listeners
+		this.registerDomEvent(this.focusBtn, "click", () => {
+			this.toggleFocusFilter();
+		});
 
 		this.registerDomEvent(this.filterInput, "input", () => {
 			this.filterTasks(this.filterInput.value);
@@ -131,22 +133,22 @@ export class ContentComponent extends Component {
 		);
 	}
 
-	// private toggleFocusFilter() {
-	// 	// Toggle focus state
-	// 	if (this.focusFilter) {
-	// 		this.focusFilter = null;
-	// 		this.focusBtn.setText("Focus");
-	// 		this.focusBtn.classList.remove("focused");
-	// 	} else {
-	// 		// Just an example - you could focus on a specific project or context
-	// 		this.focusFilter = "Work";
-	// 		this.focusBtn.setText("Unfocus");
-	// 		this.focusBtn.classList.add("focused");
-	// 	}
+	private toggleFocusFilter() {
+		// Toggle focus state
+		if (this.focusFilter) {
+			this.focusFilter = null;
+			this.focusBtn.setText("Focus");
+			this.focusBtn.classList.remove("focused");
+		} else {
+			// Just an example - you could focus on a specific project or context
+			this.focusFilter = "Work";
+			this.focusBtn.setText("Unfocus");
+			this.focusBtn.classList.add("focused");
+		}
 
-	// 	this.applyFilters();
-	// 	this.refreshTaskList();
-	// }
+		this.applyFilters();
+		this.refreshTaskList();
+	}
 
 	private toggleViewMode() {
 		this.isTreeView = !this.isTreeView;
@@ -328,6 +330,10 @@ export class ContentComponent extends Component {
 		});
 		this.treeComponents = [];
 
+		// Reset tree state
+		this.rootTasks = [];
+		this.nextRootTaskIndex = 0;
+
 		// Render based on view mode
 		if (this.isTreeView) {
 			this.renderTreeView();
@@ -337,69 +343,28 @@ export class ContentComponent extends Component {
 
 			// Add a load marker at the end if there are more tasks
 			if (this.filteredTasks.length > this.taskPageSize) {
-				const loadMarker = this.taskListEl.createDiv({
-					cls: "task-item task-load-marker",
-					attr: { "data-task-id": "load-marker" },
-				});
-
-				this.taskListObserver.observe(loadMarker);
+				this.addLoadMarker();
 			}
 		}
 	}
 
 	private renderTreeView() {
 		// Convert tasks to tree structure
-		const rootTasks = tasksToTree(this.filteredTasks);
+		this.rootTasks = tasksToTree(this.filteredTasks);
 		const taskMap = new Map<string, Task>();
 		this.filteredTasks.forEach((task) => taskMap.set(task.id, task));
 
-		// Render root tasks with their children
-		rootTasks.forEach((rootTask) => {
-			// Find direct children
-			const childTasks = this.filteredTasks.filter(
-				(task) => task.parent === rootTask.id
-			);
+		// Render the initial batch of root tasks
+		this.loadRootTaskBatch(0, this.taskPageSize, taskMap);
 
-			const treeComponent = new TaskTreeItemComponent(
-				rootTask,
-				this.currentViewMode,
-				this.app,
-				0,
-				childTasks
-			);
+		// Add a load marker at the end if there are more root tasks
+		if (this.rootTasks.length > this.taskPageSize) {
+			this.addLoadMarker();
+		}
 
-			// Set up event handlers
-			treeComponent.onTaskSelected = (selectedTask) => {
-				this.selectTask(selectedTask);
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
-
-			treeComponent.onTaskCompleted = (task) => {
-				console.log("task completed", task);
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(task);
-				}
-			};
-
-			// Load component
-			this.addChild(treeComponent);
-			treeComponent.load();
-
-			// Add to DOM
-			this.taskListEl.appendChild(treeComponent.element);
-
-			// Store for later cleanup
-			this.treeComponents.push(treeComponent);
-		});
-
-		// Add empty state if no tasks
-		if (rootTasks.length === 0) {
-			const emptyEl = this.taskListEl.createDiv({
-				cls: "task-empty-state",
-			});
-			emptyEl.setText("No tasks found");
+		// Add empty state if no root tasks
+		if (this.rootTasks.length === 0) {
+			this.addEmptyState("No tasks found");
 		}
 	}
 
@@ -449,78 +414,223 @@ export class ContentComponent extends Component {
 		return end;
 	}
 
-	private loadMoreTasks() {
-		const currentCount = this.taskComponents.length;
+	private loadRootTaskBatch(
+		start: number,
+		count: number,
+		taskMap: Map<string, Task>
+	): number {
+		const end = Math.min(start + count, this.rootTasks.length);
+		const fragment = document.createDocumentFragment();
 
-		if (currentCount < this.filteredTasks.length) {
-			// Remove current load marker
-			const oldMarker =
-				this.taskListEl.querySelector(".task-load-marker");
-			if (oldMarker) {
-				this.taskListObserver.unobserve(oldMarker);
-				oldMarker.remove();
-			}
+		console.log(`Loading root tasks from ${start} to ${end}`);
 
-			// Load next batch
-			const newEnd = this.loadTaskBatch(currentCount, this.taskPageSize);
+		for (let i = start; i < end; i++) {
+			const rootTask = this.rootTasks[i];
 
-			// Add new load marker if there are more tasks
-			if (newEnd < this.filteredTasks.length) {
-				const loadMarker = this.taskListEl.createDiv({
-					cls: "task-item task-load-marker",
-					attr: { "data-task-id": "load-marker" },
-				});
+			// Find direct children using the map (more efficient)
+			const childTasks = this.filteredTasks.filter(
+				(task) => task.parent === rootTask.id
+			);
 
-				this.taskListObserver.observe(loadMarker);
-			}
+			const treeComponent = new TaskTreeItemComponent(
+				rootTask,
+				this.currentViewMode,
+				this.app,
+				0,
+				childTasks,
+				taskMap
+			);
+
+			// Set up event handlers
+			treeComponent.onTaskSelected = (selectedTask) => {
+				this.selectTask(selectedTask);
+			};
+
+			treeComponent.onTaskCompleted = (task) => {
+				console.log("task completed (tree)", task);
+				if (this.onTaskCompleted) {
+					this.onTaskCompleted(task);
+				}
+				this.updateTask(task);
+			};
+
+			// Load component
+			this.addChild(treeComponent);
+			treeComponent.load();
+
+			// Add to DOM fragment
+			fragment.appendChild(treeComponent.element);
+
+			// Store root component for later cleanup
+			this.treeComponents.push(treeComponent);
 		}
+
+		// Append the fragment to the list element
+		const marker = this.taskListEl.querySelector(".task-load-marker");
+		if (marker) {
+			this.taskListEl.insertBefore(fragment, marker);
+		} else {
+			this.taskListEl.appendChild(fragment);
+		}
+
+		this.nextRootTaskIndex = end;
+
+		return end;
+	}
+
+	private addLoadMarker() {
+		// Ensure only one marker exists
+		this.removeLoadMarker();
+
+		const loadMarker = this.taskListEl.createDiv({
+			cls: "task-load-marker",
+			attr: { "data-task-id": "load-marker" },
+		});
+		loadMarker.setText("Loading more...");
+		this.taskListObserver.observe(loadMarker);
+		console.log("Load marker added");
+	}
+
+	private removeLoadMarker() {
+		const oldMarker = this.taskListEl.querySelector(".task-load-marker");
+		if (oldMarker) {
+			console.log("Removing load marker");
+			this.taskListObserver.unobserve(oldMarker);
+			oldMarker.remove();
+		}
+	}
+
+	private addEmptyState(message: string) {
+		const emptyEl = this.taskListEl.createDiv({ cls: "task-empty-state" });
+		emptyEl.setText(message);
 	}
 
 	private selectTask(task: Task) {
 		if (!task) return;
 
-		// Set as the selected task
-		this.selectedTask = task;
+		const previouslySelectedId = this.selectedTask?.id;
 
-		// Update UI to show this task is selected
-		this.taskComponents.forEach((component) => {
-			component.setSelected(component.getTask().id === task.id);
-		});
+		// If the same task is clicked again, maybe deselect it? Optional behavior.
+		if (previouslySelectedId === task.id) {
+			// console.log("Deselecting task", task.id);
+			// this.selectedTask = null;
+			// // Update UI - requires components to handle deselection state
+			// if (this.isTreeView) { ... } else { ... }
+			// if (this.onTaskSelected) this.onTaskSelected(null); // Notify about deselection
+			// return; // Exit early
+		}
+
+		// Update internal state
+		this.selectedTask = task;
+		console.log("Task selected:", task.id);
+
+		// Update visual state of components
+		if (!this.isTreeView) {
+			this.taskComponents.forEach((comp) => {
+				comp.setSelected(comp.getTask().id === task.id);
+			});
+		} else {
+			// For tree view, finding the specific component (which could be nested) is complex here.
+			// It's better if TaskTreeItemComponent handles its own selection visual state when clicked.
+			// We might need to explicitly tell the *previously* selected component (if any) to deselect itself.
+			this.treeComponents.forEach((rootComp) => {
+				// Need a method in TaskTreeItemComponent like updateSelectionVisuals(selectedId)
+				rootComp.updateSelectionVisuals(task.id);
+			});
+		}
+
+		// Trigger external event only if selection actually changed
+		if (this.onTaskSelected && previouslySelectedId !== task.id) {
+			this.onTaskSelected(task);
+		}
 	}
 
 	public updateTask(updatedTask: Task) {
-		// Find and update the task component
-		const component = this.taskComponents.find(
-			(c) => c.getTask().id === updatedTask.id
+		console.log(
+			"Updating task:",
+			updatedTask.id,
+			"Completed:",
+			updatedTask.completed
 		);
-
-		if (component) {
-			component.updateTask(updatedTask);
-		}
-
-		// Also update in our data arrays
+		// Update the task in the main data source
 		const taskIndex = this.allTasks.findIndex(
 			(t) => t.id === updatedTask.id
 		);
 		if (taskIndex !== -1) {
-			this.allTasks[taskIndex] = updatedTask;
+			this.allTasks[taskIndex] = { ...updatedTask }; // Ensure reactivity if needed
+		} else {
+			console.warn(
+				"Task not found in allTasks during update:",
+				updatedTask.id
+			);
+			// Optionally add if it's a new task resulting from an action
+			// this.allTasks.push(updatedTask);
 		}
 
-		const filteredIndex = this.filteredTasks.findIndex(
-			(t) => t.id === updatedTask.id
-		);
-		if (filteredIndex !== -1) {
-			this.filteredTasks[filteredIndex] = updatedTask;
-		}
-
-		// If this is the selected task, update selection
+		// Update selected task state if it was the one updated
 		if (this.selectedTask && this.selectedTask.id === updatedTask.id) {
-			this.selectedTask = updatedTask;
+			this.selectedTask = { ...updatedTask };
 		}
+
+		// Re-filter and refresh the view to reflect the change accurately
+		this.applyFilters();
+		this.refreshTaskList();
 	}
 
 	public getSelectedTask(): Task | null {
 		return this.selectedTask;
+	}
+
+	private loadMoreTasks() {
+		console.log("Load more tasks triggered...");
+		// Optional: Prevent double loading if already processing
+		// (Could add a 'isLoadingMore' flag)
+
+		if (this.isTreeView) {
+			if (this.nextRootTaskIndex < this.rootTasks.length) {
+				console.log("Loading more TREE tasks");
+				// Rebuild or reuse task map
+				const taskMap = new Map<string, Task>();
+				this.filteredTasks.forEach((task) =>
+					taskMap.set(task.id, task)
+				);
+				// Load next batch of root tasks
+				const newEnd = this.loadRootTaskBatch(
+					this.nextRootTaskIndex,
+					this.taskPageSize,
+					taskMap
+				);
+				// Check if we need to re-add the marker *after* loading
+				if (newEnd >= this.rootTasks.length) {
+					this.removeLoadMarker(); // No more tasks, remove marker
+				} else {
+					// Ensure marker is still observed if needed
+					// The marker should have been added previously if newEnd < rootTasks.length
+				}
+			} else {
+				console.log("No more tree tasks to load.");
+				this.removeLoadMarker();
+			}
+		} else {
+			// List View
+			const currentCount = this.taskComponents.length; // Count rendered list items
+			if (currentCount < this.filteredTasks.length) {
+				console.log("Loading more LIST tasks");
+				// Load next batch of list tasks
+				const newEnd = this.loadTaskBatch(
+					currentCount,
+					this.taskPageSize
+				);
+				// Check if we need to re-add the marker
+				if (newEnd >= this.filteredTasks.length) {
+					this.removeLoadMarker(); // No more tasks, remove marker
+				}
+				// Ensure marker is still observed if needed
+			} else {
+				console.log("No more list tasks to load.");
+				this.removeLoadMarker();
+			}
+		}
 	}
 
 	onunload() {

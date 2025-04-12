@@ -24,18 +24,21 @@ export class TaskTreeItemComponent extends Component {
 
 	private markdownRenderer: MarkdownRendererComponent;
 	private contentEl: HTMLElement;
+	private taskMap: Map<string, Task>;
 
 	constructor(
 		task: Task,
 		viewMode: string,
 		private app: App,
 		indentLevel: number = 0,
-		private childTasks: Task[] = []
+		private childTasks: Task[] = [],
+		taskMap: Map<string, Task>
 	) {
 		super();
 		this.task = task;
 		this.viewMode = viewMode;
 		this.indentLevel = indentLevel;
+		this.taskMap = taskMap;
 	}
 
 	onload() {
@@ -347,19 +350,23 @@ export class TaskTreeItemComponent extends Component {
 			? "block"
 			: "none";
 
-		// Render each child task
+		// Render each direct child task passed via constructor
 		this.childTasks.forEach((childTask) => {
-			// Find grandchildren for this child
-			const grandchildren = this.childTasks.filter(
-				(task) => task.parent === childTask.id
-			);
+			// Find *grandchildren* by looking up children of the current childTask in the *full* taskMap
+			const grandchildren: Task[] = [];
+			this.taskMap.forEach((potentialGrandchild) => {
+				if (potentialGrandchild.parent === childTask.id) {
+					grandchildren.push(potentialGrandchild);
+				}
+			});
 
 			const childComponent = new TaskTreeItemComponent(
 				childTask,
 				this.viewMode,
 				this.app,
 				this.indentLevel + 1,
-				grandchildren
+				grandchildren, // Pass the correctly found grandchildren
+				this.taskMap // Pass the map down recursively
 			);
 
 			// Pass up events
@@ -471,6 +478,44 @@ export class TaskTreeItemComponent extends Component {
 
 	public getTask(): Task {
 		return this.task;
+	}
+
+	/**
+	 * Updates the visual selection state of this component and its children.
+	 * @param selectedId The ID of the task that should be marked as selected, or null to deselect all.
+	 */
+	public updateSelectionVisuals(selectedId: string | null) {
+		const isNowSelected = this.task.id === selectedId;
+		if (this.isSelected !== isNowSelected) {
+			this.isSelected = isNowSelected;
+			// Use the existing element reference if available, otherwise querySelector
+			const elementToToggle =
+				this.element ||
+				this.parentContainer?.closest(".tree-task-item");
+			if (elementToToggle) {
+				elementToToggle.classList.toggle(
+					"is-selected",
+					this.isSelected
+				);
+				// Also ensure the parent container reflects selection if separate element
+				if (this.parentContainer) {
+					this.parentContainer.classList.toggle(
+						"selected",
+						this.isSelected
+					);
+				}
+			} else {
+				console.warn(
+					"Could not find element to toggle selection class for task:",
+					this.task.id
+				);
+			}
+		}
+
+		// Recursively update children
+		this.childComponents.forEach((child) =>
+			child.updateSelectionVisuals(selectedId)
+		);
 	}
 
 	public setExpanded(expanded: boolean) {
