@@ -11,6 +11,13 @@
 
 .task-children-container .task-item.tree-task-item {
 	border-bottom: unset;
+	padding-top: var(--size-2-2);
+	padding-bottom: var(--size-2-2);
+	gap: 0;
+}
+
+.task-item.tree-task-item {
+	gap: 0;
 }
 
 .tree-task-item:hover {
