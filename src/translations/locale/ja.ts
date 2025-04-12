@@ -594,6 +594,12 @@ const translations = {
 	"Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way.":
 		"Task Geniusビューは、タスクをより効率的に管理できる包括的なビューです。",
 	"Enable task genius view": "Task Geniusビューを有効にする",
+	"Select a task to view details": "タスクを選択して詳細を表示",
+	Status: "ステータス",
+	"Comma separated": "カンマ区切り",
+	Focus: "集中",
+	"Loading more...": "読み込み中...",
+	projects: "プロジェクト",
 };
 
 export default translations;

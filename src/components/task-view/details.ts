@@ -99,7 +99,7 @@ export class TaskDetailsComponent extends Component {
 		this.containerEl.empty();
 
 		const emptyEl = this.containerEl.createDiv({ cls: "details-empty" });
-		emptyEl.setText("Select a task to view details");
+		emptyEl.setText(t("Select a task to view details"));
 	}
 
 	private getTaskStatus() {
@@ -146,7 +146,7 @@ export class TaskDetailsComponent extends Component {
 		// Task status
 		this.contentEl.createDiv({ cls: "details-status-container" }, (el) => {
 			const labelEl = el.createDiv({ cls: "details-status-label" });
-			labelEl.setText("Status");
+			labelEl.setText(t("Status"));
 
 			const statusEl = el.createDiv({ cls: "details-status" });
 			statusEl.setText(getStatus(task, this.plugin.settings));
@@ -385,7 +385,7 @@ export class TaskDetailsComponent extends Component {
 		tagsInput.setValue(task.tags ? task.tags.join(", ") : "");
 		tagsField
 			.createSpan({ cls: "field-description" })
-			.setText("Comma separated");
+			.setText(t("Comma separated"));
 
 		// Context field
 		const contextField = this.createFormField(

@@ -906,14 +906,14 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					buttonContainer.addClass("modal-button-container");
 
 					const cancelButton = buttonContainer.createEl("button");
-					cancelButton.setText("Cancel");
+					cancelButton.setText(t("Cancel"));
 					cancelButton.addEventListener("click", () => {
 						dropdown.setValue("custom");
 						modal.close();
 					});
 
 					const confirmButton = buttonContainer.createEl("button");
-					confirmButton.setText("Apply Theme");
+					confirmButton.setText(t("Apply Theme"));
 					confirmButton.addClass("mod-cta");
 					confirmButton.addEventListener("click", async () => {
 						modal.close();

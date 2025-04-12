@@ -153,12 +153,12 @@ export class InboxComponent extends Component {
 		// Toggle focus state
 		if (this.focusFilter) {
 			this.focusFilter = null;
-			this.focusBtn.setText("Focus");
+			this.focusBtn.setText(t("Focus"));
 			this.focusBtn.classList.remove("focused");
 		} else {
 			// Just an example - you could focus on a specific project or context
 			this.focusFilter = "Work";
-			this.focusBtn.setText("Unfocus");
+			this.focusBtn.setText(t("Unfocus"));
 			this.focusBtn.classList.add("focused");
 		}
 
@@ -321,7 +321,7 @@ export class InboxComponent extends Component {
 		this.filteredTasks = filtered;
 
 		// Update the task count
-		this.countEl.setText(`${this.filteredTasks.length} tasks`);
+		this.countEl.setText(`${this.filteredTasks.length} ${t("tasks")}`);
 	}
 
 	private filterTasks(query: string) {
@@ -502,14 +502,13 @@ export class InboxComponent extends Component {
 			cls: "task-load-marker",
 			attr: { "data-task-id": "load-marker" },
 		});
-		loadMarker.setText("Loading more...");
+		loadMarker.setText(t("Loading more..."));
 		this.taskListObserver.observe(loadMarker);
 	}
 
 	private removeLoadMarker() {
 		const oldMarker = this.taskListEl.querySelector(".task-load-marker");
 		if (oldMarker) {
-			console.log("Removing load marker");
 			this.taskListObserver.unobserve(oldMarker);
 			oldMarker.remove();
 		}
@@ -561,12 +560,6 @@ export class InboxComponent extends Component {
 	}
 
 	public updateTask(updatedTask: Task) {
-		console.log(
-			"Updating task:",
-			updatedTask.id,
-			"Completed:",
-			updatedTask.completed
-		);
 		// Update the task in the main data source
 		const taskIndex = this.allTasks.findIndex(
 			(t) => t.id === updatedTask.id

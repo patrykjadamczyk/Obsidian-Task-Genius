@@ -472,7 +472,13 @@ const translations = {
   "Details": "Details",
   "View": "View",
   "Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way.": "Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way.",
-  "Enable task genius view": "Enable task genius view"
+  "Enable task genius view": "Enable task genius view",
+  "Select a task to view details": "Select a task to view details",
+  "Status": "Status",
+  "Comma separated": "Comma separated",
+  "Focus": "Focus",
+  "Loading more...": "Loading more...",
+  "projects": "projects"
 };
 
 export default translations;

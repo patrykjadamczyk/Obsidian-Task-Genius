@@ -1,5 +1,6 @@
 import { Component, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
+import { t } from "../../translations/helper";
 
 export interface CalendarDay {
 	date: Date;
@@ -86,7 +87,7 @@ export class CalendarComponent extends Component {
 		setIcon(nextBtn, "chevron-right");
 
 		const todayBtn = navEl.createDiv({ cls: "calendar-today-btn" });
-		todayBtn.setText("Today");
+		todayBtn.setText(t("Today"));
 
 		// Register event handlers
 		this.registerDomEvent(prevBtn, "click", () => {

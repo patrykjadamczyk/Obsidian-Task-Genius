@@ -81,7 +81,7 @@ export class ProjectsComponent extends Component {
 		this.countEl = titleContainer.createDiv({
 			cls: "projects-count",
 		});
-		this.countEl.setText("0 projects");
+		this.countEl.setText(`0 ${t("projects")}`);
 	}
 
 	private createLeftColumn(parentEl: HTMLElement) {
@@ -134,7 +134,7 @@ export class ProjectsComponent extends Component {
 		const taskCountEl = taskHeaderEl.createDiv({
 			cls: "projects-task-count",
 		});
-		taskCountEl.setText("0 tasks");
+		taskCountEl.setText(`0 ${t("tasks")}`);
 
 		// Add view toggle button
 		const viewToggleBtn = taskHeaderEl.createDiv({

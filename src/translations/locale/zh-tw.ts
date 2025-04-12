@@ -568,6 +568,12 @@ const translations = {
 	"Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way.":
 		"Task Genius 視圖是一個綜合視圖，可以讓您更高效地管理任務。",
 	"Enable task genius view": "啟用 Task Genius 視圖",
+	"Select a task to view details": "選擇一個任務以查看詳情",
+	Status: "狀態",
+	"Comma separated": "逗號分隔",
+	Focus: "專注",
+	"Loading more...": "加載更多...",
+	projects: "項目",
 };
 
 export default translations;
