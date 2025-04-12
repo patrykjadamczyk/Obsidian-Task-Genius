@@ -1,4 +1,4 @@
-import { App, Component, setIcon } from "obsidian";
+import { App, Component, ExtraButtonComponent, setIcon } from "obsidian";
 import { Task, TaskFilter } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { ViewMode } from "./sidebar";
@@ -69,12 +69,16 @@ export class InboxComponent extends Component {
 		});
 
 		// View title
-		this.titleEl = this.headerEl.createDiv({ cls: "content-title" });
-		this.titleEl.setText("Forecast");
+		this.titleEl = this.headerEl.createDiv({
+			cls: "content-title",
+			text: t("Forecast"),
+		});
 
 		// Task count
-		this.countEl = this.headerEl.createDiv({ cls: "task-count" });
-		this.countEl.setText("0 tasks");
+		this.countEl = this.headerEl.createDiv({
+			cls: "task-count",
+			text: t("0 tasks"),
+		});
 
 		// Filter controls
 		const filterEl = this.headerEl.createDiv({ cls: "content-filter" });
@@ -84,16 +88,21 @@ export class InboxComponent extends Component {
 			cls: "filter-input",
 			attr: {
 				type: "text",
-				placeholder: "Filter tasks...",
+				placeholder: t("Filter tasks..."),
 			},
 		});
 
 		// View toggle button
-		const viewToggleBtn = this.headerEl.createDiv({
-			cls: "view-toggle-btn",
-		});
-		setIcon(viewToggleBtn, "list");
-		viewToggleBtn.setAttribute("aria-label", "Toggle list/tree view");
+		const viewToggleBtn = this.headerEl.createDiv(
+			{
+				cls: "view-toggle-btn",
+			},
+			(el) => {
+				new ExtraButtonComponent(el)
+					.setIcon("list")
+					.setTooltip(t("Toggle list/tree view"));
+			}
+		);
 
 		this.registerDomEvent(viewToggleBtn, "click", () => {
 			this.toggleViewMode();

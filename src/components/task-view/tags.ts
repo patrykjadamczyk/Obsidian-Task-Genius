@@ -745,7 +745,7 @@ export class TagsComponent extends Component {
 		const taskCountEl =
 			this.taskContainerEl.querySelector(".tags-task-count");
 		if (taskCountEl) {
-			taskCountEl.textContent = "0 tasks";
+			taskCountEl.textContent = t("0 tasks");
 		}
 
 		// Show instruction state

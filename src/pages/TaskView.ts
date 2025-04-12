@@ -19,7 +19,7 @@ import { TaskDetailsComponent } from "../components/task-view/details";
 import "../styles/view.css";
 import TaskProgressBarPlugin from "../index";
 import { QuickCaptureModal } from "src/components/QuickCaptureModal";
-
+import { t } from "../translations/helper";
 export const TASK_VIEW_TYPE = "task-genius-view";
 
 export class TaskView extends ItemView {
@@ -57,7 +57,7 @@ export class TaskView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Task Genius View";
+		return t("Task Genius View");
 	}
 
 	getIcon(): string {
@@ -100,7 +100,7 @@ export class TaskView extends ItemView {
 			(el: HTMLElement) => {
 				new ExtraButtonComponent(el)
 					.setIcon("check-square")
-					.setTooltip("Capture")
+					.setTooltip(t("Capture"))
 					.onClick(() => {
 						const modal = new QuickCaptureModal(
 							this.plugin.app,
@@ -218,7 +218,7 @@ export class TaskView extends ItemView {
 
 		this.detailsToggleBtn.toggleClass("panel-toggle-btn", true);
 
-		this.addAction("check-square", "capture", () => {
+		this.addAction("check-square", t("Capture"), () => {
 			const modal = new QuickCaptureModal(
 				this.plugin.app,
 				this.plugin,

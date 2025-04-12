@@ -314,7 +314,7 @@ export class TaskDetailsComponent extends Component {
 		// }
 
 		// Task file location
-		this.addMetadataField(metaEl, "File", task.filePath);
+		this.addMetadataField(metaEl, t("File"), task.filePath);
 
 		// Add action controls
 		const actionsEl = this.contentEl.createDiv({ cls: "details-actions" });
@@ -364,7 +364,7 @@ export class TaskDetailsComponent extends Component {
 		// Task content/title
 		const contentField = this.createFormField(
 			this.editFormEl,
-			"Task Title"
+			t("Task Title")
 		);
 		const contentInput = new TextComponent(contentField);
 		console.log("contentInput", contentInput, task.content);
@@ -372,12 +372,15 @@ export class TaskDetailsComponent extends Component {
 		contentInput.inputEl.addClass("details-edit-content");
 
 		// Project dropdown
-		const projectField = this.createFormField(this.editFormEl, "Project");
+		const projectField = this.createFormField(
+			this.editFormEl,
+			t("Project")
+		);
 		const projectInput = new TextComponent(projectField);
 		projectInput.setValue(task.project || "");
 
 		// Tags field
-		const tagsField = this.createFormField(this.editFormEl, "Tags");
+		const tagsField = this.createFormField(this.editFormEl, t("Tags"));
 		const tagsInput = new TextComponent(tagsField);
 		tagsInput.setValue(task.tags ? task.tags.join(", ") : "");
 		tagsField
@@ -385,19 +388,25 @@ export class TaskDetailsComponent extends Component {
 			.setText("Comma separated");
 
 		// Context field
-		const contextField = this.createFormField(this.editFormEl, "Context");
+		const contextField = this.createFormField(
+			this.editFormEl,
+			t("Context")
+		);
 		const contextInput = new TextComponent(contextField);
 		contextInput.setValue(task.context || "");
 
 		// Priority dropdown
-		const priorityField = this.createFormField(this.editFormEl, "Priority");
+		const priorityField = this.createFormField(
+			this.editFormEl,
+			t("Priority")
+		);
 		const priorityDropdown = new DropdownComponent(priorityField);
-		priorityDropdown.addOption("", "None");
-		priorityDropdown.addOption("1", "⏬️ Lowest");
-		priorityDropdown.addOption("2", "🔽 Low");
-		priorityDropdown.addOption("3", "🔼 Medium");
-		priorityDropdown.addOption("4", "⏫ High");
-		priorityDropdown.addOption("5", "🔺 Highest");
+		priorityDropdown.addOption("", t("None"));
+		priorityDropdown.addOption("1", "⏬️ " + t("Lowest"));
+		priorityDropdown.addOption("2", "🔽 " + t("Low"));
+		priorityDropdown.addOption("3", "🔼 " + t("Medium"));
+		priorityDropdown.addOption("4", "⏫ " + t("High"));
+		priorityDropdown.addOption("5", "🔺 " + t("Highest"));
 		if (task.priority) {
 			priorityDropdown.setValue(task.priority.toString());
 		} else {
@@ -405,7 +414,10 @@ export class TaskDetailsComponent extends Component {
 		}
 
 		// Due date
-		const dueDateField = this.createFormField(this.editFormEl, "Due Date");
+		const dueDateField = this.createFormField(
+			this.editFormEl,
+			t("Due Date")
+		);
 		const dueDateInput = dueDateField.createEl("input", {
 			type: "date",
 			cls: "date-input",
@@ -417,7 +429,7 @@ export class TaskDetailsComponent extends Component {
 		// Start date
 		const startDateField = this.createFormField(
 			this.editFormEl,
-			"Start Date"
+			t("Start Date")
 		);
 		const startDateInput = startDateField.createEl("input", {
 			type: "date",
@@ -430,7 +442,7 @@ export class TaskDetailsComponent extends Component {
 		// Scheduled date
 		const scheduledDateField = this.createFormField(
 			this.editFormEl,
-			"Scheduled Date"
+			t("Scheduled Date")
 		);
 		const scheduledDateInput = scheduledDateField.createEl("input", {
 			type: "date",
@@ -445,13 +457,13 @@ export class TaskDetailsComponent extends Component {
 		// Recurrence pattern
 		const recurrenceField = this.createFormField(
 			this.editFormEl,
-			"Recurrence"
+			t("Recurrence")
 		);
 		const recurrenceInput = new TextComponent(recurrenceField);
 		recurrenceInput.setValue(task.recurrence || "");
 		recurrenceField
 			.createSpan({ cls: "field-description" })
-			.setText("e.g. every day, every 2 weeks");
+			.setText(t("e.g. every day, every 2 weeks"));
 
 		// Create a debounced save function
 		const saveTask = debounce(async () => {
@@ -598,7 +610,7 @@ export class TaskDetailsComponent extends Component {
 	): HTMLElement {
 		const fieldEl = container.createDiv({ cls: "details-form-field" });
 
-		fieldEl.createDiv({ cls: "details-form-label" }).setText(label);
+		fieldEl.createDiv({ cls: "details-form-label", text: label });
 
 		return fieldEl.createDiv({ cls: "details-form-input" });
 	}
@@ -635,7 +647,6 @@ export class TaskDetailsComponent extends Component {
 	}
 
 	public setVisible(visible: boolean) {
-		console.log("setVisible", visible);
 		this.isVisible = visible;
 
 		if (visible) {

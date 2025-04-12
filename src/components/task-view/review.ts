@@ -55,7 +55,7 @@ class ReviewConfigureModal extends Modal {
 
 		// Add title
 		contentEl.createEl("h2", {
-			text: `Configure Review for "${this.projectName}"`,
+			text: t("Configure Review for") + ` "${this.projectName}"`,
 			cls: "review-modal-title",
 		});
 
@@ -71,14 +71,14 @@ class ReviewConfigureModal extends Modal {
 
 		// Label
 		frequencyContainer.createEl("label", {
-			text: "Review Frequency",
+			text: t("Review Frequency"),
 			cls: "review-modal-label",
 			attr: { for: "review-frequency" },
 		});
 
 		// Description
 		frequencyContainer.createEl("div", {
-			text: "How often should this project be reviewed",
+			text: t("How often should this project be reviewed"),
 			cls: "review-modal-description",
 		});
 
@@ -102,7 +102,7 @@ class ReviewConfigureModal extends Modal {
 
 		// Custom frequency option
 		const customOption = frequencySelect.createEl("option", {
-			text: "Custom...",
+			text: t("Custom..."),
 			value: "custom",
 		});
 
@@ -118,7 +118,7 @@ class ReviewConfigureModal extends Modal {
 				cls: "review-modal-input",
 				attr: {
 					type: "text",
-					placeholder: "e.g., every 3 months",
+					placeholder: t("e.g., every 3 months"),
 				},
 			}
 		);
@@ -155,7 +155,7 @@ class ReviewConfigureModal extends Modal {
 		});
 
 		lastReviewedInfo.createEl("label", {
-			text: "Last Reviewed",
+			text: t("Last Reviewed"),
 			cls: "review-modal-label",
 		});
 
@@ -175,7 +175,7 @@ class ReviewConfigureModal extends Modal {
 
 		// Cancel button
 		const cancelButton = buttonContainer.createEl("button", {
-			text: "Cancel",
+			text: t("Cancel"),
 			cls: "review-modal-button review-modal-button-cancel",
 		});
 
@@ -185,7 +185,7 @@ class ReviewConfigureModal extends Modal {
 
 		// Save button
 		const saveButton = buttonContainer.createEl("button", {
-			text: "Save",
+			text: t("Save"),
 			cls: "review-modal-button review-modal-button-save",
 		});
 
@@ -196,7 +196,7 @@ class ReviewConfigureModal extends Modal {
 
 	private validateFrequency(): boolean {
 		if (!this.frequency || this.frequency.trim() === "") {
-			new Notice("Please specify a review frequency");
+			new Notice(t("Please specify a review frequency"));
 			return false;
 		}
 		return true;
@@ -223,7 +223,7 @@ class ReviewConfigureModal extends Modal {
 		this.onSave(updatedSetting);
 
 		// Show confirmation and close
-		new Notice(`Review schedule updated for ${this.projectName}`);
+		new Notice(t("Review schedule updated for") + ` ${this.projectName}`);
 		this.close();
 	}
 

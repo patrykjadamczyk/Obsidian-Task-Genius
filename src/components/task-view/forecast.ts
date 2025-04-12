@@ -140,13 +140,13 @@ export class ForecastComponent extends Component {
 
 		this.titleEl = titleContainer.createDiv({
 			cls: "forecast-title",
-			text: "Forecast",
+			text: t("Forecast"),
 		});
 
 		const countEl = titleContainer.createDiv({
 			cls: "forecast-count",
 		});
-		countEl.setText("0 actions, 0 projects");
+		countEl.setText(t("0 actions, 0 projects"));
 
 		// View toggle and settings
 		const actionsContainer = this.forecastHeaderEl.createDiv({
@@ -195,13 +195,13 @@ export class ForecastComponent extends Component {
 			cls: "focus-input",
 			attr: {
 				type: "text",
-				placeholder: "Focusing on Work",
+				placeholder: t("Focusing on Work"),
 			},
 		});
 
 		const unfocusBtn = this.focusBarEl.createEl("button", {
 			cls: "unfocus-button",
-			text: "Unfocus",
+			text: t("Unfocus"),
 		});
 
 		this.registerDomEvent(unfocusBtn, "click", () => {
@@ -282,9 +282,9 @@ export class ForecastComponent extends Component {
 		};
 
 		// Create stats for past due, today, and future
-		createStatItem("past-due", "Past Due", 0, "past-due");
-		createStatItem("today", "Today", 1, "today");
-		createStatItem("future", "Future", 2, "future");
+		createStatItem("past-due", t("Past Due"), 0, "past-due");
+		createStatItem("today", t("Today"), 1, "today");
+		createStatItem("future", t("Future"), 2, "future");
 	}
 
 	private createDueSoonSection(parentEl: HTMLElement) {
@@ -352,7 +352,9 @@ export class ForecastComponent extends Component {
 		// Update header
 		const countEl = this.forecastHeaderEl.querySelector(".forecast-count");
 		if (countEl) {
-			countEl.textContent = `${taskCount} actions, ${projectCount} project${
+			countEl.textContent = `${taskCount} ${t(
+				"actions"
+			)}, ${projectCount} ${t("project")}${
 				projectCount !== 1 ? "s" : ""
 			}`;
 		}
@@ -451,7 +453,7 @@ export class ForecastComponent extends Component {
 		const headerEl = this.dueSoonContainerEl.createDiv({
 			cls: "due-soon-header",
 		});
-		headerEl.setText("Coming Up");
+		headerEl.setText(t("Coming Up"));
 
 		// Create entries for upcoming due tasks
 		dueSoonItems.forEach((item) => {
@@ -479,7 +481,7 @@ export class ForecastComponent extends Component {
 			// Properly format the task count
 			const taskCount = item.tasks.length;
 			countEl.setText(
-				`${taskCount} ${taskCount === 1 ? "Task" : "Tasks"}`
+				`${taskCount} ${taskCount === 1 ? t("Task") : t("Tasks")}`
 			);
 
 			// Add click handler to select this date
@@ -533,7 +535,7 @@ export class ForecastComponent extends Component {
 		// Today section
 		if (this.todayTasks.length > 0) {
 			this.dateSections.push({
-				title: "Today — " + this.formatDate(this.currentDate),
+				title: t("Today") + " — " + this.formatDate(this.currentDate),
 				date: new Date(this.currentDate),
 				tasks: this.todayTasks,
 				isExpanded: true,
@@ -699,7 +701,7 @@ export class ForecastComponent extends Component {
 			const emptyEl = this.taskListContainerEl.createDiv({
 				cls: "forecast-empty-state",
 			});
-			emptyEl.setText("No tasks scheduled");
+			emptyEl.setText(t("No tasks scheduled"));
 		}
 	}
 
@@ -827,7 +829,7 @@ export class ForecastComponent extends Component {
 		if (this.focusFilter === "past-due") {
 			this.dateSections = [
 				{
-					title: "Past Due",
+					title: t("Past Due"),
 					date: new Date(0),
 					tasks: this.pastDueTasks,
 					isExpanded: true,
@@ -836,7 +838,8 @@ export class ForecastComponent extends Component {
 		} else if (this.focusFilter === "today") {
 			this.dateSections = [
 				{
-					title: "Today — " + this.formatDate(this.currentDate),
+					title:
+						t("Today") + " — " + this.formatDate(this.currentDate),
 					date: new Date(this.currentDate),
 					tasks: this.todayTasks,
 					isExpanded: true,
@@ -914,7 +917,7 @@ export class ForecastComponent extends Component {
 			if (overdueTasks.length > 0) {
 				// Add overdue section at the beginning
 				this.dateSections.unshift({
-					title: "Past Due",
+					title: t("Past Due"),
 					date: new Date(0), // Placeholder
 					tasks: overdueTasks,
 					isExpanded: true,
@@ -978,7 +981,7 @@ export class ForecastComponent extends Component {
 
 			// Add a special title for tomorrow relative to selected date
 			if (dayDiff === 1) {
-				title = "Tomorrow, " + title;
+				title = t("Tomorrow") + ", " + title;
 			}
 
 			this.dateSections.push({
