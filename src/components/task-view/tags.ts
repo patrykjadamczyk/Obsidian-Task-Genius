@@ -557,7 +557,8 @@ export class TagsComponent extends Component {
 				"tags",
 				this.app,
 				0,
-				childTasks
+				childTasks,
+				taskMap
 			);
 
 			// Set up event handlers

@@ -475,7 +475,8 @@ export class ProjectsComponent extends Component {
 				"projects",
 				this.app,
 				0,
-				childTasks
+				childTasks,
+				taskMap
 			);
 
 			// Set up event handlers
