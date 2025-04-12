@@ -32,5 +32,7 @@ declare module "obsidian" {
 
 	interface WorkspaceLeaf {
 		tabHeaderStatusContainerEl: HTMLElement;
+		width: number;
+		height: number;
 	}
 }

@@ -113,6 +113,24 @@ export class TaskView extends ItemView {
 		);
 
 		this.triggerViewUpdate();
+
+		this.checkAndCollapseSidebar();
+	}
+
+	onResize(): void {
+		this.checkAndCollapseSidebar();
+	}
+
+	checkAndCollapseSidebar() {
+		if (this.leaf.width === 0 || this.leaf.height === 0) {
+			return;
+		}
+
+		if (this.leaf.width < 768) {
+			this.isSidebarCollapsed = true;
+			this.sidebarComponent.setCollapsed(true);
+			this.detailsComponent.setVisible(false);
+		}
 	}
 
 	private initializeComponents() {
