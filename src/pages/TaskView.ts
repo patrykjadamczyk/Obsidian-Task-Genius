@@ -5,6 +5,7 @@ import {
 	Plugin,
 	setIcon,
 	ExtraButtonComponent,
+	ButtonComponent,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent, ViewMode } from "../components/task-view/sidebar";
@@ -57,6 +58,10 @@ export class TaskView extends ItemView {
 		return "Task Genius";
 	}
 
+	getIcon(): string {
+		return "list-checks";
+	}
+
 	async onOpen() {
 		// Initialize the main container
 		this.contentEl.toggleClass("task-genius-view", true);
@@ -82,14 +87,9 @@ export class TaskView extends ItemView {
 		// Initially hide details panel since no task is selected
 		this.toggleDetailsVisibility(false);
 
-		this.addAction("check-square", "capture", () => {
-			const modal = new QuickCaptureModal(this.plugin.app, this.plugin);
-			modal.open();
-		});
+		this.createDetailsToggle();
 
-		// @ts-expect-error internal obsidian api
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
-		// @ts-expect-error internal obsidian api
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).createEl(
 			"span",
 			{
@@ -178,7 +178,6 @@ export class TaskView extends ItemView {
 		this.detailsComponent.load();
 
 		// Add toggle button to details
-		this.createDetailsToggle();
 
 		// Set up component events
 		this.setupComponentEvents();
@@ -186,33 +185,38 @@ export class TaskView extends ItemView {
 
 	private createSidebarToggle() {
 		// Create toggle button for sidebar
-		const toggleContainer = this.sidebarComponent.containerEl.createDiv({
+		const toggleContainer = (
+			this.headerEl.find(".view-header-nav-buttons") as HTMLElement
+		)?.createDiv({
 			cls: "panel-toggle-container",
 		});
 
 		this.sidebarToggleBtn = toggleContainer.createDiv({
 			cls: "panel-toggle-btn",
 		});
-		setIcon(this.sidebarToggleBtn, "chevron-left");
-
-		this.registerDomEvent(this.sidebarToggleBtn, "click", () => {
-			this.toggleSidebar();
-		});
+		new ButtonComponent(this.sidebarToggleBtn)
+			.setIcon("panel-left-dashed")
+			.setTooltip("Toggle Sidebar")
+			.setClass("clickable-icon")
+			.onClick(() => {
+				this.toggleSidebar();
+			});
 	}
 
 	private createDetailsToggle() {
-		// Create toggle button for details panel
-		const toggleContainer = this.detailsComponent.containerEl.createDiv({
-			cls: "panel-toggle-container",
-		});
+		this.detailsToggleBtn = this.addAction(
+			"panel-right-dashed",
+			"details",
+			() => {
+				this.toggleDetailsVisibility(!this.isDetailsVisible);
+			}
+		);
 
-		this.detailsToggleBtn = toggleContainer.createDiv({
-			cls: "panel-toggle-btn",
-		});
-		setIcon(this.detailsToggleBtn, "chevron-right");
+		this.detailsToggleBtn.toggleClass("panel-toggle-btn", true);
 
-		this.registerDomEvent(this.detailsToggleBtn, "click", () => {
-			this.toggleDetailsVisibility(!this.isDetailsVisible);
+		this.addAction("check-square", "capture", () => {
+			const modal = new QuickCaptureModal(this.plugin.app, this.plugin);
+			modal.open();
 		});
 	}
 
@@ -225,12 +229,6 @@ export class TaskView extends ItemView {
 
 		// Update sidebar component state
 		this.sidebarComponent.setCollapsed(this.isSidebarCollapsed);
-
-		// Update toggle button icon
-		setIcon(
-			this.sidebarToggleBtn,
-			this.isSidebarCollapsed ? "chevron-right" : "chevron-left"
-		);
 	}
 
 	private toggleDetailsVisibility(visible: boolean) {
@@ -240,12 +238,6 @@ export class TaskView extends ItemView {
 
 		// Update details component state
 		this.detailsComponent.setVisible(visible);
-
-		// Update toggle button icon
-		setIcon(
-			this.detailsToggleBtn,
-			visible ? "chevron-right" : "chevron-left"
-		);
 
 		// Clear selected task ID if panel is hidden
 		if (!visible) {

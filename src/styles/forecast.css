@@ -193,7 +193,7 @@
 .forecast-due-soon-section {
 	display: flex;
 	flex-direction: column;
-	padding: 10px 0;
+	padding-bottom: var(--size-4-3);
 }
 
 .due-soon-header {
@@ -266,6 +266,22 @@
 	background-color: var(--background-modifier-border);
 	padding: 2px 6px;
 	border-radius: 10px;
+	height: var(--size-4-5);
+	width: var(--size-4-5);
+}
+
+/* Overdue section styling */
+.task-date-section.overdue .date-section-header {
+	border-left: 3px solid var(--text-error);
+}
+
+.task-date-section.overdue .section-title {
+	color: var(--text-error);
+}
+
+.task-date-section.overdue .section-count {
+	background-color: var(--text-error);
+	color: white;
 }
 
 .section-tasks {

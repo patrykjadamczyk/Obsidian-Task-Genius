@@ -304,7 +304,7 @@ export class ForecastComponent extends Component {
 		this.createForecastHeader();
 
 		// Create focus filter bar
-		this.createFocusBar();
+		// this.createFocusBar();
 
 		this.taskListContainerEl = this.taskContainerEl.createDiv({
 			cls: "forecast-task-list",
@@ -627,6 +627,20 @@ export class ForecastComponent extends Component {
 				cls: "task-date-section",
 			});
 
+			// Check if this section is overdue
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const sectionDate = new Date(section.date);
+			sectionDate.setHours(0, 0, 0, 0);
+
+			// Add 'overdue' class for past due sections
+			if (
+				sectionDate.getTime() < today.getTime() ||
+				section.title === "Past Due"
+			) {
+				sectionEl.addClass("overdue");
+			}
+
 			// Section header
 			const headerEl = sectionEl.createDiv({
 				cls: "date-section-header",
@@ -863,10 +877,8 @@ export class ForecastComponent extends Component {
 		// Get tasks for selected date
 		const selectedDateTasks = this.getTasksForDate(this.selectedDate);
 
-		console.log(selectedDateTasks);
-
+		// First create a section for the selected date if it has tasks
 		if (selectedDateTasks.length > 0) {
-			// Create a section just for this date
 			this.dateSections = [
 				{
 					title: this.formatDate(this.selectedDate),
@@ -875,12 +887,10 @@ export class ForecastComponent extends Component {
 					isExpanded: true,
 				},
 			];
-			this.renderDateSections();
 		} else {
-			// If no tasks on the selected date, show empty state
 			this.dateSections = [];
 
-			// Add empty state with selected date information
+			// Add empty state for the selected date
 			const emptyEl = this.taskListContainerEl.createDiv({
 				cls: "forecast-empty-state",
 			});
@@ -888,6 +898,99 @@ export class ForecastComponent extends Component {
 				`No tasks scheduled for ${this.formatDate(this.selectedDate)}`
 			);
 		}
+
+		// Check if we need to add overdue tasks section
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const selectedDay = new Date(this.selectedDate);
+		selectedDay.setHours(0, 0, 0, 0);
+
+		// If the selected date is today or in the future, show overdue tasks
+		if (selectedDay.getTime() >= today.getTime()) {
+			const overdueTasks = this.pastDueTasks.filter(
+				(task) => !task.completed
+			);
+
+			if (overdueTasks.length > 0) {
+				// Add overdue section at the beginning
+				this.dateSections.unshift({
+					title: "Past Due",
+					date: new Date(0), // Placeholder
+					tasks: overdueTasks,
+					isExpanded: true,
+				});
+			}
+		}
+
+		// Now add future sections after the selected date
+		// Get all future dates after the selected date
+		const futureTasksAfterSelected = this.futureTasks.filter((task) => {
+			if (!task.dueDate) return false;
+			const taskDate = new Date(task.dueDate);
+			taskDate.setHours(0, 0, 0, 0);
+			const selectedDate = new Date(this.selectedDate);
+			selectedDate.setHours(0, 0, 0, 0);
+			return taskDate.getTime() > selectedDate.getTime();
+		});
+
+		// Group by date
+		const dateMap = new Map<string, Task[]>();
+		futureTasksAfterSelected.forEach((task) => {
+			if (task.dueDate) {
+				const date = new Date(task.dueDate);
+				date.setHours(0, 0, 0, 0);
+				const dateKey = date.toISOString().split("T")[0];
+
+				if (!dateMap.has(dateKey)) {
+					dateMap.set(dateKey, []);
+				}
+
+				dateMap.get(dateKey)!.push(task);
+			}
+		});
+
+		// Sort dates and create sections
+		const sortedDates = Array.from(dateMap.keys()).sort();
+
+		// Add future sections
+		sortedDates.forEach((dateKey) => {
+			const date = new Date(dateKey);
+			const tasks = dateMap.get(dateKey)!;
+
+			const selectedDate = new Date(this.selectedDate);
+			selectedDate.setHours(0, 0, 0, 0);
+
+			const dayDiff = Math.round(
+				(date.getTime() - selectedDate.getTime()) / (1000 * 3600 * 24)
+			);
+
+			const dayOfWeek = [
+				"Sunday",
+				"Monday",
+				"Tuesday",
+				"Wednesday",
+				"Thursday",
+				"Friday",
+				"Saturday",
+			][date.getDay()];
+
+			let title = `${dayOfWeek}, ${this.formatDate(date)}`;
+
+			// Add a special title for tomorrow relative to selected date
+			if (dayDiff === 1) {
+				title = "Tomorrow, " + title;
+			}
+
+			this.dateSections.push({
+				title: title,
+				date: date,
+				tasks: tasks,
+				isExpanded: dayDiff <= 7, // Auto-expand next 7 days
+			});
+		});
+
+		// Render all sections
+		this.renderDateSections();
 	}
 
 	private getTasksForDate(date: Date): Task[] {
@@ -897,7 +1000,6 @@ export class ForecastComponent extends Component {
 		startOfDay.setHours(0, 0, 0, 0);
 
 		const startTimestamp = startOfDay.getTime();
-		console.log(this.allTasks, startTimestamp);
 
 		return this.allTasks.filter((task) => {
 			if (task.dueDate) {

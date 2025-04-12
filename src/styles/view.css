@@ -3,34 +3,19 @@
 	overflow: hidden;
 }
 
-/* Panel toggle buttons */
-.panel-toggle-container {
-	position: absolute;
-	top: 10px;
-	z-index: 10;
-}
-
-.task-sidebar .panel-toggle-container {
-	left: 12px;
-	background-color: var(--background-primary);
-}
-
 .panel-toggle-btn {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 24px;
-	height: 24px;
 	border-radius: 4px;
-	background-color: var(--background-modifier-hover);
 	cursor: pointer;
 	opacity: 0.6;
+
 	transition: opacity 0.2s ease;
 }
 
 .panel-toggle-btn:hover {
 	opacity: 1;
-	background-color: var(--background-modifier-border-hover);
 }
 
 /* Sidebar Navigation */
@@ -253,7 +238,6 @@
 	display: flex;
 	flex-direction: column;
 	padding: 8px 0;
-	padding-top: var(--header-height);
 }
 
 .sidebar-nav-item {

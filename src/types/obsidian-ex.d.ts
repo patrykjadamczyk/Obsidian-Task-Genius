@@ -29,4 +29,8 @@ declare module "obsidian" {
 			cache: TaskCache
 		): void;
 	}
+
+	interface WorkspaceLeaf {
+		tabHeaderStatusContainerEl: HTMLElement;
+	}
 }
