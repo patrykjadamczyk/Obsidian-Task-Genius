@@ -9,10 +9,7 @@ import {
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
-import {
-	TaskFilterOptions,
-	migrateOldFilterOptions,
-} from "./editor-ext/filterTasks";
+import { migrateOldFilterOptions } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
 import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
 import { DEFAULT_SETTINGS } from "./common/setting-definition";

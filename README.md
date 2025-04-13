@@ -1,145 +1,120 @@
-# Task Genius (formerly Obsidian Task Progress Bar)
+# Task Genius
 
-> **Name Change Notice:** This plugin has been renamed from "Task Progress Bar" to "Task Genius" to better reflect its expanded capabilities. Originally focused on task progress bars, it now includes task status cycling, advanced task management features, and comprehensive task tracking functionality.
+Full documentation is available at [Docs](docs/general.md).
 
-A plugin for comprehensive task management in Obsidian, including task progress bars, task status cycling, and advanced task tracking features.
+---
+
+Task Genius is a comprehensive plugin for Obsidian designed to enhance your task and project management workflow. It integrates seamlessly into your notes, offering visual progress tracking, flexible status management, powerful filtering, and a dedicated view to manage tasks across your vault.
+
+![Task Genius Feature Showcase](./media/task-genius-view.jpg)
 
 ## Key Features
 
-- **Task Progress Bars**: Visualize task completion with customizable progress bars
-- **Task Status Cycling**: Easily cycle through task statuses (e.g., TODO → DOING → IN-PROGRESS → DONE)
-- **Multiple Task Statuses**: Support for various task states including planned, in-progress, completed, and abandoned tasks
-- **Customizable Task Markers**: Define your own task markers and their visual representation
-- **Heading Progress Tracking**: Add progress bars to headings to track progress of all tasks under them
-- **Conditional Display**: Hide progress bars based on tags, folders, or metadata
-- **Progress Statistics**: View task completion counts and percentages
+-   **Task Progress Bars**: Visualize parent task completion with customizable graphical or text-based progress bars based on sub-task status. Supports headings and non-task list items.
+-   **Advanced Task Statuses & Cycling**: Define custom task statuses beyond `- [ ]` and `- [x]` (e.g., In Progress `[/]`, Planned `[?]`, Abandoned `[-]`). Easily cycle through statuses with clicks or commands.
+-   **Date & Priority Management**: Quickly add and modify due dates via a calendar picker (`📅 2023-12-25`) and assign priorities (🔺 Highest, ⏫ High, ..., [#A], [#B], [#C]) through context menus, commands, or clickable icons.
+-   **In-Editor Task Filtering**: Dynamically filter tasks within a note based on status, content, tags, and relationships (parent/child/sibling) using a toggleable panel. Save and reuse common filters as presets.
+-   **Task Mover**: Archive completed or specific sets of sub-tasks to a designated file using commands, keeping your active notes clean.
+-   **Quick Capture**: Rapidly capture tasks or notes to a specified file via an inline panel (`Alt+C`), a global command, or a full-featured modal for adding metadata.
+-   **Workflow Management**: Define multi-stage workflows (e.g., Todo -> Doing -> Review -> Done) and track tasks through them. Includes options for automatic timestamping, duration tracking, and next-task creation.
+-   **Dedicated Task View**: A powerful, unified interface (`Task Genius: Open Task Genius view`) to see, sort, filter, and manage all tasks across your vault. Includes modes like Inbox, Forecast, Tags, Projects, and Review.
+-   **Customizable Settings**: Extensive options to configure the appearance and behavior of all features.
 
-![example](./media/example.webp)
+## Feature Highlights
 
-# Usage
+### Progress Bars
 
-For example, when you create a task list like this:
-
-```markdown
-- [ ] task1 [ ] [0/1] // Here is the progress bar
-	- [ ] task2 // Indent by press tab
-```
-
-When you finished the task2,
+Automatically adds progress indicators to parent items.
 
 ```markdown
-- [ ] task1 [|] [1/1] // The progress bar will be updated
-	- [x] task2 // Indent by press tab
+- [ ] Parent Task [||||----] [4/8] // Example progress bar and text
+    - [x] Sub-task 1
+    - [x] Sub-task 2
+    - [/] Sub-task 3 (In Progress)
+    - [ ] Sub-task 4
+    - [-] Sub-task 5 (Abandoned - might be excluded from count based on settings)
+    - [?] Sub-task 6 (Planned - might be excluded)
+    - [x] Sub-task 7
+    - [x] Sub-task 8
 ```
 
-## Settings
+*   **Customize:** Display mode (bar, text, both), count sub-levels, show on headings/non-tasks, custom text format (placeholders, expressions), conditional hiding (tags, folders, metadata).
 
-### Basic Settings
+### Task Status & Cycling
 
-1. **Add progress bar to Heading**: Make the Heading showing the task progress bars.
-2. **Enable heading progress bars**: Add progress bars to headings to show progress of all tasks under that heading.
-3. **Add number to progress bar**: You can see the total/completed number of tasks.
-4. **Show percentage**: Display the completion percentage in the progress bar.
-5. **Count sub children level of current Task**: Allow the plugin to count sub-tasks in the progress calculation.
+Define custom markers and cycle through them.
 
-### Task Status Settings
+*   **Settings:** Define markers (`x`, `/`, `?`, `-`), configure counting, choose themes, set up custom click cycles.
+*   **Usage:** Click markers in Live Preview/Reading (if enabled), use commands (`Cycle task status forward/backward`).
 
-You can customize which characters represent different task statuses, or choose from predefined collections.
+### Date & Priority
 
-1. **Completed task markers**: Characters that represent completed tasks (default: `x|X`).
-2. **Planned task markers**: Characters that represent planned tasks (default: `?`).
-3. **In progress task markers**: Characters that represent tasks in progress (default: `>|/`).
-4. **Abandoned task markers**: Characters that represent abandoned tasks (default: `-`).
-5. **Not started task markers**: Characters that represent not started tasks (default: space ` `).
-6. **Count other statuses as**: Choose which category to count other statuses as.
+Add metadata easily.
 
-### Task Counting Settings
+*   **Dates:** Click calendar icon or date text (`📅 2023-12-25`) for a picker.
+*   **Priorities:** Click icon (🔺) for dropdown, use context menu (`Set priority`), or use commands (`Set priority Highest`, `Remove priority`).
 
-1. **Exclude specific task markers**: Specify task markers to exclude from counting (e.g., `?|/`).
-2. **Only count specific task markers**: Toggle to only count specific task markers.
-3. **Specific task markers to count**: If the above option is enabled, specify which task markers to count.
+### Task Filtering (Editor)
 
-### Conditional Progress Bar Display
+Focus on specific tasks within a note.
 
-1. **Hide progress bars based on conditions**: Enable hiding progress bars based on tags, folders, or metadata.
-2. **Hide by tags**: Specify tags that will hide progress bars (comma-separated, without #).
-3. **Hide by folders**: Specify folder paths that will hide progress bars.
-4. **Hide by metadata**: Specify frontmatter metadata that will hide progress bars.
+*   **Command:** `Toggle task filter panel`.
+*   **Options:** Filter by status, text/tags (`#tag`), related tasks. Save/load presets.
 
+### Task Mover
 
+Archive tasks.
 
-## Workflow Feature
+*   **Commands:** `Move all completed subtasks`, `Move direct completed subtasks`, `Move all subtasks`, `Move task`.
+*   **Settings:** Define destination file (via Quick Capture settings), add markers (`{{DATE:YYYY-MM-DD}}`), link back to source.
 
-Task Genius includes a powerful workflow feature that allows you to track tasks through different stages of completion. This feature helps with project management and tracking task progression.
+### Quick Capture
 
-### How to Use Workflows
+Add tasks quickly.
 
-1. **Enable Workflows**: First enable the workflow feature in settings.
+*   **Inline:** `Toggle quick capture panel` (`Alt+C`).
+*   **Global:** `Quick capture (Global)`.
+*   **Detailed:** `Task capture with metadata`.
+*   **Settings:** Define target file, append/prepend/replace mode.
 
-2. **Basic Workflow Syntax**:
-   ```markdown
-   - [ ] My task #workflow/project_workflow/planning
-   ```
+### Workflows
 
-   This creates a task in the "Planning" stage of the "Project Workflow".
+Manage multi-stage processes.
 
-3. **Workflow Progression**:
-   - When you complete a task by checking it, the workflow automatically advances to the next stage
-   - The workflow tag updates (e.g., from `#workflow/project_workflow/planning` to `#workflow/project_workflow/in_progress/development`)
-   - A timestamp of the completion is added when configured
+*   **Define:** Create workflows with stages (Cycle, Terminal) in settings.
+*   **Use:** Associate tasks (e.g., via tag `#workflow/MyFlow`), use context menu (`Move to Next Stage`), automate timestamps/next tasks.
 
-4. **Cycle Stages with Sub-stages**:
-   ```markdown
-   - [ ] My task #workflow/project_workflow/in_progress/development
-   ```
+### Task Genius View
 
-   This task is in the "Development" sub-stage of the "In Progress" stage.
+Manage all tasks centrally.
 
-### Default Workflow Structure
+*   **Open:** Ribbon icon or command `Open Task Genius view`.
+*   **Modes:** Inbox, Forecast, Tags, Projects, Review.
+*   **Interact:** Click tasks to view/edit details (description, date, priority, notes) in the right panel. Complete/cycle status directly. Right-click for context menu.
+*   **Manage Index:** Commands `Refresh task index`, `Force reindex all tasks`.
 
-The default "Project Workflow" includes these stages:
+## Installation
 
-1. **Planning** (linear stage)
-   - Next stage: In Progress
+### From Obsidian Community Plugins
 
-2. **In Progress** (cycle stage with sub-stages)
-   - Sub-stages: Development, Testing
-   - Can proceed to: Review, Cancelled
+1.  Open `Settings` -> `Community plugins`.
+2.  Make sure "Restricted mode" is **off**.
+3.  Click `Browse` community plugins.
+4.  Search for "Task Genius".
+5.  Click `Install`.
+6.  Once installed, `Enable` the plugin.
 
-3. **Review** (cycle stage)
-   - Can proceed to: In Progress, Completed
+### Manual Installation
 
-4. **Completed** (terminal stage)
+1.  Download the latest release (`main.js`, `manifest.json`, `styles.css`) from the [Releases page](https://github.com/Quorafind/Obsidian-Task-Genius/releases).
+2.  Navigate to your Obsidian vault's plugins folder: `YourVault/.obsidian/plugins/`.
+3.  Create a new folder named `task-genius`.
+4.  Copy the downloaded `main.js`, `manifest.json`, and `styles.css` files into the `task-genius` folder.
+5.  Reload Obsidian (or disable and re-enable the plugin).
+6.  Enable the plugin in `Settings` -> `Community plugins`.
 
-5. **Cancelled** (terminal stage)
+## Support Me
 
-### Workflow Context Menu
+If you enjoy Task Genius and find it useful, please consider supporting my work by buying me a coffee! It helps me dedicate time to maintaining and improving the plugin.
 
-Right-click on any task to:
-- Add a workflow to a task
-- Change the current workflow stage
-- Add child tasks with the same workflow stage
-
-### Workflow Settings
-
-- **Enable Workflow**: Turn the workflow feature on/off
-- **Auto Add Timestamp**: Automatically add a timestamp when a task moves to a new stage (enabled by default)
-- **Auto Add Next Task**: Automatically create a new task for the next stage (disabled by default)
-
-## How to Install
-
-### From Plugin Market in Obsidian
-
-💜: Directly install from Obsidian Market.
-
-### Download Manually
-
-🚚: Download the latest release. Extract and put the three files (main.js, manifest.json, styles.css) to
-folder `{{obsidian_vault}}/.obsidian/plugins/Obsidian-Task-Progress-Bar`.
-
-## Say Thank You
-
-If you are enjoy using Obsidian-Task-Progress-Bar then please support my work and enthusiasm by buying me a coffee
-on [https://www.buymeacoffee.com/boninall](https://www.buymeacoffee.com/boninall).
-
-<a href="https://www.buymeacoffee.com/boninall"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Lato&outline_colour=000000&coffee_colour=FFDD00"></a>
+<a href="https://www.buymeacoffee.com/boninall" target="_blank"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=boninall&button_colour=6495ED&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00" alt="Buy Me A Coffee"></a>

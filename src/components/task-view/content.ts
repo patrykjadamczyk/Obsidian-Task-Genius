@@ -9,7 +9,7 @@ import TaskProgressBarPlugin from "../../index";
 // We won't use BaseTaskRendererComponent for the main list in Inbox
 // import { BaseTaskRendererComponent } from "./baseTaskRenderer";
 
-export class InboxComponent extends Component {
+export class ContentComponent extends Component {
 	public containerEl: HTMLElement;
 	private headerEl: HTMLElement;
 	private taskListEl: HTMLElement; // Container for rendering

@@ -11,7 +11,6 @@ import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/forecast.css";
 import "../../styles/calendar.css";
-import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
 import { TaskListRendererComponent } from "./TaskList";
 
@@ -176,7 +175,7 @@ export class ForecastComponent extends Component {
 		const countEl = titleContainer.createDiv({
 			cls: "forecast-count",
 		});
-		countEl.setText(t("0 actions, 0 projects"));
+		countEl.setText(t("0 tasks, 0 projects"));
 
 		// View toggle and settings
 		const actionsContainer = this.forecastHeaderEl.createDiv({
@@ -403,7 +402,7 @@ export class ForecastComponent extends Component {
 		const countEl = this.forecastHeaderEl.querySelector(".forecast-count");
 		if (countEl) {
 			countEl.textContent = `${taskCount} ${t(
-				"actions"
+				"tasks"
 			)}, ${projectCount} ${t("project")}${
 				projectCount !== 1 ? "s" : ""
 			}`;
