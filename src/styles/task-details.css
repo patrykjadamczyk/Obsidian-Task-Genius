@@ -32,6 +32,55 @@
 	margin-right: 0;
 }
 
+/* Mobile view - slide from right */
+.is-mobile .task-details {
+	position: absolute;
+	right: 0;
+	top: 0;
+	height: 100%;
+	width: 100%;
+	max-width: 100%;
+	z-index: 10;
+	transform: translateX(100%);
+}
+
+.is-mobile .task-genius-container.details-hidden .task-details {
+	width: 100%;
+	margin-right: 0;
+	transform: translateX(100%);
+}
+
+.is-mobile .task-genius-container.details-visible .task-details {
+	width: calc(100% - var(--size-4-12));
+	transform: translateX(0);
+}
+
+/* Add overlay when details are visible on mobile */
+.is-mobile .task-genius-container.details-visible::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: var(--background-modifier-cover);
+	opacity: 0.5;
+	z-index: 5;
+	transition: opacity 0.3s ease-in-out;
+}
+
+.is-mobile .details-close-btn {
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.is-mobile .details-header {
+	padding: var(--size-4-4);
+}
+
 .details-empty {
 	display: flex;
 	height: 100%;

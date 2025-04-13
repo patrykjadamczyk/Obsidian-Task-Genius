@@ -1,4 +1,10 @@
-import { App, Component, setIcon } from "obsidian";
+import {
+	App,
+	Component,
+	ExtraButtonComponent,
+	Platform,
+	setIcon,
+} from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { CalendarComponent } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
@@ -29,6 +35,9 @@ export class ForecastComponent extends Component {
 	private focusBarEl: HTMLElement;
 	private titleEl: HTMLElement;
 	private statsContainerEl: HTMLElement;
+
+	private leftColumnEl: HTMLElement;
+	private rightColumnEl: HTMLElement;
 
 	// Child components
 	private calendarComponent: CalendarComponent;
@@ -138,6 +147,24 @@ export class ForecastComponent extends Component {
 			cls: "forecast-header",
 		});
 
+		if (Platform.isMobile) {
+			this.forecastHeaderEl.createEl(
+				"div",
+				{
+					cls: "forecast-sidebar-toggle",
+				},
+				(el) => {
+					new ExtraButtonComponent(el)
+						.setIcon("sidebar")
+						.onClick(() => {
+							this.leftColumnEl.isShown()
+								? this.leftColumnEl.hide()
+								: this.leftColumnEl.show();
+						});
+				}
+			);
+		}
+
 		// Title and task count
 		const titleContainer = this.forecastHeaderEl.createDiv({
 			cls: "forecast-title-container",
@@ -215,15 +242,15 @@ export class ForecastComponent extends Component {
 	}
 
 	private createLeftColumn(parentEl: HTMLElement) {
-		const leftColumnEl = parentEl.createDiv({
+		this.leftColumnEl = parentEl.createDiv({
 			cls: "forecast-left-column",
 		});
 
 		// Stats bar for Past Due / Today / Future counts
-		this.createStatsBar(leftColumnEl);
+		this.createStatsBar(this.leftColumnEl);
 
 		// Calendar section
-		this.calendarContainerEl = leftColumnEl.createDiv({
+		this.calendarContainerEl = this.leftColumnEl.createDiv({
 			cls: "forecast-calendar-section",
 		});
 
@@ -235,7 +262,7 @@ export class ForecastComponent extends Component {
 		this.calendarComponent.load();
 
 		// Due Soon section below calendar
-		this.createDueSoonSection(leftColumnEl);
+		this.createDueSoonSection(this.leftColumnEl);
 
 		// Set up calendar events
 		this.calendarComponent.onDateSelected = (date, tasks) => {

@@ -81,6 +81,8 @@ export class TaskDetailsComponent extends Component {
 	public onTaskUpdate: (task: Task, updatedTask: Task) => Promise<void>;
 	public onTaskToggleComplete: (task: Task) => void;
 
+	public toggleDetailsVisibility: (visible: boolean) => void;
+
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
@@ -135,7 +137,8 @@ export class TaskDetailsComponent extends Component {
 			},
 			(el) => {
 				new ExtraButtonComponent(el).setIcon("x").onClick(() => {
-					this.setVisible(false);
+					this.toggleDetailsVisibility &&
+						this.toggleDetailsVisibility(false);
 				});
 			}
 		);
@@ -666,7 +669,7 @@ export class TaskDetailsComponent extends Component {
 				if (!this.isVisible) {
 					this.containerEl.hide();
 				}
-			}, 0); // match animation duration
+			}, 300); // match animation duration of 0.3s
 		}
 	}
 

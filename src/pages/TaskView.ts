@@ -112,6 +112,9 @@ export class TaskView extends ItemView {
 			}
 		);
 
+		this.tasks = this.plugin.preloadedTasks;
+		this.triggerViewUpdate();
+
 		this.checkAndCollapseSidebar();
 
 		// Register for future updates after initial load
@@ -322,6 +325,10 @@ export class TaskView extends ItemView {
 			updatedTask
 		) => {
 			await this.updateTask(originalTask, updatedTask);
+		};
+
+		this.detailsComponent.toggleDetailsVisibility = (visible: boolean) => {
+			this.toggleDetailsVisibility(visible);
 		};
 
 		// Handle project selection from sidebar

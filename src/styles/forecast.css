@@ -297,3 +297,11 @@
 	color: var(--text-muted);
 	font-style: italic;
 }
+
+.forecast-sidebar-toggle {
+	position: absolute;
+}
+
+.forecast-header:has(.forecast-sidebar-toggle) .forecast-title-container {
+	padding-left: var(--size-4-10);
+}
