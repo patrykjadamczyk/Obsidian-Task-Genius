@@ -574,6 +574,10 @@ const translations = {
 	Focus: "專注",
 	"Loading more...": "加載更多...",
 	projects: "項目",
+	"No tasks for this section.": "沒有這個章節的任務。",
+	"No tasks found.": "沒有找到任務。",
+	Complete: "完成",
+	"Switch status": "切換狀態",
 };
 
 export default translations;

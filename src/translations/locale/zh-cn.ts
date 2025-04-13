@@ -573,6 +573,10 @@ const translations = {
 	Focus: "专注",
 	"Loading more...": "加载更多...",
 	projects: "项目",
+	"No tasks for this section.": "当前区间没有任务",
+	"No tasks found.": "没有任务",
+	Complete: "完成",
+	"Switch status": "切换状态",
 };
 
 export default translations;

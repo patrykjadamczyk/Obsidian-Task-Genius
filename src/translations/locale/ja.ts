@@ -600,6 +600,10 @@ const translations = {
 	Focus: "集中",
 	"Loading more...": "読み込み中...",
 	projects: "プロジェクト",
+	"No tasks for this section.": "このセクションにはタスクがありません。",
+	"No tasks found.": "タスクが見つかりません。",
+	Complete: "完了",
+	"Switch status": "ステータスを切り替える",
 };
 
 export default translations;

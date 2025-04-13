@@ -478,7 +478,11 @@ const translations = {
   "Comma separated": "Comma separated",
   "Focus": "Focus",
   "Loading more...": "Loading more...",
-  "projects": "projects"
+  "projects": "projects",
+  "No tasks for this section.": "No tasks for this section.",
+  "No tasks found.": "No tasks found.",
+  "Complete": "Complete",
+  "Switch status": "Switch status"
 };
 
 export default translations;
