@@ -318,7 +318,7 @@ export class TaskManager extends Component {
 			if (this.workerManager && filesToProcess.length > 0) {
 				try {
 					// Process files in batches to avoid excessive memory usage
-					const batchSize = 50;
+					const batchSize = 200;
 					let importedCount = 0;
 					let cachedCount = 0;
 

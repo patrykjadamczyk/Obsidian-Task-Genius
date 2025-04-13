@@ -391,6 +391,8 @@ export class InboxComponent extends Component {
 		const end = Math.min(start + count, this.filteredTasks.length);
 		const fragment = document.createDocumentFragment();
 
+		console.log(`Loading task batch from ${start} to ${end}`);
+
 		for (let i = start; i < end; i++) {
 			const task = this.filteredTasks[i];
 			const taskComponent = new TaskListItemComponent(

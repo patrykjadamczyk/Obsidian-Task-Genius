@@ -79,9 +79,6 @@ export class TaskView extends ItemView {
 		// Create the components
 		this.initializeComponents();
 
-		// Set up event listeners
-		this.registerEvents();
-
 		// Set default view
 		this.sidebarComponent.setViewMode(
 			(this.app.loadLocalStorage("task-genius:view-mode") as ViewMode) ||
@@ -115,11 +112,23 @@ export class TaskView extends ItemView {
 			}
 		);
 
+		// Use preloaded tasks from plugin and trigger view update
+		this.tasks = this.plugin.preloadedTasks;
 		this.triggerViewUpdate();
 
 		this.checkAndCollapseSidebar();
 
-		this.loadTasks();
+		// Register for future updates after initial load
+		this.app.workspace.onLayoutReady(() => {
+			this.registerEvent(
+				this.app.workspace.on(
+					"task-genius:task-cache-updated",
+					async () => {
+						await this.loadTasks();
+					}
+				)
+			);
+		});
 	}
 
 	onResize(): void {
@@ -567,7 +576,7 @@ export class TaskView extends ItemView {
 
 		// Get all tasks
 		this.tasks = taskManager.getAllTasks();
-		this.triggerViewUpdate();
+		await this.triggerViewUpdate();
 	}
 
 	private async triggerViewUpdate() {
@@ -669,18 +678,6 @@ export class TaskView extends ItemView {
 			editor.setCursor({ line: task.line, ch: 0 });
 			editor.focus();
 		}
-	}
-
-	private registerEvents() {
-		// Re-filter tasks when task cache is updated
-		this.registerEvent(
-			this.app.workspace.on(
-				"task-genius:task-cache-updated",
-				async () => {
-					await this.loadTasks();
-				}
-			)
-		);
 	}
 
 	async onClose() {
