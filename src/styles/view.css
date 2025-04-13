@@ -171,12 +171,6 @@
 	flex-shrink: 0;
 }
 
-.content-title {
-	font-weight: 600;
-	margin-right: 10px;
-	flex: 1;
-}
-
 .task-count {
 	font-size: 0.8em;
 	color: var(--text-muted);
@@ -363,6 +357,21 @@
 	font-size: 1.2em;
 	font-weight: 600;
 	margin-right: 12px;
+	flex: 1;
+}
+
+@media screen and (max-width: 768px) {
+	.content-title {
+		display: none;
+	}
+
+	.task-count {
+		flex: 1;
+	}
+
+	.focus-filter {
+		flex: 1;
+	}
 }
 
 .content-filter {

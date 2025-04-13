@@ -52,7 +52,7 @@ export class QuickCaptureModal extends Modal {
 			this.taskMetadata = metadata;
 		}
 
-		this.useFullFeaturedMode = useFullFeaturedMode && !Platform.isMobile;
+		this.useFullFeaturedMode = useFullFeaturedMode && !Platform.isPhone;
 	}
 
 	onOpen() {

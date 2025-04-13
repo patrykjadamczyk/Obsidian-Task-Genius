@@ -215,9 +215,17 @@ export class InboxComponent extends Component {
 				}
 				break;
 			// Add cases for other modes if needed ('flagged', 'review')
+			case "flagged":
+				// Flagged or high priority tasks
+				filtered = filtered.filter(
+					(task) =>
+						!task.completed &&
+						(task.priority === 3 || task.tags.includes("flagged"))
+				);
+				break;
 			default:
-				// Filter for non-completed tasks by default?
-				filtered = filtered.filter((task) => !task.completed);
+				// // Filter for non-completed tasks by default?
+				// filtered = filtered.filter((task) => !task.completed);
 				break;
 		}
 

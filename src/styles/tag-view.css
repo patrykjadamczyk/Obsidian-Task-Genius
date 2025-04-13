@@ -183,3 +183,62 @@
 	height: var(--size-4-5);
 	width: var(--size-4-5);
 }
+
+/* Tags View - Mobile */
+.is-phone .tags-container {
+	position: relative;
+	overflow: hidden;
+}
+
+.is-phone .tags-left-column {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	z-index: 10;
+	background-color: var(--background-secondary);
+	width: 100%;
+	transform: translateX(-100%);
+	transition: transform 0.3s ease-in-out;
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.is-phone .tags-left-column.is-visible {
+	transform: translateX(0);
+}
+
+.is-phone .tags-sidebar-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 8px;
+}
+
+.is-phone .tags-sidebar-close {
+	--icon-size: var(--size-4-4);
+	position: absolute;
+	top: var(--size-4-2);
+	right: 10px;
+	z-index: 15;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Add overlay when left column is visible on mobile */
+.is-phone .tags-container:has(.tags-left-column.is-visible)::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: var(--background-modifier-cover);
+	opacity: 0.5;
+	z-index: 5;
+	transition: opacity 0.3s ease-in-out;
+}
+
+.is-phone .tags-sidebar-header:has(.tags-sidebar-close) {
+	padding-right: var(--size-4-12);
+}

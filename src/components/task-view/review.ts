@@ -1,4 +1,12 @@
-import { App, Component, Modal, Notice, setIcon } from "obsidian";
+import {
+	App,
+	Component,
+	ExtraButtonComponent,
+	Modal,
+	Notice,
+	Platform,
+	setIcon,
+} from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
@@ -241,6 +249,7 @@ export class ReviewComponent extends Component {
 	private taskContainerEl: HTMLElement;
 	private taskListContainerEl: HTMLElement; // Container passed to the renderer
 	private taskHeaderEl: HTMLElement; // To hold title, last reviewed date, frequency
+	private leftColumnEl: HTMLElement;
 
 	// Child components
 	// private taskComponents: TaskListItemComponent[] = []; // Managed by renderer
@@ -311,12 +320,23 @@ export class ReviewComponent extends Component {
 	}
 
 	private createLeftColumn(parentEl: HTMLElement) {
-		const leftColumnEl = parentEl.createDiv({
+		this.leftColumnEl = parentEl.createDiv({
 			cls: "review-left-column", // Specific class
 		});
 
+		// Add close button for mobile
+		if (Platform.isPhone) {
+			const closeBtn = this.leftColumnEl.createDiv({
+				cls: "review-sidebar-close",
+			});
+
+			new ExtraButtonComponent(closeBtn).setIcon("x").onClick(() => {
+				this.toggleLeftColumnVisibility(false);
+			});
+		}
+
 		// Header for the projects section
-		const headerEl = leftColumnEl.createDiv({
+		const headerEl = this.leftColumnEl.createDiv({
 			cls: "review-sidebar-header",
 		});
 
@@ -328,7 +348,7 @@ export class ReviewComponent extends Component {
 		// TODO: Add button to configure review settings?
 
 		// Projects list container
-		this.projectsListEl = leftColumnEl.createDiv({
+		this.projectsListEl = this.leftColumnEl.createDiv({
 			cls: "review-sidebar-list",
 		});
 	}
@@ -342,6 +362,23 @@ export class ReviewComponent extends Component {
 		this.taskHeaderEl = this.taskContainerEl.createDiv({
 			cls: "review-task-header",
 		});
+
+		// Add sidebar toggle button for mobile
+		if (Platform.isPhone) {
+			this.taskHeaderEl.createEl(
+				"div",
+				{
+					cls: "review-sidebar-toggle",
+				},
+				(el) => {
+					new ExtraButtonComponent(el)
+						.setIcon("sidebar")
+						.onClick(() => {
+							this.toggleLeftColumnVisibility();
+						});
+				}
+			);
+		}
 
 		// Task list container - This is where the renderer will place tasks
 		this.taskListContainerEl = this.taskContainerEl.createDiv({
@@ -545,6 +582,11 @@ export class ReviewComponent extends Component {
 				item.classList.remove("selected");
 			}
 		});
+
+		// Hide sidebar on mobile after selection
+		if (Platform.isPhone) {
+			this.toggleLeftColumnVisibility(false);
+		}
 
 		// Load and render tasks for this project
 		this.updateSelectedProjectTasks();
@@ -774,6 +816,10 @@ export class ReviewComponent extends Component {
 		// Renderer handles component cleanup and container clearing
 		this.taskHeaderEl.empty(); // Still need to clear/re-render the specific header
 
+		if (Platform.isPhone) {
+			this.renderMobileToggle();
+		}
+
 		if (!this.selectedProject.project || !this.selectedProject.setting) {
 			this.renderEmptyTaskList(
 				t("Select a project to review its tasks.")
@@ -801,12 +847,20 @@ export class ReviewComponent extends Component {
 		setting: ProjectReviewSetting
 	) {
 		this.taskHeaderEl.empty(); // Clear previous header content
+
+		if (Platform.isPhone) {
+			this.renderMobileToggle();
+		}
+
 		const headerContent = this.taskHeaderEl.createDiv({
 			cls: "review-header-content",
 		});
 
 		// Project Title
-		headerContent.createEl("h3", { text: projectName });
+		headerContent.createEl("h3", {
+			cls: ["review-title", "content-title"],
+			text: projectName,
+		});
 
 		// Review Info Line (Frequency and Last Reviewed Date)
 		const reviewInfoEl = headerContent.createDiv({ cls: "review-info" });
@@ -965,14 +1019,37 @@ export class ReviewComponent extends Component {
 		}
 	}
 
+	private renderMobileToggle() {
+		this.taskHeaderEl.createEl(
+			"div",
+			{
+				cls: "review-sidebar-toggle",
+			},
+			(el) => {
+				new ExtraButtonComponent(el).setIcon("sidebar").onClick(() => {
+					this.toggleLeftColumnVisibility();
+				});
+			}
+		);
+	}
+
 	private renderEmptyTaskList(message: string) {
 		this.taskHeaderEl.empty(); // Clear specific header
+
+		// Add sidebar toggle button for mobile
+		if (Platform.isPhone) {
+			this.renderMobileToggle();
+		}
+
 		// Set default header if no project is selected
 		if (!this.selectedProject.project) {
 			const defaultHeader = this.taskHeaderEl.createDiv({
 				cls: "review-header-content",
 			});
-			defaultHeader.createEl("h3", { text: t("Project Review") });
+			defaultHeader.createEl("h3", {
+				cls: ["review-title", "content-title"],
+				text: t("Project Review"),
+			});
 			defaultHeader.createDiv({
 				cls: "review-info",
 				text: t(
@@ -1092,5 +1169,27 @@ export class ReviewComponent extends Component {
 	onunload() {
 		// Renderer is child, managed by Obsidian unload
 		this.containerEl?.remove();
+	}
+
+	// Toggle left column visibility with animation support
+	private toggleLeftColumnVisibility(visible?: boolean) {
+		if (visible === undefined) {
+			// Toggle based on current state
+			visible = !this.leftColumnEl.hasClass("is-visible");
+		}
+
+		if (visible) {
+			this.leftColumnEl.addClass("is-visible");
+			this.leftColumnEl.show();
+		} else {
+			this.leftColumnEl.removeClass("is-visible");
+
+			// Wait for animation to complete before hiding
+			setTimeout(() => {
+				if (!this.leftColumnEl.hasClass("is-visible")) {
+					this.leftColumnEl.hide();
+				}
+			}, 300); // Match CSS transition duration
+		}
 	}
 }

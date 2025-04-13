@@ -147,7 +147,7 @@ export class ForecastComponent extends Component {
 			cls: "forecast-header",
 		});
 
-		if (Platform.isMobile) {
+		if (Platform.isPhone) {
 			this.forecastHeaderEl.createEl(
 				"div",
 				{
@@ -157,9 +157,7 @@ export class ForecastComponent extends Component {
 					new ExtraButtonComponent(el)
 						.setIcon("sidebar")
 						.onClick(() => {
-							this.leftColumnEl.isShown()
-								? this.leftColumnEl.hide()
-								: this.leftColumnEl.show();
+							this.toggleLeftColumnVisibility();
 						});
 				}
 			);
@@ -246,6 +244,17 @@ export class ForecastComponent extends Component {
 			cls: "forecast-left-column",
 		});
 
+		if (Platform.isPhone) {
+			// Add close button for mobile sidebar
+			const closeBtn = this.leftColumnEl.createDiv({
+				cls: "forecast-sidebar-close",
+			});
+
+			new ExtraButtonComponent(closeBtn).setIcon("x").onClick(() => {
+				this.toggleLeftColumnVisibility(false);
+			});
+		}
+
 		// Stats bar for Past Due / Today / Future counts
 		this.createStatsBar(this.leftColumnEl);
 
@@ -276,6 +285,10 @@ export class ForecastComponent extends Component {
 			this.updateDueSoonSection();
 			// Then refresh the date sections in the right panel
 			this.refreshDateSectionsUI();
+
+			if (Platform.isPhone) {
+				this.toggleLeftColumnVisibility(false);
+			}
 		};
 	}
 
@@ -308,6 +321,10 @@ export class ForecastComponent extends Component {
 			// Register click handler
 			this.registerDomEvent(statItem, "click", () => {
 				this.focusTaskList(type);
+
+				if (Platform.isPhone) {
+					this.toggleLeftColumnVisibility(false);
+				}
 			});
 
 			return statItem;
@@ -522,6 +539,10 @@ export class ForecastComponent extends Component {
 				this.calendarComponent.selectDate(item.date);
 				this.selectedDate = item.date;
 				this.refreshDateSectionsUI();
+
+				if (Platform.isPhone) {
+					this.toggleLeftColumnVisibility(false);
+				}
 			});
 		});
 
@@ -978,5 +999,27 @@ export class ForecastComponent extends Component {
 		// No need to manually remove DOM event listeners registered with this.registerDomEvent
 		this.containerEl.empty();
 		this.containerEl.remove();
+	}
+
+	// Toggle left column visibility with animation support
+	private toggleLeftColumnVisibility(visible?: boolean) {
+		if (visible === undefined) {
+			// Toggle based on current state
+			visible = !this.leftColumnEl.hasClass("is-visible");
+		}
+
+		if (visible) {
+			this.leftColumnEl.addClass("is-visible");
+			this.leftColumnEl.show();
+		} else {
+			this.leftColumnEl.removeClass("is-visible");
+
+			// Wait for animation to complete before hiding
+			setTimeout(() => {
+				if (!this.leftColumnEl.hasClass("is-visible")) {
+					this.leftColumnEl.hide();
+				}
+			}, 300); // Match CSS transition duration
+		}
 	}
 }

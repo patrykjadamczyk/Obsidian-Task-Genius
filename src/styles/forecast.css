@@ -302,6 +302,67 @@
 	position: absolute;
 }
 
-.forecast-header:has(.forecast-sidebar-toggle) .forecast-title-container {
+.is-phone
+	.forecast-header:has(.forecast-sidebar-toggle)
+	.forecast-title-container {
 	padding-left: var(--size-4-10);
+}
+
+/* Forecast View - Mobile */
+.is-phone .forecast-container {
+	position: relative;
+	overflow: hidden;
+}
+
+.is-phone .forecast-left-column {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	z-index: 10;
+	background-color: var(--background-secondary);
+	width: 100%;
+	transform: translateX(-100%);
+	transition: transform 0.3s ease-in-out;
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.is-phone .forecast-left-column.is-visible {
+	transform: translateX(0);
+}
+
+.is-phone .forecast-sidebar-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 8px;
+}
+
+.is-phone .forecast-sidebar-close {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	z-index: 15;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background-color: var(--background-primary);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add overlay when left column is visible on mobile */
+.is-phone .task-genius-container:has(.forecast-left-column.is-visible)::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: var(--background-modifier-cover);
+	opacity: 0.5;
+	z-index: 5;
+	transition: opacity 0.3s ease-in-out;
 }

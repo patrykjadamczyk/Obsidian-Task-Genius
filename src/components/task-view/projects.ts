@@ -1,4 +1,10 @@
-import { App, Component, setIcon } from "obsidian";
+import {
+	App,
+	Component,
+	setIcon,
+	ExtraButtonComponent,
+	Platform,
+} from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { t } from "../../translations/helper";
 import "../../styles/project-view.css";
@@ -19,6 +25,7 @@ export class ProjectsComponent extends Component {
 	private taskListContainerEl: HTMLElement;
 	private titleEl: HTMLElement;
 	private countEl: HTMLElement;
+	private leftColumnEl: HTMLElement;
 
 	// Child components
 	private taskRenderer: TaskListRendererComponent;
@@ -102,12 +109,14 @@ export class ProjectsComponent extends Component {
 	}
 
 	private createLeftColumn(parentEl: HTMLElement) {
-		const leftColumnEl = parentEl.createDiv({
+		this.leftColumnEl = parentEl.createDiv({
 			cls: "projects-left-column",
 		});
 
+		// Add close button for mobile
+
 		// Header for the projects section
-		const headerEl = leftColumnEl.createDiv({
+		const headerEl = this.leftColumnEl.createDiv({
 			cls: "projects-sidebar-header",
 		});
 
@@ -123,12 +132,21 @@ export class ProjectsComponent extends Component {
 		setIcon(multiSelectBtn, "list-plus");
 		multiSelectBtn.setAttribute("aria-label", t("Toggle multi-select"));
 
+		if (Platform.isPhone) {
+			const closeBtn = headerEl.createDiv({
+				cls: "projects-sidebar-close",
+			});
+
+			new ExtraButtonComponent(closeBtn).setIcon("x").onClick(() => {
+				this.toggleLeftColumnVisibility(false);
+			});
+		}
 		this.registerDomEvent(multiSelectBtn, "click", () => {
 			this.toggleMultiSelect();
 		});
 
 		// Projects list container
-		this.projectsListEl = leftColumnEl.createDiv({
+		this.projectsListEl = this.leftColumnEl.createDiv({
 			cls: "projects-sidebar-list",
 		});
 	}
@@ -142,6 +160,23 @@ export class ProjectsComponent extends Component {
 		const taskHeaderEl = this.taskContainerEl.createDiv({
 			cls: "projects-task-header",
 		});
+
+		// Add sidebar toggle button for mobile
+		if (Platform.isPhone) {
+			taskHeaderEl.createEl(
+				"div",
+				{
+					cls: "projects-sidebar-toggle",
+				},
+				(el) => {
+					new ExtraButtonComponent(el)
+						.setIcon("sidebar")
+						.onClick(() => {
+							this.toggleLeftColumnVisibility();
+						});
+				}
+			);
+		}
 
 		const taskTitleEl = taskHeaderEl.createDiv({
 			cls: "projects-task-title",
@@ -483,5 +518,27 @@ export class ProjectsComponent extends Component {
 	onunload() {
 		this.containerEl.empty();
 		this.containerEl.remove();
+	}
+
+	// Toggle left column visibility with animation support
+	private toggleLeftColumnVisibility(visible?: boolean) {
+		if (visible === undefined) {
+			// Toggle based on current state
+			visible = !this.leftColumnEl.hasClass("is-visible");
+		}
+
+		if (visible) {
+			this.leftColumnEl.addClass("is-visible");
+			this.leftColumnEl.show();
+		} else {
+			this.leftColumnEl.removeClass("is-visible");
+
+			// Wait for animation to complete before hiding
+			setTimeout(() => {
+				if (!this.leftColumnEl.hasClass("is-visible")) {
+					this.leftColumnEl.hide();
+				}
+			}, 300); // Match CSS transition duration
+		}
 	}
 }

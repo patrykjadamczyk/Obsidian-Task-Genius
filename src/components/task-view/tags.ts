@@ -1,4 +1,10 @@
-import { App, Component, setIcon } from "obsidian";
+import {
+	App,
+	Component,
+	setIcon,
+	ExtraButtonComponent,
+	Platform,
+} from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
@@ -29,6 +35,7 @@ export class TagsComponent extends Component {
 	private taskListContainerEl: HTMLElement;
 	private titleEl: HTMLElement;
 	private countEl: HTMLElement;
+	private leftColumnEl: HTMLElement;
 
 	// Child components
 	private taskComponents: TaskListItemComponent[] = [];
@@ -98,12 +105,12 @@ export class TagsComponent extends Component {
 	}
 
 	private createLeftColumn(parentEl: HTMLElement) {
-		const leftColumnEl = parentEl.createDiv({
+		this.leftColumnEl = parentEl.createDiv({
 			cls: "tags-left-column",
 		});
 
 		// Header for the tags section
-		const headerEl = leftColumnEl.createDiv({
+		const headerEl = this.leftColumnEl.createDiv({
 			cls: "tags-sidebar-header",
 		});
 
@@ -123,8 +130,19 @@ export class TagsComponent extends Component {
 			this.toggleMultiSelect();
 		});
 
+		// Add close button for mobile
+		if (Platform.isPhone) {
+			const closeBtn = headerEl.createDiv({
+				cls: "tags-sidebar-close",
+			});
+
+			new ExtraButtonComponent(closeBtn).setIcon("x").onClick(() => {
+				this.toggleLeftColumnVisibility(false);
+			});
+		}
+
 		// Tags list container
-		this.tagsListEl = leftColumnEl.createDiv({
+		this.tagsListEl = this.leftColumnEl.createDiv({
 			cls: "tags-sidebar-list",
 		});
 	}
@@ -138,6 +156,23 @@ export class TagsComponent extends Component {
 		const taskHeaderEl = this.taskContainerEl.createDiv({
 			cls: "tags-task-header",
 		});
+
+		// Add sidebar toggle button for mobile
+		if (Platform.isPhone) {
+			taskHeaderEl.createEl(
+				"div",
+				{
+					cls: "tags-sidebar-toggle",
+				},
+				(el) => {
+					new ExtraButtonComponent(el)
+						.setIcon("sidebar")
+						.onClick(() => {
+							this.toggleLeftColumnVisibility();
+						});
+				}
+			);
+		}
 
 		const taskTitleEl = taskHeaderEl.createDiv({
 			cls: "tags-task-title",
@@ -359,6 +394,11 @@ export class TagsComponent extends Component {
 
 		// Update tasks based on selected tags
 		this.updateSelectedTasks();
+
+		// Hide sidebar on mobile after selection
+		if (Platform.isPhone) {
+			this.toggleLeftColumnVisibility(false);
+		}
 	}
 
 	private toggleMultiSelect() {
@@ -748,5 +788,27 @@ export class TagsComponent extends Component {
 		// Renderers are children, cleaned up automatically.
 		this.containerEl.empty();
 		this.containerEl.remove();
+	}
+
+	// Toggle left column visibility with animation support
+	private toggleLeftColumnVisibility(visible?: boolean) {
+		if (visible === undefined) {
+			// Toggle based on current state
+			visible = !this.leftColumnEl.hasClass("is-visible");
+		}
+
+		if (visible) {
+			this.leftColumnEl.addClass("is-visible");
+			this.leftColumnEl.show();
+		} else {
+			this.leftColumnEl.removeClass("is-visible");
+
+			// Wait for animation to complete before hiding
+			setTimeout(() => {
+				if (!this.leftColumnEl.hasClass("is-visible")) {
+					this.leftColumnEl.hide();
+				}
+			}, 300); // Match CSS transition duration
+		}
 	}
 }
