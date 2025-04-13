@@ -666,7 +666,7 @@ export class TaskDetailsComponent extends Component {
 				if (!this.isVisible) {
 					this.containerEl.hide();
 				}
-			}, 300); // match animation duration
+			}, 0); // match animation duration
 		}
 	}
 
