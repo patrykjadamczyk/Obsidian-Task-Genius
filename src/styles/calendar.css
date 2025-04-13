@@ -141,6 +141,8 @@
 	color: var(--text-on-accent);
 }
 
-.task-genius-container:has(.task-details.visible) .forecast-left-column {
-	display: none;
+@media (max-width: 1400px) {
+	.task-genius-container:has(.task-details.visible) .forecast-left-column {
+		display: none;
+	}
 }
