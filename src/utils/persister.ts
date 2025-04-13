@@ -260,7 +260,7 @@ export class LocalStorageCache {
 		if (!this.initialized) await this.initialize();
 
 		try {
-			const cacheKey = `consolidated:${key}`;
+			const cacheKey = `consolidated:${this.appId}:${key}`;
 			await this.persister.setItem(cacheKey, {
 				version: this.version,
 				time: Date.now(),
@@ -284,7 +284,7 @@ export class LocalStorageCache {
 		if (!this.initialized) await this.initialize();
 
 		try {
-			const cacheKey = `consolidated:${key}`;
+			const cacheKey = `consolidated:${this.appId}:${key}`;
 			const data = await this.persister.getItem<Cached<T>>(cacheKey);
 			return data;
 		} catch (error) {
