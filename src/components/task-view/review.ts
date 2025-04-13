@@ -5,6 +5,7 @@ import { t } from "../../translations/helper";
 import { ProjectReviewSetting } from "../../common/setting-definition";
 import TaskProgressBarPlugin from "../../index"; // Path used in TaskView.ts
 import "../../styles/review-view.css"; // Assuming styles will be added here
+import { TaskListRendererComponent } from "./TaskList"; // Import the base renderer
 
 interface SelectedReviewProject {
 	project: string | null;
@@ -238,33 +239,32 @@ export class ReviewComponent extends Component {
 	public containerEl: HTMLElement;
 	private projectsListEl: HTMLElement;
 	private taskContainerEl: HTMLElement;
-	private taskListContainerEl: HTMLElement;
+	private taskListContainerEl: HTMLElement; // Container passed to the renderer
 	private taskHeaderEl: HTMLElement; // To hold title, last reviewed date, frequency
 
 	// Child components
-	private taskComponents: TaskListItemComponent[] = [];
+	// private taskComponents: TaskListItemComponent[] = []; // Managed by renderer
+	private taskRenderer: TaskListRendererComponent; // Instance of the base renderer
 
 	// State
 	private allTasks: Task[] = [];
-	private reviewableProjects: Map<string, ProjectReviewSetting> = new Map(); // project -> settings
+	private reviewableProjects: Map<string, ProjectReviewSetting> = new Map();
 	private selectedProject: SelectedReviewProject = {
 		project: null,
-		tasks: [],
+		tasks: [], // This holds the filtered tasks for the selected project
 		setting: null,
 	};
 	private showAllTasks: boolean = false; // Default to filtered view
 
-	// Events
+	// Events (will be passed to the renderer)
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
-
-	// Context menu
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
-		private plugin: TaskProgressBarPlugin // Reference to the main plugin
+		private plugin: TaskProgressBarPlugin
 	) {
 		super();
 	}
@@ -272,7 +272,7 @@ export class ReviewComponent extends Component {
 	onload() {
 		// Create main container
 		this.containerEl = this.parentEl.createDiv({
-			cls: "review-container", // Use a unique class for review
+			cls: "review-container",
 		});
 
 		// Create content container for columns
@@ -285,6 +285,26 @@ export class ReviewComponent extends Component {
 
 		// Right column: create task list for selected project
 		this.createRightColumn(contentContainer);
+
+		// Initialize the task renderer
+		this.taskRenderer = new TaskListRendererComponent(
+			this, // Parent component
+			this.taskListContainerEl, // Container element
+			this.app,
+			"review" // Context
+		);
+
+		// Connect event handlers
+		this.taskRenderer.onTaskSelected = (task) => {
+			if (this.onTaskSelected) this.onTaskSelected(task);
+		};
+		this.taskRenderer.onTaskCompleted = (task) => {
+			if (this.onTaskCompleted) this.onTaskCompleted(task);
+			// Potentially add review completion logic here later
+		};
+		this.taskRenderer.onTaskContextMenu = (event, task) => {
+			if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);
+		};
 
 		// Load initial data
 		this.loadReviewSettings();
@@ -315,7 +335,7 @@ export class ReviewComponent extends Component {
 
 	private createRightColumn(parentEl: HTMLElement) {
 		this.taskContainerEl = parentEl.createDiv({
-			cls: "review-right-column", // Specific class
+			cls: "review-right-column",
 		});
 
 		// Task list header - will be populated when a project is selected
@@ -323,7 +343,7 @@ export class ReviewComponent extends Component {
 			cls: "review-task-header",
 		});
 
-		// Task list container
+		// Task list container - This is where the renderer will place tasks
 		this.taskListContainerEl = this.taskContainerEl.createDiv({
 			cls: "review-task-list",
 		});
@@ -532,6 +552,7 @@ export class ReviewComponent extends Component {
 
 	private updateSelectedProjectTasks() {
 		if (!this.selectedProject.project) {
+			// Use renderer's empty state
 			this.renderEmptyTaskList(
 				t("Select a project to review its tasks.")
 			);
@@ -678,23 +699,80 @@ export class ReviewComponent extends Component {
 			return priorityB - priorityA;
 		});
 
+		// Update the task list using the renderer
 		this.renderTaskList();
+
+		// Update filter info in header (needs to be called after renderTaskList updates the header)
+		this.updateFilterInfoInHeader(
+			allProjectTasks.length,
+			filteredTasks.length
+		);
 	}
 
-	/**
-	 * Toggle between showing all tasks or only new and in-progress tasks
-	 */
+	private updateFilterInfoInHeader(totalTasks: number, visibleTasks: number) {
+		const taskHeaderContent = this.taskHeaderEl.querySelector(
+			".review-header-content"
+		);
+		if (!taskHeaderContent) return;
+
+		// Clear existing filter info
+		const existingFilterInfo = taskHeaderContent.querySelector(
+			".review-filter-info"
+		);
+		if (existingFilterInfo) {
+			existingFilterInfo.remove();
+		}
+
+		// Determine which message and toggle to show
+		const reviewSetting = this.selectedProject.setting;
+		if (reviewSetting?.lastReviewed) {
+			const hiddenTasks = totalTasks - visibleTasks;
+			if (!this.showAllTasks && hiddenTasks > 0) {
+				// Showing filtered view
+				const filterInfo = taskHeaderContent.createDiv({
+					cls: "review-filter-info",
+				});
+				filterInfo.createSpan({
+					text: t(
+						`Showing new and in-progress tasks only. ${hiddenTasks} completed tasks from previous reviews are hidden.`
+					),
+				});
+				const toggleLink = filterInfo.createSpan({
+					cls: "review-filter-toggle",
+					text: t("Show all tasks"),
+				});
+				this.registerDomEvent(toggleLink, "click", () => {
+					this.toggleShowAllTasks();
+				});
+			} else if (this.showAllTasks && totalTasks > 0) {
+				// Showing all tasks explicitly
+				const filterInfo = taskHeaderContent.createDiv({
+					cls: "review-filter-info",
+				});
+				filterInfo.createSpan({
+					text: t(
+						"Showing all tasks, including completed tasks from previous reviews."
+					),
+				});
+				const toggleLink = filterInfo.createSpan({
+					cls: "review-filter-toggle",
+					text: t("Show only new and in-progress tasks"),
+				});
+				this.registerDomEvent(toggleLink, "click", () => {
+					this.toggleShowAllTasks();
+				});
+			}
+		}
+	}
+
 	private toggleShowAllTasks() {
 		this.showAllTasks = !this.showAllTasks;
-		this.updateSelectedProjectTasks();
+		this.updateSelectedProjectTasks(); // This will re-render and update the header info
 	}
 
 	private renderTaskList() {
-		// Clean up existing task components
-		this.taskComponents.forEach((component) => component.unload());
-		this.taskComponents = [];
-		this.taskListContainerEl.empty();
-		this.taskHeaderEl.empty(); // Clear previous header
+		// Renderer handles component cleanup and container clearing
+		this.taskHeaderEl.empty(); // Still need to clear/re-render the specific header
 
 		if (!this.selectedProject.project || !this.selectedProject.setting) {
 			this.renderEmptyTaskList(
@@ -703,43 +781,19 @@ export class ReviewComponent extends Component {
 			return;
 		}
 
-		// --- Render Header --- Render header based on selected project
+		// --- Render Header ---
 		this.renderReviewHeader(
 			this.selectedProject.project,
 			this.selectedProject.setting
 		);
 
-		// --- Render Tasks --- If no tasks, show specific empty state
-		if (this.selectedProject.tasks.length === 0) {
-			this.renderEmptyTaskList(t("No tasks found for this project."));
-			return;
-		}
-
-		// Render the filtered and sorted tasks
-		this.selectedProject.tasks.forEach((task) => {
-			const taskComponent = new TaskListItemComponent(
-				task,
-				"review", // Context identifier
-				this.app
-			);
-
-			taskComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) this.onTaskSelected(selectedTask);
-			};
-			taskComponent.onTaskCompleted = (completedTask) => {
-				if (this.onTaskCompleted) this.onTaskCompleted(completedTask);
-				// TODO: Add logic to potentially mark review as complete?
-			};
-
-			taskComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);
-			};
-
-			this.addChild(taskComponent);
-			taskComponent.load();
-			this.taskListContainerEl.appendChild(taskComponent.element);
-			this.taskComponents.push(taskComponent);
-		});
+		// --- Render Tasks using Renderer ---
+		// Review view doesn't currently support tree view, so pass false
+		this.taskRenderer.renderTasks(
+			this.selectedProject.tasks,
+			false, // isTreeView = false
+			t("No tasks found for this project.")
+		);
 	}
 
 	private renderReviewHeader(
@@ -912,33 +966,26 @@ export class ReviewComponent extends Component {
 	}
 
 	private renderEmptyTaskList(message: string) {
-		// Clean up task components and clear list container
-		this.taskComponents.forEach((component) => component.unload());
-		this.taskComponents = [];
-		this.taskListContainerEl.empty();
-
-		// Display the message
-		const emptyEl = this.taskListContainerEl.createDiv({
-			cls: "review-empty-state", // Use a specific class if needed
-		});
-		emptyEl.setText(message);
-
-		// Clear or set a default header state when the list is empty
+		this.taskHeaderEl.empty(); // Clear specific header
+		// Set default header if no project is selected
 		if (!this.selectedProject.project) {
-			this.taskHeaderEl.empty();
 			const defaultHeader = this.taskHeaderEl.createDiv({
 				cls: "review-header-content",
 			});
 			defaultHeader.createEl("h3", { text: t("Project Review") });
-			const infoEl = defaultHeader.createDiv({
+			defaultHeader.createDiv({
 				cls: "review-info",
 				text: t(
 					"Select a project from the left sidebar to review its tasks."
 				),
 			});
 		}
-		// If a project *is* selected but has no tasks, the header is already rendered by renderTaskList,
-		// so we don't need to clear it here, just show the 'no tasks' message.
+		// Use the renderer to show the empty state message in the task list area
+		this.taskRenderer.renderTasks(
+			[], // No tasks
+			false, // Not tree view
+			message // The specific empty message
+		);
 	}
 
 	public updateTask(updatedTask: Task) {
@@ -947,7 +994,7 @@ export class ReviewComponent extends Component {
 			updatedTask.id,
 			updatedTask.project
 		);
-		let needsUIRefresh = false;
+		let needsListRefresh = false;
 
 		// Update in allTasks list
 		const taskIndexAll = this.allTasks.findIndex(
@@ -955,106 +1002,86 @@ export class ReviewComponent extends Component {
 		);
 		if (taskIndexAll !== -1) {
 			const oldTask = this.allTasks[taskIndexAll];
-			// Check if the project changed
+			// If project changed, the whole view might need refresh
 			if (oldTask.project !== updatedTask.project) {
-				console.log("Task project changed, might affect review list.");
-				// Re-evaluate reviewable projects and potentially update left list
-				this.loadReviewSettings(); // This might change the selected project
-				needsUIRefresh = true; // Need full refresh as left list might change
+				console.log("Task project changed, reloading review settings.");
+				this.loadReviewSettings(); // Reloads projects list and potentially task list
+				return; // Exit, loadReviewSettings handles UI update
 			}
 			this.allTasks[taskIndexAll] = updatedTask;
 		} else {
-			// Task might be new
+			// New task
 			this.allTasks.push(updatedTask);
-			// Check if its project is in review settings
-			if (
+			// Check if it affects the current view
+			if (updatedTask.project === this.selectedProject.project) {
+				needsListRefresh = true; // New task added to selected project
+			} else if (
 				updatedTask.project &&
-				this.plugin.settings.reviewSettings[updatedTask.project]
+				!this.reviewableProjects.has(updatedTask.project)
 			) {
-				this.loadReviewSettings(); // New task belongs to a reviewed project
-				needsUIRefresh = true;
+				// New task belongs to a previously unknown project, refresh left list
+				this.loadReviewSettings();
+				return;
 			}
 		}
 
-		// If a full refresh is needed (due to project change affecting review list),
-		// loadReviewSettings already handles updating the view.
-		if (needsUIRefresh) {
-			return; // Exit early, UI is handled by loadReviewSettings/selectProject
-		}
-
-		// If the updated task belongs to the currently selected project,
-		// update the task list directly.
+		// If the updated task belongs to the currently selected project
 		if (this.selectedProject.project === updatedTask.project) {
-			// Check if task should be in the current filtered view
-			let shouldBeInFilteredView = true;
-
-			// Apply filtering logic if we're not showing all tasks
-			if (
-				!this.showAllTasks &&
-				this.selectedProject.setting?.lastReviewed
-			) {
-				const lastReviewDate =
-					this.selectedProject.setting.lastReviewed;
-				const reviewedTaskIds = new Set(
-					this.selectedProject.setting.reviewedTasks || []
-				);
-
-				// Use the same filtering logic as in updateSelectedProjectTasks
-				// New task since last review
-				if (
-					updatedTask.createdDate &&
-					updatedTask.createdDate > lastReviewDate
-				) {
-					shouldBeInFilteredView = true;
-				}
-				// Existing task that was completed
-				else if (
-					reviewedTaskIds.has(updatedTask.id) &&
-					updatedTask.completed
-				) {
-					shouldBeInFilteredView = false;
-				}
-				// Existing incomplete task
-				else if (
-					reviewedTaskIds.has(updatedTask.id) &&
-					!updatedTask.completed
-				) {
-					shouldBeInFilteredView = true;
-				}
-				// Task not in last review
-				else if (!reviewedTaskIds.has(updatedTask.id)) {
-					shouldBeInFilteredView = true;
-				}
-			}
-
 			const taskIndexSelected = this.selectedProject.tasks.findIndex(
 				(t) => t.id === updatedTask.id
 			);
 
+			// Check if task visibility changed due to update (e.g., completed)
+			const shouldBeVisible = this.checkTaskVisibility(updatedTask);
+
 			if (taskIndexSelected !== -1) {
-				// Task exists in the current view
-				if (shouldBeInFilteredView) {
-					// Update it if it should still be visible
+				// Task was in the list
+				if (shouldBeVisible) {
+					// Update task data and ask renderer to update component
 					this.selectedProject.tasks[taskIndexSelected] = updatedTask;
-					// Find and update the specific component
-					const component = this.taskComponents.find(
-						(c) => c.getTask().id === updatedTask.id
-					);
-					if (component) {
-						component.updateTask(updatedTask);
-					} else {
-						// Component not found? Should not happen if task was in list.
-						this.updateSelectedProjectTasks();
-					}
+					this.taskRenderer.updateTask(updatedTask);
+					// Optional: Re-sort if needed
 				} else {
-					// Task should no longer be visible, refresh the list
-					this.updateSelectedProjectTasks();
+					// Task should no longer be visible, refresh the whole list
+					needsListRefresh = true;
 				}
-			} else if (shouldBeInFilteredView) {
-				// Task wasn't in the list before but should be now, refresh list
-				this.updateSelectedProjectTasks();
+			} else if (shouldBeVisible) {
+				// Task wasn't in list but should be now
+				needsListRefresh = true;
 			}
 		}
+
+		// If needed, refresh the task list for the selected project
+		if (needsListRefresh) {
+			this.updateSelectedProjectTasks(); // Re-filters and re-renders
+		}
+	}
+
+	// Helper to check if a task should be visible based on current filters
+	private checkTaskVisibility(task: Task): boolean {
+		if (this.showAllTasks || !this.selectedProject.setting?.lastReviewed) {
+			return true; // Show all or no review history
+		}
+
+		const lastReviewDate = this.selectedProject.setting.lastReviewed;
+		const reviewedTaskIds = new Set(
+			this.selectedProject.setting.reviewedTasks || []
+		);
+
+		// Copied logic from updateSelectedProjectTasks filtering part
+		if (task.createdDate && task.createdDate > lastReviewDate) {
+			return true; // New since last review
+		}
+		if (reviewedTaskIds.has(task.id) && task.completed) {
+			return false; // Reviewed and completed
+		}
+		if (reviewedTaskIds.has(task.id) && !task.completed) {
+			return true; // Reviewed but incomplete
+		}
+		if (!reviewedTaskIds.has(task.id)) {
+			return true; // Not reviewed before (maybe older task added to project)
+		}
+		return false; // Default case (shouldn't be reached ideally)
 	}
 
 	public refreshReviewSettings() {
@@ -1063,7 +1090,7 @@ export class ReviewComponent extends Component {
 	}
 
 	onunload() {
-		this.taskComponents.forEach((component) => component.unload());
+		// Renderer is child, managed by Obsidian unload
 		this.containerEl?.remove();
 	}
 }

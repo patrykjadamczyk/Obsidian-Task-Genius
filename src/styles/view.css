@@ -95,17 +95,17 @@
 }
 
 /* Project Tree */
-.project-tree {
+.task-genius-view .project-tree {
 	padding: 10px 0;
 	transition: opacity 0.3s ease;
 }
 
-.tree-root {
+.task-genius-view .tree-root {
 	display: flex;
 	flex-direction: column;
 }
 
-.tree-item {
+.task-genius-view .task-genius-view .tree-item {
 	display: flex;
 	align-items: center;
 	padding: 6px 8px;
@@ -115,15 +115,15 @@
 	margin: 0 5px;
 }
 
-.tree-item:hover {
+.task-genius-view .tree-item:hover {
 	background-color: var(--background-modifier-border-hover);
 }
 
-.tree-item.selected {
+.task-genius-view .tree-item.selected {
 	background-color: var(--background-modifier-border-hover);
 }
 
-.tree-item-icon {
+.task-genius-view .tree-item-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -133,14 +133,14 @@
 	color: var(--text-muted);
 }
 
-.tree-item-name {
+.task-genius-view .tree-item-name {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.tree-item-count {
+.task-genius-view .tree-item-count {
 	font-size: 0.8em;
 	color: var(--text-muted);
 	margin-left: 5px;
@@ -149,8 +149,8 @@
 	border-radius: 10px;
 }
 
-.tree-item-toggle,
-.tree-item-indent {
+.task-genius-view .tree-item-toggle,
+.task-genius-view .tree-item-indent {
 	width: 20px;
 	display: flex;
 	align-items: center;
@@ -158,7 +158,7 @@
 	margin-right: 5px;
 }
 
-.tree-item-toggle {
+.task-genius-view .tree-item-toggle {
 	cursor: pointer;
 }
 
@@ -279,7 +279,7 @@
 	flex-direction: column;
 }
 
-.tree-item {
+.task-genius-view .tree-item {
 	display: flex;
 	align-items: center;
 	padding: 4px 12px;
@@ -288,16 +288,16 @@
 	margin: 2px 8px;
 }
 
-.tree-item:hover {
+.task-genius-view .tree-item:hover {
 	background-color: var(--background-modifier-border-hover);
 }
 
-.tree-item.selected {
+.task-genius-view .tree-item.selected {
 	background-color: var(--background-modifier-border-hover);
 	color: var(--text-accent);
 }
 
-.tree-item-toggle {
+.task-genius-view .tree-item-toggle {
 	width: 16px;
 	height: 16px;
 	display: flex;
@@ -306,13 +306,13 @@
 	margin-right: 4px;
 }
 
-.tree-item-indent {
+.task-genius-view .tree-item-indent {
 	width: 16px;
 	height: 16px;
 	margin-right: 4px;
 }
 
-.tree-item-icon {
+.task-genius-view .tree-item-icon {
 	margin-right: 8px;
 	width: 16px;
 	height: 16px;
@@ -322,14 +322,14 @@
 	color: var(--text-muted);
 }
 
-.tree-item-name {
+.task-genius-view .tree-item-name {
 	flex: 1;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.tree-item-count {
+.task-genius-view .tree-item-count {
 	font-size: 0.8em;
 	color: var(--text-muted);
 	background-color: var(--background-modifier-hover);
@@ -339,11 +339,11 @@
 	text-align: center;
 }
 
-.tree-item.expanded > .tree-item-children {
+.task-genius-view .tree-item.expanded > .tree-item-children {
 	display: flex;
 }
 
-.tree-item-children {
+.task-genius-view .tree-item-children {
 	display: none;
 	flex-direction: column;
 	margin-left: 16px;
@@ -399,4 +399,13 @@
 
 .task-genius-action-btn {
 	--icon-size: 16px;
+}
+
+.task-empty-state {
+	width: 100%;
+	height: 100%;
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }

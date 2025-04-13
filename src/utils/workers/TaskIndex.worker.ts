@@ -137,7 +137,10 @@ function extractDates(task: Task, content: string): void {
  */
 function extractTags(task: Task, content: string): void {
 	const tagMatches = content.match(TAG_REGEX) || [];
-	task.tags = tagMatches.map((tag) => tag.trim());
+	// Filter out priority tags like [#A], [#B], [#C]
+	task.tags = tagMatches
+		.map((tag) => tag.trim())
+		.filter((tag) => !tag.match(/#[A-C]/));
 
 	// Check for project tags
 	const projectTag = task.tags.find((tag) => tag.startsWith("#project/"));

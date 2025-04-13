@@ -2,7 +2,8 @@
  * Regular expressions for parsing task components
  */
 export const TASK_REGEX = /^([\s>]*- \[(.)\])\s*(.*)$/m;
-export const TAG_REGEX = /#[\w\/-]+/g;
+export const TAG_REGEX =
+	/#[^\u2000-\u206F\u2E00-\u2E7F'!"#$%&()*+,.:;<=>?@^`{|}~\[\]\\\s]+/g;
 export const CONTEXT_REGEX = /@[\w-]+/g;
 
 /**

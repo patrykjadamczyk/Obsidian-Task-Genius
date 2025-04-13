@@ -5,6 +5,7 @@ import { t } from "../../translations/helper";
 import "../../styles/tag-view.css";
 import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
+import { TaskListRendererComponent } from "./TaskList";
 
 interface SelectedTags {
 	tags: string[];
@@ -16,6 +17,7 @@ interface TagSection {
 	tag: string;
 	tasks: Task[];
 	isExpanded: boolean;
+	renderer?: TaskListRendererComponent;
 }
 
 export class TagsComponent extends Component {
@@ -31,6 +33,7 @@ export class TagsComponent extends Component {
 	// Child components
 	private taskComponents: TaskListItemComponent[] = [];
 	private treeComponents: TaskTreeItemComponent[] = [];
+	private mainTaskRenderer: TaskListRendererComponent | null = null;
 
 	// State
 	private allTasks: Task[] = [];
@@ -172,7 +175,8 @@ export class TagsComponent extends Component {
 		if (this.selectedTags.tags.length > 0) {
 			this.updateSelectedTasks();
 		} else {
-			this.renderEmptyTaskList();
+			this.cleanupRenderers();
+			this.renderEmptyTaskList(t("Select a tag to see related tasks"));
 		}
 	}
 
@@ -250,6 +254,10 @@ export class TagsComponent extends Component {
 			// Create tag item
 			const tagItem = parentEl.createDiv({
 				cls: "tag-list-item",
+				attr: {
+					"data-tag": fullPath,
+					"aria-label": fullPath,
+				},
 			});
 
 			// Add indent based on level
@@ -327,7 +335,10 @@ export class TagsComponent extends Component {
 				this.selectedTags.tags.length === 0 &&
 				!this.selectedTags.isMultiSelect
 			) {
-				this.renderEmptyTaskList();
+				this.cleanupRenderers();
+				this.renderEmptyTaskList(
+					t("Select a tag to see related tasks")
+				);
 				return;
 			}
 		} else {
@@ -361,7 +372,10 @@ export class TagsComponent extends Component {
 
 			// If no tags are selected, reset the view
 			if (this.selectedTags.tags.length === 0) {
-				this.renderEmptyTaskList();
+				this.cleanupRenderers();
+				this.renderEmptyTaskList(
+					t("Select a tag to see related tasks")
+				);
 			}
 		}
 	}
@@ -377,13 +391,14 @@ export class TagsComponent extends Component {
 			setIcon(viewToggleBtn, this.isTreeView ? "git-branch" : "list");
 		}
 
-		// Update tasks display
+		// Re-render the task list with the new mode
 		this.renderTaskList();
 	}
 
 	private updateSelectedTasks() {
 		if (this.selectedTags.tags.length === 0) {
-			this.renderEmptyTaskList();
+			this.cleanupRenderers();
+			this.renderEmptyTaskList(t("Select a tag to see related tasks"));
 			return;
 		}
 
@@ -449,158 +464,191 @@ export class TagsComponent extends Component {
 			});
 		}
 
-		// Group tasks by tags for sectioned display
-		this.createTagSections();
+		// Decide whether to create sections or render flat/tree
+		if (!this.isTreeView && this.selectedTags.tags.length > 1) {
+			this.createTagSections();
+		} else {
+			// Render directly without sections
+			this.tagSections = [];
+			this.renderTaskList();
+		}
 	}
 
 	private createTagSections() {
-		// Clear sections
+		// Clear previous sections and their renderers
+		this.cleanupRenderers();
 		this.tagSections = [];
 
-		// Create a map to store tasks by tag
+		// Group tasks by the selected tags they match (including children)
 		const tagTaskMap = new Map<string, Task[]>();
-
-		// Group tasks by the tags they match
 		this.selectedTags.tags.forEach((tag) => {
-			const tasksForTag = this.filteredTasks.filter((task) => {
+			const tasksForThisTagBranch = this.filteredTasks.filter((task) => {
 				if (!task.tags) return false;
-
-				// Check if the task has this tag or any child tag
 				return task.tags.some(
 					(taskTag) =>
-						taskTag === tag ||
-						(taskTag !== tag && taskTag.startsWith(tag + "/"))
+						taskTag === tag || taskTag.startsWith(tag + "/")
 				);
 			});
 
-			if (tasksForTag.length > 0) {
-				tagTaskMap.set(tag, tasksForTag);
+			if (tasksForThisTagBranch.length > 0) {
+				// Ensure tasks aren't duplicated across sections if selection overlaps (e.g., #parent and #parent/child)
+				// This simple grouping might show duplicates if a task has both selected tags.
+				// For OR logic display, maybe better to render all `filteredTasks` under one combined header?
+				// Let's stick to sections per selected tag for now.
+				tagTaskMap.set(tag, tasksForThisTagBranch);
 			}
 		});
 
-		// Create sections for each tag
+		// Create section objects
 		tagTaskMap.forEach((tasks, tag) => {
 			this.tagSections.push({
 				tag: tag,
 				tasks: tasks,
 				isExpanded: true,
+				// Renderer will be created in renderTagSections
 			});
 		});
 
 		// Sort sections by tag name
 		this.tagSections.sort((a, b) => a.tag.localeCompare(b.tag));
 
-		// Update the task list
+		// Update the task list view
 		this.renderTaskList();
 	}
 
-	private renderTaskList() {
-		// Clean up existing task components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-		this.taskComponents = [];
-
-		// Clean up existing tree components
-		this.treeComponents.forEach((component) => {
-			component.unload();
-		});
-		this.treeComponents = [];
-
-		// Clear container
-		this.taskListContainerEl.empty();
-
-		// Update the header with selected tags
+	private updateTaskListHeader() {
 		const taskHeaderEl =
 			this.taskContainerEl.querySelector(".tags-task-title");
 		if (taskHeaderEl) {
 			if (this.selectedTags.tags.length === 1) {
-				// Show the tag name if only one selected
 				taskHeaderEl.textContent = `#${this.selectedTags.tags[0].replace(
 					"#",
 					""
 				)}`;
-			} else {
-				// Show count if multiple selected
+			} else if (this.selectedTags.tags.length > 1) {
 				taskHeaderEl.textContent = `${
 					this.selectedTags.tags.length
 				} ${t("tags selected")}`;
+			} else {
+				taskHeaderEl.textContent = t("Tasks");
 			}
 		}
 
-		// Update task count
 		const taskCountEl =
 			this.taskContainerEl.querySelector(".tags-task-count");
 		if (taskCountEl) {
+			// Use filteredTasks length for the total count across selections/sections
 			taskCountEl.textContent = `${this.filteredTasks.length} ${t(
 				"tasks"
 			)}`;
 		}
+	}
 
-		if (this.filteredTasks.length === 0) {
-			// Show empty state
-			const emptyEl = this.taskListContainerEl.createDiv({
-				cls: "tags-empty-state",
-			});
-			emptyEl.setText(t("No tasks with the selected tags"));
+	private cleanupRenderers() {
+		// Cleanup main renderer if it exists
+		if (this.mainTaskRenderer) {
+			this.removeChild(this.mainTaskRenderer);
+			this.mainTaskRenderer = null;
+		}
+		// Cleanup section renderers
+		this.tagSections.forEach((section) => {
+			if (section.renderer) {
+				this.removeChild(section.renderer);
+				section.renderer = undefined;
+			}
+		});
+		// Clear the container manually as renderers might not have cleared it if just removed
+		this.taskListContainerEl.empty();
+	}
+
+	private renderTaskList() {
+		this.cleanupRenderers(); // Clean up any previous renderers
+		this.updateTaskListHeader(); // Update title and count
+
+		if (
+			this.filteredTasks.length === 0 &&
+			this.selectedTags.tags.length > 0
+		) {
+			// We have selected tags, but no tasks match
+			this.renderEmptyTaskList(t("No tasks with the selected tags"));
+			return;
+		}
+		if (
+			this.filteredTasks.length === 0 &&
+			this.selectedTags.tags.length === 0
+		) {
+			// No tags selected yet
+			this.renderEmptyTaskList(t("Select a tag to see related tasks"));
 			return;
 		}
 
-		// Render tag sections
-		this.renderTagSections();
+		// Decide rendering mode: sections or flat/tree
+		const useSections =
+			!this.isTreeView &&
+			this.tagSections.length > 0 &&
+			this.selectedTags.tags.length > 1;
+
+		if (useSections) {
+			this.renderTagSections();
+		} else {
+			// Use a single main renderer for flat list or tree view
+			this.mainTaskRenderer = new TaskListRendererComponent(
+				this,
+				this.taskListContainerEl,
+				this.app,
+				"tags"
+			);
+			this.mainTaskRenderer.onTaskSelected = this.onTaskSelected;
+			this.mainTaskRenderer.onTaskCompleted = this.onTaskCompleted;
+			this.mainTaskRenderer.onTaskContextMenu = this.onTaskContextMenu;
+
+			this.mainTaskRenderer.renderTasks(
+				this.filteredTasks,
+				this.isTreeView,
+				// Empty message handled above, so this shouldn't be shown
+				t("No tasks found.")
+			);
+		}
 	}
 
 	private renderTagSections() {
-		// If there's only one tag or in tree view mode, use a simplified display
-		if (this.isTreeView || this.selectedTags.tags.length === 1) {
-			if (this.isTreeView) {
-				this.renderTreeView();
-			} else {
-				this.renderListView();
-			}
-			return;
-		}
-
-		// Render each tag section
+		// Assumes cleanupRenderers was called before this
 		this.tagSections.forEach((section) => {
 			const sectionEl = this.taskListContainerEl.createDiv({
 				cls: "task-tag-section",
 			});
 
 			// Section header
-			const headerEl = sectionEl.createDiv({
-				cls: "tag-section-header",
-			});
-
-			// Expand/collapse toggle
-			const toggleEl = headerEl.createDiv({
-				cls: "section-toggle",
-			});
+			const headerEl = sectionEl.createDiv({ cls: "tag-section-header" });
+			const toggleEl = headerEl.createDiv({ cls: "section-toggle" });
 			setIcon(
 				toggleEl,
 				section.isExpanded ? "chevron-down" : "chevron-right"
 			);
-
-			// Section title
-			const titleEl = headerEl.createDiv({
-				cls: "section-title",
-			});
+			const titleEl = headerEl.createDiv({ cls: "section-title" });
 			titleEl.setText(`#${section.tag.replace("#", "")}`);
-
-			// Task count badge
-			const countEl = headerEl.createDiv({
-				cls: "section-count",
-			});
+			const countEl = headerEl.createDiv({ cls: "section-count" });
 			countEl.setText(`${section.tasks.length}`);
 
-			// Task container (initially hidden if collapsed)
-			const taskListEl = sectionEl.createDiv({
-				cls: "section-tasks",
-			});
-
+			// Task container for the renderer
+			const taskListEl = sectionEl.createDiv({ cls: "section-tasks" });
 			if (!section.isExpanded) {
 				taskListEl.hide();
 			}
+
+			// Create a renderer for this section
+			section.renderer = new TaskListRendererComponent(
+				this,
+				taskListEl, // Render inside this section's container
+				this.app,
+				"tags"
+			);
+			section.renderer.onTaskSelected = this.onTaskSelected;
+			section.renderer.onTaskCompleted = this.onTaskCompleted;
+			section.renderer.onTaskContextMenu = this.onTaskContextMenu;
+
+			// Render tasks for this section (always list view within sections)
+			section.renderer.renderTasks(section.tasks, false);
 
 			// Register toggle event
 			this.registerDomEvent(headerEl, "click", () => {
@@ -611,221 +659,93 @@ export class TagsComponent extends Component {
 				);
 				section.isExpanded ? taskListEl.show() : taskListEl.hide();
 			});
-
-			// Render tasks for this section
-			section.tasks.forEach((task) => {
-				const taskComponent = new TaskListItemComponent(
-					task,
-					"tags",
-					this.app
-				);
-
-				// Set up event handlers
-				taskComponent.onTaskSelected = (selectedTask) => {
-					if (this.onTaskSelected) {
-						this.onTaskSelected(selectedTask);
-					}
-				};
-
-				taskComponent.onTaskCompleted = (completedTask) => {
-					if (this.onTaskCompleted) {
-						this.onTaskCompleted(completedTask);
-					}
-				};
-
-				taskComponent.onTaskContextMenu = (event, task) => {
-					if (this.onTaskContextMenu) {
-						this.onTaskContextMenu(event, task);
-					}
-				};
-
-				// Load component
-				this.addChild(taskComponent);
-				taskComponent.load();
-
-				// Add to DOM
-				taskListEl.appendChild(taskComponent.element);
-
-				// Store for later cleanup
-				this.taskComponents.push(taskComponent);
-			});
 		});
 	}
 
-	private renderListView() {
-		// Render each task
-		this.filteredTasks.forEach((task) => {
-			const taskComponent = new TaskListItemComponent(
-				task,
-				"tags",
-				this.app
-			);
+	private renderEmptyTaskList(message: string) {
+		this.cleanupRenderers(); // Ensure no renderers are active
+		this.taskListContainerEl.empty(); // Clear the main container
 
-			// Set up event handlers
-			taskComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
+		// Optionally update header (already done in renderTaskList)
+		// this.updateTaskListHeader();
 
-			taskComponent.onTaskCompleted = (completedTask) => {
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(completedTask);
-				}
-			};
-
-			taskComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) {
-					this.onTaskContextMenu(event, task);
-				}
-			};
-
-			// Load component
-			this.addChild(taskComponent);
-			taskComponent.load();
-
-			// Add to DOM
-			this.taskListContainerEl.appendChild(taskComponent.element);
-
-			// Store for later cleanup
-			this.taskComponents.push(taskComponent);
-		});
-	}
-
-	private renderTreeView() {
-		// Convert tasks to tree structure
-		const rootTasks = tasksToTree(this.filteredTasks);
-		const taskMap = new Map<string, Task>();
-		this.filteredTasks.forEach((task) => taskMap.set(task.id, task));
-
-		// Render root tasks with their children
-		rootTasks.forEach((rootTask) => {
-			// Find direct children
-			const childTasks = this.filteredTasks.filter(
-				(task) => task.parent === rootTask.id
-			);
-
-			const treeComponent = new TaskTreeItemComponent(
-				rootTask,
-				"tags",
-				this.app,
-				0,
-				childTasks,
-				taskMap
-			);
-
-			// Set up event handlers
-			treeComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
-
-			treeComponent.onTaskCompleted = (task) => {
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(task);
-				}
-			};
-
-			treeComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) {
-					this.onTaskContextMenu(event, task);
-				}
-			};
-
-			// Load component
-			this.addChild(treeComponent);
-			treeComponent.load();
-
-			// Add to DOM
-			this.taskListContainerEl.appendChild(treeComponent.element);
-
-			// Store for later cleanup
-			this.treeComponents.push(treeComponent);
-		});
-	}
-
-	private renderEmptyTaskList() {
-		// Clean up existing components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-		this.taskComponents = [];
-
-		// Clear container
-		this.taskListContainerEl.empty();
-
-		// Reset the header
-		const taskHeaderEl =
-			this.taskContainerEl.querySelector(".tags-task-title");
-		if (taskHeaderEl) {
-			taskHeaderEl.textContent = t("Tasks");
-		}
-
-		// Reset task count
-		const taskCountEl =
-			this.taskContainerEl.querySelector(".tags-task-count");
-		if (taskCountEl) {
-			taskCountEl.textContent = t("0 tasks");
-		}
-
-		// Show instruction state
+		// Display the message
 		const emptyEl = this.taskListContainerEl.createDiv({
 			cls: "tags-empty-state",
 		});
-		emptyEl.setText(t("Select a tag to see related tasks"));
+		emptyEl.setText(message);
 	}
 
 	public updateTask(updatedTask: Task) {
-		// Find and update the task component
-		const component = this.taskComponents.find(
-			(c) => c.getTask().id === updatedTask.id
-		);
-
-		if (component) {
-			component.updateTask(updatedTask);
-		}
-
-		// Update in our tasks lists
+		let needsFullRefresh = false;
 		const taskIndex = this.allTasks.findIndex(
 			(t) => t.id === updatedTask.id
 		);
+
 		if (taskIndex !== -1) {
+			const oldTask = this.allTasks[taskIndex];
+			// Check if tags changed, necessitating a rebuild/re-render
+			const tagsChanged =
+				!oldTask.tags ||
+				!updatedTask.tags ||
+				oldTask.tags.join(",") !== updatedTask.tags.join(",");
+
+			if (tagsChanged) {
+				needsFullRefresh = true;
+			}
 			this.allTasks[taskIndex] = updatedTask;
+		} else {
+			this.allTasks.push(updatedTask);
+			needsFullRefresh = true; // New task, requires full refresh
 		}
 
-		const filteredIndex = this.filteredTasks.findIndex(
-			(t) => t.id === updatedTask.id
-		);
-		if (filteredIndex !== -1) {
-			this.filteredTasks[filteredIndex] = updatedTask;
-		}
-
-		// Rebuild tag index and rerender if tags changed
-		const oldTask = this.allTasks[taskIndex];
-		if (
-			!oldTask ||
-			!oldTask.tags ||
-			!updatedTask.tags ||
-			oldTask.tags.join(",") !== updatedTask.tags.join(",")
-		) {
+		// If tags changed or task is new, rebuild index and fully refresh UI
+		if (needsFullRefresh) {
 			this.buildTagsIndex();
-			this.renderTagsList();
-			this.updateSelectedTasks();
+			this.renderTagsList(); // Update left sidebar
+			this.updateSelectedTasks(); // Recalculate filtered tasks and re-render right panel
+		} else {
+			// Otherwise, update the task in the filtered list
+			const filteredIndex = this.filteredTasks.findIndex(
+				(t) => t.id === updatedTask.id
+			);
+			if (filteredIndex !== -1) {
+				this.filteredTasks[filteredIndex] = updatedTask;
+
+				// Find the correct renderer (main or section) and update the task
+				if (this.mainTaskRenderer) {
+					this.mainTaskRenderer.updateTask(updatedTask);
+				} else {
+					this.tagSections.forEach((section) => {
+						// Check if the task belongs to this section's tag branch
+						if (
+							updatedTask.tags?.some(
+								(taskTag) =>
+									taskTag === section.tag ||
+									taskTag.startsWith(section.tag + "/")
+							)
+						) {
+							// Check if the task is actually in this section's list
+							if (
+								section.tasks.some(
+									(t) => t.id === updatedTask.id
+								)
+							) {
+								section.renderer?.updateTask(updatedTask);
+							}
+						}
+					});
+				}
+				// Optional: Re-sort if needed, then call renderTaskList or relevant section update
+			} else {
+				// Task might have become visible/invisible due to update, requires re-filtering
+				this.updateSelectedTasks();
+			}
 		}
 	}
 
 	onunload() {
-		// Clean up task components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-
-		// Clean up tree components
-		this.treeComponents.forEach((component) => {
-			component.unload();
-		});
-
+		// Renderers are children, cleaned up automatically.
 		this.containerEl.empty();
 		this.containerEl.remove();
 	}

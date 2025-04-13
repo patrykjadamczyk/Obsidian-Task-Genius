@@ -222,3 +222,8 @@
 .task-item:hover .task-tag {
 	opacity: 1;
 }
+
+.task-item-content p:has(img) img {
+	display: block;
+	width: min(50%, 200px);
+}

@@ -15,8 +15,8 @@
 }
 
 .projects-left-column {
-	width: 250px;
-	min-width: 200px;
+	width: max(120px, 30%);
+	min-width: min(120px, 30%);
 	max-width: 300px;
 	display: flex;
 	flex-direction: column;

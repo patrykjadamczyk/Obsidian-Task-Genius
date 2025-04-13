@@ -7,12 +7,14 @@ import "../../styles/forecast.css";
 import "../../styles/calendar.css";
 import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
+import { TaskListRendererComponent } from "./TaskList";
 
 interface DateSection {
 	title: string;
 	date: Date;
 	tasks: Task[];
 	isExpanded: boolean;
+	renderer?: TaskListRendererComponent;
 }
 
 export class ForecastComponent extends Component {
@@ -124,7 +126,7 @@ export class ForecastComponent extends Component {
 			this.categorizeTasks();
 			this.updateTaskStats();
 			this.updateDueSoonSection();
-			this.refreshDateSections();
+			this.refreshDateSectionsUI();
 		};
 
 		// Register the window focus event
@@ -186,7 +188,7 @@ export class ForecastComponent extends Component {
 		}
 
 		// Update sections display
-		this.refreshDateSections();
+		this.refreshDateSectionsUI();
 	}
 
 	private createFocusBar() {
@@ -246,7 +248,7 @@ export class ForecastComponent extends Component {
 			// Update the Coming Up section first
 			this.updateDueSoonSection();
 			// Then refresh the date sections in the right panel
-			this.refreshDateSections();
+			this.refreshDateSectionsUI();
 		};
 	}
 
@@ -334,8 +336,9 @@ export class ForecastComponent extends Component {
 		// Update due soon section
 		this.updateDueSoonSection();
 
-		// Create date sections for the right column
-		this.createDateSections();
+		// Calculate and render date sections for the right column
+		this.calculateDateSections();
+		this.renderDateSectionsUI();
 	}
 
 	private updateHeaderCount() {
@@ -491,7 +494,7 @@ export class ForecastComponent extends Component {
 			this.registerDomEvent(itemEl, "click", () => {
 				this.calendarComponent.selectDate(item.date);
 				this.selectedDate = item.date;
-				this.refreshDateSections();
+				this.refreshDateSectionsUI();
 			});
 		});
 
@@ -522,17 +525,7 @@ export class ForecastComponent extends Component {
 		return `${monthNames[date.getMonth()]} ${date.getDate()}`;
 	}
 
-	private createDateSections() {
-		// Clean up any existing task components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-		this.taskComponents = [];
-
-		// Clear existing content
-		this.taskListContainerEl.empty();
-
-		// Create sections based on time categories (Today, Tomorrow, Next Week, etc.)
+	private calculateDateSections() {
 		this.dateSections = [];
 
 		// Today section
@@ -547,7 +540,6 @@ export class ForecastComponent extends Component {
 
 		// Future sections by date
 		const dateMap = new Map<string, Task[]>();
-
 		this.futureTasks.forEach((task) => {
 			if (task.dueDate) {
 				const date = new Date(task.dueDate);
@@ -611,22 +603,19 @@ export class ForecastComponent extends Component {
 				isExpanded: true,
 			});
 		}
-
-		// Render the sections
-		this.renderDateSections();
 	}
 
-	private renderDateSections() {
-		// Clear container
-		this.taskListContainerEl.empty();
+	private renderDateSectionsUI() {
+		this.cleanupRenderers();
 
-		// Clean up old tree components if any
-		this.treeComponents.forEach((component) => {
-			component.unload();
-		});
-		this.treeComponents = [];
+		if (this.dateSections.length === 0) {
+			const emptyEl = this.taskListContainerEl.createDiv({
+				cls: "forecast-empty-state",
+			});
+			emptyEl.setText(t("No tasks scheduled"));
+			return;
+		}
 
-		// Render each section
 		this.dateSections.forEach((section) => {
 			const sectionEl = this.taskListContainerEl.createDiv({
 				cls: "task-date-section",
@@ -691,113 +680,23 @@ export class ForecastComponent extends Component {
 				section.isExpanded ? taskListEl.show() : taskListEl.hide();
 			});
 
-			// Render tasks based on view mode
-			if (this.isTreeView) {
-				this.renderTreeView(section.tasks, taskListEl);
-			} else {
-				this.renderListView(section.tasks, taskListEl);
-			}
-		});
-
-		// Add empty state if no sections
-		if (this.dateSections.length === 0) {
-			const emptyEl = this.taskListContainerEl.createDiv({
-				cls: "forecast-empty-state",
-			});
-			emptyEl.setText(t("No tasks scheduled"));
-		}
-	}
-
-	private renderListView(tasks: Task[], containerEl: HTMLElement) {
-		// Create task items (flat list view)
-		tasks.forEach((task) => {
-			const taskComponent = new TaskListItemComponent(
-				task,
-				"forecast",
-				this.app
-			);
-
-			// Set up event handlers
-			taskComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
-
-			taskComponent.onTaskCompleted = (task) => {
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(task);
-				}
-			};
-
-			taskComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) {
-					this.onTaskContextMenu(event, task);
-				}
-			};
-
-			// Load component
-			this.addChild(taskComponent);
-			taskComponent.load();
-
-			// Add to DOM
-			containerEl.appendChild(taskComponent.element);
-
-			// Store for later cleanup
-			this.taskComponents.push(taskComponent);
-		});
-	}
-
-	private renderTreeView(tasks: Task[], containerEl: HTMLElement) {
-		// Convert tasks to tree structure
-		const rootTasks = tasksToTree(tasks);
-		const taskMap = new Map<string, Task>();
-		tasks.forEach((task) => taskMap.set(task.id, task));
-
-		// Render root tasks with their children
-		rootTasks.forEach((rootTask) => {
-			// Find direct children
-			const childTasks = tasks.filter(
-				(task) => task.parent === rootTask.id
-			);
-
-			const treeComponent = new TaskTreeItemComponent(
-				rootTask,
-				"forecast",
+			// Create and configure renderer for this section
+			section.renderer = new TaskListRendererComponent(
+				this,
+				taskListEl,
 				this.app,
-				0,
-				childTasks,
-				taskMap
+				"forecast"
 			);
+			section.renderer.onTaskSelected = this.onTaskSelected;
+			section.renderer.onTaskCompleted = this.onTaskCompleted;
+			section.renderer.onTaskContextMenu = this.onTaskContextMenu;
 
-			// Set up event handlers
-			treeComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
-
-			treeComponent.onTaskCompleted = (task) => {
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(task);
-				}
-			};
-
-			treeComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) {
-					this.onTaskContextMenu(event, task);
-				}
-			};
-
-			// Load component
-			this.addChild(treeComponent);
-			treeComponent.load();
-
-			// Add to DOM
-			containerEl.appendChild(treeComponent.element);
-
-			// Store for later cleanup
-			this.treeComponents.push(treeComponent);
+			// Render tasks using the section's renderer
+			section.renderer.renderTasks(
+				section.tasks,
+				this.isTreeView,
+				t("No tasks for this section.")
+			);
 		});
 	}
 
@@ -862,7 +761,7 @@ export class ForecastComponent extends Component {
 			];
 		} else if (this.focusFilter === "future") {
 			// Re-create all future sections
-			this.createDateSections();
+			this.calculateDateSections();
 			// Filter out past due and today
 			this.dateSections = this.dateSections.filter((section) => {
 				const today = new Date(this.currentDate);
@@ -871,77 +770,62 @@ export class ForecastComponent extends Component {
 			});
 		} else {
 			// No filter, show all sections
-			this.createDateSections();
+			this.calculateDateSections();
 		}
 
 		// Re-render the sections
-		this.renderDateSections();
+		this.renderDateSectionsUI();
 	}
 
-	private refreshDateSections() {
+	private refreshDateSectionsUI() {
 		// Update sections based on selected date
 		if (this.focusFilter) {
 			// If there's a filter active, don't change the sections
 			return;
 		}
 
-		// Clear existing content and components first
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-		this.taskComponents = [];
-		this.taskListContainerEl.empty();
+		this.cleanupRenderers();
 
-		// Get tasks for selected date
-		const selectedDateTasks = this.getTasksForDate(this.selectedDate);
+		// Calculate the sections based on the new selectedDate
+		this.calculateFilteredDateSections();
 
-		// First create a section for the selected date if it has tasks
-		if (selectedDateTasks.length > 0) {
-			this.dateSections = [
-				{
-					title: this.formatDate(this.selectedDate),
-					date: this.selectedDate,
-					tasks: selectedDateTasks,
-					isExpanded: true,
-				},
-			];
-		} else {
-			this.dateSections = [];
+		// Render the newly calculated sections
+		this.renderDateSectionsUI();
+	}
 
-			// Add empty state for the selected date
-			const emptyEl = this.taskListContainerEl.createDiv({
-				cls: "forecast-empty-state",
+	private calculateFilteredDateSections() {
+		this.dateSections = [];
+
+		const selectedTasks = this.getTasksForDate(this.selectedDate);
+
+		// Section for the selected date
+		if (selectedTasks.length > 0) {
+			this.dateSections.push({
+				title: this.formatDate(this.selectedDate),
+				date: new Date(this.selectedDate),
+				tasks: selectedTasks,
+				isExpanded: true,
 			});
-			emptyEl.setText(
-				`No tasks scheduled for ${this.formatDate(this.selectedDate)}`
-			);
 		}
 
-		// Check if we need to add overdue tasks section
-		const today = new Date();
+		// Add overdue section if applicable
+		const today = new Date(this.currentDate);
 		today.setHours(0, 0, 0, 0);
 		const selectedDay = new Date(this.selectedDate);
 		selectedDay.setHours(0, 0, 0, 0);
-
-		// If the selected date is today or in the future, show overdue tasks
-		if (selectedDay.getTime() >= today.getTime()) {
-			const overdueTasks = this.pastDueTasks.filter(
-				(task) => !task.completed
-			);
-
-			if (overdueTasks.length > 0) {
-				// Add overdue section at the beginning
-				this.dateSections.unshift({
-					title: t("Past Due"),
-					date: new Date(0), // Placeholder
-					tasks: overdueTasks,
-					isExpanded: true,
-				});
-			}
+		if (
+			selectedDay.getTime() >= today.getTime() &&
+			this.pastDueTasks.length > 0
+		) {
+			this.dateSections.unshift({
+				title: t("Past Due"),
+				date: new Date(0),
+				tasks: this.pastDueTasks,
+				isExpanded: true,
+			});
 		}
 
-		// Now add future sections after the selected date
-		// Get all future dates after the selected date
+		// Add future sections after the selected date
 		const futureTasksAfterSelected = this.futureTasks.filter((task) => {
 			if (!task.dueDate) return false;
 			const taskDate = new Date(task.dueDate);
@@ -950,8 +834,6 @@ export class ForecastComponent extends Component {
 			selectedDate.setHours(0, 0, 0, 0);
 			return taskDate.getTime() > selectedDate.getTime();
 		});
-
-		// Group by date
 		const dateMap = new Map<string, Task[]>();
 		futureTasksAfterSelected.forEach((task) => {
 			if (task.dueDate) {
@@ -966,11 +848,7 @@ export class ForecastComponent extends Component {
 				dateMap.get(dateKey)!.push(task);
 			}
 		});
-
-		// Sort dates and create sections
 		const sortedDates = Array.from(dateMap.keys()).sort();
-
-		// Add future sections
 		sortedDates.forEach((dateKey) => {
 			const date = new Date(dateKey);
 			const tasks = dateMap.get(dateKey)!;
@@ -1007,8 +885,11 @@ export class ForecastComponent extends Component {
 			});
 		});
 
-		// Render all sections
-		this.renderDateSections();
+		// If after all this, no sections exist (e.g., selected date has no tasks and no overdue/future)
+		if (this.dateSections.length === 0) {
+			// We'll handle the empty state message in renderDateSectionsUI
+			// Optionally add a placeholder section or let render handle it.
+		}
 	}
 
 	private getTasksForDate(date: Date): Task[] {
@@ -1030,31 +911,44 @@ export class ForecastComponent extends Component {
 	}
 
 	public updateTask(updatedTask: Task) {
-		// Find and update the task component
-		const component = this.taskComponents.find(
-			(c) => c.getTask().id === updatedTask.id
+		// Update in the main list
+		const taskIndex = this.allTasks.findIndex(
+			(t) => t.id === updatedTask.id
 		);
-
-		if (component) {
-			component.updateTask(updatedTask);
+		if (taskIndex !== -1) {
+			this.allTasks[taskIndex] = updatedTask;
+		} else {
+			this.allTasks.push(updatedTask); // Add if new
 		}
 
-		// Re-categorize all tasks
-		this.setTasks(
-			this.allTasks.map((task) =>
-				task.id === updatedTask.id ? updatedTask : task
-			)
-		);
+		// Re-categorize tasks (past, today, future) as due date might have changed
+		this.categorizeTasks();
+
+		// Update dependent UI elements
+		this.updateTaskStats();
+		this.updateDueSoonSection();
+		this.calendarComponent.setTasks(this.allTasks); // Update calendar markers
+
+		// Find the specific section renderer where the task *should* be and update it
+		// Or simply recalculate and re-render all sections
+		this.calculateDateSections(); // Recalculate based on new categories
+		this.renderDateSectionsUI(); // Re-render the UI
+	}
+
+	private cleanupRenderers() {
+		this.dateSections.forEach((section) => {
+			if (section.renderer) {
+				this.removeChild(section.renderer);
+				section.renderer = undefined;
+			}
+		});
+		// Clear the container manually
+		this.taskListContainerEl.empty();
 	}
 
 	onunload() {
+		// Renderers are children, handled by Obsidian unload.
 		// No need to manually remove DOM event listeners registered with this.registerDomEvent
-
-		// Clean up tree components if any
-		this.treeComponents.forEach((component) => {
-			component.unload();
-		});
-
 		this.containerEl.empty();
 		this.containerEl.remove();
 	}

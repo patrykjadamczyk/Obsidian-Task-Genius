@@ -1,10 +1,8 @@
 import { App, Component, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
-import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/project-view.css";
-import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
-import { TaskTreeItemComponent } from "./treeItem";
+import { TaskListRendererComponent } from "./TaskList";
 
 interface SelectedProjects {
 	projects: string[];
@@ -23,8 +21,7 @@ export class ProjectsComponent extends Component {
 	private countEl: HTMLElement;
 
 	// Child components
-	private taskComponents: TaskListItemComponent[] = [];
-	private treeComponents: TaskTreeItemComponent[] = [];
+	private taskRenderer: TaskListRendererComponent;
 
 	// State
 	private allTasks: Task[] = [];
@@ -34,14 +31,12 @@ export class ProjectsComponent extends Component {
 		tasks: [],
 		isMultiSelect: false,
 	};
-	private allProjectsMap: Map<string, Set<string>> = new Map(); // project -> taskIds
+	private allProjectsMap: Map<string, Set<string>> = new Map();
 	private isTreeView: boolean = false;
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
-
-	// Context menu
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
 	constructor(private parentEl: HTMLElement, private app: App) {
@@ -64,6 +59,25 @@ export class ProjectsComponent extends Component {
 
 		// Right column: create task list for selected projects
 		this.createRightColumn(contentContainer);
+
+		// Initialize the task renderer
+		this.taskRenderer = new TaskListRendererComponent(
+			this,
+			this.taskListContainerEl,
+			this.app,
+			"projects"
+		);
+
+		// Connect event handlers
+		this.taskRenderer.onTaskSelected = (task) => {
+			if (this.onTaskSelected) this.onTaskSelected(task);
+		};
+		this.taskRenderer.onTaskCompleted = (task) => {
+			if (this.onTaskCompleted) this.onTaskCompleted(task);
+		};
+		this.taskRenderer.onTaskContextMenu = (event, task) => {
+			if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);
+		};
 	}
 
 	private createProjectsHeader() {
@@ -165,7 +179,12 @@ export class ProjectsComponent extends Component {
 		if (this.selectedProjects.projects.length > 0) {
 			this.updateSelectedTasks();
 		} else {
-			this.renderEmptyTaskList();
+			this.taskRenderer.renderTasks(
+				[],
+				this.isTreeView,
+				t("Select a project to see related tasks")
+			);
+			this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
 		}
 	}
 
@@ -262,7 +281,12 @@ export class ProjectsComponent extends Component {
 				this.selectedProjects.projects.length === 0 &&
 				!this.selectedProjects.isMultiSelect
 			) {
-				this.renderEmptyTaskList();
+				this.taskRenderer.renderTasks(
+					[],
+					this.isTreeView,
+					t("Select a project to see related tasks")
+				);
+				this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
 				return;
 			}
 		} else {
@@ -301,7 +325,12 @@ export class ProjectsComponent extends Component {
 
 			// If no projects are selected, reset the view
 			if (this.selectedProjects.projects.length === 0) {
-				this.renderEmptyTaskList();
+				this.taskRenderer.renderTasks(
+					[],
+					this.isTreeView,
+					t("Select a project to see related tasks")
+				);
+				this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
 			}
 		}
 	}
@@ -317,13 +346,18 @@ export class ProjectsComponent extends Component {
 			setIcon(viewToggleBtn, this.isTreeView ? "git-branch" : "list");
 		}
 
-		// Update tasks display
+		// Update tasks display using the renderer
 		this.renderTaskList();
 	}
 
 	private updateSelectedTasks() {
 		if (this.selectedProjects.projects.length === 0) {
-			this.renderEmptyTaskList();
+			this.taskRenderer.renderTasks(
+				[],
+				this.isTreeView,
+				t("Select a project to see related tasks")
+			);
+			this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
 			return;
 		}
 
@@ -363,240 +397,90 @@ export class ProjectsComponent extends Component {
 			return dueDateA - dueDateB;
 		});
 
-		// Update the task list
+		// Update the task list using the renderer
 		this.renderTaskList();
 	}
 
-	private renderTaskList() {
-		// Clean up existing task components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-		this.taskComponents = [];
-
-		// Clean up existing tree components
-		this.treeComponents.forEach((component) => {
-			component.unload();
-		});
-		this.treeComponents = [];
-
-		// Clear container
-		this.taskListContainerEl.empty();
-
-		// Update the header with selected projects
+	private updateTaskListHeader(title: string, countText: string) {
 		const taskHeaderEl = this.taskContainerEl.querySelector(
 			".projects-task-title"
 		);
 		if (taskHeaderEl) {
-			if (this.selectedProjects.projects.length === 1) {
-				// Show the project name if only one selected
-				taskHeaderEl.textContent = this.selectedProjects.projects[0];
-			} else {
-				// Show count if multiple selected
-				taskHeaderEl.textContent = `${
-					this.selectedProjects.projects.length
-				} ${t("projects selected")}`;
-			}
+			taskHeaderEl.textContent = title;
 		}
 
-		// Update task count
 		const taskCountEl = this.taskContainerEl.querySelector(
 			".projects-task-count"
 		);
 		if (taskCountEl) {
-			taskCountEl.textContent = `${this.filteredTasks.length} ${t(
-				"tasks"
+			taskCountEl.textContent = countText;
+		}
+	}
+
+	private renderTaskList() {
+		// Update the header
+		let title = t("Tasks");
+		if (this.selectedProjects.projects.length === 1) {
+			title = this.selectedProjects.projects[0];
+		} else if (this.selectedProjects.projects.length > 1) {
+			title = `${this.selectedProjects.projects.length} ${t(
+				"projects selected"
 			)}`;
 		}
+		const countText = `${this.filteredTasks.length} ${t("tasks")}`;
+		this.updateTaskListHeader(title, countText);
 
-		if (this.filteredTasks.length === 0) {
-			// Show empty state
-			const emptyEl = this.taskListContainerEl.createDiv({
-				cls: "projects-empty-state",
-			});
-			emptyEl.setText(t("No tasks in the selected projects"));
-			return;
-		}
-
-		// Render tasks based on view mode
-		if (this.isTreeView) {
-			this.renderTreeView();
-		} else {
-			this.renderListView();
-		}
-	}
-
-	private renderListView() {
-		// Render each task
-		this.filteredTasks.forEach((task) => {
-			const taskComponent = new TaskListItemComponent(
-				task,
-				"projects",
-				this.app
-			);
-
-			// Set up event handlers
-			taskComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
-
-			taskComponent.onTaskCompleted = (completedTask) => {
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(completedTask);
-				}
-			};
-
-			taskComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) {
-					this.onTaskContextMenu(event, task);
-				}
-			};
-
-			// Load component
-			this.addChild(taskComponent);
-			taskComponent.load();
-
-			// Add to DOM
-			this.taskListContainerEl.appendChild(taskComponent.element);
-
-			// Store for later cleanup
-			this.taskComponents.push(taskComponent);
-		});
-	}
-
-	private renderTreeView() {
-		// Convert tasks to tree structure
-		const rootTasks = tasksToTree(this.filteredTasks);
-		const taskMap = new Map<string, Task>();
-		this.filteredTasks.forEach((task) => taskMap.set(task.id, task));
-
-		// Render root tasks with their children
-		rootTasks.forEach((rootTask) => {
-			// Find direct children
-			const childTasks = this.filteredTasks.filter(
-				(task) => task.parent === rootTask.id
-			);
-
-			const treeComponent = new TaskTreeItemComponent(
-				rootTask,
-				"projects",
-				this.app,
-				0,
-				childTasks,
-				taskMap
-			);
-
-			// Set up event handlers
-			treeComponent.onTaskSelected = (selectedTask) => {
-				if (this.onTaskSelected) {
-					this.onTaskSelected(selectedTask);
-				}
-			};
-
-			treeComponent.onTaskCompleted = (task) => {
-				if (this.onTaskCompleted) {
-					this.onTaskCompleted(task);
-				}
-			};
-
-			treeComponent.onTaskContextMenu = (event, task) => {
-				if (this.onTaskContextMenu) {
-					this.onTaskContextMenu(event, task);
-				}
-			};
-
-			// Load component
-			this.addChild(treeComponent);
-			treeComponent.load();
-
-			// Add to DOM
-			this.taskListContainerEl.appendChild(treeComponent.element);
-
-			// Store for later cleanup
-			this.treeComponents.push(treeComponent);
-		});
-	}
-
-	private renderEmptyTaskList() {
-		// Clean up existing components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-		this.taskComponents = [];
-
-		// Clear container
-		this.taskListContainerEl.empty();
-
-		// Reset the header
-		const taskHeaderEl = this.taskContainerEl.querySelector(
-			".projects-task-title"
+		// Use the renderer to display tasks or empty state
+		this.taskRenderer.renderTasks(
+			this.filteredTasks,
+			this.isTreeView,
+			t("No tasks in the selected projects")
 		);
-		if (taskHeaderEl) {
-			taskHeaderEl.textContent = t("Tasks");
-		}
-
-		// Reset task count
-		const taskCountEl = this.taskContainerEl.querySelector(
-			".projects-task-count"
-		);
-		if (taskCountEl) {
-			taskCountEl.textContent = "0 tasks";
-		}
-
-		// Show instruction state
-		const emptyEl = this.taskListContainerEl.createDiv({
-			cls: "projects-empty-state",
-		});
-		emptyEl.setText(t("Select a project to see related tasks"));
 	}
 
 	public updateTask(updatedTask: Task) {
-		// Find and update the task component
-		const component = this.taskComponents.find(
-			(c) => c.getTask().id === updatedTask.id
-		);
-
-		if (component) {
-			component.updateTask(updatedTask);
-		}
-
-		// Update in our tasks lists
+		// Update in our main tasks list
 		const taskIndex = this.allTasks.findIndex(
 			(t) => t.id === updatedTask.id
 		);
+		let needsFullRefresh = false;
 		if (taskIndex !== -1) {
+			const oldTask = this.allTasks[taskIndex];
+			// Check if project assignment changed, which affects the sidebar/filtering
+			if (oldTask.project !== updatedTask.project) {
+				needsFullRefresh = true;
+			}
 			this.allTasks[taskIndex] = updatedTask;
+		} else {
+			// Task is potentially new, add it and refresh
+			this.allTasks.push(updatedTask);
+			needsFullRefresh = true;
 		}
 
-		const filteredIndex = this.filteredTasks.findIndex(
-			(t) => t.id === updatedTask.id
-		);
-		if (filteredIndex !== -1) {
-			this.filteredTasks[filteredIndex] = updatedTask;
-		}
-
-		// Rebuild project index and rerender if project changed
-		const oldTask = this.allTasks[taskIndex];
-		if (!oldTask || oldTask.project !== updatedTask.project) {
+		// If project changed or task is new, rebuild index and fully refresh UI
+		if (needsFullRefresh) {
 			this.buildProjectsIndex();
-			this.renderProjectsList();
-			this.updateSelectedTasks();
+			this.renderProjectsList(); // Update left sidebar
+			this.updateSelectedTasks(); // Recalculate filtered tasks and re-render right panel
+		} else {
+			// Otherwise, just update the task in the filtered list and the renderer
+			const filteredIndex = this.filteredTasks.findIndex(
+				(t) => t.id === updatedTask.id
+			);
+			if (filteredIndex !== -1) {
+				this.filteredTasks[filteredIndex] = updatedTask;
+				// Ask the renderer to update the specific component
+				this.taskRenderer.updateTask(updatedTask);
+				// Optional: Re-sort if sorting criteria changed, then re-render
+				// this.renderTaskList();
+			} else {
+				// Task might have become visible due to the update, requires re-filtering
+				this.updateSelectedTasks();
+			}
 		}
 	}
 
 	onunload() {
-		// Clean up task components
-		this.taskComponents.forEach((component) => {
-			component.unload();
-		});
-
-		// Clean up tree components
-		this.treeComponents.forEach((component) => {
-			component.unload();
-		});
-
 		this.containerEl.empty();
 		this.containerEl.remove();
 	}

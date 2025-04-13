@@ -496,6 +496,31 @@ export class TaskTreeItemComponent extends Component {
 		}
 	}
 
+	/**
+	 * Attempts to find and update a task within this component's children.
+	 * @param updatedTask The task data to update.
+	 * @returns True if the task was found and updated in the subtree, false otherwise.
+	 */
+	public updateTaskRecursively(updatedTask: Task): boolean {
+		// Iterate through the direct child components of this item
+		for (const childComp of this.childComponents) {
+			// Check if the direct child is the task we're looking for
+			if (childComp.getTask().id === updatedTask.id) {
+				childComp.updateTask(updatedTask); // Update the child directly
+				return true; // Task found and updated
+			} else {
+				// If not a direct child, ask this child to check its own children recursively
+				const foundInChildren =
+					childComp.updateTaskRecursively(updatedTask);
+				if (foundInChildren) {
+					return true; // Task was found deeper in this child's subtree
+				}
+			}
+		}
+		// If the loop finishes, the task was not found in this component's subtree
+		return false;
+	}
+
 	public getTask(): Task {
 		return this.task;
 	}

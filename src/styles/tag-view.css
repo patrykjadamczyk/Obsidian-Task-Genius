@@ -19,8 +19,8 @@
 }
 
 .tags-left-column {
-	width: 250px;
-	min-width: 300px;
+	width: max(120px, 30%);
+	min-width: min(120px, 30%);
 	max-width: 400px;
 	display: flex;
 	flex-direction: column;

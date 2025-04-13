@@ -49,7 +49,7 @@ export class TaskView extends ItemView {
 	private lastToggleTimestamp: number = 0;
 
 	// Data management
-	private tasks: Task[] = [];
+	tasks: Task[] = [];
 
 	constructor(leaf: WorkspaceLeaf, private plugin: TaskProgressBarPlugin) {
 		super(leaf);
@@ -111,10 +111,6 @@ export class TaskView extends ItemView {
 					});
 			}
 		);
-
-		// Use preloaded tasks from plugin and trigger view update
-		this.tasks = this.plugin.preloadedTasks;
-		this.triggerViewUpdate();
 
 		this.checkAndCollapseSidebar();
 
@@ -576,10 +572,11 @@ export class TaskView extends ItemView {
 
 		// Get all tasks
 		this.tasks = taskManager.getAllTasks();
+		console.log("current tasks", this.tasks);
 		await this.triggerViewUpdate();
 	}
 
-	private async triggerViewUpdate() {
+	public async triggerViewUpdate() {
 		this.contentComponent.setTasks(this.tasks);
 		this.forecastComponent.setTasks(this.tasks);
 		this.tagsComponent.setTasks(this.tasks);

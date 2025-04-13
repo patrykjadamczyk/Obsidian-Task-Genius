@@ -4,7 +4,7 @@ import {
 	MarkdownRenderer as ObsidianMarkdownRenderer,
 	TFile,
 } from "obsidian";
-import { DEFAULT_SYMBOLS } from "../common/default-symbol";
+import { DEFAULT_SYMBOLS, TAG_REGEX } from "../common/default-symbol";
 
 export function clearAllMarks(markdown: string): string {
 	if (!markdown) return markdown;
@@ -38,7 +38,7 @@ export function clearAllMarks(markdown: string): string {
 	cleanedMarkdown = cleanedMarkdown.replace(/🔼|⏫|🔽|⏬|🔺|\[#[A-C]\]/g, "");
 
 	// Remove tags from content since they'll be shown as metadata
-	cleanedMarkdown = cleanedMarkdown.replace(/#[\w\/-]+\s*/g, "");
+	cleanedMarkdown = cleanedMarkdown.replace(TAG_REGEX, "");
 
 	// Remove recurrence information
 	const recurrenceRegex = new RegExp(

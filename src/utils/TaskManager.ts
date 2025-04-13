@@ -188,6 +188,8 @@ export class TaskManager extends Component {
 					this.indexer.getCache().tasks.values()
 				);
 
+				this.plugin.triggerViewUpdate();
+
 				this.log(
 					`Preloaded ${
 						this.indexer.getCache().tasks.size
