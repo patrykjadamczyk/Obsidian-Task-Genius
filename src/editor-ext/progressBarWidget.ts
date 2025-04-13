@@ -705,7 +705,7 @@ export function taskProgressBarExtension(
 					);
 					
 					// Extract the task text and check for goal information
-					const customGoal = TaskGoalManager.extractTaskAndGoalInfo(lineText);
+					const customGoal = plugin?.settings.allowCustomProgressGoal? TaskGoalManager.extractTaskAndGoalInfo(lineText): null;
 					
 					if (
 						!lineText ||
@@ -1379,8 +1379,8 @@ export function taskProgressBarExtension(
 							}
 						}
 
-						 // Skip tasks without goal syntax if parent has goal pattern
-						if (parentLineHasGoal && !TaskGoalManager.lineHasGoalSyntax(lineText)) {
+						 // Skip tasks without goal syntax if parent has goal pattern. Add the check of custom progress for safety.
+						if (parentLineHasGoal && !TaskGoalManager.lineHasGoalSyntax(lineText) && plugin?.settings.allowCustomProgressGoal) {
 							continue;
 						}
 
@@ -1395,8 +1395,9 @@ export function taskProgressBarExtension(
 							const status = this.getTaskStatus(lineTextTrimmed);
 
 							// Extract task text to check for task-specific goal
-							const taskText = TaskGoalManager.extractTaskText(lineTextTrimmed);
 							let taskGoalValue = 0;
+							if (plugin?.settings.allowCustomProgressGoal) {
+							const taskText = TaskGoalManager.extractTaskText(lineTextTrimmed);
 							
 							if (taskText) {
 								// Check for task-specific goal
@@ -1411,6 +1412,7 @@ export function taskProgressBarExtension(
 									}
 								}
 							}
+						}
 
 							// Extract the mark for debugging
 							const markMatch = lineTextTrimmed.match(/\[(.)]/);
@@ -1511,14 +1513,17 @@ export function taskProgressBarExtension(
 				};
 				
 				// Apply goal-based adjustments using the TaskGoalManager
-				const adjustedCounts = TaskGoalManager.adjustTaskCountsForGoals(
-					taskCounts,
-					customGoal ? customGoal : null,
-					completedGoalValue,
-					totalGoalValue
-				);
+				if (plugin?.settings.allowCustomProgressGoal) {
+					const adjustedCounts = TaskGoalManager.adjustTaskCountsForGoals(
+						taskCounts,
+						customGoal ? customGoal : null,
+						completedGoalValue,
+						totalGoalValue
+					);
+					return adjustedCounts;
+				}
 
-				return adjustedCounts;
+				return taskCounts;
 			}
 		},
 		{

@@ -193,6 +193,7 @@ export interface TaskProgressBarSettings {
 	showPercentage: boolean;
 	customizeProgressRanges: boolean;
 	progressRanges: Array<{ min: number; max: number; text: string }>;
+	allowCustomProgressGoal: boolean;
 	hideProgressBarBasedOnConditions: boolean;
 	hideProgressBarTags: string;
 	hideProgressBarFolders: string;
@@ -261,6 +262,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		{ min: 60, max: 80, text: "Good progress {{PROGRESS}}%" },
 		{ min: 80, max: 100, text: "Almost there {{PROGRESS}}%" },
 	],
+	allowCustomProgressGoal: false,
 	hideProgressBarBasedOnConditions: false,
 	hideProgressBarTags: "no-progress,hide-progress",
 	hideProgressBarFolders: "",
