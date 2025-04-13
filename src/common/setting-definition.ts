@@ -2,13 +2,32 @@ import { WorkflowDefinition } from "../editor-ext/workflow";
 import { TaskFilterOptions } from "../editor-ext/filterTasks";
 import { t } from "../translations/helper";
 
+// Interface for individual project review settings
+export interface ProjectReviewSetting {
+	projectName: string; // Though the key in the record will be the name
+	frequency: string; // e.g., 'daily', 'weekly', 'monthly', 'every 2 weeks'
+	lastReviewed: number | null; // Timestamp of the last review
+	reviewedTasks: string[]; // Array of task IDs that have been reviewed
+}
+
 export interface TaskProgressBarSettings {
-	showProgressBar: boolean;
+	progressBarDisplayMode: "graphical" | "text" | "both" | "none";
 	addTaskProgressBarToHeading: boolean;
 	addProgressBarToNonTaskBullet: boolean;
 	enableHeadingProgressBar: boolean;
 	addNumberToProgressBar: boolean;
 	showPercentage: boolean;
+
+	// Progress text display options
+	displayMode?:
+		| "percentage"
+		| "bracketPercentage"
+		| "fraction"
+		| "bracketFraction"
+		| "detailed"
+		| "custom"
+		| "range-based";
+	customFormat?: string;
 
 	progressRanges: Array<{
 		min: number;
@@ -107,10 +126,16 @@ export interface TaskProgressBarSettings {
 			options: TaskFilterOptions;
 		}>;
 	};
+
+	// View settings
+	enableView: boolean;
+
+	// Review settings - Added
+	reviewSettings: Record<string, ProjectReviewSetting>; // Keyed by project name
 }
 
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
-	showProgressBar: false,
+	progressBarDisplayMode: "both",
 	addTaskProgressBarToHeading: false,
 	addProgressBarToNonTaskBullet: false,
 	enableHeadingProgressBar: false,
@@ -124,6 +149,10 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	hideProgressBarTags: "no-progress-bar",
 	hideProgressBarFolders: "",
 	hideProgressBarMetadata: "hide-progress-bar",
+
+	// Progress text display options
+	displayMode: "bracketFraction",
+	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",
 
 	// Default task statuses
 	taskStatuses: {
@@ -268,4 +297,10 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		keyboardShortcut: "Alt-f",
 		presetTaskFilters: [],
 	},
+
+	// Review settings - Added
+	reviewSettings: {},
+
+	// View settings
+	enableView: true,
 };
