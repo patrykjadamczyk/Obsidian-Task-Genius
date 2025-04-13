@@ -45,6 +45,19 @@ export class TaskGoalManager {
     }
 
     /**
+     * Check if a line of text contains a goal pattern
+     * 
+     * @param lineText A line of text to check for goal pattern
+     * @return True if the line contains g:: or goal:: pattern, false otherwise
+     */
+    static lineHasGoalSyntax(lineText: string | null): boolean {
+        if (!lineText) return false;
+        
+        // Check for g:: or goal:: pattern in the line
+        return /\b(g|goal)::(\d+)\b/i.test(lineText);
+    }
+
+    /**
      * Extract the goal value from a task text
      * Supports only g::number or goal::number format
      * 

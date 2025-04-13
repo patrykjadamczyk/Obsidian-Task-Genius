@@ -1329,6 +1329,10 @@ export function taskProgressBarExtension(
 				// Get tab size from vault config
 				const tabSize = this.getTabSize();
 
+				 // Check if parent task has a goal pattern - this affects how we count child tasks
+				const parentLineHasGoal = customGoal !== null || 
+					(textArray[0] && TaskGoalManager.lineHasGoalSyntax(textArray[0]));
+				
 				// For debugging - collect task marks and their statuses
 				const taskDebug: {
 					mark: string;
@@ -1373,6 +1377,11 @@ export function taskProgressBarExtension(
 							if (lineLevel !== level + 1) {
 								continue;
 							}
+						}
+
+						 // Skip tasks without goal syntax if parent has goal pattern
+						if (parentLineHasGoal && !TaskGoalManager.lineHasGoalSyntax(lineText)) {
+							continue;
 						}
 
 						// First check if it matches task format, then check if it should be excluded
