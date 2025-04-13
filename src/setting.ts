@@ -2454,6 +2454,25 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					this.applySettingsUpdate();
 				});
 			});
+
+		if (!this.plugin.settings.enableView) return;
+
+		new Setting(containerEl)
+			.setName(t("Rebuild index"))
+			.addButton((button) => {
+				button.setButtonText(t("Rebuild")).onClick(async () => {
+					try {
+						new Notice(
+							t("Clearing task cache and rebuilding index...")
+						);
+						await this.plugin.taskManager.forceReindex();
+						new Notice(t("Task index completely rebuilt"));
+					} catch (error) {
+						console.error("Failed to force reindex tasks:", error);
+						new Notice(t("Failed to force reindex tasks"));
+					}
+				});
+			});
 	}
 
 	private displayAboutSettings(containerEl: HTMLElement): void {
