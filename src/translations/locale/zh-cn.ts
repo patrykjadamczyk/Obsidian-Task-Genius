@@ -577,6 +577,8 @@ const translations = {
 	"No tasks found.": "没有任务",
 	Complete: "完成",
 	"Switch status": "切换状态",
+	"Rebuild index": "重建索引",
+	Rebuild: "重建",
 };
 
 export default translations;

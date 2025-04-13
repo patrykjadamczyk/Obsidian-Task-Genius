@@ -604,6 +604,8 @@ const translations = {
 	"No tasks found.": "タスクが見つかりません。",
 	Complete: "完了",
 	"Switch status": "ステータスを切り替える",
+	"Rebuild index": "インデックスを再構築",
+	Rebuild: "再構築",
 };
 
 export default translations;

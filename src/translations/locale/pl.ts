@@ -482,7 +482,9 @@ const translations = {
   "No tasks for this section.": "No tasks for this section.",
   "No tasks found.": "No tasks found.",
   "Complete": "Complete",
-  "Switch status": "Switch status"
+  "Switch status": "Switch status",
+  "Rebuild index": "Rebuild index",
+  "Rebuild": "Rebuild"
 };
 
 export default translations;
