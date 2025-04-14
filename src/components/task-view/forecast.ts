@@ -591,7 +591,10 @@ export class ForecastComponent extends Component {
 			if (task.dueDate) {
 				const date = new Date(task.dueDate);
 				date.setHours(0, 0, 0, 0);
-				const dateKey = date.toISOString().split("T")[0];
+				// Use local date components for the key to avoid timezone shifts
+				const dateKey = `${date.getFullYear()}-${String(
+					date.getMonth() + 1
+				).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 				if (!dateMap.has(dateKey)) {
 					dateMap.set(dateKey, []);
@@ -886,7 +889,10 @@ export class ForecastComponent extends Component {
 			if (task.dueDate) {
 				const date = new Date(task.dueDate);
 				date.setHours(0, 0, 0, 0);
-				const dateKey = date.toISOString().split("T")[0];
+				// Use local date components for the key to avoid timezone shifts
+				const dateKey = `${date.getFullYear()}-${String(
+					date.getMonth() + 1
+				).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 				if (!dateMap.has(dateKey)) {
 					dateMap.set(dateKey, []);
