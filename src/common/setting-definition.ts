@@ -4,10 +4,9 @@ import type TaskProgressBarPlugin from "../index"; // Type-only import
 // Interface for individual project review settings (If still needed, otherwise remove)
 // Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
 export interface ProjectReviewSetting {
-	enabled: boolean;
-	includeFutureTasks: boolean;
-	frequency: number; // Days between reviews
-	lastReviewDate?: number;
+	frequency: string; // Days between reviews
+	lastReviewed?: number;
+	reviewedTaskIds?: string[];
 }
 
 // Interface for individual view settings (If still needed, otherwise remove)
@@ -57,7 +56,7 @@ export interface ViewConfig {
 }
 
 /** Define the structure for task statuses */
-export interface TaskStatusConfig {
+export interface TaskStatusConfig extends Record<string, string> {
 	completed: string;
 	inProgress: string;
 	abandoned: string;
@@ -213,6 +212,9 @@ export interface TaskProgressBarSettings {
 	// View Settings (Updated Structure)
 	enableView: boolean;
 	viewConfiguration: ViewConfig[]; // Manages order, visibility, basic info, AND filter rules
+
+	// Review Settings
+	reviewSettings: Record<string, ProjectReviewSetting>;
 }
 
 /** Define the default settings */
@@ -431,6 +433,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			filterRules: {},
 		},
 	],
+
+	// Review Settings
+	reviewSettings: {},
 };
 
 // Helper function to get view settings safely

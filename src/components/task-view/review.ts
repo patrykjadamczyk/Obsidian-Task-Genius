@@ -8,7 +8,6 @@ import {
 	setIcon,
 } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
-import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import { ProjectReviewSetting } from "../../common/setting-definition";
 import TaskProgressBarPlugin from "../../index"; // Path used in TaskView.ts
@@ -20,6 +19,16 @@ interface SelectedReviewProject {
 	tasks: Task[];
 	setting: ProjectReviewSetting | null;
 }
+
+const DAY_MAP = {
+	daily: 1,
+	weekly: 7,
+	"every 2 weeks": 14,
+	monthly: 30,
+	quarterly: 90,
+	"every 6 months": 180,
+	yearly: 365,
+};
 
 class ReviewConfigureModal extends Modal {
 	private projectName: string;
@@ -218,10 +227,9 @@ class ReviewConfigureModal extends Modal {
 
 		// Create or update setting
 		const updatedSetting: ProjectReviewSetting = {
-			projectName: this.projectName,
 			frequency: this.frequency,
-			lastReviewed: this.existingSetting?.lastReviewed || null,
-			reviewedTasks: this.existingSetting?.reviewedTasks || [],
+			lastReviewed: this.existingSetting?.lastReviewed || undefined,
+			reviewedTaskIds: this.existingSetting?.reviewedTaskIds || [],
 		};
 
 		// Update plugin settings
@@ -407,10 +415,9 @@ export class ReviewComponent extends Component {
 				// For projects without review settings, add with a placeholder setting
 				// We'll render these differently in the UI
 				const placeholderSetting: ProjectReviewSetting = {
-					projectName: projectName,
 					frequency: "",
-					lastReviewed: null,
-					reviewedTasks: [],
+					lastReviewed: undefined,
+					reviewedTaskIds: [],
 				};
 				this.reviewableProjects.set(projectName, placeholderSetting);
 			}
@@ -493,6 +500,11 @@ export class ReviewComponent extends Component {
 			// Add class if the project has review settings configured
 			if (projectSetting.frequency) {
 				projectItem.addClass("has-review-settings");
+			}
+
+			// Add class if review is due
+			if (this.isReviewDue(projectSetting)) {
+				projectItem.addClass("is-review-due");
 			}
 
 			// Icon
@@ -626,7 +638,9 @@ export class ReviewComponent extends Component {
 		if (reviewSetting && reviewSetting.lastReviewed && !this.showAllTasks) {
 			// If project has been reviewed before and we're not showing all tasks, filter the tasks
 			const lastReviewDate = reviewSetting.lastReviewed;
-			const reviewedTaskIds = new Set(reviewSetting.reviewedTasks || []);
+			const reviewedTaskIds = new Set(
+				reviewSetting.reviewedTaskIds || []
+			);
 
 			// Filter tasks to only show:
 			// 1. Tasks that were created after the last review date
@@ -970,7 +984,7 @@ export class ReviewComponent extends Component {
 		if (currentSettings[projectName]) {
 			// Update the last reviewed timestamp and record current task IDs
 			currentSettings[projectName].lastReviewed = now;
-			currentSettings[projectName].reviewedTasks = taskIds;
+			currentSettings[projectName].reviewedTaskIds = taskIds;
 
 			// Save settings via plugin
 			await this.plugin.saveSettings();
@@ -991,10 +1005,9 @@ export class ReviewComponent extends Component {
 		} else {
 			// If the project doesn't have settings yet, create them
 			const newSetting: ProjectReviewSetting = {
-				projectName: projectName,
 				frequency: "weekly", // Default frequency
 				lastReviewed: now,
-				reviewedTasks: taskIds,
+				reviewedTaskIds: taskIds,
 			};
 
 			// Save the new settings
@@ -1142,7 +1155,7 @@ export class ReviewComponent extends Component {
 
 		const lastReviewDate = this.selectedProject.setting.lastReviewed;
 		const reviewedTaskIds = new Set(
-			this.selectedProject.setting.reviewedTasks || []
+			this.selectedProject.setting.reviewedTaskIds || []
 		);
 
 		// Copied logic from updateSelectedProjectTasks filtering part
@@ -1191,5 +1204,53 @@ export class ReviewComponent extends Component {
 				}
 			}, 300); // Match CSS transition duration
 		}
+	}
+
+	/**
+	 * Check if a project review is due based on its frequency and last reviewed date.
+	 * @param setting The review setting for the project.
+	 * @returns True if the review is due, false otherwise.
+	 */
+	private isReviewDue(setting: ProjectReviewSetting): boolean {
+		// Cannot be due if not configured with a frequency
+		if (!setting.frequency) {
+			return false;
+		}
+
+		// Always due if never reviewed before
+		if (!setting.lastReviewed) {
+			return true;
+		}
+
+		const lastReviewedDate = new Date(setting.lastReviewed);
+		const today = new Date();
+		// Set time to 00:00:00.000 for day-level comparison
+		today.setHours(0, 0, 0, 0);
+
+		let intervalDays = 0;
+
+		// Check predefined frequencies
+		if (DAY_MAP[setting.frequency as keyof typeof DAY_MAP]) {
+			intervalDays = DAY_MAP[setting.frequency as keyof typeof DAY_MAP];
+		} else {
+			// Basic parsing for "every N days" - could be expanded later
+			const match = setting.frequency.match(/every (\d+) days/i);
+			if (match && match[1]) {
+				intervalDays = parseInt(match[1], 10);
+			} else {
+				// Cannot determine interval for unknown custom frequencies
+				console.warn(`Unknown frequency format: ${setting.frequency}`);
+				return false; // Treat unknown formats as not due for now
+			}
+		}
+
+		// Calculate the next review date
+		const nextReviewDate = new Date(lastReviewedDate);
+		nextReviewDate.setDate(lastReviewedDate.getDate() + intervalDays);
+		// Also set time to 00:00:00.000 for comparison
+		nextReviewDate.setHours(0, 0, 0, 0);
+
+		// Review is due if today is on or after the next review date
+		return today >= nextReviewDate;
 	}
 }
