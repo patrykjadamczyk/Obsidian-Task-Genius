@@ -9,11 +9,9 @@ import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/tag-view.css";
-import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
 import { TaskListRendererComponent } from "./TaskList";
 import TaskProgressBarPlugin from "../../index";
-import { isNotCompleted } from "../../pages/TaskView";
 interface SelectedTags {
 	tags: string[];
 	tasks: Task[];
@@ -481,13 +479,9 @@ export class TagsComponent extends Component {
 				set.forEach((id) => resultTaskIds.add(id));
 			});
 
-			console.log(resultTaskIds);
-
 			// Convert task IDs to actual task objects
-			this.filteredTasks = this.allTasks.filter(
-				(task) =>
-					resultTaskIds.has(task.id) &&
-					isNotCompleted(this.plugin, task, "tags")
+			this.filteredTasks = this.allTasks.filter((task) =>
+				resultTaskIds.has(task.id)
 			);
 
 			// Sort tasks by priority and due date

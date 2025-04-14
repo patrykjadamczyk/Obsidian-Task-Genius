@@ -13,8 +13,7 @@ import "../../styles/forecast.css";
 import "../../styles/calendar.css";
 import { TaskTreeItemComponent } from "./treeItem";
 import { TaskListRendererComponent } from "./TaskList";
-import { isNotCompleted } from "src/pages/TaskView";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../../index";
 
 interface DateSection {
 	title: string;
@@ -399,9 +398,7 @@ export class ForecastComponent extends Component {
 			}
 		});
 
-		const taskCount = this.allTasks.filter((task) =>
-			isNotCompleted(this.plugin, task, "forecast")
-		).length;
+		const taskCount = this.allTasks.length;
 		const projectCount = projectSet.size;
 
 		// Update header
@@ -423,9 +420,7 @@ export class ForecastComponent extends Component {
 
 		// Filter for incomplete tasks with due dates
 		const tasksWithDueDates = this.allTasks.filter(
-			(task) =>
-				isNotCompleted(this.plugin, task, "forecast") &&
-				task.dueDate !== undefined
+			(task) => task.dueDate !== undefined
 		);
 
 		// Split into past due, today, and future

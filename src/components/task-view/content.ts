@@ -1,4 +1,4 @@
-import { App, Component, ExtraButtonComponent, setIcon } from "obsidian";
+import { App, Component, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem"; // Re-import needed components
 import {
@@ -9,9 +9,7 @@ import { tasksToTree } from "../../utils/treeViewUtil"; // Re-import needed util
 import { TaskTreeItemComponent } from "./treeItem"; // Re-import needed components
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
-import { isNotCompleted } from "../../pages/TaskView"; // Corrected path
-// We won't use BaseTaskRendererComponent for the main list in Inbox
-// import { BaseTaskRendererComponent } from "./baseTaskRenderer";
+import { filterTasks } from "../../utils/taskFIlterUtils";
 
 export class ContentComponent extends Component {
 	public containerEl: HTMLElement;
@@ -173,169 +171,27 @@ export class ContentComponent extends Component {
 	}
 
 	private applyFilters() {
-		// Start with all tasks
-		let filtered = [...this.allTasks];
-
-		// Get the complete configuration for the current view
-		const viewConfig = getViewSettingOrDefault(
+		// Call the centralized filter utility
+		this.filteredTasks = filterTasks(
+			this.allTasks,
+			this.currentViewId,
 			this.plugin,
-			this.currentViewId
+			{ textQuery: this.filterInput?.value } // Pass text query from input
 		);
-		const filterRules = viewConfig.filterRules || {}; // Get rules or empty object
 
-		if (Object.keys(filterRules).length > 0) {
-			// Check if there are any rules defined
-			// --- Apply Custom Filter Rules ---
-			console.log(
-				`Applying filter rules for view ${this.currentViewId}:`,
-				filterRules
-			);
-
-			if (filterRules.textContains) {
-				const query = filterRules.textContains.toLowerCase();
-				filtered = filtered.filter((task) =>
-					task.content.toLowerCase().includes(query)
-				);
-			}
-			if (filterRules.tagsInclude && filterRules.tagsInclude.length > 0) {
-				filtered = filtered.filter((task) =>
-					filterRules.tagsInclude!.every((tag) =>
-						task.tags.includes(tag)
-					)
-				);
-			}
-			if (filterRules.tagsExclude && filterRules.tagsExclude.length > 0) {
-				filtered = filtered.filter(
-					(task) =>
-						!filterRules.tagsExclude!.some((tag) =>
-							task.tags.includes(tag)
-						)
-				);
-			}
-			if (filterRules.project) {
-				filtered = filtered.filter(
-					(task) => task.project === filterRules.project
-				);
-			}
-			if (filterRules.priority !== undefined) {
-				filtered = filtered.filter(
-					(task) => (task.priority || 0) === filterRules.priority // Handle undefined priority
-				);
-			}
-			if (
-				filterRules.statusInclude &&
-				filterRules.statusInclude.length > 0
-			) {
-				filtered = filtered.filter((task) =>
-					filterRules.statusInclude!.includes(task.status)
-				);
-			}
-			if (
-				filterRules.statusExclude &&
-				filterRules.statusExclude.length > 0
-			) {
-				filtered = filtered.filter(
-					(task) => !filterRules.statusExclude!.includes(task.status)
-				);
-			}
-			if (filterRules.pathIncludes) {
-				const query = filterRules.pathIncludes.toLowerCase();
-				filtered = filtered.filter((task) =>
-					task.filePath.toLowerCase().includes(query)
-				);
-			}
-			if (filterRules.pathExcludes) {
-				const query = filterRules.pathExcludes.toLowerCase();
-				filtered = filtered.filter(
-					(task) => !task.filePath.toLowerCase().includes(query)
-				);
-			}
-			// TODO: Implement Date Filters (dueDate, startDate, scheduledDate) - requires parsing relative dates
-
-			// Apply the standard hide completed/abandoned logic *after* custom rules
-			// Note: isNotCompleted already uses the viewConfig, so this is slightly redundant,
-			// but ensures the hide setting is respected even if no other rules match.
-			filtered = filtered.filter((task) =>
-				isNotCompleted(this.plugin, task, this.currentViewId)
-			);
-		} else {
-			// --- Apply Default View Logic (If no custom rules are set for the view) ---
-			// This switch might become less relevant if default views also get rules via settings,
-			// but can serve as a fallback or specific behavior override.
-			switch (this.currentViewId) {
-				case "inbox":
-					filtered = filtered.filter(
-						(task) =>
-							!task.project && // No project assigned
-							isNotCompleted(
-								this.plugin,
-								task,
-								this.currentViewId
-							)
-					);
-					break;
-				case "flagged":
-					filtered = filtered.filter(
-						(task) =>
-							(task.priority === 3 ||
-								task.tags?.includes("flagged")) && // Default flagged logic
-							isNotCompleted(
-								this.plugin,
-								task,
-								this.currentViewId
-							)
-					);
-					break;
-				// Other default views like forecast, projects, tags, review are handled by their specific components
-				default:
-					// Default behavior for views without specific rules or component:
-					// just apply the hide completed setting
-					filtered = filtered.filter((task) =>
-						isNotCompleted(this.plugin, task, this.currentViewId)
-					);
-					break;
-			}
-		}
-
-		// Apply focus filter if set (logic remains the same)
-		if (this.focusFilter) {
-			// ... (focus filter logic) ...
-		}
-
-		// Apply text filter from the input box (applied AFTER view-specific filters)
-		const textFilter = this.filterInput.value.toLowerCase();
-		if (textFilter) {
-			filtered = filtered.filter(
-				(task) =>
-					task.content.toLowerCase().includes(textFilter) ||
-					task.project?.toLowerCase().includes(textFilter) ||
-					task.context?.toLowerCase().includes(textFilter) ||
-					task.tags?.some((tag) =>
-						tag.toLowerCase().includes(textFilter)
-					)
-			);
-		}
-
-		// --- Sorting --- (Apply sorting last)
-		filtered.sort((a, b) => {
-			// Example Sort: Non-completed first, then Priority (High to Low), then Due Date (Earliest first)
+		// --- Apply Sorting --- (Keep sorting within the component)
+		this.filteredTasks.sort((a, b) => {
 			const completedA = a.completed;
 			const completedB = b.completed;
-			if (completedA !== completedB) return completedA ? 1 : -1; // Non-completed first
-
-			const prioA = a.priority ?? 0; // Default priority if undefined
+			if (completedA !== completedB) return completedA ? 1 : -1;
+			const prioA = a.priority ?? 0;
 			const prioB = b.priority ?? 0;
-			if (prioA !== prioB) return prioB - prioA; // Higher priority first
-
+			if (prioA !== prioB) return prioB - prioA;
 			const dueA = a.dueDate ?? Infinity;
 			const dueB = b.dueDate ?? Infinity;
-			if (dueA !== dueB) return dueA - dueB; // Earlier due date first
-
-			// Fallback sort by content
+			if (dueA !== dueB) return dueA - dueB;
 			return a.content.localeCompare(b.content);
 		});
-
-		this.filteredTasks = filtered;
 
 		// Update the task count display
 		this.countEl.setText(`${this.filteredTasks.length} ${t("tasks")}`);

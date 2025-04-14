@@ -28,28 +28,9 @@ import {
 	ViewMode,
 	DEFAULT_SETTINGS,
 } from "../common/setting-definition";
+import { filterTasks } from "src/utils/taskFIlterUtils";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
-
-export function isNotCompleted(
-	plugin: TaskProgressBarPlugin,
-	task: Task,
-	viewId: ViewMode
-): boolean {
-	const viewConfig = getViewSettingOrDefault(plugin, viewId);
-	const abandonedStatus = plugin.settings.taskStatuses.abandoned.split("|");
-	const completedStatus = plugin.settings.taskStatuses.completed.split("|");
-
-	if (viewConfig.hideCompletedAndAbandonedTasks) {
-		return (
-			!task.completed &&
-			!abandonedStatus.includes(task.status) &&
-			!completedStatus.includes(task.status)
-		);
-	}
-
-	return !task.completed;
-}
 
 export class TaskView extends ItemView {
 	// Main container elements
@@ -461,7 +442,9 @@ export class TaskView extends ItemView {
 		if (targetComponent) {
 			targetComponent.containerEl.show();
 			if (typeof targetComponent.setTasks === "function") {
-				targetComponent.setTasks(this.tasks);
+				targetComponent.setTasks(
+					filterTasks(this.tasks, viewId, this.plugin)
+				);
 			}
 			if (typeof targetComponent.setViewMode === "function") {
 				targetComponent.setViewMode(modeForComponent, project);
