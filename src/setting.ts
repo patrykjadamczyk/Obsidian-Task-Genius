@@ -6,15 +6,22 @@ import {
 	setIcon,
 	ButtonComponent,
 	TextAreaComponent,
+	Notice,
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./task-status";
 import { migrateOldFilterOptions } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
 import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
-import { DEFAULT_SETTINGS } from "./common/setting-definition";
+import {
+	DEFAULT_SETTINGS,
+	ViewConfig,
+	ViewFilterRule,
+	ViewMode,
+} from "./common/setting-definition";
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
+import { ViewConfigModal } from "./components/ViewConfigModal";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -35,7 +42,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		},
 		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
 		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
-		{ id: "view-settings", name: t("View"), icon: "layout" },
+		{ id: "view-settings", name: t("View Config"), icon: "layout" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
 
@@ -932,7 +939,41 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							if (typeof getStatuses === "function") {
 								const statuses = getStatuses();
 
-								// Create a map to collect all statuses of each type
+								// Update cycle and marks
+								const cycle =
+									this.plugin.settings.taskStatusCycle;
+								const marks =
+									this.plugin.settings.taskStatusMarks;
+								const excludeMarks =
+									this.plugin.settings.excludeMarksFromCycle;
+
+								// Clear existing cycle, marks and excludeMarks
+								cycle.length = 0;
+								Object.keys(marks).forEach(
+									(key) => delete marks[key]
+								);
+								excludeMarks.length = 0;
+
+								// Add new statuses to cycle and marks
+								for (const [symbol, name, type] of statuses) {
+									const realName = (name as string)
+										.split("/")[0]
+										.trim();
+									// Add to cycle if not already included
+									if (!cycle.includes(realName)) {
+										cycle.push(realName);
+									}
+
+									// Add to marks
+									marks[realName] = symbol;
+
+									// Add to excludeMarks if not space or x
+									if (symbol !== " " && symbol !== "x") {
+										excludeMarks.push(realName);
+									}
+								}
+
+								// Also update the main taskStatuses object based on the theme
 								const statusMap: Record<string, string[]> = {
 									completed: [],
 									inProgress: [],
@@ -940,8 +981,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 									notStarted: [],
 									planned: [],
 								};
-
-								// Group statuses by their type
 								for (const [symbol, _, type] of statuses) {
 									if (type in statusMap) {
 										statusMap[
@@ -949,22 +988,21 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 										].push(symbol);
 									}
 								}
-
-								// Update the settings with the collected statuses
+								// Corrected loop and assignment for TaskStatusConfig here too
 								for (const type of Object.keys(
-									this.plugin.settings.taskStatuses
-								)) {
+									statusMap
+								) as Array<
+									keyof import("./common/setting-definition").TaskStatusConfig
+								>) {
 									if (
+										type in
+											this.plugin.settings.taskStatuses &&
 										statusMap[type] &&
 										statusMap[type].length > 0
 									) {
-										(
-											this.plugin.settings
-												.taskStatuses as Record<
-												string,
-												string
-											>
-										)[type] = statusMap[type].join("|");
+										this.plugin.settings.taskStatuses[
+											type
+										] = statusMap[type].join("|");
 									}
 								}
 
@@ -1338,6 +1376,39 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 									// Add to excludeMarks if not space or x
 									if (symbol !== " " && symbol !== "x") {
 										excludeMarks.push(realName);
+									}
+								}
+
+								// Also update the main taskStatuses object based on the theme
+								const statusMap: Record<string, string[]> = {
+									completed: [],
+									inProgress: [],
+									abandoned: [],
+									notStarted: [],
+									planned: [],
+								};
+								for (const [symbol, _, type] of statuses) {
+									if (type in statusMap) {
+										statusMap[
+											type as keyof typeof statusMap
+										].push(symbol);
+									}
+								}
+								// Corrected loop and assignment for TaskStatusConfig here too
+								for (const type of Object.keys(
+									statusMap
+								) as Array<
+									keyof import("./common/setting-definition").TaskStatusConfig
+								>) {
+									if (
+										type in
+											this.plugin.settings.taskStatuses &&
+										statusMap[type] &&
+										statusMap[type].length > 0
+									) {
+										this.plugin.settings.taskStatuses[
+											type
+										] = statusMap[type].join("|");
 									}
 								}
 
@@ -2434,10 +2505,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	private displayViewSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName(t("View"))
+			.setName(t("View Configuration"))
 			.setDesc(
 				t(
-					"Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way."
+					"Configure the Task Genius sidebar views, visibility, order, and create custom views."
 				)
 			)
 			.setHeading();
@@ -2449,13 +2520,217 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				toggle.onChange((value) => {
 					this.plugin.settings.enableView = value;
 					this.applySettingsUpdate();
+					this.display(); // Refresh settings display
 				});
 			});
 
 		if (!this.plugin.settings.enableView) return;
 
+		// --- New View Management Section ---
+		new Setting(containerEl)
+			.setName(t("Manage Views"))
+			.setDesc(
+				t(
+					"Configure sidebar views, order, visibility, and hide/show completed tasks per view."
+				)
+			)
+			.setHeading();
+
+		const viewListContainer = containerEl.createDiv({
+			cls: "view-management-list",
+		});
+
+		// Function to render the list of views
+		const renderViewList = () => {
+			viewListContainer.empty();
+
+			this.plugin.settings.viewConfiguration.forEach((view, index) => {
+				const viewSetting = new Setting(viewListContainer)
+					.setName(view.name)
+					.setDesc(`[${view.type}]`)
+					.addToggle((toggle) => {
+						/* Visibility Toggle */
+						toggle
+							.setTooltip(t("Show in sidebar"))
+							.setValue(view.visible)
+							.onChange(async (value) => {
+								this.plugin.settings.viewConfiguration[
+									index
+								].visible = value;
+								this.applySettingsUpdate();
+							});
+					});
+
+				// Edit button - Now available for ALL views to edit rules/name/icon
+				viewSetting.addExtraButton((button) => {
+					button
+						.setIcon("pencil")
+						.setTooltip(t("Edit View"))
+						.onClick(() => {
+							// Get current rules (might be undefined for defaults initially)
+							const currentRules = view.filterRules || {};
+							new ViewConfigModal(
+								this.app,
+								this.plugin,
+								view,
+								currentRules,
+								(
+									updatedView: ViewConfig,
+									updatedRules: ViewFilterRule
+								) => {
+									const currentIndex =
+										this.plugin.settings.viewConfiguration.findIndex(
+											(v) => v.id === updatedView.id
+										);
+									if (currentIndex !== -1) {
+										// Update the view config in the array
+										this.plugin.settings.viewConfiguration[
+											currentIndex
+										] = {
+											...updatedView,
+											filterRules: updatedRules,
+										}; // Ensure rules are saved back to viewConfig
+										this.applySettingsUpdate();
+										renderViewList(); // Re-render the settings list
+									}
+								}
+							).open();
+						});
+					button.extraSettingsEl.addClass("view-edit-button"); // Add class for potential styling
+				});
+
+				// Reordering buttons
+				viewSetting.addExtraButton((button) => {
+					button
+						.setIcon("arrow-up")
+						.setTooltip(t("Move Up"))
+						.setDisabled(index === 0)
+						.onClick(() => {
+							if (index > 0) {
+								const item =
+									this.plugin.settings.viewConfiguration.splice(
+										index,
+										1
+									)[0];
+								this.plugin.settings.viewConfiguration.splice(
+									index - 1,
+									0,
+									item
+								);
+								this.applySettingsUpdate();
+								renderViewList(); // Re-render the list
+							}
+						});
+					button.extraSettingsEl.addClass("view-order-button");
+				});
+				viewSetting.addExtraButton((button) => {
+					button
+						.setIcon("arrow-down")
+						.setTooltip(t("Move Down"))
+						.setDisabled(
+							index ===
+								this.plugin.settings.viewConfiguration.length -
+									1
+						)
+						.onClick(() => {
+							if (
+								index <
+								this.plugin.settings.viewConfiguration.length -
+									1
+							) {
+								const item =
+									this.plugin.settings.viewConfiguration.splice(
+										index,
+										1
+									)[0];
+								this.plugin.settings.viewConfiguration.splice(
+									index + 1,
+									0,
+									item
+								);
+								this.applySettingsUpdate();
+								renderViewList(); // Re-render the list
+							}
+						});
+					button.extraSettingsEl.addClass("view-order-button");
+				});
+
+				// Delete button - ONLY for custom views
+				if (view.type === "custom") {
+					viewSetting.addExtraButton((button) => {
+						button
+							.setIcon("trash")
+							.setTooltip(t("Delete View"))
+							.onClick(() => {
+								// TODO: Add confirmation modal before deleting
+								this.plugin.settings.viewConfiguration.splice(
+									index,
+									1
+								);
+								// No need to delete from customViewDefinitions anymore
+								this.applySettingsUpdate();
+								renderViewList();
+							});
+						button.extraSettingsEl.addClass("view-delete-button");
+					});
+				}
+
+				// Add new view icon
+				const fragement = document.createDocumentFragment();
+				const icon = fragement.createEl("i", {
+					cls: "view-icon",
+				});
+				setIcon(icon, view.icon);
+				viewSetting.settingEl.prepend(fragement);
+			});
+
+			// Add New Custom View Button (Logic unchanged)
+			const addBtnContainer = containerEl.createDiv();
+			new Setting(addBtnContainer).addButton((button) => {
+				button
+					.setButtonText(t("Add Custom View"))
+					.setCta()
+					.onClick(() => {
+						new ViewConfigModal(
+							this.app,
+							this.plugin,
+							null,
+							null,
+							(
+								createdView: ViewConfig,
+								createdRules: ViewFilterRule
+							) => {
+								if (
+									!this.plugin.settings.viewConfiguration.some(
+										(v) => v.id === createdView.id
+									)
+								) {
+									// Save with filter rules embedded
+									this.plugin.settings.viewConfiguration.push(
+										{
+											...createdView,
+											filterRules: createdRules,
+										}
+									);
+									this.applySettingsUpdate();
+									renderViewList();
+								} else {
+									new Notice(
+										t("Error: View ID already exists.")
+									);
+								}
+							}
+						).open();
+					});
+			});
+		};
+
+		renderViewList(); // Initial render
+
+		// --- Keep Rebuild Index ---
 		new Setting(containerEl)
 			.setName(t("Rebuild index"))
+			.setClass("mod-warning")
 			.addButton((button) => {
 				button.setButtonText(t("Rebuild")).onClick(async () => {
 					try {

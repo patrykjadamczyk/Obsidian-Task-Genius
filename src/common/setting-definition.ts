@@ -1,220 +1,322 @@
-import { WorkflowDefinition } from "../editor-ext/workflow";
-import { TaskFilterOptions } from "../editor-ext/filterTasks";
 import { t } from "../translations/helper";
+import type TaskProgressBarPlugin from "../index"; // Type-only import
 
-// Interface for individual project review settings
+// Interface for individual project review settings (If still needed, otherwise remove)
+// Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
 export interface ProjectReviewSetting {
-	projectName: string; // Though the key in the record will be the name
-	frequency: string; // e.g., 'daily', 'weekly', 'monthly', 'every 2 weeks'
-	lastReviewed: number | null; // Timestamp of the last review
-	reviewedTasks: string[]; // Array of task IDs that have been reviewed
+	enabled: boolean;
+	includeFutureTasks: boolean;
+	frequency: number; // Days between reviews
+	lastReviewDate?: number;
 }
 
-export interface TaskProgressBarSettings {
-	progressBarDisplayMode: "graphical" | "text" | "both" | "none";
-	addTaskProgressBarToHeading: boolean;
-	addProgressBarToNonTaskBullet: boolean;
-	enableHeadingProgressBar: boolean;
-	addNumberToProgressBar: boolean;
-	showPercentage: boolean;
+// Interface for individual view settings (If still needed, otherwise remove)
+// Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
+export interface TaskViewSetting {
+	hideCompletedAndAbandonedTasks: boolean;
+	sortCriteria: string[];
+}
 
-	// Progress text display options
-	displayMode?:
-		| "percentage"
-		| "bracketPercentage"
-		| "fraction"
-		| "bracketFraction"
-		| "detailed"
-		| "custom"
-		| "range-based";
-	customFormat?: string;
+// Define and export ViewMode type
+export type ViewMode =
+	| "inbox"
+	| "forecast"
+	| "projects"
+	| "tags"
+	| "review"
+	| "flagged" // Added flagged as it was in the default config attempt
+	| string; // Allow custom view IDs
 
-	progressRanges: Array<{
-		min: number;
-		max: number;
-		text: string;
+// Define and export ViewFilterRule interface
+export interface ViewFilterRule {
+	// Simple example, expand as needed
+	tagsInclude?: string[];
+	tagsExclude?: string[];
+	statusInclude?: string[];
+	statusExclude?: string[];
+	project?: string;
+	priority?: number;
+	dueDate?: string; // e.g., 'today', 'next-week', 'yyyy-mm-dd'
+	startDate?: string;
+	scheduledDate?: string;
+	textContains?: string;
+	pathIncludes?: string;
+	pathExcludes?: string;
+	// Add more rules based on Task properties: createdDate, completedDate, recurrence, context, time estimates etc.
+}
+
+// Define and export ViewConfig interface
+export interface ViewConfig {
+	id: ViewMode;
+	name: string;
+	icon: string;
+	type: "default" | "custom";
+	visible: boolean; // Show in sidebar
+	hideCompletedAndAbandonedTasks: boolean; // Per-view setting
+	filterRules?: ViewFilterRule; // ADDED: Optional filter rules for ALL views
+}
+
+/** Define the structure for task statuses */
+export interface TaskStatusConfig {
+	completed: string;
+	inProgress: string;
+	abandoned: string;
+	planned: string;
+	notStarted: string;
+}
+
+/** Define the structure for task filter presets */
+export interface PresetTaskFilter {
+	id: string;
+	name: string;
+	options: {
+		// TaskFilterOptions structure is embedded here
+		includeCompleted: boolean;
+		includeInProgress: boolean;
+		includeAbandoned: boolean;
+		includeNotStarted: boolean;
+		includePlanned: boolean;
+		includeParentTasks: boolean;
+		includeChildTasks: boolean;
+		includeSiblingTasks: boolean;
+		advancedFilterQuery: string;
+		filterMode: "INCLUDE" | "EXCLUDE";
+	};
+}
+
+/** Define the structure for task filter settings */
+export interface TaskFilterSettings {
+	enableTaskFilter: boolean;
+	presetTaskFilters: PresetTaskFilter[];
+}
+
+/** Define the structure for task status cycle settings */
+export interface TaskStatusCycle {
+	[key: string]: string;
+}
+
+/** Define the structure for completed task mover settings */
+export interface CompletedTaskMoverSettings {
+	enableCompletedTaskMover: boolean;
+	taskMarkerType: "version" | "date" | "custom";
+	versionMarker: string;
+	dateMarker: string;
+	customMarker: string;
+	treatAbandonedAsCompleted: boolean;
+	completeAllMovedTasks: boolean;
+	withCurrentFileLink: boolean;
+}
+
+/** Define the structure for quick capture settings */
+export interface QuickCaptureSettings {
+	enableQuickCapture: boolean;
+	targetFile: string;
+	placeholder: string;
+	appendToFile: "append" | "prepend" | "replace";
+}
+
+/** Define the structure for workflow stage */
+
+// Interface for workflow definition
+export interface WorkflowStage {
+	id: string;
+	name: string;
+	type: "linear" | "cycle" | "terminal";
+	next?: string | string[];
+	subStages?: Array<{
+		id: string;
+		name: string;
+		next?: string;
 	}>;
+	canProceedTo?: string[];
+}
 
-	autoCompleteParent: boolean;
+export interface WorkflowDefinition {
+	id: string;
+	name: string;
+	description: string;
+	stages: WorkflowStage[];
+	metadata: {
+		version: string;
+		created: string;
+		lastModified: string;
+	};
+}
+
+/** Define the structure for workflow settings */
+export interface WorkflowSettings {
+	enableWorkflow: boolean;
+	autoAddTimestamp: boolean;
+	timestampFormat: string;
+	removeTimestampOnTransition: boolean;
+	calculateSpentTime: boolean;
+	spentTimeFormat: string;
+	calculateFullSpentTime: boolean;
+	autoRemoveLastStageMarker: boolean;
+	autoAddNextTask: boolean;
+	definitions: WorkflowDefinition[]; // Uses the local WorkflowDefinition
+}
+
+/** Define the main settings structure */
+export interface TaskProgressBarSettings {
+	// General Settings (Example)
+	progressBarDisplayMode: "none" | "graphical" | "text" | "both";
 	supportHoverToShowProgressInfo: boolean;
-	markParentInProgressWhenPartiallyComplete: boolean;
+	addProgressBarToNonTaskBullet: boolean;
+	addTaskProgressBarToHeading: boolean;
 	countSubLevel: boolean;
+	displayMode: string; // e.g., 'percentage', 'bracketPercentage', 'fraction', 'bracketFraction', 'detailed', 'custom', 'range-based'
+	customFormat?: string;
+	showPercentage: boolean;
+	customizeProgressRanges: boolean;
+	progressRanges: Array<{ min: number; max: number; text: string }>;
 	hideProgressBarBasedOnConditions: boolean;
 	hideProgressBarTags: string;
 	hideProgressBarFolders: string;
 	hideProgressBarMetadata: string;
 
-	// Task state settings
-	taskStatuses: {
-		completed: string;
-		inProgress: string;
-		abandoned: string;
-		notStarted: string;
-		planned: string;
-	};
-
-	countOtherStatusesAs: string;
-
-	// Control which tasks to count
+	// Task Status Settings
+	autoCompleteParent: boolean;
+	markParentInProgressWhenPartiallyComplete: boolean;
+	taskStatuses: TaskStatusConfig;
+	countOtherStatusesAs: string; // e.g., 'notStarted', 'abandoned', etc.
 	excludeTaskMarks: string;
 	useOnlyCountMarks: boolean;
 	onlyCountTaskMarks: string;
-
-	// Progress range text customization
-	customizeProgressRanges: boolean;
-
-	// Task status switcher settings
 	enableTaskStatusSwitcher: boolean;
 	enableCustomTaskMarks: boolean;
 	enableTextMarkInSourceMode: boolean;
-	taskStatusCycle: string[];
-	taskStatusMarks: Record<string, string>;
-	excludeMarksFromCycle: string[];
-
-	// Priority picker settings
-	enablePriorityPicker: boolean;
-	enablePriorityKeyboardShortcuts: boolean;
-
-	// Date picker settings
-	enableDatePicker: boolean;
-	dateMark: string;
-	// Cycle complete status settings
 	enableCycleCompleteStatus: boolean;
 	alwaysCycleNewTasks: boolean;
+	taskStatusCycle: string[];
+	taskStatusMarks: TaskStatusCycle;
+	excludeMarksFromCycle: string[];
 
-	// Workflow settings
-	workflow: {
-		enableWorkflow: boolean;
-		autoAddTimestamp: boolean;
-		autoAddNextTask: boolean;
-		definitions: WorkflowDefinition[];
-		autoRemoveLastStageMarker: boolean;
-		calculateSpentTime: boolean;
-		spentTimeFormat: string;
-		timestampFormat: string;
-		removeTimestampOnTransition: boolean;
-		calculateFullSpentTime: boolean;
-	};
+	// Priority & Date Settings
+	enablePriorityPicker: boolean;
+	enablePriorityKeyboardShortcuts: boolean;
+	enableDatePicker: boolean;
+	dateMark: string;
 
-	// Completed task mover settings
-	completedTaskMover: {
-		enableCompletedTaskMover: boolean;
-		taskMarkerType: "version" | "date" | "custom";
-		versionMarker: string;
-		dateMarker: string;
-		customMarker: string;
-		completeAllMovedTasks: boolean;
-		treatAbandonedAsCompleted: boolean;
-		withCurrentFileLink: boolean;
-	};
+	// Task Filter Settings
+	taskFilter: TaskFilterSettings;
 
-	// Quick capture settings
-	quickCapture: {
-		enableQuickCapture: boolean;
-		targetFile: string;
-		placeholder: string;
-		appendToFile: "append" | "prepend" | "replace";
-	};
+	// Completed Task Mover Settings
+	completedTaskMover: CompletedTaskMoverSettings;
 
-	// Task filter settings
-	taskFilter: {
-		enableTaskFilter: boolean;
-		keyboardShortcut: string;
-		presetTaskFilters: Array<{
-			id: string;
-			name: string;
-			options: TaskFilterOptions;
-		}>;
-	};
+	// Quick Capture Settings
+	quickCapture: QuickCaptureSettings;
 
-	// View settings
+	// Workflow Settings
+	workflow: WorkflowSettings;
+
+	// View Settings (Updated Structure)
 	enableView: boolean;
-
-	// Review settings - Added
-	reviewSettings: Record<string, ProjectReviewSetting>; // Keyed by project name
+	viewConfiguration: ViewConfig[]; // Manages order, visibility, basic info, AND filter rules
 }
 
+/** Define the default settings */
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
+	// General Defaults
 	progressBarDisplayMode: "both",
-	addTaskProgressBarToHeading: false,
+	supportHoverToShowProgressInfo: true,
 	addProgressBarToNonTaskBullet: false,
-	enableHeadingProgressBar: false,
-	addNumberToProgressBar: false,
-	autoCompleteParent: false,
-	supportHoverToShowProgressInfo: false,
-	markParentInProgressWhenPartiallyComplete: false,
-	showPercentage: false,
+	addTaskProgressBarToHeading: true,
 	countSubLevel: true,
+	displayMode: "bracketFraction",
+	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",
+	showPercentage: false,
+	customizeProgressRanges: false,
+	progressRanges: [
+		{ min: 0, max: 20, text: "Just started {{PROGRESS}}%" },
+		{ min: 20, max: 40, text: "Making progress {{PROGRESS}}%" },
+		{ min: 40, max: 60, text: "Half way {{PROGRESS}}%" },
+		{ min: 60, max: 80, text: "Good progress {{PROGRESS}}%" },
+		{ min: 80, max: 100, text: "Almost there {{PROGRESS}}%" },
+	],
 	hideProgressBarBasedOnConditions: false,
-	hideProgressBarTags: "no-progress-bar",
+	hideProgressBarTags: "no-progress,hide-progress",
 	hideProgressBarFolders: "",
 	hideProgressBarMetadata: "hide-progress-bar",
 
-	// Progress text display options
-	displayMode: "bracketFraction",
-	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",
-
-	// Default task statuses
+	// Task Status Defaults
+	autoCompleteParent: true,
+	markParentInProgressWhenPartiallyComplete: true,
 	taskStatuses: {
 		completed: "x|X",
 		inProgress: ">|/",
 		abandoned: "-",
-		notStarted: " ",
 		planned: "?",
+		notStarted: " ",
 	},
-
 	countOtherStatusesAs: "notStarted",
-
-	// Control which tasks to count
 	excludeTaskMarks: "",
-	onlyCountTaskMarks: "x|X",
 	useOnlyCountMarks: false,
-
-	// Progress range text customization
-	customizeProgressRanges: false,
-	progressRanges: [
-		{ min: 0, max: 20, text: t("Just started {{PROGRESS}}%") },
-		{ min: 20, max: 40, text: t("Making progress {{PROGRESS}}%") },
-		{ min: 40, max: 60, text: t("Half way {{PROGRESS}}%") },
-		{ min: 60, max: 80, text: t("Good progress {{PROGRESS}}%") },
-		{ min: 80, max: 100, text: t("Almost there {{PROGRESS}}%") },
+	onlyCountTaskMarks: "x|X|>|/", // Default example
+	enableTaskStatusSwitcher: true,
+	enableCustomTaskMarks: true,
+	enableTextMarkInSourceMode: true,
+	enableCycleCompleteStatus: true,
+	alwaysCycleNewTasks: false,
+	taskStatusCycle: [
+		"Not Started",
+		"In Progress",
+		"Completed",
+		"Abandoned",
+		"Planned",
 	],
-
-	// Task status switcher settings
-	enableTaskStatusSwitcher: false,
-	enableCustomTaskMarks: false,
-	enableTextMarkInSourceMode: false,
-	taskStatusCycle: ["TODO", "DOING", "IN-PROGRESS", "DONE"],
 	taskStatusMarks: {
-		TODO: " ",
-		DOING: "-",
-		"IN-PROGRESS": ">",
-		DONE: "x",
+		"Not Started": " ",
+		"In Progress": "/",
+		Completed: "x",
+		Abandoned: "-",
+		Planned: "?",
 	},
 	excludeMarksFromCycle: [],
 
-	// Priority picker settings
-	enablePriorityPicker: false,
-	enablePriorityKeyboardShortcuts: false,
+	// Priority & Date Defaults
+	enablePriorityPicker: true,
+	enablePriorityKeyboardShortcuts: true,
+	enableDatePicker: true,
+	dateMark: "📅",
 
-	// Date picker settings
-	enableDatePicker: false,
-	dateMark: "📅,📆,⏳,🛫",
-	// Cycle complete status settings
-	enableCycleCompleteStatus: true,
-	alwaysCycleNewTasks: false,
+	// Task Filter Defaults
+	taskFilter: {
+		enableTaskFilter: true,
+		presetTaskFilters: [], // Start empty, maybe add defaults later or via a reset button
+	},
 
-	// Workflow settings
+	// Completed Task Mover Defaults
+	completedTaskMover: {
+		enableCompletedTaskMover: true,
+		taskMarkerType: "date",
+		versionMarker: "version 1.0",
+		dateMarker: "archived on {{DATE:YYYY-MM-DD}}",
+		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
+		treatAbandonedAsCompleted: false,
+		completeAllMovedTasks: true,
+		withCurrentFileLink: true,
+	},
+
+	// Quick Capture Defaults
+	quickCapture: {
+		enableQuickCapture: true,
+		targetFile: "QuickCapture.md",
+		placeholder: "Capture your thoughts...",
+		appendToFile: "append",
+	},
+
+	// Workflow Defaults
 	workflow: {
 		enableWorkflow: false,
-		autoAddTimestamp: true,
-		autoAddNextTask: false,
-		autoRemoveLastStageMarker: false,
+		autoAddTimestamp: false,
+		timestampFormat: "YYYY-MM-DD HH:mm:ss",
+		removeTimestampOnTransition: false,
 		calculateSpentTime: false,
 		spentTimeFormat: "HH:mm:ss",
-		removeTimestampOnTransition: false,
-		timestampFormat: "YYYY-MM-DD HH:mm:ss",
 		calculateFullSpentTime: false,
+		autoRemoveLastStageMarker: false,
+		autoAddNextTask: false,
 		definitions: [
 			{
 				id: "project_workflow",
@@ -271,36 +373,101 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		],
 	},
 
-	// Completed task mover settings
-	completedTaskMover: {
-		enableCompletedTaskMover: false,
-		taskMarkerType: "version",
-		versionMarker: "version 1.0",
-		dateMarker: "archived on {{date}}",
-		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
-		completeAllMovedTasks: false,
-		treatAbandonedAsCompleted: false,
-		withCurrentFileLink: false,
-	},
-
-	// Quick capture settings
-	quickCapture: {
-		enableQuickCapture: false,
-		targetFile: "Quick Capture.md",
-		placeholder: "Capture thoughts, tasks, or ideas...",
-		appendToFile: "append",
-	},
-
-	// Task filter settings
-	taskFilter: {
-		enableTaskFilter: true,
-		keyboardShortcut: "Alt-f",
-		presetTaskFilters: [],
-	},
-
-	// Review settings - Added
-	reviewSettings: {},
-
-	// View settings
+	// View Defaults (Updated Structure)
 	enableView: true,
+	viewConfiguration: [
+		{
+			id: "inbox",
+			name: "Inbox",
+			icon: "inbox",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: true,
+			filterRules: {},
+		},
+		{
+			id: "forecast",
+			name: "Forecast",
+			icon: "calendar-days",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: true,
+			filterRules: {},
+		},
+		{
+			id: "projects",
+			name: "Projects",
+			icon: "folders",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+		},
+		{
+			id: "tags",
+			name: "Tags",
+			icon: "tag",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+		},
+		{
+			id: "flagged",
+			name: "Flagged",
+			icon: "flag",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: true,
+			filterRules: {},
+		},
+		{
+			id: "review",
+			name: "Review",
+			icon: "eye",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+		},
+	],
 };
+
+// Helper function to get view settings safely
+export function getViewSettingOrDefault(
+	plugin: TaskProgressBarPlugin,
+	viewId: ViewMode
+): ViewConfig {
+	const viewConfiguration =
+		plugin.settings.viewConfiguration || DEFAULT_SETTINGS.viewConfiguration;
+	const savedConfig = viewConfiguration.find((v) => v.id === viewId);
+	const defaultConfig = DEFAULT_SETTINGS.viewConfiguration.find(
+		(v) => v.id === viewId
+	) || {
+		id: viewId,
+		name: viewId,
+		icon: "list-plus",
+		type: "custom",
+		visible: true,
+		hideCompletedAndAbandonedTasks: false,
+		filterRules: {},
+	}; // Ensure default has empty rules
+
+	// Merge saved config onto default config, ensuring filterRules are merged or taken if present
+	const mergedConfig = {
+		...defaultConfig,
+		...(savedConfig || {}),
+		// Explicitly handle merging filterRules: Use saved rules if they exist, otherwise default (which is likely empty)
+		filterRules: savedConfig?.filterRules
+			? {
+					...(defaultConfig.filterRules || {}),
+					...savedConfig.filterRules,
+			  }
+			: defaultConfig.filterRules || {},
+	} as ViewConfig;
+
+	// Ensure essential properties exist even if defaults are weird
+	mergedConfig.filterRules = mergedConfig.filterRules || {};
+
+	return mergedConfig;
+}

@@ -9,6 +9,7 @@ import { Task } from "../../utils/types/TaskIndex";
 import { t } from "../../translations/helper";
 import "../../styles/project-view.css";
 import { TaskListRendererComponent } from "./TaskList";
+import TaskProgressBarPlugin from "src";
 
 interface SelectedProjects {
 	projects: string[];
@@ -46,7 +47,11 @@ export class ProjectsComponent extends Component {
 	public onTaskCompleted: (task: Task) => void;
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
-	constructor(private parentEl: HTMLElement, private app: App) {
+	constructor(
+		private parentEl: HTMLElement,
+		private app: App,
+		private plugin: TaskProgressBarPlugin
+	) {
 		super();
 	}
 

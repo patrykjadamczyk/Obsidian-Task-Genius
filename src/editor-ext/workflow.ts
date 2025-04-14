@@ -14,35 +14,13 @@ import { buildIndentString, getTabSize } from "../utils";
 // @ts-ignore
 import { foldable } from "@codemirror/language";
 import { t } from "../translations/helper";
+import {
+	WorkflowDefinition,
+	WorkflowStage,
+} from "../common/setting-definition";
 
 // Annotation that marks a transaction as a workflow change
 export const workflowChangeAnnotation = Annotation.define<string>();
-
-// Interface for workflow definition
-export interface WorkflowStage {
-	id: string;
-	name: string;
-	type: "linear" | "cycle" | "terminal";
-	next?: string | string[];
-	subStages?: Array<{
-		id: string;
-		name: string;
-		next?: string;
-	}>;
-	canProceedTo?: string[];
-}
-
-export interface WorkflowDefinition {
-	id: string;
-	name: string;
-	description: string;
-	stages: WorkflowStage[];
-	metadata?: {
-		version: string;
-		created: string;
-		lastModified: string;
-	};
-}
 
 // Define a simple TextRange interface to match the provided code
 interface TextRange {
@@ -292,7 +270,7 @@ export function handleWorkflowTransaction(
 		}
 	}
 
-	const newChanges = [];
+	const newChanges: { from: number; to: number; insert: string }[] = [];
 	// Process each workflow update
 	if (workflowUpdates.length > 0) {
 		for (const update of workflowUpdates) {

@@ -1,127 +1,111 @@
-import { Component, setIcon, Plugin } from "obsidian";
+import { App, Component, setIcon } from "obsidian";
+import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
+// Import necessary types from settings definition
+import {
+	ViewMode,
+	getViewSettingOrDefault,
+} from "../../common/setting-definition";
 
-export type ViewMode =
-	| "forecast"
-	| "projects"
-	| "inbox"
-	| "review"
-	| "flagged"
-	| "tags";
+// Remove the enum if it exists, use ViewMode type directly
+// export type ViewMode = "inbox" | "forecast" | "projects" | "tags" | "review";
 
 export class SidebarComponent extends Component {
-	// UI elements
-	public containerEl: HTMLElement;
-	private projectTreeEl: HTMLElement;
+	private containerEl: HTMLElement;
 	private navEl: HTMLElement;
-
-	// State
-	private selectedProject: string | null = null;
-	private selectedViewMode: ViewMode = "forecast";
+	private plugin: TaskProgressBarPlugin;
+	private app: App;
+	private currentViewId: ViewMode = "inbox";
 	private isCollapsed: boolean = false;
 
-	// Events
-	public onProjectSelected: (project: string) => void;
-	public onViewModeChanged: (mode: ViewMode) => void;
+	// Event handlers
+	public onViewModeChanged: (viewId: ViewMode) => void = () => {};
+	public onProjectSelected: (project: string) => void = () => {};
 
-	constructor(private parentEl: HTMLElement, private plugin: Plugin) {
+	constructor(parentEl: HTMLElement, plugin: TaskProgressBarPlugin) {
 		super();
+		this.containerEl = parentEl.createDiv({ cls: "task-sidebar" });
+		this.plugin = plugin;
+		this.app = plugin.app;
 	}
 
 	onload() {
-		// Create sidebar container
-		this.containerEl = this.parentEl.createDiv({
-			cls: "task-sidebar",
-		});
-
-		// Create navigation items in sidebar
-		this.createSidebarNavigation();
-
-		// Create tree view container in sidebar
-		// this.projectTreeEl = this.containerEl.createDiv({
-		// 	cls: "project-tree",
-		// });
-	}
-
-	private createSidebarNavigation() {
 		this.navEl = this.containerEl.createDiv({ cls: "sidebar-nav" });
-
-		// Create navigation items
-		const createNavItem = (id: ViewMode, text: string, icon: string) => {
-			const item = this.navEl.createDiv({ cls: "sidebar-nav-item" });
-			item.dataset.view = id;
-
-			const iconEl = item.createDiv({ cls: "sidebar-nav-icon" });
-			setIcon(iconEl, icon);
-
-			const textEl = item.createDiv({ cls: "sidebar-nav-text" });
-			textEl.setText(text);
-
-			this.registerDomEvent(item, "click", () => {
-				this.setViewMode(id);
-			});
-
-			return item;
-		};
-
-		createNavItem("inbox", t("Inbox"), "inbox");
-		createNavItem("forecast", t("Forecast"), "calendar");
-		createNavItem("projects", t("Projects"), "list-todo");
-		createNavItem("tags", t("Tags"), "tag");
-		createNavItem("flagged", t("Flagged"), "flag");
-		createNavItem("review", t("Review"), "eye");
+		this.renderSidebarItems(); // Initial render
 	}
 
-	public setViewMode(mode: ViewMode) {
-		this.selectedViewMode = mode;
+	// New method to render sidebar items dynamically
+	renderSidebarItems() {
+		this.navEl.empty(); // Clear existing items
 
-		// Update sidebar active item
-		const navItems = this.containerEl.querySelectorAll(".sidebar-nav-item");
-		navItems.forEach((el) => {
-			const isSelected = el.getAttribute("data-view") === mode;
-			if (isSelected) {
-				el.classList.add("selected");
-			} else {
-				el.classList.remove("selected");
+		// Ensure settings are initialized
+		if (!this.plugin.settings.viewConfiguration) {
+			// This should ideally be handled earlier, but as a fallback:
+			console.warn(
+				"SidebarComponent: viewConfiguration not initialized in settings."
+			);
+			return;
+		}
+
+		this.plugin.settings.viewConfiguration.forEach((viewConfig) => {
+			if (viewConfig.visible) {
+				this.createNavItem(
+					viewConfig.id,
+					t(viewConfig.name), // Use name from config, translate if needed
+					viewConfig.icon // Use icon from config
+				);
 			}
 		});
 
-		// Trigger the callback
-		if (this.onViewModeChanged) {
-			this.onViewModeChanged(mode);
-		}
+		// Highlight the currently active view
+		this.updateActiveItem();
 	}
 
-	public setCollapsed(collapsed: boolean) {
+	private createNavItem(viewId: ViewMode, label: string, icon: string) {
+		const navItem = this.navEl.createDiv({
+			cls: "sidebar-nav-item",
+			attr: { "data-view-id": viewId },
+		});
+
+		const iconEl = navItem.createSpan({ cls: "nav-item-icon" });
+		setIcon(iconEl, icon);
+
+		navItem.createSpan({ cls: "nav-item-label", text: label });
+
+		this.registerDomEvent(navItem, "click", () => {
+			this.setViewMode(viewId);
+			// Trigger the event for TaskView to handle the switch
+			if (this.onViewModeChanged) {
+				this.onViewModeChanged(viewId);
+			}
+		});
+
+		return navItem;
+	}
+
+	// Updated setViewMode to accept ViewMode type and use viewId
+	setViewMode(viewId: ViewMode) {
+		this.currentViewId = viewId;
+		this.updateActiveItem();
+	}
+
+	private updateActiveItem() {
+		const items = this.navEl.querySelectorAll(".sidebar-nav-item");
+		items.forEach((item) => {
+			if (item.getAttribute("data-view-id") === this.currentViewId) {
+				item.addClass("is-active");
+			} else {
+				item.removeClass("is-active");
+			}
+		});
+	}
+
+	setCollapsed(collapsed: boolean) {
 		this.isCollapsed = collapsed;
-		this.containerEl.toggleClass("collapsed", collapsed);
-
-		// When collapsed, hide all text elements and tree
-		if (collapsed && this.projectTreeEl) {
-			this.projectTreeEl.hide();
-
-			// Hide text elements
-			const textEls = this.navEl.querySelectorAll(".sidebar-nav-text");
-			textEls.forEach((el) => el.addClass("hidden"));
-		} else if (!collapsed && this.projectTreeEl) {
-			this.projectTreeEl.show();
-
-			// Show text elements
-			const textEls = this.navEl.querySelectorAll(".sidebar-nav-text");
-			textEls.forEach((el) => el.removeClass("hidden"));
-		}
-	}
-
-	public getSelectedProject(): string | null {
-		return this.selectedProject;
-	}
-
-	public getSelectedViewMode(): ViewMode {
-		return this.selectedViewMode;
+		this.containerEl.toggleClass("is-collapsed", collapsed);
 	}
 
 	onunload() {
 		this.containerEl.empty();
-		this.containerEl.remove();
 	}
 }

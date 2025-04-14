@@ -13,6 +13,8 @@ import "../../styles/forecast.css";
 import "../../styles/calendar.css";
 import { TaskTreeItemComponent } from "./treeItem";
 import { TaskListRendererComponent } from "./TaskList";
+import { isNotCompleted } from "src/pages/TaskView";
+import TaskProgressBarPlugin from "src";
 
 interface DateSection {
 	title: string;
@@ -62,7 +64,11 @@ export class ForecastComponent extends Component {
 	// Context menu
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
-	constructor(private parentEl: HTMLElement, private app: App) {
+	constructor(
+		private parentEl: HTMLElement,
+		private app: App,
+		private plugin: TaskProgressBarPlugin
+	) {
 		super();
 		// Initialize dates
 		this.currentDate = new Date();
@@ -393,8 +399,8 @@ export class ForecastComponent extends Component {
 			}
 		});
 
-		const taskCount = this.allTasks.filter(
-			(task) => !task.completed
+		const taskCount = this.allTasks.filter((task) =>
+			isNotCompleted(this.plugin, task, "forecast")
 		).length;
 		const projectCount = projectSet.size;
 
@@ -417,7 +423,9 @@ export class ForecastComponent extends Component {
 
 		// Filter for incomplete tasks with due dates
 		const tasksWithDueDates = this.allTasks.filter(
-			(task) => !task.completed && task.dueDate !== undefined
+			(task) =>
+				isNotCompleted(this.plugin, task, "forecast") &&
+				task.dueDate !== undefined
 		);
 
 		// Split into past due, today, and future

@@ -1,11 +1,15 @@
 import { App, Component, ExtraButtonComponent, setIcon } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem"; // Re-import needed components
-import { ViewMode } from "./sidebar";
+import {
+	ViewMode,
+	getViewSettingOrDefault,
+} from "../../common/setting-definition"; // Import ViewMode
 import { tasksToTree } from "../../utils/treeViewUtil"; // Re-import needed utils
 import { TaskTreeItemComponent } from "./treeItem"; // Re-import needed components
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
+import { isNotCompleted } from "../../pages/TaskView"; // Corrected path
 // We won't use BaseTaskRendererComponent for the main list in Inbox
 // import { BaseTaskRendererComponent } from "./baseTaskRenderer";
 
@@ -34,15 +38,16 @@ export class ContentComponent extends Component {
 	private rootTasks: Task[] = []; // Root tasks for tree view
 
 	// State
-	private currentViewMode: ViewMode = "inbox";
-	private selectedProject: string | null = null;
-	private focusFilter: string | null = null;
+	private currentViewId: ViewMode = "inbox"; // Renamed from currentViewMode
+	private selectedProjectForView: string | null = null; // Keep track if a specific project is filtered (for project view)
+	private focusFilter: string | null = null; // Keep focus filter if needed
 	private isTreeView: boolean = false;
 
 	// Events (Passed to created components)
-	public onTaskSelected: (task: Task | null) => void;
-	public onTaskCompleted: (task: Task) => void;
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
+	public onTaskSelected: (task: Task | null) => void = () => {};
+	public onTaskCompleted: (task: Task) => void = () => {};
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
+		() => {};
 
 	constructor(
 		private parentEl: HTMLElement,
@@ -69,7 +74,7 @@ export class ContentComponent extends Component {
 	private createContentHeader() {
 		this.headerEl = this.containerEl.createDiv({ cls: "content-header" });
 
-		// View title
+		// View title - will be updated in setViewMode
 		this.titleEl = this.headerEl.createDiv({
 			cls: "content-title",
 			text: t("Inbox"), // Default title
@@ -115,15 +120,12 @@ export class ContentComponent extends Component {
 						entry.isIntersecting &&
 						entry.target.classList.contains("task-load-marker")
 					) {
-						console.log(
-							"Load marker intersecting, calling loadMoreTasks..."
-						);
+						// console.log(
+						// 	"Load marker intersecting, calling loadMoreTasks..."
+						// );
 						// Target is the load marker, load more tasks
 						this.loadMoreTasks();
 					}
-					// Optional: Could track visibility of actual task items here if needed
-					// const taskId = entry.target.getAttribute("data-task-id");
-					// if (taskId && taskId !== 'load-marker') { ... }
 				});
 			},
 			{
@@ -150,19 +152,20 @@ export class ContentComponent extends Component {
 		this.refreshTaskList();
 	}
 
-	public setViewMode(mode: ViewMode, project?: string | null) {
-		this.currentViewMode = mode;
-		this.selectedProject = project === undefined ? null : project;
+	// Updated method signature
+	public setViewMode(viewId: ViewMode, project?: string | null) {
+		this.currentViewId = viewId;
+		this.selectedProjectForView = project === undefined ? null : project;
 
-		// Update title based on mode and project
-		let title = t(mode.charAt(0).toUpperCase() + mode.slice(1)); // Capitalize mode name
-		if (mode === "projects" && this.selectedProject) {
-			const projectName = this.selectedProject.split("/").pop();
-			title = projectName || t("Project"); // Use project name or generic term
-		} else if (mode === "tags" && this.selectedProject) {
-			// Assuming selectedProject holds the tag in tag mode
-			title = `#${this.selectedProject.replace("#", "")}`;
-		}
+		// Update title based on the view config
+		const viewConfig = getViewSettingOrDefault(this.plugin, viewId);
+		let title = t(viewConfig.name);
+
+		// Special handling for project view title (if needed, maybe handled by component itself)
+		// if (viewId === "projects" && this.selectedProjectForView) {
+		// 	const projectName = this.selectedProjectForView.split("/").pop();
+		// 	title = projectName || t("Project");
+		// }
 		this.titleEl.setText(title);
 
 		this.applyFilters();
@@ -173,68 +176,133 @@ export class ContentComponent extends Component {
 		// Start with all tasks
 		let filtered = [...this.allTasks];
 
-		// Apply view mode filter (Simplified from original, adjust as needed)
-		switch (this.currentViewMode) {
-			case "inbox":
-				filtered = filtered.filter(
-					(task) => !task.project && !task.completed
+		// Get the complete configuration for the current view
+		const viewConfig = getViewSettingOrDefault(
+			this.plugin,
+			this.currentViewId
+		);
+		const filterRules = viewConfig.filterRules || {}; // Get rules or empty object
+
+		if (Object.keys(filterRules).length > 0) {
+			// Check if there are any rules defined
+			// --- Apply Custom Filter Rules ---
+			console.log(
+				`Applying filter rules for view ${this.currentViewId}:`,
+				filterRules
+			);
+
+			if (filterRules.textContains) {
+				const query = filterRules.textContains.toLowerCase();
+				filtered = filtered.filter((task) =>
+					task.content.toLowerCase().includes(query)
 				);
-				break;
-			case "forecast": // Example: Needs specific Forecast logic if used here
-				const todayStart = new Date();
-				todayStart.setHours(0, 0, 0, 0);
-				const todayEnd = new Date();
-				todayEnd.setHours(23, 59, 59, 999);
+			}
+			if (filterRules.tagsInclude && filterRules.tagsInclude.length > 0) {
+				filtered = filtered.filter((task) =>
+					filterRules.tagsInclude!.every((tag) =>
+						task.tags.includes(tag)
+					)
+				);
+			}
+			if (filterRules.tagsExclude && filterRules.tagsExclude.length > 0) {
 				filtered = filtered.filter(
 					(task) =>
-						!task.completed &&
-						task.dueDate &&
-						task.dueDate >= todayStart.getTime() &&
-						task.dueDate <= todayEnd.getTime()
+						!filterRules.tagsExclude!.some((tag) =>
+							task.tags.includes(tag)
+						)
 				);
-				break;
-			case "projects":
-				if (this.selectedProject) {
+			}
+			if (filterRules.project) {
+				filtered = filtered.filter(
+					(task) => task.project === filterRules.project
+				);
+			}
+			if (filterRules.priority !== undefined) {
+				filtered = filtered.filter(
+					(task) => (task.priority || 0) === filterRules.priority // Handle undefined priority
+				);
+			}
+			if (
+				filterRules.statusInclude &&
+				filterRules.statusInclude.length > 0
+			) {
+				filtered = filtered.filter((task) =>
+					filterRules.statusInclude!.includes(task.status)
+				);
+			}
+			if (
+				filterRules.statusExclude &&
+				filterRules.statusExclude.length > 0
+			) {
+				filtered = filtered.filter(
+					(task) => !filterRules.statusExclude!.includes(task.status)
+				);
+			}
+			if (filterRules.pathIncludes) {
+				const query = filterRules.pathIncludes.toLowerCase();
+				filtered = filtered.filter((task) =>
+					task.filePath.toLowerCase().includes(query)
+				);
+			}
+			if (filterRules.pathExcludes) {
+				const query = filterRules.pathExcludes.toLowerCase();
+				filtered = filtered.filter(
+					(task) => !task.filePath.toLowerCase().includes(query)
+				);
+			}
+			// TODO: Implement Date Filters (dueDate, startDate, scheduledDate) - requires parsing relative dates
+
+			// Apply the standard hide completed/abandoned logic *after* custom rules
+			// Note: isNotCompleted already uses the viewConfig, so this is slightly redundant,
+			// but ensures the hide setting is respected even if no other rules match.
+			filtered = filtered.filter((task) =>
+				isNotCompleted(this.plugin, task, this.currentViewId)
+			);
+		} else {
+			// --- Apply Default View Logic (If no custom rules are set for the view) ---
+			// This switch might become less relevant if default views also get rules via settings,
+			// but can serve as a fallback or specific behavior override.
+			switch (this.currentViewId) {
+				case "inbox":
 					filtered = filtered.filter(
-						(task) => task.project === this.selectedProject
+						(task) =>
+							!task.project && // No project assigned
+							isNotCompleted(
+								this.plugin,
+								task,
+								this.currentViewId
+							)
 					);
-				} else {
-					// Maybe show nothing or all project tasks? Let's show none for now.
-					filtered = [];
-				}
-				break;
-			case "tags":
-				if (this.selectedProject) {
-					// Assuming selectedProject holds the tag
-					const selectedTag = this.selectedProject;
+					break;
+				case "flagged":
+					filtered = filtered.filter(
+						(task) =>
+							(task.priority === 3 ||
+								task.tags?.includes("flagged")) && // Default flagged logic
+							isNotCompleted(
+								this.plugin,
+								task,
+								this.currentViewId
+							)
+					);
+					break;
+				// Other default views like forecast, projects, tags, review are handled by their specific components
+				default:
+					// Default behavior for views without specific rules or component:
+					// just apply the hide completed setting
 					filtered = filtered.filter((task) =>
-						task.tags?.includes(selectedTag)
+						isNotCompleted(this.plugin, task, this.currentViewId)
 					);
-				} else {
-					filtered = [];
-				}
-				break;
-			// Add cases for other modes if needed ('flagged', 'review')
-			case "flagged":
-				// Flagged or high priority tasks
-				filtered = filtered.filter(
-					(task) =>
-						!task.completed &&
-						(task.priority === 3 || task.tags.includes("flagged"))
-				);
-				break;
-			default:
-				// // Filter for non-completed tasks by default?
-				// filtered = filtered.filter((task) => !task.completed);
-				break;
+					break;
+			}
 		}
 
-		// Apply focus filter if set
+		// Apply focus filter if set (logic remains the same)
 		if (this.focusFilter) {
 			// ... (focus filter logic) ...
 		}
 
-		// Apply text filter
+		// Apply text filter from the input box (applied AFTER view-specific filters)
 		const textFilter = this.filterInput.value.toLowerCase();
 		if (textFilter) {
 			filtered = filtered.filter(
@@ -248,15 +316,22 @@ export class ContentComponent extends Component {
 			);
 		}
 
-		// Sort tasks (Simplified example, use original if needed)
+		// --- Sorting --- (Apply sorting last)
 		filtered.sort((a, b) => {
-			if (a.completed !== b.completed) return a.completed ? 1 : -1;
-			const prioA = a.priority || 0;
-			const prioB = b.priority || 0;
-			if (prioA !== prioB) return prioB - prioA;
-			const dueA = a.dueDate || Infinity;
-			const dueB = b.dueDate || Infinity;
-			if (dueA !== dueB) return dueA - dueB;
+			// Example Sort: Non-completed first, then Priority (High to Low), then Due Date (Earliest first)
+			const completedA = a.completed;
+			const completedB = b.completed;
+			if (completedA !== completedB) return completedA ? 1 : -1; // Non-completed first
+
+			const prioA = a.priority ?? 0; // Default priority if undefined
+			const prioB = b.priority ?? 0;
+			if (prioA !== prioB) return prioB - prioA; // Higher priority first
+
+			const dueA = a.dueDate ?? Infinity;
+			const dueB = b.dueDate ?? Infinity;
+			if (dueA !== dueB) return dueA - dueB; // Earlier due date first
+
+			// Fallback sort by content
 			return a.content.localeCompare(b.content);
 		});
 
@@ -267,7 +342,7 @@ export class ContentComponent extends Component {
 	}
 
 	private filterTasks(query: string) {
-		this.applyFilters();
+		this.applyFilters(); // Re-apply all filters including the new text query
 		this.refreshTaskList();
 	}
 
@@ -316,13 +391,13 @@ export class ContentComponent extends Component {
 		const start = this.nextTaskIndex;
 		const end = Math.min(start + countToLoad, this.filteredTasks.length);
 
-		console.log(`Loading list tasks from ${start} to ${end}`);
+		// console.log(`Loading list tasks from ${start} to ${end}`);
 
 		for (let i = start; i < end; i++) {
 			const task = this.filteredTasks[i];
 			const taskComponent = new TaskListItemComponent(
 				task,
-				this.currentViewMode,
+				this.currentViewId, // Pass currentViewId
 				this.app
 			);
 
@@ -352,7 +427,7 @@ export class ContentComponent extends Component {
 		const start = this.nextRootTaskIndex;
 		const end = Math.min(start + countToLoad, this.rootTasks.length);
 
-		console.log(`Loading tree tasks from ${start} to ${end}`);
+		// console.log(`Loading tree tasks from ${start} to ${end}`);
 
 		for (let i = start; i < end; i++) {
 			const rootTask = this.rootTasks[i];
@@ -362,7 +437,7 @@ export class ContentComponent extends Component {
 
 			const treeComponent = new TaskTreeItemComponent(
 				rootTask,
-				this.currentViewMode,
+				this.currentViewId, // Pass currentViewId
 				this.app,
 				0,
 				childTasks,
@@ -396,9 +471,9 @@ export class ContentComponent extends Component {
 			? this.nextRootTaskIndex < this.rootTasks.length
 			: this.nextTaskIndex < this.filteredTasks.length;
 
-		console.log(
-			`Check load marker: moreTasksExist = ${moreTasksExist} (Tree: ${this.nextRootTaskIndex}/${this.rootTasks.length}, List: ${this.nextTaskIndex}/${this.filteredTasks.length})`
-		);
+		// console.log(
+		// 	`Check load marker: moreTasksExist = ${moreTasksExist} (Tree: ${this.nextRootTaskIndex}/${this.rootTasks.length}, List: ${this.nextTaskIndex}/${this.filteredTasks.length})`
+		// );
 
 		if (moreTasksExist) {
 			this.addLoadMarker();
@@ -411,7 +486,7 @@ export class ContentComponent extends Component {
 			attr: { "data-task-id": "load-marker" }, // Use data attribute for identification
 		});
 		loadMarker.setText(t("Loading more..."));
-		console.log("Adding load marker and observing.");
+		// console.log("Adding load marker and observing.");
 		this.taskListObserver.observe(loadMarker); // Observe the marker
 	}
 
@@ -424,30 +499,30 @@ export class ContentComponent extends Component {
 	}
 
 	private loadMoreTasks() {
-		console.log("Load more tasks triggered...");
+		// console.log("Load more tasks triggered...");
 		this.removeLoadMarker(); // Remove the current marker
 
 		if (this.isTreeView) {
 			if (this.nextRootTaskIndex < this.rootTasks.length) {
-				console.log(
-					`Loading more TREE tasks from index ${this.nextRootTaskIndex}`
-				);
+				// console.log(
+				// 	`Loading more TREE tasks from index ${this.nextRootTaskIndex}`
+				// );
 				const taskMap = new Map<string, Task>();
 				this.filteredTasks.forEach((task) =>
 					taskMap.set(task.id, task)
 				);
 				this.loadRootTaskBatch(taskMap);
 			} else {
-				console.log("No more TREE tasks to load.");
+				// console.log("No more TREE tasks to load.");
 			}
 		} else {
 			if (this.nextTaskIndex < this.filteredTasks.length) {
-				console.log(
-					`Loading more LIST tasks from index ${this.nextTaskIndex}`
-				);
+				// console.log(
+				// 	`Loading more LIST tasks from index ${this.nextTaskIndex}`
+				// );
 				this.loadTaskBatch();
 			} else {
-				console.log("No more LIST tasks to load.");
+				// console.log("No more LIST tasks to load.");
 			}
 		}
 
@@ -462,21 +537,31 @@ export class ContentComponent extends Component {
 	}
 
 	private selectTask(task: Task | null) {
-		if (this.selectedTask?.id === task?.id) {
-			// Optional: Deselect if clicking the same task again
+		if (this.selectedTask?.id === task?.id && task !== null) {
+			// If clicking the already selected task, deselect it (or toggle details - handled by TaskView)
 			// this.selectedTask = null;
-			// console.log("Task deselected:", task?.id);
-			// // Update visual state - Renderer doesn't directly support this yet
-			// if(this.onTaskSelected) this.onTaskSelected(null);
+			// console.log("Task deselected (in ContentComponent):", task?.id);
+			// // Update visual state of the item if needed (remove highlight)
+			// const itemEl = this.taskListEl.querySelector(`[data-task-row-id="${task.id}"]`);
+			// itemEl?.removeClass('is-selected'); // Example class
+			// if(this.onTaskSelected) this.onTaskSelected(null); // Notify parent
 			// return;
 		}
 
-		this.selectedTask = task;
-		console.log("Task selected:", task?.id);
+		// Deselect previous task visually if needed
+		if (this.selectedTask) {
+			// const prevItemEl = this.taskListEl.querySelector(`[data-task-row-id="${this.selectedTask.id}"]`);
+			// prevItemEl?.removeClass('is-selected');
+		}
 
-		// TODO: Update visual selection state via renderer/components if needed
-		// Currently, components handle their own :active/:focus state.
-		// Explicit selection state needs passing down or event bus.
+		this.selectedTask = task;
+		// console.log("Task selected (in ContentComponent):", task?.id);
+
+		// Select new task visually if needed
+		if (task) {
+			// const newItemEl = this.taskListEl.querySelector(`[data-task-row-id="${task.id}"]`);
+			// newItemEl?.addClass('is-selected');
+		}
 
 		if (this.onTaskSelected) {
 			this.onTaskSelected(task);
@@ -491,7 +576,11 @@ export class ContentComponent extends Component {
 		if (taskIndexAll !== -1) {
 			this.allTasks[taskIndexAll] = { ...updatedTask };
 		} else {
-			this.allTasks.push(updatedTask); // Add if new
+			// If task doesn't exist in allTasks, it might be a new task
+			// We might need a mechanism to add it, or rely on a full refresh
+			// For now, let's just check if it should be added based on current filters
+			// This is complex, a full refresh via applyFilters might be safer
+			// this.allTasks.push(updatedTask);
 		}
 
 		// Update selected task state if it was the one updated
@@ -499,50 +588,48 @@ export class ContentComponent extends Component {
 			this.selectedTask = { ...updatedTask };
 		}
 
-		// Option 1: Simple Refresh (loses scroll position, easiest)
-		// this.applyFilters();
-		// this.refreshTaskList();
-
-		// Option 2: Update in place if rendered, otherwise wait for lazy load
-		const filteredIndex = this.filteredTasks.findIndex(
+		// Re-apply filters to see if the task should still be visible and update count
+		const previousFilteredTasksLength = this.filteredTasks.length;
+		this.applyFilters();
+		const taskStillVisible = this.filteredTasks.some(
 			(t) => t.id === updatedTask.id
 		);
-		if (filteredIndex !== -1) {
-			this.filteredTasks[filteredIndex] = updatedTask; // Update data in filtered list
-		} else {
-			// Task might have become visible due to filters changing, need full refresh
-			this.applyFilters();
-			this.refreshTaskList();
-			return;
-		}
 
-		// Try to find and update the component only if it's currently rendered
-		if (!this.isTreeView) {
-			const component = this.taskComponents.find(
-				(c) => c.getTask().id === updatedTask.id
-			);
-			component?.updateTask(updatedTask);
-		} else {
-			// For tree view, check root components and recursively search
-			let updated = false;
-			for (const rootComp of this.treeComponents) {
-				if (rootComp.getTask().id === updatedTask.id) {
-					rootComp.updateTask(updatedTask);
-					updated = true;
-					break;
-				} else {
-					if (rootComp.updateTaskRecursively(updatedTask)) {
+		// Option 1: Task still visible after filtering, update in place
+		if (taskStillVisible) {
+			// Find the rendered component and update it
+			if (!this.isTreeView) {
+				const component = this.taskComponents.find(
+					(c) => c.getTask().id === updatedTask.id
+				);
+				component?.updateTask(updatedTask); // Update rendered component
+			} else {
+				// For tree view, check root components and recursively search
+				let updated = false;
+				for (const rootComp of this.treeComponents) {
+					if (rootComp.getTask().id === updatedTask.id) {
+						rootComp.updateTask(updatedTask);
 						updated = true;
 						break;
+					} else {
+						if (rootComp.updateTaskRecursively(updatedTask)) {
+							updated = true;
+							break;
+						}
 					}
 				}
 			}
-			// If not found in currently rendered tree, a full refresh might be needed
-			// Or we accept it won't update until scrolled into view.
-			// console.log(`Task ${updatedTask.id} updated. Was rendered component updated? ${updated}`);
 		}
-		// Update count display as filteredTasks array was updated
-		this.countEl.setText(`${this.filteredTasks.length} ${t("tasks")}`);
+		// Option 2: Task visibility changed or something else requires full refresh
+		else {
+			this.refreshTaskList();
+			return; // Exit early as refresh handles everything
+		}
+
+		// Update count display if it wasn't handled by a full refresh
+		if (this.filteredTasks.length !== previousFilteredTasksLength) {
+			this.countEl.setText(`${this.filteredTasks.length} ${t("tasks")}`);
+		}
 	}
 
 	public getSelectedTask(): Task | null {
