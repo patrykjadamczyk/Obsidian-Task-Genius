@@ -44,8 +44,8 @@ export class LocalStorageCache {
 	private async initialize(): Promise<void> {
 		try {
 			// Test write/read
-			await this.persister.setItem("__test__", true);
-			await this.persister.removeItem("__test__");
+			await this.persister.setItem(`${this.appId}:__test__`, true);
+			await this.persister.removeItem(`${this.appId}:__test__`);
 			this.initialized = true;
 		} catch (error) {
 			console.error(
@@ -157,7 +157,8 @@ export class LocalStorageCache {
 		if (!this.initialized) await this.initialize();
 
 		try {
-			return await this.persister.keys();
+			const keys = await this.persister.keys();
+			return keys.filter((key) => key.startsWith(`${this.appId}:`));
 		} catch (error) {
 			console.error("Error getting cache keys:", error);
 			return [];
@@ -168,7 +169,7 @@ export class LocalStorageCache {
 	 * Get all file paths stored in cache
 	 */
 	public async allFiles(): Promise<string[]> {
-		const filePrefix = "file:";
+		const filePrefix = `${this.appId}:file:`;
 
 		try {
 			const keys = await this.allKeys();
@@ -185,7 +186,7 @@ export class LocalStorageCache {
 	 * Get storage key for a file path
 	 */
 	public fileKey(path: string): string {
-		return "file:" + path;
+		return `${this.appId}:file:${path}`;
 	}
 
 	/**
@@ -240,7 +241,10 @@ export class LocalStorageCache {
 		if (!this.initialized) await this.initialize();
 
 		try {
-			await this.persister.clear();
+			const keys = await this.allKeys();
+			for (const key of keys) {
+				await this.persister.removeItem(key);
+			}
 		} catch (error) {
 			console.error("Error clearing cache:", error);
 
@@ -260,7 +264,7 @@ export class LocalStorageCache {
 		if (!this.initialized) await this.initialize();
 
 		try {
-			const cacheKey = `consolidated:${this.appId}:${key}`;
+			const cacheKey = `${this.appId}:consolidated:${key}`;
 			await this.persister.setItem(cacheKey, {
 				version: this.version,
 				time: Date.now(),
@@ -284,7 +288,7 @@ export class LocalStorageCache {
 		if (!this.initialized) await this.initialize();
 
 		try {
-			const cacheKey = `consolidated:${this.appId}:${key}`;
+			const cacheKey = `${this.appId}:consolidated:${key}`;
 			const data = await this.persister.getItem<Cached<T>>(cacheKey);
 			return data;
 		} catch (error) {
