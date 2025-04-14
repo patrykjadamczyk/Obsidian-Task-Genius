@@ -102,7 +102,7 @@ export class SidebarComponent extends Component {
 
 	setCollapsed(collapsed: boolean) {
 		this.isCollapsed = collapsed;
-		this.containerEl.toggleClass("is-collapsed", collapsed);
+		this.containerEl.toggleClass("collapsed", collapsed);
 	}
 
 	onunload() {

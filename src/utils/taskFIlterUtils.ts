@@ -105,13 +105,15 @@ export function filterTasks(
 	}
 	if (filterRules.tagsInclude && filterRules.tagsInclude.length > 0) {
 		filtered = filtered.filter((task) =>
-			filterRules.tagsInclude!.every((tag) => task.tags.includes(tag))
+			filterRules.tagsInclude!.some((tag) => task.tags.includes(tag))
 		);
 	}
 	if (filterRules.tagsExclude && filterRules.tagsExclude.length > 0) {
 		filtered = filtered.filter(
 			(task) =>
-				!filterRules.tagsExclude!.some((tag) => task.tags.includes(tag))
+				!filterRules.tagsExclude!.some((tag) =>
+					task.tags.includes(tag.toLowerCase())
+				)
 		);
 	}
 	if (filterRules.project) {

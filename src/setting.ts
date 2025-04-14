@@ -2683,49 +2683,45 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				setIcon(icon, view.icon);
 				viewSetting.settingEl.prepend(fragement);
 			});
-
-			// Add New Custom View Button (Logic unchanged)
-			const addBtnContainer = containerEl.createDiv();
-			new Setting(addBtnContainer).addButton((button) => {
-				button
-					.setButtonText(t("Add Custom View"))
-					.setCta()
-					.onClick(() => {
-						new ViewConfigModal(
-							this.app,
-							this.plugin,
-							null,
-							null,
-							(
-								createdView: ViewConfig,
-								createdRules: ViewFilterRule
-							) => {
-								if (
-									!this.plugin.settings.viewConfiguration.some(
-										(v) => v.id === createdView.id
-									)
-								) {
-									// Save with filter rules embedded
-									this.plugin.settings.viewConfiguration.push(
-										{
-											...createdView,
-											filterRules: createdRules,
-										}
-									);
-									this.applySettingsUpdate();
-									renderViewList();
-								} else {
-									new Notice(
-										t("Error: View ID already exists.")
-									);
-								}
-							}
-						).open();
-					});
-			});
 		};
 
 		renderViewList(); // Initial render
+
+		// Add New Custom View Button (Logic unchanged)
+		const addBtnContainer = containerEl.createDiv();
+		new Setting(addBtnContainer).addButton((button) => {
+			button
+				.setButtonText(t("Add Custom View"))
+				.setCta()
+				.onClick(() => {
+					new ViewConfigModal(
+						this.app,
+						this.plugin,
+						null,
+						null,
+						(
+							createdView: ViewConfig,
+							createdRules: ViewFilterRule
+						) => {
+							if (
+								!this.plugin.settings.viewConfiguration.some(
+									(v) => v.id === createdView.id
+								)
+							) {
+								// Save with filter rules embedded
+								this.plugin.settings.viewConfiguration.push({
+									...createdView,
+									filterRules: createdRules,
+								});
+								this.applySettingsUpdate();
+								renderViewList();
+							} else {
+								new Notice(t("Error: View ID already exists."));
+							}
+						}
+					).open();
+				});
+		});
 
 		// --- Keep Rebuild Index ---
 		new Setting(containerEl)

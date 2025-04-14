@@ -58,7 +58,7 @@
 
 .nav-item-label {
 	flex: 1;
-	font-size: var(--font-ui-normal);
+	font-size: var(--font-ui-medium);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -76,6 +76,8 @@
 	justify-content: center;
 	width: var(--size-4-9);
 	flex-shrink: 0;
+
+	transition: width 0.3s ease-in-out, flex-shrink 0.3s ease-in-out;
 }
 
 .task-sidebar.collapsed .nav-item-icon {
@@ -94,6 +96,8 @@
 
 .task-sidebar.collapsed .task-content {
 	margin-left: -200px;
+
+	transition: margin 0.3s ease;
 }
 
 /* Project Tree */
