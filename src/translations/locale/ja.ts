@@ -606,6 +606,70 @@ const translations = {
 	"Switch status": "ステータスを切り替える",
 	"Rebuild index": "インデックスを再構築",
 	Rebuild: "再構築",
+	"0 tasks, 0 projects": "0タスク, 0プロジェクト",
+	"New Custom View": "新しいカスタムビュー",
+	"Create Custom View": "カスタムビューを作成",
+	"Edit View: ": "ビューを編集：",
+	"View Name": "ビュー名",
+	"My Custom Task View": "My Custom Task View",
+	"Icon Name": "アイコン名",
+	"Enter any Lucide icon name (e.g., list-checks, filter, inbox)":
+		"Lucideアイコン名を入力してください（例：list-checks、filter、inbox）",
+	"Filter Rules": "フィルタールール",
+	"Hide Completed and Abandoned Tasks":
+		"完了したタスクと放棄したタスクを非表示",
+	"Hide completed and abandoned tasks in this view.":
+		"このビューで完了したタスクと放棄したタスクを非表示にします。",
+	"Text Contains": "テキストを含む",
+	"Filter tasks whose content includes this text (case-insensitive).":
+		"このテキストを含むタスクをフィルタリングします（大文字小文字を区別しません）。",
+	"Tags Include": "タグを含む",
+	"Task must include ALL these tags (comma-separated).":
+		"タスクはこれらのタグをすべて含む必要があります（カンマ区切り）。",
+	"Tags Exclude": "タグを除外",
+	"Task must NOT include ANY of these tags (comma-separated).":
+		"タスクはこれらのタグのいずれも含んではいけません（カンマ区切り）。",
+	"Project Is": "プロジェクトは",
+	"Task must belong to this project (exact match).":
+		"タスクはこのプロジェクトに属している必要があります（完全一致）。",
+	"Priority Is": "優先度は",
+	"Task must have this priority (e.g., 1, 2, 3).":
+		"タスクはこの優先度を持つ必要があります（例：1、2、3）。",
+	"Status Include": "ステータスを含む",
+	"Task status must be one of these (comma-separated markers, e.g., /,>).":
+		"タスクのステータスはこれらのいずれかである必要があります（カンマ区切りのマーカー、例：/,>）。",
+	"Status Exclude": "ステータスを除外",
+	"Task status must NOT be one of these (comma-separated markers, e.g., -,x).":
+		"タスクのステータスはこれらのいずれでもあってはいけません（カンマ区切りのマーカー、例：-,x）。",
+	"Use YYYY-MM-DD or relative terms like 'today', 'tomorrow', 'next week', 'last month'.":
+		"YYYY-MM-DD形式または「今日」、「明日」、「来週」、「先月」などの相対的な用語を使用してください。",
+	"Due Date Is": "期限日は",
+	"Start Date Is": "開始日は",
+	"Scheduled Date Is": "予定日は",
+	"Path Includes": "パスを含む",
+	"Task must contain this path (case-insensitive).":
+		"タスクはこのパスを含む必要があります（大文字小文字を区別しません）。",
+	"Path Excludes": "パスを除外",
+	"Task must NOT contain this path (case-insensitive).":
+		"タスクはこのパスを含んではいけません（大文字小文字を区別しません）。",
+	"Unnamed View": "名前のないビュー",
+	"View configuration saved.": "ビュー設定が保存されました。",
+	"Hide Details": "詳細を非表示",
+	"Show Details": "詳細を表示",
+	"View Config": "ビュー設定",
+	"View Configuration": "ビュー設定",
+	"Configure the Task Genius sidebar views, visibility, order, and create custom views.":
+		"Task Geniusサイドバービューの表示、順序、カスタムビューの作成を設定します。",
+	"Manage Views": "ビューを管理",
+	"Configure sidebar views, order, visibility, and hide/show completed tasks per view.":
+		"サイドバービュー、順序、表示、ビューごとの完了タスクの表示/非表示を設定します。",
+	"Show in sidebar": "サイドバーに表示",
+	"Edit View": "ビューを編集",
+	"Move Up": "上に移動",
+	"Move Down": "下に移動",
+	"Delete View": "ビューを削除",
+	"Add Custom View": "カスタムビューを追加",
+	"Error: View ID already exists.": "エラー：ビューIDはすでに存在します。",
 };
 
 export default translations;

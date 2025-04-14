@@ -14,14 +14,14 @@ Task Genius is a comprehensive task management plugin for Obsidian, designed to 
 
 ## Index
 
-- [Workflows](docs/workflow.md)
-- [Quick Capture](docs/quick-capture.md)
-- [Task Filter](docs/task-filter.md)
-- [Task Status](docs/task-status.md)
-- [Task Mover](docs/task-mover.md)
-- [Date & Priority](docs/date-priority.md)
-- [View](docs/view.md)
-- [ProgressBar](docs/progress-bar.md)
+- [Workflows](workflow.md)
+- [Quick Capture](quick-capture.md)
+- [Task Filter](task-filter.md)
+- [Task Status](task-status.md)
+- [Task Mover](task-mover.md)
+- [Date & Priority](date-priority.md)
+- [View](view.md)
+- [ProgressBar](progress-bar.md)
 
 
 ## Quick Start

@@ -13,6 +13,7 @@ import "../../styles/forecast.css";
 import "../../styles/calendar.css";
 import { TaskTreeItemComponent } from "./treeItem";
 import { TaskListRendererComponent } from "./TaskList";
+import TaskProgressBarPlugin from "../../index";
 
 interface DateSection {
 	title: string;
@@ -62,7 +63,11 @@ export class ForecastComponent extends Component {
 	// Context menu
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
-	constructor(private parentEl: HTMLElement, private app: App) {
+	constructor(
+		private parentEl: HTMLElement,
+		private app: App,
+		private plugin: TaskProgressBarPlugin
+	) {
 		super();
 		// Initialize dates
 		this.currentDate = new Date();
@@ -393,9 +398,7 @@ export class ForecastComponent extends Component {
 			}
 		});
 
-		const taskCount = this.allTasks.filter(
-			(task) => !task.completed
-		).length;
+		const taskCount = this.allTasks.length;
 		const projectCount = projectSet.size;
 
 		// Update header
@@ -417,7 +420,7 @@ export class ForecastComponent extends Component {
 
 		// Filter for incomplete tasks with due dates
 		const tasksWithDueDates = this.allTasks.filter(
-			(task) => !task.completed && task.dueDate !== undefined
+			(task) => task.dueDate !== undefined
 		);
 
 		// Split into past due, today, and future
@@ -591,7 +594,10 @@ export class ForecastComponent extends Component {
 			if (task.dueDate) {
 				const date = new Date(task.dueDate);
 				date.setHours(0, 0, 0, 0);
-				const dateKey = date.toISOString().split("T")[0];
+				// Use local date components for the key to avoid timezone shifts
+				const dateKey = `${date.getFullYear()}-${String(
+					date.getMonth() + 1
+				).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 				if (!dateMap.has(dateKey)) {
 					dateMap.set(dateKey, []);
@@ -886,7 +892,10 @@ export class ForecastComponent extends Component {
 			if (task.dueDate) {
 				const date = new Date(task.dueDate);
 				date.setHours(0, 0, 0, 0);
-				const dateKey = date.toISOString().split("T")[0];
+				// Use local date components for the key to avoid timezone shifts
+				const dateKey = `${date.getFullYear()}-${String(
+					date.getMonth() + 1
+				).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 				if (!dateMap.has(dateKey)) {
 					dateMap.set(dateKey, []);

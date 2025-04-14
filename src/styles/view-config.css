@@ -1,0 +1,67 @@
+.task-genius-view-config-modal {
+	width: max(70%, 500px);
+}
+
+/* Styling for the View Configuration Modal */
+.task-genius-view-config-modal .setting-item {
+	/* Add some spacing between settings in the modal */
+	margin-bottom: 15px;
+}
+
+.task-genius-view-config-modal .setting-item-info {
+	/* Ensure labels are aligned well */
+	width: 120px;
+}
+
+.task-genius-view-config-modal .setting-item-control input[type="text"],
+.task-genius-view-config-modal .setting-item-control input[type="number"] {
+	/* Ensure text inputs take available width */
+	width: 100%;
+}
+
+.task-genius-view-config-modal .setting-item-description {
+	/* Style descriptions */
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+
+/* Styling for the View Management List in Settings Tab */
+.view-management-list .setting-item {
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 10px 0;
+	display: flex; /* Use flex for better control */
+	align-items: center; /* Align items vertically */
+}
+
+.view-management-list .setting-item-info {
+	flex-grow: 1; /* Allow name/description to take up space */
+	margin-right: 10px;
+}
+
+.view-management-list .setting-item-control {
+	/* Keep controls together */
+	display: flex;
+	align-items: center;
+	gap: 8px; /* Space between toggles/buttons */
+}
+
+.view-management-list .setting-item-control .button-component {
+	padding: 5px; /* Smaller padding for icon buttons */
+	height: auto;
+}
+
+.view-management-list .view-order-button,
+.view-management-list .view-delete-button {
+	/* Style action buttons */
+	margin-left: 5px;
+}
+
+.view-management-list .setting-item:last-child {
+	border-bottom: none;
+}
+
+/* Specific styling for toggles in the list */
+.view-management-list .setting-item-control .checkbox-container {
+	margin: 0; /* Remove default margins if any */
+}

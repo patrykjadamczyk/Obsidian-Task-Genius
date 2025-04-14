@@ -9,10 +9,9 @@ import { Task } from "../../utils/types/TaskIndex";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/tag-view.css";
-import { tasksToTree, flattenTaskTree } from "../../utils/treeViewUtil";
 import { TaskTreeItemComponent } from "./treeItem";
 import { TaskListRendererComponent } from "./TaskList";
-
+import TaskProgressBarPlugin from "../../index";
 interface SelectedTags {
 	tags: string[];
 	tasks: Task[];
@@ -61,7 +60,11 @@ export class TagsComponent extends Component {
 	// Context menu
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
-	constructor(private parentEl: HTMLElement, private app: App) {
+	constructor(
+		private parentEl: HTMLElement,
+		private app: App,
+		private plugin: TaskProgressBarPlugin
+	) {
 		super();
 	}
 
@@ -475,8 +478,6 @@ export class TagsComponent extends Component {
 			taskSets.forEach((set) => {
 				set.forEach((id) => resultTaskIds.add(id));
 			});
-
-			console.log(resultTaskIds);
 
 			// Convert task IDs to actual task objects
 			this.filteredTasks = this.allTasks.filter((task) =>
