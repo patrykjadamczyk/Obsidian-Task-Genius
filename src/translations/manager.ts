@@ -23,6 +23,7 @@ import ptBR from "./locale/pt-br";
 import ro from "./locale/ro";
 import ru from "./locale/ru";
 import tr from "./locale/tr";
+import uk from "./locale/uk";
 import zhCN from "./locale/zh-cn";
 import zhTW from "./locale/zh-tw";
 
@@ -49,6 +50,7 @@ const SUPPORTED_LOCALES = {
   ro,
   ru,
   tr,
+  uk,
   "zh-cn": zhCN,
   "zh-tw": zhTW,
 } as const;
@@ -57,7 +59,7 @@ export type SupportedLocale = keyof typeof SUPPORTED_LOCALES;
 
 class TranslationManager {
   private static instance: TranslationManager;
-  private currentLocale: string = "en";
+  private currentLocale: string = "uk";
   private translations: Map<string, Translation> = new Map();
   private fallbackTranslation: Translation = en;
 
@@ -82,7 +84,7 @@ class TranslationManager {
       this.currentLocale = locale;
     } else {
       console.warn(`Unsupported locale: ${locale}, falling back to English`);
-      this.currentLocale = "en";
+      this.currentLocale = "uk";
     }
   }
 
