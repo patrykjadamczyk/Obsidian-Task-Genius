@@ -15,7 +15,7 @@ import { RegExpCursor } from "./regexp-cursor";
 import TaskProgressBarPlugin, { showPopoverWithProgressBar } from "..";
 import { shouldHideProgressBarInLivePriview } from "../utils";
 import "../styles/progressbar.css";
-import { TaskGoalManager } from "src/utils/goal/main";
+import { extractTaskAndGoalInfo } from "src/utils/goal/main";
 
 interface Tasks {
 	completed: number;
@@ -703,10 +703,8 @@ export function taskProgressBarExtension(
 						line.from,
 						line.to
 					);
-					
-					// Extract the task text and check for goal information
-					const customGoal = plugin?.settings.allowCustomProgressGoal? TaskGoalManager.extractTaskAndGoalInfo(lineText): null;
-					
+					// [CustomGoalFeature] Extract the task text and check for goal information
+					const customGoal = plugin?.settings.allowCustomProgressGoal? extractTaskAndGoalInfo(lineText): null;
 					if (
 						!lineText ||
 						!/^[\s|\t]*([-*+]|\d+\.)\s\[(.)\]/.test(lineText)
@@ -729,10 +727,10 @@ export function taskProgressBarExtension(
 					if (!rangeText || rangeText.length === 1) continue;
 
 					const tasksNum = this.extractTasksFromRange(
-						range, 
+						range,
 						view.state,
 						true,
-						customGoal // Add custom goal to the task count
+						customGoal
 					);
 
 					if (tasksNum.total === 0) continue;
@@ -847,7 +845,7 @@ export function taskProgressBarExtension(
 				range: TextRange,
 				state: EditorState,
 				isBullet: boolean,
-				customGoal?: number | null
+				customGoal?: number | null // [CustomGoalFeature]
 			): Tasks {
 				const textArray = this.getDocumentTextArray(
 					state.doc,
@@ -1283,7 +1281,7 @@ export function taskProgressBarExtension(
 			public calculateTasksNum(
 				textArray: string[],
 				bullet: boolean,
-				customGoal?: number | null
+				customGoalTotal?: number | null // [CustomGoalFeature]
 			): Tasks {
 				if (!textArray || textArray.length === 0) {
 					return {
@@ -1323,22 +1321,15 @@ export function taskProgressBarExtension(
 				let planned: number = 0;
 				let total: number = 0;
 				let level: number = 0;
-				let completedGoalValue: number = 0;
-				let totalGoalValue: number = 0;
-			
+
 				// Get tab size from vault config
 				const tabSize = this.getTabSize();
 
-				 // Check if parent task has a goal pattern - this affects how we count child tasks
-				const parentLineHasGoal = customGoal !== null || 
-					(textArray[0] && TaskGoalManager.lineHasGoalSyntax(textArray[0]));
-				
 				// For debugging - collect task marks and their statuses
 				const taskDebug: {
 					mark: string;
 					status: string;
 					lineText: string;
-					goalValue?: number;
 				}[] = [];
 
 				// Determine indentation level for bullets
@@ -1358,6 +1349,8 @@ export function taskProgressBarExtension(
 
 				const headingTotalRegex = this.createTotalTaskRegex(true);
 
+				// [CustomGoalFeature] - Check to use custom goal
+				const useTaskGoal: boolean = plugin?.settings.allowCustomProgressGoal && customGoalTotal !== null;
 				// Count tasks
 				for (let i = 0; i < textArray.length; i++) {
 					if (i === 0) continue; // Skip the first line
@@ -1379,11 +1372,6 @@ export function taskProgressBarExtension(
 							}
 						}
 
-						 // Skip tasks without goal syntax if parent has goal pattern. Add the check of custom progress for safety.
-						if (parentLineHasGoal && !TaskGoalManager.lineHasGoalSyntax(lineText) && plugin?.settings.allowCustomProgressGoal) {
-							continue;
-						}
-
 						// First check if it matches task format, then check if it should be excluded
 						if (
 							lineTextTrimmed &&
@@ -1394,26 +1382,6 @@ export function taskProgressBarExtension(
 							// Get the task status
 							const status = this.getTaskStatus(lineTextTrimmed);
 
-							// Extract task text to check for task-specific goal
-							let taskGoalValue = 0;
-							if (plugin?.settings.allowCustomProgressGoal) {
-							const taskText = TaskGoalManager.extractTaskText(lineTextTrimmed);
-							
-							if (taskText) {
-								// Check for task-specific goal
-								const taskGoal = TaskGoalManager.extractTaskSpecificGoal(taskText);
-								if (taskGoal !== null) {
-									taskGoalValue = taskGoal;
-									totalGoalValue += taskGoalValue;
-									
-									// If task is completed, add its goal value to completedGoalValue
-									if (status === "completed") {
-										completedGoalValue += taskGoalValue;
-									}
-								}
-							}
-						}
-
 							// Extract the mark for debugging
 							const markMatch = lineTextTrimmed.match(/\[(.)]/);
 							if (markMatch && markMatch[1]) {
@@ -1421,13 +1389,17 @@ export function taskProgressBarExtension(
 									mark: markMatch[1],
 									status: status,
 									lineText: lineTextTrimmed,
-									goalValue: taskGoalValue > 0 ? taskGoalValue : undefined
 								});
 							}
 
 							// Count based on status
 							if (status === "completed") {
-								completed++;
+								if (!useTaskGoal) completed++;
+								else {
+									// Check for task-specific goal [CustomGoalFeature]
+									const taskGoal = extractTaskAndGoalInfo(lineTextTrimmed);
+									if (taskGoal !== null) completed += taskGoal;
+								}
 							} else if (status === "inProgress") {
 								inProgress++;
 							} else if (status === "abandoned") {
@@ -1490,8 +1462,9 @@ export function taskProgressBarExtension(
 						}
 					}
 				}
-
-    			// Ensure counts don't exceed total
+				// [CustomGoalFeature] - Check bullet to skip when the progress is in heading. Implement in the future
+				if (useTaskGoal && bullet) total = customGoalTotal || 0;
+				// Ensure counts don't exceed total
 				completed = Math.min(completed, total);
 				inProgress = Math.min(inProgress, total - completed);
 				abandoned = Math.min(abandoned, total - completed - inProgress);
@@ -1501,29 +1474,15 @@ export function taskProgressBarExtension(
 				);
 				notStarted =
 					total - completed - inProgress - abandoned - planned;
-				
-				// Use the TaskGoalManager to adjust counts based on goals
-				const taskCounts = {
+
+				return {
 					completed,
 					total,
 					inProgress,
 					abandoned,
 					notStarted,
-					planned
+					planned,
 				};
-				
-				// Apply goal-based adjustments using the TaskGoalManager
-				if (plugin?.settings.allowCustomProgressGoal) {
-					const adjustedCounts = TaskGoalManager.adjustTaskCountsForGoals(
-						taskCounts,
-						customGoal ? customGoal : null,
-						completedGoalValue,
-						totalGoalValue
-					);
-					return adjustedCounts;
-				}
-
-				return taskCounts;
 			}
 		},
 		{
