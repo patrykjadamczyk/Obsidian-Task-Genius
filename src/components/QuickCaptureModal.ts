@@ -553,9 +553,9 @@ export class QuickCaptureModal extends Modal {
 	}
 
 	parseDate(dateString: string): Date {
-    const [year, month, day] = dateString.split('-').map(Number);
-    return new Date(year, month - 1, day); // month is 0-indexed in JavaScript Date
-}
+	    const [year, month, day] = dateString.split('-').map(Number);
+	    return new Date(year, month - 1, day); // month is 0-indexed in JavaScript Date
+	}
 
 	onClose() {
 		const { contentEl } = this;
