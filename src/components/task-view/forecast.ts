@@ -619,14 +619,14 @@ export class ForecastComponent extends Component {
 		const sortedDates = Array.from(dateMap.keys()).sort();
 
 		sortedDates.forEach((dateKey) => {
-    // Parse the date components from the string "YYYY-MM-DD"
-    const [year, month, day] = dateKey.split('-').map(Number);
-    // Create date with local components (month is 0-indexed in JavaScript)
-    const date = new Date(year, month - 1, day);
-    const tasks = dateMap.get(dateKey)!;
-    
-    const today = new Date(this.currentDate);
-    today.setHours(0, 0, 0, 0);
+		    // Parse the date components from the string "YYYY-MM-DD"
+		    const [year, month, day] = dateKey.split('-').map(Number);
+		    // Create date with local components (month is 0-indexed in JavaScript)
+		    const date = new Date(year, month - 1, day);
+		    const tasks = dateMap.get(dateKey)!;
+		    
+		    const today = new Date(this.currentDate);
+		    today.setHours(0, 0, 0, 0);
 
 			const dayDiff = Math.round(
 				(date.getTime() - today.getTime()) / (1000 * 3600 * 24)
@@ -917,11 +917,11 @@ export class ForecastComponent extends Component {
 		});
 		const sortedDates = Array.from(dateMap.keys()).sort();
 		sortedDates.forEach((dateKey) => {
-    // Parse the date components from the string "YYYY-MM-DD"
-    const [year, month, day] = dateKey.split('-').map(Number);
-    // Create date with local components (month is 0-indexed in JavaScript)
-    const date = new Date(year, month - 1, day);
-    const tasks = dateMap.get(dateKey)!;
+		    // Parse the date components from the string "YYYY-MM-DD"
+		    const [year, month, day] = dateKey.split('-').map(Number);
+		    // Create date with local components (month is 0-indexed in JavaScript)
+		    const date = new Date(year, month - 1, day);
+		    const tasks = dateMap.get(dateKey)!;
 
 			const selectedDate = new Date(this.selectedDate);
 			selectedDate.setHours(0, 0, 0, 0);
