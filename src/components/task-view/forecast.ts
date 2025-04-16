@@ -922,6 +922,10 @@ export class ForecastComponent extends Component {
     // Create date with local components (month is 0-indexed in JavaScript)
     const date = new Date(year, month - 1, day);
     const tasks = dateMap.get(dateKey)!;
+
+			const selectedDate = new Date(this.selectedDate);
+			selectedDate.setHours(0, 0, 0, 0);
+			
 			const dayDiff = Math.round(
 				(date.getTime() - selectedDate.getTime()) / (1000 * 3600 * 24)
 			);
