@@ -160,12 +160,27 @@ export class MonthView extends CalendarViewComponent {
 
 		this.registerDomEvent(gridContainer, "click", (ev) => {
 			const target = ev.target as HTMLElement;
+			if (target.closest(".calendar-day-number")) {
+				const dateStr = target
+					.closest(".calendar-day-cell")
+					?.getAttribute("data-date");
+				if (this.options.onDayClick) {
+					console.log("Day number clicked:", dateStr);
+					this.options.onDayClick(ev, moment(dateStr).valueOf(), {
+						behavior: "open-task-view",
+					});
+				}
+
+				return;
+			}
 			if (target.closest(".calendar-day-cell")) {
 				const dateStr = target
 					.closest(".calendar-day-cell")
 					?.getAttribute("data-date");
 				if (this.options.onDayClick) {
-					this.options.onDayClick(ev, moment(dateStr).valueOf());
+					this.options.onDayClick(ev, moment(dateStr).valueOf(), {
+						behavior: "open-quick-capture",
+					});
 				}
 			}
 		});

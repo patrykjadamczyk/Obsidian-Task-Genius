@@ -20,6 +20,7 @@ import { DayView } from "./views/day-view";
 import { AgendaView } from "./views/agenda-view";
 import { YearView } from "./views/year-view";
 import TaskProgressBarPlugin from "src";
+import { QuickCaptureModal } from "../QuickCaptureModal";
 // Import algorithm functions (optional for now, could be used within views)
 // import { calculateEventLayout, determineEventColor } from './algorithm';
 
@@ -594,10 +595,29 @@ export class CalendarComponent extends Component {
 	/**
 	 * on day click
 	 */
-	public onDayClick = (ev: MouseEvent, day: number) => {
-		this.setView("day");
-		this.currentDate = moment(day);
-		this.render();
+	public onDayClick = (
+		ev: MouseEvent,
+		day: number,
+		options: {
+			behavior: "open-quick-capture" | "open-task-view";
+		}
+	) => {
+		if (this.currentViewMode === "year") {
+			this.setView("day");
+			this.currentDate = moment(day);
+			this.render();
+		} else if (options.behavior === "open-quick-capture") {
+			new QuickCaptureModal(
+				this.app,
+				this.plugin,
+				{ dueDate: moment(day).toDate() },
+				true
+			).open();
+		} else if (options.behavior === "open-task-view") {
+			this.setView("day");
+			this.currentDate = moment(day);
+			this.render();
+		}
 	};
 
 	/**

@@ -181,7 +181,9 @@ export class WeekView extends CalendarViewComponent {
 					.closest(".calendar-day-column")
 					?.getAttribute("data-date");
 				if (this.options.onDayClick) {
-					this.options.onDayClick(ev, moment(dateStr).valueOf());
+					this.options.onDayClick(ev, moment(dateStr).valueOf(), {
+						behavior: "open-quick-capture",
+					});
 				}
 			}
 		});

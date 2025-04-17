@@ -237,7 +237,9 @@ export class YearView extends CalendarViewComponent {
 					.closest(".mini-day-cell")
 					?.getAttribute("data-date");
 				if (this.options.onDayClick) {
-					this.options.onDayClick(ev, moment(dateStr).valueOf());
+					this.options.onDayClick(ev, moment(dateStr).valueOf(), {
+						behavior: "open-task-view",
+					});
 				}
 			}
 		});

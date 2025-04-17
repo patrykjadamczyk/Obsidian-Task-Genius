@@ -119,6 +119,15 @@
 	min-width: 0; /* Prevent content from expanding the cell width in the grid */
 }
 
+.full-calendar-container .calendar-day-cell:hover {
+	background-color: hsl(
+		var(--color-accent-h),
+		var(--color-accent-s),
+		var(--color-accent-l),
+		0.8
+	) !important;
+}
+
 .full-calendar-container .calendar-day-cell.is-today {
 	background-color: var(--background-secondary-alt);
 }

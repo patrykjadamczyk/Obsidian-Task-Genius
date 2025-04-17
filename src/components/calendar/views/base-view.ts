@@ -5,7 +5,13 @@ import TaskProgressBarPlugin from "src";
 interface EventMap {
 	onEventClick: (ev: MouseEvent, event: CalendarEvent) => void;
 	onEventHover: (ev: MouseEvent, event: CalendarEvent) => void;
-	onDayClick: (ev: MouseEvent, day: number) => void;
+	onDayClick: (
+		ev: MouseEvent,
+		day: number,
+		options: {
+			behavior: "open-quick-capture" | "open-task-view";
+		}
+	) => void;
 	onDayHover: (ev: MouseEvent, day: number) => void;
 	onMonthClick: (ev: MouseEvent, month: number) => void;
 	onMonthHover: (ev: MouseEvent, month: number) => void;
