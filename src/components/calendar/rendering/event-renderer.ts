@@ -1,6 +1,7 @@
 import {
 	App,
 	Component,
+	debounce,
 	moment,
 	MarkdownRenderer as ObsidianMarkdownRenderer,
 } from "obsidian";
@@ -33,6 +34,9 @@ export interface RenderEventParams {
 	layout?: EventLayout; // Primarily for timed views
 	positioningHints?: EventPositioningHints; // Primarily for month/all-day views
 	app: App; // Added for Markdown rendering
+
+	onEventClick?: (ev: MouseEvent, event: CalendarEvent) => void;
+	onEventHover?: (ev: MouseEvent, event: CalendarEvent) => void;
 }
 
 /**
@@ -47,7 +51,7 @@ export class CalendarEventComponent extends Component {
 	public eventEl: HTMLElement;
 	private markdownRenderer: MarkdownRendererComponent;
 
-	constructor(params: RenderEventParams) {
+	constructor(private params: RenderEventParams) {
 		super();
 		this.event = params.event;
 		this.viewType = params.viewType;
@@ -258,13 +262,17 @@ export class CalendarEventComponent extends Component {
 	private registerEventListeners(): void {
 		this.registerDomEvent(this.eventEl, "click", (ev) => {
 			ev.stopPropagation();
-			console.log(
-				`Clicked event (${this.viewType}):`,
-				this.event.id,
-				this.event
-			);
+			this.params?.onEventClick?.(ev, this.event);
+		});
+
+		this.registerDomEvent(this.eventEl, "mouseover", (ev) => {
+			this.debounceHover(ev, this.event);
 		});
 	}
+
+	private debounceHover = debounce((ev: MouseEvent, event: CalendarEvent) => {
+		this.params?.onEventHover?.(ev, event);
+	}, 100);
 }
 
 /**
@@ -277,6 +285,5 @@ export function renderCalendarEvent(params: RenderEventParams): {
 	component: CalendarEventComponent;
 } {
 	const eventComponent = new CalendarEventComponent(params);
-	console.log("Event component loaded:", eventComponent);
 	return { eventEl: eventComponent.eventEl, component: eventComponent };
 }
