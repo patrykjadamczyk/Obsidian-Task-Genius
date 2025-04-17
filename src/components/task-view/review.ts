@@ -276,7 +276,7 @@ export class ReviewComponent extends Component {
 	// Events (will be passed to the renderer)
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
+	public onTaskContextMenu: (event: MouseEvent, task: Task) => void = () => {};
 
 	constructor(
 		private parentEl: HTMLElement,

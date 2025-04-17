@@ -29,6 +29,7 @@ import {
 	DEFAULT_SETTINGS,
 } from "../common/setting-definition";
 import { filterTasks } from "src/utils/taskFIlterUtils";
+import { CalendarComponent } from "src/components/calendar";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -44,7 +45,7 @@ export class TaskView extends ItemView {
 	private projectsComponent: ProjectsComponent;
 	private reviewComponent: ReviewComponent;
 	private detailsComponent: TaskDetailsComponent;
-
+	private calendarComponent: CalendarComponent;
 	// UI state management
 	private isSidebarCollapsed: boolean = false;
 	private isDetailsVisible: boolean = false;
@@ -218,6 +219,15 @@ export class TaskView extends ItemView {
 		this.addChild(this.reviewComponent);
 		this.reviewComponent.load();
 		this.reviewComponent.containerEl.hide();
+
+		this.calendarComponent = new CalendarComponent(
+			this.plugin.app,
+			this.rootContainerEl,
+			this.tasks
+		);
+		this.addChild(this.calendarComponent);
+		this.calendarComponent.load();
+		this.calendarComponent.containerEl.hide();
 
 		this.detailsComponent = new TaskDetailsComponent(
 			this.rootContainerEl,
@@ -396,8 +406,11 @@ export class TaskView extends ItemView {
 			this.reviewComponent,
 		];
 
+		console.log("componentsWithContextMenu", componentsWithContextMenu);
+
 		componentsWithContextMenu.forEach((comp) => {
 			if (comp && typeof comp.onTaskContextMenu === "function") {
+				console.log("comp", comp);
 				comp.onTaskContextMenu = (event, task) => {
 					this.handleTaskContextMenu(event, task);
 				};
@@ -407,16 +420,17 @@ export class TaskView extends ItemView {
 
 	private switchView(viewId: ViewMode, project?: string | null) {
 		this.currentViewId = viewId;
-		const viewConfig = getViewSettingOrDefault(this.plugin, viewId);
 
 		this.contentComponent.containerEl.hide();
 		this.forecastComponent.containerEl.hide();
 		this.tagsComponent.containerEl.hide();
 		this.projectsComponent.containerEl.hide();
 		this.reviewComponent.containerEl.hide();
-
+		this.calendarComponent.containerEl.hide();
 		let targetComponent: any = null;
 		let modeForComponent: ViewMode = viewId;
+
+		console.log("viewId", viewId);
 
 		switch (viewId) {
 			case "forecast":
@@ -430,6 +444,9 @@ export class TaskView extends ItemView {
 				break;
 			case "review":
 				targetComponent = this.reviewComponent;
+				break;
+			case "calendar":
+				targetComponent = this.calendarComponent;
 				break;
 			case "inbox":
 			case "flagged":

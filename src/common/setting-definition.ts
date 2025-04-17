@@ -432,6 +432,15 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
 		},
+		{
+			id: "calendar",
+			name: "Calendar",
+			icon: "calendar",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+		},
 	],
 
 	// Review Settings
@@ -445,10 +454,17 @@ export function getViewSettingOrDefault(
 ): ViewConfig {
 	const viewConfiguration =
 		plugin.settings.viewConfiguration || DEFAULT_SETTINGS.viewConfiguration;
+
+	// First check if the view exists in user settings
 	const savedConfig = viewConfiguration.find((v) => v.id === viewId);
+
+	// Then check if it exists in default settings
 	const defaultConfig = DEFAULT_SETTINGS.viewConfiguration.find(
 		(v) => v.id === viewId
-	) || {
+	);
+
+	// If neither exists, create a fallback default for custom views
+	const fallbackConfig = {
 		id: viewId,
 		name: viewId,
 		icon: "list-plus",
@@ -456,19 +472,22 @@ export function getViewSettingOrDefault(
 		visible: true,
 		hideCompletedAndAbandonedTasks: false,
 		filterRules: {},
-	}; // Ensure default has empty rules
+	};
 
-	// Merge saved config onto default config, ensuring filterRules are merged or taken if present
+	// Use default config if it exists, otherwise use fallback
+	const baseConfig = defaultConfig || fallbackConfig;
+
+	// Merge saved config onto base config, ensuring filterRules are merged properly
 	const mergedConfig = {
-		...defaultConfig,
+		...baseConfig,
 		...(savedConfig || {}),
-		// Explicitly handle merging filterRules: Use saved rules if they exist, otherwise default (which is likely empty)
+		// Explicitly handle merging filterRules
 		filterRules: savedConfig?.filterRules
 			? {
-					...(defaultConfig.filterRules || {}),
+					...(baseConfig.filterRules || {}),
 					...savedConfig.filterRules,
 			  }
-			: defaultConfig.filterRules || {},
+			: baseConfig.filterRules || {},
 	} as ViewConfig;
 
 	// Ensure essential properties exist even if defaults are weird
