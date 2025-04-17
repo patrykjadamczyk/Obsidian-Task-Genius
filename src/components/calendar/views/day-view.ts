@@ -1,31 +1,29 @@
-import { App, Component, moment } from "obsidian";
+import { App, Component, debounce, moment } from "obsidian";
 import { CalendarEvent } from "..";
 import {
 	renderCalendarEvent,
 	EventViewType,
 } from "../rendering/event-renderer";
+import { CalendarViewComponent, CalendarViewOptions } from "./base-view";
+import TaskProgressBarPlugin from "../../../index";
 
-export class DayView extends Component {
-	private containerEl: HTMLElement;
+export class DayView extends CalendarViewComponent {
 	private currentDate: moment.Moment;
-	private events: CalendarEvent[];
 	private app: App;
+	private plugin: TaskProgressBarPlugin;
 
 	constructor(
 		app: App,
+		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
-		events: CalendarEvent[]
+		events: CalendarEvent[],
+		options: CalendarViewOptions = {}
 	) {
-		super();
+		super(plugin, app, containerEl, events, options);
 		this.app = app;
-		this.containerEl = containerEl;
+		this.plugin = plugin;
 		this.currentDate = currentDate;
-		this.events = events;
-	}
-
-	onload(): void {
-		this.render();
 	}
 
 	render(): void {
@@ -88,9 +86,24 @@ export class DayView extends Component {
 					viewType: "day-timed", // Changed back to day-timed, CSS will handle layout
 					// layout: layout, // Removed layout
 					app: this.app,
+					onEventClick: this.options.onEventClick,
+					onEventHover: this.options.onEventHover,
 				});
 				this.addChild(component);
 				timelineEventsContainer.appendChild(eventEl); // Append directly to the container
+
+				// Add event listeners using the options from the base class
+				if (this.options.onEventClick) {
+					eventEl.addEventListener("click", (ev) => {
+						this.options.onEventClick!(ev, event);
+					});
+				}
+				if (this.options.onEventHover) {
+					eventEl.addEventListener("mouseenter", (ev) => {
+						this.options.onEventHover!(ev, event);
+					});
+					// Optionally add mouseleave if needed
+				}
 			});
 		}
 	}

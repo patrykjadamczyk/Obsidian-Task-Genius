@@ -51,13 +51,6 @@ export class CalendarComponent extends Component {
 	private app: App;
 	private plugin: TaskProgressBarPlugin;
 
-	// View instances - initialized in onload
-	private monthView: MonthView;
-	private weekView: WeekView;
-	private dayView: DayView;
-	private agendaView: AgendaView;
-	private yearView: YearView;
-
 	// Track the currently active view component
 	private activeViewComponent: CalendarView | null = null;
 
@@ -65,7 +58,10 @@ export class CalendarComponent extends Component {
 		app: App,
 		plugin: TaskProgressBarPlugin,
 		parentEl: HTMLElement,
-		initialTasks: Task[] = []
+		initialTasks: Task[] = [],
+		private params: {
+			onTaskSelected?: (task: Task | null) => void;
+		} = {}
 	) {
 		super();
 		this.app = app;
@@ -77,57 +73,22 @@ export class CalendarComponent extends Component {
 		this.viewContainerEl = this.containerEl.createDiv(
 			"calendar-view-container"
 		);
+
+		const viewMode = this.app.loadLocalStorage("task-genius:calendar-view");
+		if (viewMode) {
+			this.currentViewMode = viewMode as CalendarViewMode;
+		}
+
+		console.log("CalendarComponent initialized with params:", this.params);
 	}
 
 	override onload() {
 		super.onload();
 
-		// Initialize all views once
-		// Pass the viewContainerEl as the parent for each view's own container
-		this.monthView = new MonthView(
-			this.app,
-			this.plugin,
-			this.viewContainerEl,
-			this.currentDate,
-			this.events
-		);
-		this.weekView = new WeekView(
-			this.app,
-			this.plugin,
-			this.viewContainerEl,
-			this.currentDate,
-			this.events
-		);
-		this.dayView = new DayView(
-			this.app,
-			this.viewContainerEl,
-			this.currentDate,
-			this.events
-		);
-		this.agendaView = new AgendaView(
-			this.app,
-			this.viewContainerEl,
-			this.currentDate,
-			this.events
-		);
-		this.yearView = new YearView(
-			this.app,
-			this.plugin,
-			this.viewContainerEl,
-			this.currentDate,
-			this.events
-		);
-
 		this.processTasks(); // Process initial tasks into events
 		this.render(); // Initial render (header and the default view)
 
 		console.log("CalendarComponent loaded.");
-
-		this.addChild(this.monthView);
-		this.addChild(this.weekView);
-		this.addChild(this.dayView);
-		this.addChild(this.agendaView);
-		this.addChild(this.yearView);
 	}
 
 	override onunload() {
@@ -173,6 +134,11 @@ export class CalendarComponent extends Component {
 		if (this.currentViewMode !== viewMode) {
 			this.currentViewMode = viewMode;
 			this.render(); // Re-render header and switch the view
+
+			this.app.saveLocalStorage(
+				"task-genius:calendar-view",
+				this.currentViewMode
+			);
 		}
 	}
 
@@ -205,14 +171,6 @@ export class CalendarComponent extends Component {
 	 * Ensures view instances are ready.
 	 */
 	private render() {
-		// Ensure views are initialized (might be redundant if onload guarantees it)
-		if (!this.monthView) {
-			console.warn(
-				"Render called before views initialized. Trying to initialize now."
-			);
-			this.onload(); // Attempt re-initialization if called too early
-			if (!this.monthView) return; // Exit if still not initialized
-		}
 		this.renderHeader();
 		this.renderCurrentView();
 	}
@@ -282,21 +240,85 @@ export class CalendarComponent extends Component {
 	private renderCurrentView() {
 		// Determine which view component should be active
 		let nextViewComponent: CalendarView | null = null;
+		console.log(
+			"Rendering current view:",
+			this.currentViewMode,
+			this.params,
+			this.params?.onTaskSelected
+		);
 		switch (this.currentViewMode) {
 			case "month":
-				nextViewComponent = this.monthView;
+				nextViewComponent = new MonthView(
+					this.app,
+					this.plugin,
+					this.viewContainerEl,
+					this.currentDate,
+					this.events,
+					{
+						onEventClick: this.onEventClick,
+						onEventHover: this.onEventHover,
+						onDayClick: this.onDayClick,
+						onDayHover: this.onDayHover,
+					}
+				);
 				break;
 			case "week":
-				nextViewComponent = this.weekView;
+				nextViewComponent = new WeekView(
+					this.app,
+					this.plugin,
+					this.viewContainerEl,
+					this.currentDate,
+					this.events,
+					{
+						onEventClick: this.onEventClick,
+						onEventHover: this.onEventHover,
+						onDayClick: this.onDayClick,
+						onDayHover: this.onDayHover,
+					}
+				);
 				break;
 			case "day":
-				nextViewComponent = this.dayView;
+				nextViewComponent = new DayView(
+					this.app,
+					this.plugin,
+					this.viewContainerEl,
+					this.currentDate,
+					this.events,
+					{
+						onEventClick: this.onEventClick,
+						onEventHover: this.onEventHover,
+					}
+				);
 				break;
 			case "agenda":
-				nextViewComponent = this.agendaView;
+				nextViewComponent = new AgendaView(
+					this.app,
+					this.plugin,
+					this.viewContainerEl,
+					this.currentDate,
+					this.events,
+					{
+						onEventClick: this.onEventClick,
+						onEventHover: this.onEventHover,
+					}
+				);
 				break;
 			case "year":
-				nextViewComponent = this.yearView;
+				nextViewComponent = new YearView(
+					this.app,
+					this.plugin,
+					this.viewContainerEl,
+					this.currentDate,
+					this.events,
+					{
+						onEventClick: this.onEventClick,
+						onEventHover: this.onEventHover,
+						onDayClick: this.onDayClick,
+						onDayHover: this.onDayHover,
+						onMonthClick: this.onMonthClick,
+						onMonthHover: this.onMonthHover,
+					}
+				);
 				break;
 			default:
 				this.viewContainerEl.empty(); // Clear container if view is unknown
@@ -348,22 +370,6 @@ export class CalendarComponent extends Component {
 				: "None"
 		);
 	}
-
-	// --- View Specific Rendering Methods (Stubs) ---
-
-	// Removed renderMonthView method
-
-	// Removed renderEventInCell method
-
-	// Removed renderWeekView method
-
-	// Removed renderDayView method
-
-	// Removed renderAgendaView method
-
-	// Removed renderYearView method
-
-	// --- Data Processing ---
 
 	/**
 	 * Processes the raw tasks into calendar events.
@@ -499,6 +505,68 @@ export class CalendarComponent extends Component {
 				return this.currentDate.format("MMMM YYYY");
 		}
 	}
+
+	/**
+	 * Gets the current view component.
+	 */
+	public get currentViewComponent(): CalendarView | null {
+		return this.activeViewComponent;
+	}
+
+	/**
+	 * on event click
+	 */
+	public onEventClick = (ev: MouseEvent, event: CalendarEvent) => {
+		console.log(
+			"Event clicked:",
+			event,
+			this.params,
+			this.params?.onTaskSelected
+		);
+		this.params?.onTaskSelected?.(event);
+	};
+
+	/**
+	 * on event mouse hover
+	 */
+	public onEventHover = (ev: MouseEvent, event: CalendarEvent) => {
+		console.log("Event mouse entered:", event);
+	};
+
+	/**
+	 * on view change
+	 */
+	public onViewChange = (viewMode: CalendarViewMode) => {
+		console.log("View changed:", viewMode);
+	};
+
+	/**
+	 * on day click
+	 */
+	public onDayClick = (ev: MouseEvent, day: { day: number }) => {
+		console.log("Day clicked:", day);
+	};
+
+	/**
+	 * on day hover
+	 */
+	public onDayHover = (ev: MouseEvent, day: { day: number }) => {
+		console.log("Day hovered:", day);
+	};
+
+	/**
+	 * on month click
+	 */
+	public onMonthClick = (ev: MouseEvent, month: { month: number }) => {
+		console.log("Month clicked:", month);
+	};
+
+	/**
+	 * on month hover
+	 */
+	public onMonthHover = (ev: MouseEvent, month: { month: number }) => {
+		console.log("Month hovered:", month);
+	};
 }
 
 // Helper function (example - might move to a utils file)

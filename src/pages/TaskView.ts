@@ -224,7 +224,12 @@ export class TaskView extends ItemView {
 			this.plugin.app,
 			this.plugin,
 			this.rootContainerEl,
-			this.tasks
+			this.tasks,
+			{
+				onTaskSelected: (task: Task | null) => {
+					this.handleTaskSelection(task);
+				},
+			}
 		);
 		this.addChild(this.calendarComponent);
 		this.calendarComponent.load();
@@ -397,6 +402,10 @@ export class TaskView extends ItemView {
 		};
 		this.reviewComponent.onTaskCompleted = (task: Task) => {
 			this.toggleTaskCompletion(task);
+		};
+
+		this.calendarComponent.onTaskSelected = (task: Task | null) => {
+			this.handleTaskSelection(task);
 		};
 
 		const componentsWithContextMenu = [

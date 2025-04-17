@@ -167,6 +167,17 @@ export class CalendarEventComponent extends Component {
 	private renderAllDayEvent(): void {
 		this.eventEl.addClass("calendar-event-allday");
 
+		this.eventEl.createEl(
+			"input",
+			{ cls: "task-list-item-checkbox", type: "checkbox" },
+			(checkbox) => {
+				checkbox.dataset.task = this.event.status;
+				if (this.event.status !== " ") {
+					checkbox.checked = true;
+				}
+			}
+		);
+
 		// Create a container for the title to render markdown into
 		const titleContainer = this.eventEl.createDiv({
 			cls: "calendar-event-title-container",
@@ -192,7 +203,10 @@ export class CalendarEventComponent extends Component {
 	 * Render timed events for day or week views
 	 */
 	private renderTimedEvent(): void {
-		this.eventEl.addClass("calendar-event-timed");
+		this.eventEl.toggleClass(
+			["calendar-event-timed", "calendar-event"],
+			true
+		);
 		if (this.viewType === "week-timed") {
 			this.eventEl.addClass("calendar-event-timed-week");
 		}
@@ -231,6 +245,17 @@ export class CalendarEventComponent extends Component {
 			});
 		}
 
+		this.eventEl.createEl(
+			"input",
+			{ cls: "task-list-item-checkbox", type: "checkbox" },
+			(checkbox) => {
+				checkbox.dataset.task = this.event.status;
+				if (this.event.status !== " ") {
+					checkbox.checked = true;
+				}
+			}
+		);
+
 		const titleEl = this.eventEl.createDiv({ cls: "calendar-event-title" });
 		this.markdownRenderer = new MarkdownRendererComponent(
 			this.app,
@@ -255,6 +280,16 @@ export class CalendarEventComponent extends Component {
 			});
 			this.eventEl.appendChild(timeEl);
 		}
+		this.eventEl.createEl(
+			"input",
+			{ cls: "task-list-item-checkbox", type: "checkbox" },
+			(checkbox) => {
+				checkbox.dataset.task = this.event.status;
+				if (this.event.status !== " ") {
+					checkbox.checked = true;
+				}
+			}
+		);
 
 		// Append title
 		const titleEl = this.eventEl.createSpan({
@@ -289,7 +324,7 @@ export class CalendarEventComponent extends Component {
 
 	private debounceHover = debounce((ev: MouseEvent, event: CalendarEvent) => {
 		this.params?.onEventHover?.(ev, event);
-	}, 100);
+	}, 400);
 }
 
 /**

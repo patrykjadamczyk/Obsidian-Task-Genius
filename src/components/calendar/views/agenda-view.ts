@@ -1,28 +1,29 @@
 import { App, Component, moment } from "obsidian";
 import { CalendarEvent } from "..";
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Use new renderer
+import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class
+import TaskProgressBarPlugin from "../../../index"; // Import plugin type
 
-export class AgendaView extends Component {
-	private containerEl: HTMLElement;
+export class AgendaView extends CalendarViewComponent {
+	// Extend base class
+	// private containerEl: HTMLElement; // Inherited
 	private currentDate: moment.Moment;
-	private events: CalendarEvent[];
-	private app: App;
+	// private events: CalendarEvent[]; // Inherited
+	private app: App; // Keep app reference
+	private plugin: TaskProgressBarPlugin; // Added for base constructor
 
 	constructor(
 		app: App,
+		plugin: TaskProgressBarPlugin, // Added plugin dependency
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
-		events: CalendarEvent[]
+		events: CalendarEvent[],
+		options: CalendarViewOptions = {} // Use base options, default to empty
 	) {
-		super();
+		super(plugin, app, containerEl, events, options); // Call base constructor
 		this.app = app;
-		this.containerEl = containerEl;
+		this.plugin = plugin;
 		this.currentDate = currentDate;
-		this.events = events;
-	}
-
-	onload(): void {
-		this.render();
 	}
 
 	render(): void {
@@ -109,6 +110,8 @@ export class AgendaView extends Component {
 							event: event,
 							viewType: "agenda",
 							app: this.app,
+							onEventClick: this.options.onEventClick,
+							onEventHover: this.options.onEventHover,
 						});
 						this.addChild(component);
 						eventItem.appendChild(eventEl);

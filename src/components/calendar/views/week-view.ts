@@ -1,4 +1,4 @@
-import { App, Component, moment } from "obsidian";
+import { App, Component, debounce, moment } from "obsidian";
 import { CalendarEvent } from "..";
 import {
 	calculateEventLayout,
@@ -8,38 +8,32 @@ import {
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Use new renderer
 import { getViewSettingOrDefault } from "../../../common/setting-definition"; // Import helper
 import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
+import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class and options type
 
 /**
  * Renders the week view grid as a component.
  */
-export class WeekView extends Component {
-	private containerEl: HTMLElement;
+export class WeekView extends CalendarViewComponent {
+	// Extend base class
+	// private containerEl: HTMLElement; // Inherited
 	private currentDate: moment.Moment;
-	private events: CalendarEvent[];
-	private app: App;
-	private plugin: TaskProgressBarPlugin; // Add plugin instance
+	// private events: CalendarEvent[]; // Inherited
+	private app: App; // Keep app reference
+	private plugin: TaskProgressBarPlugin; // Keep plugin reference
+	// Removed onEventClick/onMouseHover properties, now in this.options
 
 	constructor(
 		app: App,
-		plugin: TaskProgressBarPlugin, // Pass plugin instance
+		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
-		events: CalendarEvent[]
+		events: CalendarEvent[],
+		options: CalendarViewOptions // Use the base options type
 	) {
-		super();
-		this.app = app;
-		this.plugin = plugin; // Store plugin instance
-		this.containerEl = containerEl;
+		super(plugin, app, containerEl, events, options); // Call base constructor
+		this.app = app; // Store app
+		this.plugin = plugin; // Store plugin
 		this.currentDate = currentDate;
-		this.events = events;
-	}
-
-	onload(): void {
-		try {
-			this.render();
-		} catch (error) {
-			console.error("Error rendering WeekView:", error);
-		}
 	}
 
 	render(): void {
@@ -92,12 +86,15 @@ export class WeekView extends Component {
 		const weekGrid = weekGridSection.createDiv("calendar-week-grid"); // Renamed class
 		const dayEventContainers: { [key: string]: HTMLElement } = {}; // Renamed variable
 		currentDayIter = startOfWeek.clone();
+
 		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
-			const dayCell = weekGrid.createDiv(
-				// Renamed class
-				"calendar-day-column"
-			);
+			const dayCell = weekGrid.createEl("div", {
+				cls: "calendar-day-column",
+				attr: {
+					"data-date": dateStr,
+				},
+			});
 			dayEventContainers[dateStr] = dayCell.createDiv(
 				// Use renamed variable
 				"calendar-day-events-container" // Renamed class
@@ -112,55 +109,6 @@ export class WeekView extends Component {
 			currentDayIter.add(1, "day");
 		}
 
-		// --- Timeline Section (Commented Out) ---
-		/*
-		const timelineSection = this.containerEl.createDiv(
-			"calendar-week-timeline-section"
-		);
-		const timeGutter = timelineSection.createDiv("calendar-time-gutter");
-		const timelineGrid = timelineSection.createDiv(
-			"calendar-week-timeline-grid"
-		);
-		const timelineEventsContainer = timelineSection.createDiv(
-			"calendar-week-timeline-events-container"
-		);
-		const dayTimelineColumns: { [key: string]: HTMLElement } = {};
-
-		// Populate time gutter (hours)
-		for (let hour = 0; hour < 24; hour++) {
-			const hourSlot = timeGutter.createDiv("calendar-hour-slot-gutter");
-			const hourLabel = hourSlot.createDiv("calendar-hour-label");
-			hourLabel.setText(moment({ hour }).format("ha"));
-			hourSlot.createDiv("calendar-hour-line"); // Horizontal line across grid
-		}
-
-		// Create day columns and hour lines within the main timeline grid
-		currentDayIter = startOfWeek.clone();
-		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
-			const dateStr = currentDayIter.format("YYYY-MM-DD");
-			const dayColumn = timelineGrid.createDiv(
-				"calendar-day-column-timed"
-			);
-			dayTimelineColumns[dateStr] = dayColumn;
-
-			if (currentDayIter.isSame(moment(), "day")) {
-				dayColumn.addClass("is-today");
-			}
-			if (currentDayIter.day() === 0 || currentDayIter.day() === 6) {
-				dayColumn.addClass("is-weekend");
-			}
-			// Add vertical hour lines within each day column for structure
-			for (let hour = 0; hour < 24; hour++) {
-				const hourLineSlot = dayColumn.createDiv(
-					"calendar-hour-slot-timed"
-				);
-				hourLineSlot.createDiv("calendar-hour-line-vertical"); // Vertical line per day
-			}
-
-			currentDayIter.add(1, "day");
-		}
-		*/
-
 		// 3. Filter Events for the Week (Uses calculated startOfWeek/endOfWeek)
 		const weekEvents = this.events.filter((event) => {
 			const eventStart = moment(event.start);
@@ -171,35 +119,6 @@ export class WeekView extends Component {
 				) && eventEnd.isSameOrAfter(startOfWeek.clone().startOf("day"))
 			);
 		});
-
-		// Separate all-day vs timed (Commented out - treating all events similarly now)
-		/*
-		const allDayEvents = weekEvents.filter((event) => {
-			if (event.allDay) return true;
-			if (!event.start || !event.end) return false;
-			const eventStart = moment(event.start);
-			const eventEnd = moment(event.end);
-			// Check if it effectively spans a full day or more
-			return eventEnd.diff(eventStart, "hours") >= 24;
-		});
-
-		const timedEvents = weekEvents.filter(
-			(event) => !allDayEvents.includes(event) && event.start
-		);
-		*/
-
-		// 4. Render Events (Simplified: Only on Start Date)
-		// Prepare data structure for layout calculation
-		// Map<dateString, Array<EventId | null>> -> Stores occupied slots for each day
-		// const dailyLayoutSlots = new Map<string, (string | null)[]>(); // Removed: Not needed for simple rendering
-		// const eventLayoutInfo = new Map<string, { slot: number }>(); // Map<eventId, {slot: number}> // Removed
-
-		// Initialize slots for each day in the view (container already exists)
-		// currentDayIter = startOfWeek.clone();
-		// while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
-		// 	dailyLayoutSlots.set(currentDayIter.format("YYYY-MM-DD"), []); // Removed
-		// 	currentDayIter.add(1, "day");
-		// }
 
 		// Sort events: Simple sort by start time might be useful, but not strictly necessary for this logic
 		const sortedWeekEvents = [...weekEvents].sort((a, b) => {
@@ -232,116 +151,18 @@ export class WeekView extends Component {
 						viewType: "week-allday", // Reverted to original type to fix linter error
 						// positioningHints removed - no complex layout needed now
 						app: this.app,
+						onEventClick: this.options.onEventClick,
+						onEventHover: this.options.onEventHover,
 					});
 					this.addChild(component);
 
 					// No absolute positioning or slot calculation needed
 					// eventEl.style.top = ...
-					// eventEl.style.position = ...
-					// container.style.position = ...
-					// container.style.minHeight = ...
 
 					container.appendChild(eventEl);
 				}
 			}
 		});
-
-		// 5. Calculate and Render Timed Events (Commented Out)
-		/*
-		const allTimedLayouts: EventLayout[] = [];
-		const dayIndices = new Map<string, number>();
-		currentDayIter = startOfWeek.clone();
-		let dayIndex = 0;
-		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
-			dayIndices.set(currentDayIter.format("YYYY-MM-DD"), dayIndex++);
-			currentDayIter.add(1, "day");
-		}
-
-		// Process events day by day for layout
-		for (let i = 0; i < 7; i++) {
-			const dayMoment = startOfWeek.clone().add(i, "days");
-			const dayStr = dayMoment.format("YYYY-MM-DD");
-			const dayStart = dayMoment.clone().startOf("day");
-			const dayEnd = dayMoment.clone().endOf("day");
-
-			const eventsOnThisDay = timedEvents.filter((event) => {
-				const start = moment(event.start);
-				const end = event.end ? moment(event.end) : start;
-				return start.isBefore(dayEnd) && end.isAfter(dayStart);
-			});
-
-			if (eventsOnThisDay.length > 0) {
-				const dayLayouts = calculateEventLayout(
-					eventsOnThisDay,
-					dayStart.toDate(),
-					dayEnd.toDate()
-				);
-				// Adjust layout coordinates for the week view
-				dayLayouts.forEach((layout) => {
-					const event = timedEvents.find((e) => e.id === layout.id);
-					if (!event || !event.start) return;
-
-					const eventStart = moment(event.start);
-					const eventEnd = event.end
-						? moment(event.end)
-						: eventStart.clone().add(1, "hour"); // Default duration
-
-					// Calculate position relative to the week's timeline grid
-					const dayColWidthPercent = 100 / 7;
-					const dayColStartPercent =
-						(dayIndices.get(dayStr) || 0) * dayColWidthPercent;
-
-					// Base horizontal position on the day column
-					layout.left =
-						dayColStartPercent +
-						(layout.left / 100) * dayColWidthPercent; // Adjust left based on day
-					layout.width = (layout.width / 100) * dayColWidthPercent; // Adjust width based on day width
-
-					// Convert event start/end times to vertical pixel offsets
-					// Assuming timeline height represents 24 hours
-					// TODO: Get actual height of timeline container for accurate pixel calculation
-					const totalMinutesInDay = 24 * 60;
-					const startMinutes = Math.max(
-						0,
-						eventStart.diff(dayStart, "minutes")
-					);
-					const endMinutes = Math.min(
-						totalMinutesInDay,
-						eventEnd.diff(dayStart, "minutes")
-					);
-					const durationMinutes = Math.max(
-						15,
-						endMinutes - startMinutes
-					); // Min 15 min height
-
-					// Example: If timelineSection height is 1000px
-					const timelineHeightPx = 1000; // FIXME: This should be dynamic!
-					layout.top =
-						(startMinutes / totalMinutesInDay) * timelineHeightPx;
-					layout.height =
-						(durationMinutes / totalMinutesInDay) *
-						timelineHeightPx;
-
-					allTimedLayouts.push(layout);
-				});
-			}
-		}
-
-		// Render timed events using adjusted layouts
-		allTimedLayouts.forEach((layout) => {
-			const event = timedEvents.find((e) => e.id === layout.id);
-			if (!event || !event.start) return;
-
-			const { eventEl, component } = renderCalendarEvent({
-				event: event,
-				viewType: "week-timed",
-				layout: layout,
-				app: this.app,
-			});
-			this.addChild(component);
-			timelineEventsContainer.appendChild(eventEl);
-		});
-		*/
 
 		console.log(
 			`Rendered Simplified Week View from ${startOfWeek.format(
@@ -350,6 +171,24 @@ export class WeekView extends Component {
 				"YYYY-MM-DD"
 			)} (First day: ${effectiveFirstDay})`
 		);
+
+		this.registerDomEvent(weekGrid, "click", (ev) => {
+			const target = ev.target as HTMLElement;
+			if (target.closest(".calendar-day-column")) {
+				const dateStr = target
+					.closest(".calendar-day-column")
+					?.getAttribute("data-date");
+				if (this.options.onDayClick) {
+					this.options.onDayClick(ev, {
+						day: moment(dateStr).valueOf(),
+					});
+				}
+			}
+		});
+
+		this.registerDomEvent(weekGrid, "mouseover", (ev) => {
+			this.debounceHover(ev);
+		});
 	}
 
 	// Update methods to allow changing data after initial render
@@ -362,4 +201,18 @@ export class WeekView extends Component {
 		this.currentDate = date;
 		this.render(); // Re-render will pick up current settings and date
 	}
+
+	private debounceHover = debounce((ev: MouseEvent) => {
+		const target = ev.target as HTMLElement;
+		if (target.closest(".calendar-day-column")) {
+			const dateStr = target
+				.closest(".calendar-day-column")
+				?.getAttribute("data-date");
+			if (this.options.onDayHover) {
+				this.options.onDayHover(ev, {
+					day: moment(dateStr).valueOf(),
+				});
+			}
+		}
+	}, 200);
 }

@@ -98,7 +98,6 @@
 	grid-auto-rows: minmax(100px, auto); /* Give rows a minimum height */
 	gap: 1px;
 	background-color: var(--background-modifier-border); /* Grid lines */
-	border-top: 1px solid var(--background-modifier-border); /* Add border for the grid itself */
 
 	height: 100%;
 }
@@ -163,7 +162,23 @@
 	display: block; /* Ensure it takes full width available */
 }
 
-.full-calendar-container .calendar-event:hover {
+.full-calendar-container .calendar-event:has(.task-list-item-checkbox) {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.full-calendar-container
+	.calendar-event:has(.task-list-item-checkbox).calendar-event-week-allday {
+	display: flex;
+}
+
+.full-calendar-container
+	.calendar-event:has(.task-list-item-checkbox).calendar-event-month {
+	display: flex;
+}
+
+.full-calendar-container .full-calendar-container .calendar-event:hover {
 	opacity: 0.8;
 }
 

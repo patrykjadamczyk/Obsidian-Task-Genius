@@ -1,36 +1,33 @@
-import { App, Component, moment } from "obsidian";
+import { App, Component, debounce, moment } from "obsidian";
 import { CalendarEvent } from "..";
 import { getViewSettingOrDefault } from "../../../common/setting-definition"; // Import helper
 import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
+import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class
 
 /**
  * Renders the year view grid as a component.
  */
-export class YearView extends Component {
-	private containerEl: HTMLElement;
+export class YearView extends CalendarViewComponent {
+	// Extend base class
+	// private containerEl: HTMLElement; // Inherited
 	private currentDate: moment.Moment;
-	private events: CalendarEvent[];
-	private app: App;
-	private plugin: TaskProgressBarPlugin; // Add plugin instance
+	// private events: CalendarEvent[]; // Inherited
+	private app: App; // Keep app reference
+	private plugin: TaskProgressBarPlugin; // Keep plugin reference
+	// Removed specific click/hover properties, use this.options
 
 	constructor(
 		app: App,
-		plugin: TaskProgressBarPlugin, // Pass plugin instance
+		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
-		events: CalendarEvent[]
+		events: CalendarEvent[],
+		options: CalendarViewOptions // Use base options type
 	) {
-		super();
+		super(plugin, app, containerEl, events, options); // Call base constructor
 		this.app = app;
-		this.plugin = plugin; // Store plugin instance
-		this.containerEl = containerEl;
+		this.plugin = plugin;
 		this.currentDate = currentDate;
-		this.events = events;
-	}
-
-	onload(): void {
-		console.log("YearView onload");
-		this.render();
 	}
 
 	render(): void {
@@ -83,42 +80,36 @@ export class YearView extends Component {
 			monthHeader.textContent = monthMoment.format("MMMM"); // Full month name
 
 			// Add click listener to month header
-			monthHeader.addEventListener("click", () => {
-				console.log("Clicked month:", monthMoment.format("YYYY-MM"));
-				// TODO: Implement switch to Month view for monthMoment
-				// This requires passing a handler/callback from the main component.
+			this.registerDomEvent(monthHeader, "click", (ev) => {
+				// Trigger callback from options if it exists
+				if (this.options.onMonthClick) {
+					this.options.onMonthClick(ev, {
+						month: monthMoment.valueOf(),
+					});
+				}
+			});
+			this.registerDomEvent(monthHeader, "mouseenter", (ev) => {
+				// Trigger hover callback from options if it exists
+				if (this.options.onMonthHover) {
+					this.options.onMonthHover(ev, {
+						month: monthMoment.valueOf(),
+					});
+				}
 			});
 			monthHeader.style.cursor = "pointer"; // Indicate clickable
 
 			// Add body container for the mini-calendar grid
 			const monthBody = monthContainer.createDiv("mini-month-body");
-
-			// Calculate days with events for this month
-			const calcStartTime = performance.now();
 			const daysWithEvents = this.calculateDaysWithEvents(
 				monthMoment,
 				yearEvents // Pass already filtered year events
 			);
-			const calcEndTime = performance.now();
 
-			// Render the mini-grid for this month, passing the effective first day
-			const gridStartTime = performance.now();
 			this.renderMiniMonthGrid(
 				monthBody,
 				monthMoment,
 				daysWithEvents,
 				effectiveFirstDay
-			);
-			const gridEndTime = performance.now();
-
-			const monthEndTime = performance.now(); // End time for this month
-			console.log(
-				`YearView: Month ${month + 1} processed in ${
-					monthEndTime - monthStartTime
-				}ms ` +
-					`(Calc: ${calcEndTime - calcStartTime}ms, Grid: ${
-						gridEndTime - gridStartTime
-					}ms, Days with events: ${daysWithEvents.size})`
 			);
 		}
 
@@ -207,9 +198,13 @@ export class YearView extends Component {
 
 		let currentDayIter = gridStart.clone();
 		while (currentDayIter.isSameOrBefore(gridEnd, "day")) {
-			const cell = container.createDiv("mini-day-cell");
+			const cell = container.createEl("div", {
+				cls: "mini-day-cell",
+				attr: {
+					"data-date": currentDayIter.format("YYYY-MM-DD"),
+				},
+			});
 			const dayNumber = currentDayIter.date();
-			const cellMoment = currentDayIter.clone(); // Clone for the click listener
 			// Only show day number if it's in the current month
 			if (currentDayIter.isSame(monthMoment, "month")) {
 				cell.textContent = String(dayNumber);
@@ -231,14 +226,6 @@ export class YearView extends Component {
 			// Add click listener to day cell only for days in the current month
 			if (currentDayIter.isSame(monthMoment, "month")) {
 				cell.style.cursor = "pointer"; // Indicate clickable
-				cell.addEventListener("click", () => {
-					console.log(
-						"Clicked day:",
-						cellMoment.format("YYYY-MM-DD")
-					);
-					// TODO: Implement navigation to Day view for cellMoment
-					// This requires passing a handler/callback from the main component.
-				});
 			} else {
 				// Optionally disable clicks or provide different behavior for other month days
 				cell.style.cursor = "default";
@@ -246,6 +233,24 @@ export class YearView extends Component {
 
 			currentDayIter.add(1, "day");
 		}
+
+		this.registerDomEvent(container, "click", (ev) => {
+			const target = ev.target as HTMLElement;
+			if (target.closest(".mini-day-cell")) {
+				const dateStr = target
+					.closest(".mini-day-cell")
+					?.getAttribute("data-date");
+				if (this.options.onDayClick) {
+					this.options.onDayClick(ev, {
+						day: moment(dateStr).valueOf(),
+					});
+				}
+			}
+		});
+
+		this.registerDomEvent(container, "mouseover", (ev) => {
+			this.debounceHover(ev);
+		});
 	}
 
 	// Update methods to allow changing data after initial render
@@ -258,4 +263,18 @@ export class YearView extends Component {
 		this.currentDate = date;
 		this.render(); // Re-render will pick up current settings and date
 	}
+
+	private debounceHover = debounce((ev: MouseEvent) => {
+		const target = ev.target as HTMLElement;
+		if (target.closest(".mini-day-cell")) {
+			const dateStr = target
+				.closest(".mini-day-cell")
+				?.getAttribute("data-date");
+			if (this.options.onDayHover) {
+				this.options.onDayHover(ev, {
+					day: moment(dateStr).valueOf(),
+				});
+			}
+		}
+	}, 200);
 }

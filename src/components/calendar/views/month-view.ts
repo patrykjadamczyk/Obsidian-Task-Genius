@@ -1,36 +1,30 @@
-import { App, Component, moment } from "obsidian";
+import { App, Component, debounce, moment } from "obsidian";
 import { CalendarEvent } from "../index";
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Import the new renderer
 import { getViewSettingOrDefault } from "../../../common/setting-definition"; // Import helper
 import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
+import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class and options type
 
 /**
  * Renders the month view grid as a component.
  */
-export class MonthView extends Component {
-	private containerEl: HTMLElement;
+export class MonthView extends CalendarViewComponent {
 	private currentDate: moment.Moment;
-	private events: CalendarEvent[];
-	private app: App;
-	private plugin: TaskProgressBarPlugin; // Add plugin instance
+	private app: App; // Keep app reference if needed directly
+	private plugin: TaskProgressBarPlugin; // Keep plugin reference if needed directly
 
 	constructor(
 		app: App,
-		plugin: TaskProgressBarPlugin, // Pass plugin instance
+		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
-		events: CalendarEvent[]
+		events: CalendarEvent[],
+		options: CalendarViewOptions // Use the base options type
 	) {
-		super();
-		this.app = app;
-		this.plugin = plugin; // Store plugin instance
-		this.containerEl = containerEl;
+		super(plugin, app, containerEl, events, options); // Call base constructor
+		this.app = app; // Still store app if needed directly
+		this.plugin = plugin; // Still store plugin if needed directly
 		this.currentDate = currentDate;
-		this.events = events;
-	}
-
-	onload(): void {
-		this.render();
 	}
 
 	render(): void {
@@ -80,7 +74,12 @@ export class MonthView extends Component {
 		let currentDayIter = gridStart.clone();
 
 		while (currentDayIter.isSameOrBefore(gridEnd, "day")) {
-			const cell = gridContainer.createDiv("calendar-day-cell");
+			const cell = gridContainer.createEl("div", {
+				cls: "calendar-day-cell",
+				attr: {
+					"data-date": currentDayIter.format("YYYY-MM-DD"),
+				},
+			});
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			dayCells[dateStr] = cell;
 
@@ -140,6 +139,8 @@ export class MonthView extends Component {
 							event: event,
 							viewType: "month", // Pass viewType consistently
 							app: this.app,
+							onEventClick: this.options.onEventClick,
+							onEventHover: this.options.onEventHover,
 						});
 						this.addChild(component);
 						eventsContainer.appendChild(eventEl);
@@ -156,6 +157,24 @@ export class MonthView extends Component {
 				"YYYY-MM-DD"
 			)} (First day: ${effectiveFirstDay})`
 		);
+
+		this.registerDomEvent(gridContainer, "click", (ev) => {
+			const target = ev.target as HTMLElement;
+			if (target.closest(".calendar-day-cell")) {
+				const dateStr = target
+					.closest(".calendar-day-cell")
+					?.getAttribute("data-date");
+				if (this.options.onDayClick) {
+					this.options.onDayClick(ev, {
+						day: moment(dateStr).valueOf(),
+					});
+				}
+			}
+		});
+
+		this.registerDomEvent(gridContainer, "mouseover", (ev) => {
+			this.debounceHover(ev);
+		});
 	}
 
 	// Update methods to allow changing data after initial render
@@ -168,4 +187,18 @@ export class MonthView extends Component {
 		this.currentDate = date;
 		this.render(); // Re-render will pick up current settings and date
 	}
+
+	private debounceHover = debounce((ev: MouseEvent) => {
+		const target = ev.target as HTMLElement;
+		if (target.closest(".calendar-day-cell")) {
+			const dateStr = target
+				.closest(".calendar-day-cell")
+				?.getAttribute("data-date");
+			if (this.options.onDayHover) {
+				this.options.onDayHover(ev, {
+					day: moment(dateStr).valueOf(),
+				});
+			}
+		}
+	}, 200);
 }
