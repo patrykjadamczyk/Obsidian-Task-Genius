@@ -5,42 +5,12 @@ import TaskProgressBarPlugin from "src";
 interface EventMap {
 	onEventClick: (ev: MouseEvent, event: CalendarEvent) => void;
 	onEventHover: (ev: MouseEvent, event: CalendarEvent) => void;
-	onDayClick: (
-		ev: MouseEvent,
-		data: {
-			day: number; // Unix timestamp
-		}
-	) => void;
-	onDayHover: (
-		ev: MouseEvent,
-		data: {
-			day: number; // Unix timestamp
-		}
-	) => void;
-	onMonthClick: (
-		ev: MouseEvent,
-		data: {
-			month: number; // Unix timestamp
-		}
-	) => void;
-	onMonthHover: (
-		ev: MouseEvent,
-		data: {
-			month: number; // Unix timestamp
-		}
-	) => void;
-	onYearClick: (
-		ev: MouseEvent,
-		data: {
-			year: number; // Unix timestamp
-		}
-	) => void;
-	onYearHover: (
-		ev: MouseEvent,
-		data: {
-			year: number; // Unix timestamp
-		}
-	) => void;
+	onDayClick: (ev: MouseEvent, day: number) => void;
+	onDayHover: (ev: MouseEvent, day: number) => void;
+	onMonthClick: (ev: MouseEvent, month: number) => void;
+	onMonthHover: (ev: MouseEvent, month: number) => void;
+	onYearClick: (ev: MouseEvent, year: number) => void;
+	onYearHover: (ev: MouseEvent, year: number) => void;
 	onEventContextMenu: (ev: MouseEvent, event: CalendarEvent) => void;
 	onEventComplete: (ev: MouseEvent, event: CalendarEvent) => void;
 }

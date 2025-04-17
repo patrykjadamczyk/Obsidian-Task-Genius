@@ -165,9 +165,7 @@ export class MonthView extends CalendarViewComponent {
 					.closest(".calendar-day-cell")
 					?.getAttribute("data-date");
 				if (this.options.onDayClick) {
-					this.options.onDayClick(ev, {
-						day: moment(dateStr).valueOf(),
-					});
+					this.options.onDayClick(ev, moment(dateStr).valueOf());
 				}
 			}
 		});
@@ -195,9 +193,7 @@ export class MonthView extends CalendarViewComponent {
 				.closest(".calendar-day-cell")
 				?.getAttribute("data-date");
 			if (this.options.onDayHover) {
-				this.options.onDayHover(ev, {
-					day: moment(dateStr).valueOf(),
-				});
+				this.options.onDayHover(ev, moment(dateStr).valueOf());
 			}
 		}
 	}, 200);

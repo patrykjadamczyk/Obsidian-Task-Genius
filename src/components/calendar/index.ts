@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import { Task } from "src/utils/types/TaskIndex"; // Assuming Task type exists here
 // Removed: import { renderCalendarEvent } from "./event";
-import "../../styles/calendar/calendar.css"; // Import the CSS file
+import "../../styles/calendar/view.css"; // Import the CSS file
 import "../../styles/calendar/event.css"; // Import the CSS file
 import { t } from "../../translations/helper";
 
@@ -594,28 +594,32 @@ export class CalendarComponent extends Component {
 	/**
 	 * on day click
 	 */
-	public onDayClick = (ev: MouseEvent, day: { day: number }) => {
-		console.log("Day clicked:", day);
+	public onDayClick = (ev: MouseEvent, day: number) => {
+		this.setView("day");
+		this.currentDate = moment(day);
+		this.render();
 	};
 
 	/**
 	 * on day hover
 	 */
-	public onDayHover = (ev: MouseEvent, day: { day: number }) => {
+	public onDayHover = (ev: MouseEvent, day: number) => {
 		console.log("Day hovered:", day);
 	};
 
 	/**
 	 * on month click
 	 */
-	public onMonthClick = (ev: MouseEvent, month: { month: number }) => {
-		console.log("Month clicked:", month);
+	public onMonthClick = (ev: MouseEvent, month: number) => {
+		this.setView("month");
+		this.currentDate = moment(month);
+		this.render();
 	};
 
 	/**
 	 * on month hover
 	 */
-	public onMonthHover = (ev: MouseEvent, month: { month: number }) => {
+	public onMonthHover = (ev: MouseEvent, month: number) => {
 		console.log("Month hovered:", month);
 	};
 
