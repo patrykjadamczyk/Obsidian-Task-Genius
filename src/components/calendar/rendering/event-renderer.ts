@@ -38,6 +38,8 @@ export interface RenderEventParams {
 
 	onEventClick?: (ev: MouseEvent, event: CalendarEvent) => void;
 	onEventHover?: (ev: MouseEvent, event: CalendarEvent) => void;
+	onEventContextMenu?: (ev: MouseEvent, event: CalendarEvent) => void;
+	onEventComplete?: (ev: MouseEvent, event: CalendarEvent) => void;
 }
 
 /**
@@ -175,6 +177,19 @@ export class CalendarEventComponent extends Component {
 				if (this.event.status !== " ") {
 					checkbox.checked = true;
 				}
+
+				this.registerDomEvent(checkbox, "click", (ev) => {
+					ev.stopPropagation();
+
+					if (this.params?.onEventComplete) {
+						this.params.onEventComplete(ev, this.event);
+					}
+
+					if (this.event.status === " ") {
+						checkbox.checked = true;
+						checkbox.dataset.task = "x";
+					}
+				});
 			}
 		);
 
@@ -253,6 +268,19 @@ export class CalendarEventComponent extends Component {
 				if (this.event.status !== " ") {
 					checkbox.checked = true;
 				}
+
+				this.registerDomEvent(checkbox, "click", (ev) => {
+					ev.stopPropagation();
+
+					if (this.params?.onEventComplete) {
+						this.params.onEventComplete(ev, this.event);
+					}
+
+					if (this.event.status === " ") {
+						checkbox.checked = true;
+						checkbox.dataset.task = "x";
+					}
+				});
 			}
 		);
 
@@ -288,6 +316,19 @@ export class CalendarEventComponent extends Component {
 				if (this.event.status !== " ") {
 					checkbox.checked = true;
 				}
+
+				this.registerDomEvent(checkbox, "click", (ev) => {
+					ev.stopPropagation();
+
+					if (this.params?.onEventComplete) {
+						this.params.onEventComplete(ev, this.event);
+					}
+
+					if (this.event.status === " ") {
+						checkbox.checked = true;
+						checkbox.dataset.task = "x";
+					}
+				});
 			}
 		);
 
@@ -337,5 +378,12 @@ export function renderCalendarEvent(params: RenderEventParams): {
 	component: CalendarEventComponent;
 } {
 	const eventComponent = new CalendarEventComponent(params);
+	eventComponent.registerDomEvent(
+		eventComponent.eventEl,
+		"contextmenu",
+		(ev) => {
+			params.onEventContextMenu?.(ev, params.event);
+		}
+	);
 	return { eventEl: eventComponent.eventEl, component: eventComponent };
 }

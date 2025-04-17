@@ -35,8 +35,6 @@ export class MonthView extends CalendarViewComponent {
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
 
-		console.log("Effective first day:", effectiveFirstDay);
-
 		// 1. Calculate the date range for the grid using effective first day
 		const startOfMonth = this.currentDate.clone().startOf("month");
 		const endOfMonth = this.currentDate.clone().endOf("month");
@@ -141,6 +139,8 @@ export class MonthView extends CalendarViewComponent {
 							app: this.app,
 							onEventClick: this.options.onEventClick,
 							onEventHover: this.options.onEventHover,
+							onEventContextMenu: this.options.onEventContextMenu,
+							onEventComplete: this.options.onEventComplete,
 						});
 						this.addChild(component);
 						eventsContainer.appendChild(eventEl);

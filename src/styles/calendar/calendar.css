@@ -1,6 +1,7 @@
 /* styles/calendar/calendar.css */
 
 .full-calendar-container {
+	container-type: inline-size;
 	display: flex;
 	flex-direction: column;
 	height: 100%; /* Or adjust as needed */
@@ -50,6 +51,11 @@
 	font-size: var(--font-ui-large);
 	text-align: center;
 	flex-grow: 1; /* Allow it to take space */
+
+	max-width: max(120px, 40%);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .full-calendar-container .calendar-view-switcher button.is-active {
@@ -134,7 +140,7 @@
 
 .full-calendar-container .calendar-day-number {
 	font-size: var(--font-ui-small);
-	text-align: right;
+	text-align: center;
 	margin-bottom: var(--size-4-1);
 	flex-shrink: 0; /* Prevent number from shrinking */
 	align-self: flex-end; /* Position to the top right */
@@ -518,4 +524,30 @@
 
 .agenda-day-events-column {
 	flex: 1;
+}
+
+.full-calendar-container input.task-list-item-checkbox {
+	scale: 0.9;
+}
+
+.full-calendar-container .calendar-view-switcher-selector {
+	display: none;
+}
+
+@container (max-width: 600px) {
+	.full-calendar-container .calendar-view-switcher button {
+		display: none;
+	}
+
+	.calendar-nav .prev-button {
+		display: none;
+	}
+
+	.calendar-nav .next-button {
+		display: none;
+	}
+
+	.full-calendar-container .calendar-view-switcher-selector {
+		display: block;
+	}
 }

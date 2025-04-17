@@ -29,7 +29,7 @@ import {
 	DEFAULT_SETTINGS,
 } from "../common/setting-definition";
 import { filterTasks } from "src/utils/taskFIlterUtils";
-import { CalendarComponent } from "src/components/calendar";
+import { CalendarComponent, CalendarEvent } from "src/components/calendar";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -229,6 +229,12 @@ export class TaskView extends ItemView {
 				onTaskSelected: (task: Task | null) => {
 					this.handleTaskSelection(task);
 				},
+				onTaskCompleted: (task: Task) => {
+					this.toggleTaskCompletion(task);
+				},
+				onEventContextMenu: (ev: MouseEvent, event: CalendarEvent) => {
+					this.handleTaskContextMenu(ev, event);
+				},
 			}
 		);
 		this.addChild(this.calendarComponent);
@@ -402,10 +408,6 @@ export class TaskView extends ItemView {
 		};
 		this.reviewComponent.onTaskCompleted = (task: Task) => {
 			this.toggleTaskCompletion(task);
-		};
-
-		this.calendarComponent.onTaskSelected = (task: Task | null) => {
-			this.handleTaskSelection(task);
 		};
 
 		const componentsWithContextMenu = [

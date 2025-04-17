@@ -41,6 +41,8 @@ interface EventMap {
 			year: number; // Unix timestamp
 		}
 	) => void;
+	onEventContextMenu: (ev: MouseEvent, event: CalendarEvent) => void;
+	onEventComplete: (ev: MouseEvent, event: CalendarEvent) => void;
 }
 
 // Combine event handlers into a single options object, making them optional

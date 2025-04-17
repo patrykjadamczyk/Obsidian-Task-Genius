@@ -112,6 +112,8 @@ export class AgendaView extends CalendarViewComponent {
 							app: this.app,
 							onEventClick: this.options.onEventClick,
 							onEventHover: this.options.onEventHover,
+							onEventContextMenu: this.options.onEventContextMenu,
+							onEventComplete: this.options.onEventComplete,
 						});
 						this.addChild(component);
 						eventItem.appendChild(eventEl);

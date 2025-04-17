@@ -2,6 +2,7 @@ import {
 	App,
 	ButtonComponent,
 	Component,
+	DropdownComponent,
 	TFile,
 	moment,
 	setIcon,
@@ -10,6 +11,7 @@ import { Task } from "src/utils/types/TaskIndex"; // Assuming Task type exists h
 // Removed: import { renderCalendarEvent } from "./event";
 import "../../styles/calendar/calendar.css"; // Import the CSS file
 import "../../styles/calendar/event.css"; // Import the CSS file
+import { t } from "../../translations/helper";
 
 // Import view rendering functions
 import { MonthView } from "./views/month-view";
@@ -61,6 +63,8 @@ export class CalendarComponent extends Component {
 		initialTasks: Task[] = [],
 		private params: {
 			onTaskSelected?: (task: Task | null) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onEventContextMenu?: (ev: MouseEvent, event: CalendarEvent) => void;
 		} = {}
 	) {
 		super();
@@ -196,16 +200,28 @@ export class CalendarComponent extends Component {
 
 		// Previous button
 		const prevButton = new ButtonComponent(navGroup.createDiv());
+		prevButton.buttonEl.toggleClass(
+			["calendar-nav-button", "prev-button"],
+			true
+		);
 		prevButton.setIcon("chevron-left");
 		prevButton.onClick(() => this.navigate("prev"));
 
 		// Today button
 		const todayButton = new ButtonComponent(navGroup.createDiv());
+		todayButton.buttonEl.toggleClass(
+			["calendar-nav-button", "today-button"],
+			true
+		);
 		todayButton.setButtonText("Today");
 		todayButton.onClick(() => this.goToToday());
 
 		// Next button
 		const nextButton = new ButtonComponent(navGroup.createDiv());
+		nextButton.buttonEl.toggleClass(
+			["calendar-nav-button", "next-button"],
+			true
+		);
 		nextButton.setIcon("chevron-right");
 		nextButton.onClick(() => this.navigate("next"));
 
@@ -225,12 +241,39 @@ export class CalendarComponent extends Component {
 			"agenda",
 		];
 		modes.forEach((mode) => {
-			const button = viewGroup.createEl("button", { text: mode });
+			const button = viewGroup.createEl("button", {
+				text: {
+					year: t("Year"),
+					month: t("Month"),
+					week: t("Week"),
+					day: t("Day"),
+					agenda: t("Agenda"),
+				}[mode],
+			});
 			if (mode === this.currentViewMode) {
 				button.addClass("is-active");
 			}
 			button.onclick = () => this.setView(mode);
 		});
+
+		viewGroup.createEl(
+			"div",
+			{
+				cls: "calendar-view-switcher-selector",
+			},
+			(el) => {
+				new DropdownComponent(el)
+					.addOption("year", t("Year"))
+					.addOption("month", t("Month"))
+					.addOption("week", t("Week"))
+					.addOption("day", t("Day"))
+					.addOption("agenda", t("Agenda"))
+					.onChange((value) =>
+						this.setView(value as CalendarViewMode)
+					)
+					.setValue(this.currentViewMode);
+			}
+		);
 	}
 
 	/**
@@ -259,6 +302,8 @@ export class CalendarComponent extends Component {
 						onEventHover: this.onEventHover,
 						onDayClick: this.onDayClick,
 						onDayHover: this.onDayHover,
+						onEventContextMenu: this.onEventContextMenu,
+						onEventComplete: this.onEventComplete,
 					}
 				);
 				break;
@@ -274,6 +319,8 @@ export class CalendarComponent extends Component {
 						onEventHover: this.onEventHover,
 						onDayClick: this.onDayClick,
 						onDayHover: this.onDayHover,
+						onEventContextMenu: this.onEventContextMenu,
+						onEventComplete: this.onEventComplete,
 					}
 				);
 				break;
@@ -287,6 +334,8 @@ export class CalendarComponent extends Component {
 					{
 						onEventClick: this.onEventClick,
 						onEventHover: this.onEventHover,
+						onEventContextMenu: this.onEventContextMenu,
+						onEventComplete: this.onEventComplete,
 					}
 				);
 				break;
@@ -300,6 +349,8 @@ export class CalendarComponent extends Component {
 					{
 						onEventClick: this.onEventClick,
 						onEventHover: this.onEventHover,
+						onEventContextMenu: this.onEventContextMenu,
+						onEventComplete: this.onEventComplete,
 					}
 				);
 				break;
@@ -473,7 +524,7 @@ export class CalendarComponent extends Component {
 			case "year":
 				return this.currentDate.format("YYYY");
 			case "month":
-				return this.currentDate.format("MMMM YYYY");
+				return this.currentDate.format("MMMM/YYYY");
 			case "week":
 				const startOfWeek = this.currentDate.clone().startOf("week");
 				const endOfWeek = this.currentDate.clone().endOf("week");
@@ -566,6 +617,20 @@ export class CalendarComponent extends Component {
 	 */
 	public onMonthHover = (ev: MouseEvent, month: { month: number }) => {
 		console.log("Month hovered:", month);
+	};
+
+	/**
+	 * on task context menu
+	 */
+	public onEventContextMenu = (ev: MouseEvent, event: CalendarEvent) => {
+		this.params?.onEventContextMenu?.(ev, event);
+	};
+
+	/**
+	 * on task complete
+	 */
+	public onEventComplete = (ev: MouseEvent, event: CalendarEvent) => {
+		this.params?.onTaskCompleted?.(event);
 	};
 }
 
