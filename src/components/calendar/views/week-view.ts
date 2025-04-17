@@ -188,86 +188,61 @@ export class WeekView extends Component {
 		);
 		*/
 
-		// 4. Render All Events (Modified from original All-Day rendering)
-		weekEvents.forEach((event) => {
-			// Iterate through all weekEvents
+		// 4. Render Events (Simplified: Only on Start Date)
+		// Prepare data structure for layout calculation
+		// Map<dateString, Array<EventId | null>> -> Stores occupied slots for each day
+		// const dailyLayoutSlots = new Map<string, (string | null)[]>(); // Removed: Not needed for simple rendering
+		// const eventLayoutInfo = new Map<string, { slot: number }>(); // Map<eventId, {slot: number}> // Removed
+
+		// Initialize slots for each day in the view (container already exists)
+		// currentDayIter = startOfWeek.clone();
+		// while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
+		// 	dailyLayoutSlots.set(currentDayIter.format("YYYY-MM-DD"), []); // Removed
+		// 	currentDayIter.add(1, "day");
+		// }
+
+		// Sort events: Simple sort by start time might be useful, but not strictly necessary for this logic
+		const sortedWeekEvents = [...weekEvents].sort((a, b) => {
+			return moment(a.start).valueOf() - moment(b.start).valueOf(); // Earlier start date first
+		});
+
+		// --- Calculate vertical slots for each event --- (REMOVED)
+
+		// --- Render events (Simplified Logic) ---
+		sortedWeekEvents.forEach((event) => {
 			if (!event.start) return; // Skip events without a start date
 
 			const eventStartMoment = moment(event.start).startOf("day");
-			// Use end date if available, otherwise treat as single-day event
-			const eventEndMoment = event.end
-				? moment(event.end).startOf("day")
-				: // Treat events ending exactly at midnight as ending on the previous day for rendering
-				  eventStartMoment;
-			const eventEffectiveEndMoment =
-				event.end &&
-				moment(event.end).isAfter(eventStartMoment, "day") &&
-				moment(event.end).hour() === 0 &&
-				moment(event.end).minute() === 0
-					? moment(event.end)
-							.subtract(1, "millisecond")
-							.startOf("day")
-					: eventEndMoment;
 
 			// Use calculated week boundaries
 			const weekStartMoment = startOfWeek.clone().startOf("day");
 			const weekEndMoment = endOfWeek.clone().endOf("day");
 
-			// Clamp the event's rendering range to the current week view
-			const renderStartMoment = moment.max(
-				eventStartMoment,
-				weekStartMoment
-			);
-			const renderEndMoment = moment.min(
-				eventEffectiveEndMoment,
-				weekEndMoment
-			);
-
-			let loopMoment = renderStartMoment.clone();
-			const isMultiDayEvent = !eventStartMoment.isSame(
-				eventEffectiveEndMoment,
-				"day"
-			);
-
-			while (loopMoment.isSameOrBefore(renderEndMoment, "day")) {
-				const dateStr = loopMoment.format("YYYY-MM-DD");
-				const container = dayEventContainers[dateStr]; // Use renamed variable
+			// Check if the event's START date is within the current week view
+			if (
+				eventStartMoment.isSameOrAfter(weekStartMoment) &&
+				eventStartMoment.isSameOrBefore(weekEndMoment)
+			) {
+				const dateStr = eventStartMoment.format("YYYY-MM-DD");
+				const container = dayEventContainers[dateStr]; // Get the container for the start date
 				if (container) {
-					// Determine if this segment is the start/end *of the original event*
-					const isOriginalStart = loopMoment.isSame(
-						eventStartMoment,
-						"day"
-					);
-					const isOriginalEnd = loopMoment.isSame(
-						eventEffectiveEndMoment,
-						"day"
-					);
-
-					// Determine if this segment is the start/end *within the current view*
-					// Needed for proper visual connection hints
-					const isViewStart = loopMoment.isSame(
-						renderStartMoment,
-						"day"
-					);
-					const isViewEnd = loopMoment.isSame(renderEndMoment, "day");
-
+					// Render the event ONCE in the correct day's container
 					const { eventEl, component } = renderCalendarEvent({
 						event: event,
-						viewType: "week-allday", // Use consistent view type
-						positioningHints: {
-							isMultiDay: isMultiDayEvent,
-							// Pass both original and view-based start/end for potential styling
-							isStart: isOriginalStart,
-							isEnd: isOriginalEnd,
-							isViewStart: isViewStart,
-							isViewEnd: isViewEnd,
-						},
+						viewType: "week-allday", // Reverted to original type to fix linter error
+						// positioningHints removed - no complex layout needed now
 						app: this.app,
 					});
 					this.addChild(component);
+
+					// No absolute positioning or slot calculation needed
+					// eventEl.style.top = ...
+					// eventEl.style.position = ...
+					// container.style.position = ...
+					// container.style.minHeight = ...
+
 					container.appendChild(eventEl);
 				}
-				loopMoment.add(1, "day");
 			}
 		});
 

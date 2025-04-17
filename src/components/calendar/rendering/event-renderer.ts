@@ -26,6 +26,7 @@ export interface EventPositioningHints {
 	isEnd?: boolean;
 	isViewStart?: boolean;
 	isViewEnd?: boolean;
+	layoutSlot?: number; // Added for vertical positioning in week/day grid views
 }
 
 export interface RenderEventParams {
@@ -60,9 +61,25 @@ export class CalendarEventComponent extends Component {
 		this.app = params.app;
 
 		// Create the main element
-		this.eventEl = document.createElement("div");
-		this.eventEl.addClass("calendar-event");
-		this.eventEl.addClass(`calendar-event-${this.viewType}`);
+		this.eventEl = createEl("div", {
+			cls: ["calendar-event", `calendar-event-${this.viewType}`],
+		});
+
+		if (this.event.project) {
+			this.eventEl.dataset.projectId = this.event.project;
+		}
+
+		if (this.event.priority) {
+			this.eventEl.dataset.priority = this.event.priority.toString();
+		}
+
+		if (this.event.status) {
+			this.eventEl.dataset.taskStatus = this.event.status;
+		}
+
+		if (this.event.filePath) {
+			this.eventEl.dataset.filePath = this.event.filePath;
+		}
 		this.eventEl.dataset.eventId = this.event.id;
 	}
 

@@ -122,76 +122,31 @@ export class MonthView extends Component {
 				return; // Event is completely outside the current grid view
 			}
 
-			if (event.end) {
-				const eventEndMoment = moment(event.end).startOf("day"); // End is exclusive for all-day
-				// Clamp loop start/end to the grid boundaries for efficiency
-				let loopMoment = moment.max(eventStartMoment, gridStartMoment);
-				const loopEndMoment = moment.min(
-					eventEndMoment,
-					gridEndMoment.add(1, "millisecond")
-				); // Iterate up to, but not including, the end moment or grid end + 1ms
-
-				// Iterate through each day the event spans within the grid
-				while (loopMoment.isBefore(loopEndMoment, "day")) {
-					const dateStr = loopMoment.format("YYYY-MM-DD");
-					const targetCell = dayCells[dateStr];
-					if (targetCell) {
-						const eventsContainer = targetCell.querySelector(
-							".calendar-events-container"
-						);
-						if (eventsContainer) {
-							const isStart = loopMoment.isSame(
-								eventStartMoment, // Compare with original event start
-								"day"
-							);
-							// End comparison needs care with exclusive end dates
-							const isEnd = loopMoment.isSame(
-								moment(event.end)
-									.subtract(1, "millisecond")
-									.startOf("day"), // Compare with the day before the end date
-								"day"
-							);
-
-							const { eventEl, component } = renderCalendarEvent({
-								event: event,
-								viewType: "month",
-								positioningHints: {
-									isMultiDay: true,
-									isStart,
-									isEnd,
-								},
-								app: this.app,
-							});
-							this.addChild(component);
-							eventsContainer.appendChild(eventEl);
-						}
-					}
-					loopMoment.add(1, "day");
-				}
-			} else {
-				// Single day event - check if it's within the grid dates
-				if (
-					eventStartMoment.isSameOrAfter(gridStartMoment) &&
-					eventStartMoment.isSameOrBefore(gridEndMoment)
-				) {
-					const dateStr = eventStartMoment.format("YYYY-MM-DD");
-					const targetCell = dayCells[dateStr];
-					if (targetCell) {
-						const eventsContainer = targetCell.querySelector(
-							".calendar-events-container"
-						);
-						if (eventsContainer) {
-							const { eventEl, component } = renderCalendarEvent({
-								event: event,
-								viewType: "month",
-								app: this.app,
-							});
-							this.addChild(component);
-							eventsContainer.appendChild(eventEl);
-						}
+			// --- Simplified logic: Only render event on its start date ---
+			// Check if the event's start date is within the visible grid dates
+			if (
+				eventStartMoment.isSameOrAfter(gridStartMoment) &&
+				eventStartMoment.isSameOrBefore(gridEndMoment)
+			) {
+				const dateStr = eventStartMoment.format("YYYY-MM-DD");
+				const targetCell = dayCells[dateStr];
+				if (targetCell) {
+					const eventsContainer = targetCell.querySelector(
+						".calendar-events-container"
+					);
+					if (eventsContainer) {
+						// Render the event using the existing renderer
+						const { eventEl, component } = renderCalendarEvent({
+							event: event,
+							viewType: "month", // Pass viewType consistently
+							app: this.app,
+						});
+						this.addChild(component);
+						eventsContainer.appendChild(eventEl);
 					}
 				}
 			}
+			// --- End of simplified logic ---
 		});
 
 		console.log(

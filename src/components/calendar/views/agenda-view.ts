@@ -33,54 +33,33 @@ export class AgendaView extends Component {
 		const rangeStart = this.currentDate.clone().startOf("day");
 		const rangeEnd = this.currentDate.clone().add(6, "days").endOf("day"); // 7 days total
 
-		// 2. Filter and Sort Events within the range
+		// 2. Filter and Sort Events: Only include events whose START date is within the range
 		const agendaEvents = this.events
 			.filter((event) => {
 				const eventStart = moment(event.start);
-				if (event.end) {
-					const eventEnd = moment(event.end);
-					return (
-						eventStart.isBefore(rangeEnd) &&
-						eventEnd.isAfter(rangeStart)
-					);
-				} else {
-					return eventStart.isBetween(
-						rangeStart,
-						rangeEnd,
-						null,
-						"[]"
-					);
-				}
+				// Only consider the start date for inclusion in the agenda range
+				return eventStart.isBetween(
+					rangeStart,
+					rangeEnd,
+					undefined,
+					"[]"
+				);
 			})
-			.sort((a, b) => a.start.getTime() - b.start.getTime());
+			.sort(
+				(a, b) => moment(a.start).valueOf() - moment(b.start).valueOf()
+			); // Ensure sorting by start time
 
-		// 3. Group events by day
+		// 3. Group events by their start day
 		const eventsByDay: { [key: string]: CalendarEvent[] } = {};
 		agendaEvents.forEach((event) => {
-			const eventStartMoment = moment(event.start).startOf("day");
-			const eventEndMoment = event.end
-				? moment(event.end).startOf("day")
-				: eventStartMoment.clone().add(1, "day");
-			let loopMoment = eventStartMoment.clone();
-			while (loopMoment.isBefore(eventEndMoment)) {
-				if (
-					loopMoment.isBetween(rangeStart, rangeEnd, undefined, "[]")
-				) {
-					const dateStr = loopMoment.format("YYYY-MM-DD");
-					if (!eventsByDay[dateStr]) {
-						eventsByDay[dateStr] = [];
-					}
-					if (!eventsByDay[dateStr].some((e) => e.id === event.id)) {
-						eventsByDay[dateStr].push(event);
-					}
-				}
-				loopMoment.add(1, "day");
-				if (
-					loopMoment.isAfter(rangeEnd) &&
-					loopMoment.isAfter(eventEndMoment)
-				)
-					break;
+			// Get the start date string
+			const dateStr = moment(event.start).format("YYYY-MM-DD");
+
+			if (!eventsByDay[dateStr]) {
+				eventsByDay[dateStr] = [];
 			}
+			// Add the event to its start date list
+			eventsByDay[dateStr].push(event);
 		});
 
 		// 4. Render the list

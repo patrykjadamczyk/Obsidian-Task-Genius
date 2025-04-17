@@ -37,6 +37,9 @@ export class YearView extends Component {
 		const year = this.currentDate.year();
 		this.containerEl.empty();
 		this.containerEl.addClass("view-year");
+		console.log(
+			`YearView: Rendering year ${year}. Total events received: ${this.events.length}`
+		); // Log total events
 
 		// Create a grid container for the 12 months (e.g., 4x3)
 		const yearGrid = this.containerEl.createDiv("calendar-year-grid");
@@ -44,6 +47,7 @@ export class YearView extends Component {
 		// Filter events relevant to the current year
 		const yearStart = moment({ year: year, month: 0, day: 1 });
 		const yearEnd = moment({ year: year, month: 11, day: 31 });
+		const startTimeFilter = performance.now();
 		const yearEvents = this.events.filter((e) => {
 			const start = moment(e.start);
 			const end = e.end ? moment(e.end) : start;
@@ -52,6 +56,12 @@ export class YearView extends Component {
 				end.isSameOrAfter(yearStart.startOf("day"))
 			);
 		});
+		const endTimeFilter = performance.now();
+		console.log(
+			`YearView: Filtered ${
+				yearEvents.length
+			} events for year ${year} in ${endTimeFilter - startTimeFilter}ms`
+		); // Log filtering time
 
 		// Get view settings (assuming 'calendar' or a 'year' specific setting)
 		const viewConfig = getViewSettingOrDefault(this.plugin, "calendar"); // Adjust if needed
@@ -59,7 +69,12 @@ export class YearView extends Component {
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
 
+		console.log("Effective first day:", effectiveFirstDay);
+
+		const totalRenderStartTime = performance.now(); // Start total render time
+
 		for (let month = 0; month < 12; month++) {
+			const monthStartTime = performance.now(); // Start time for this month
 			const monthContainer = yearGrid.createDiv("calendar-mini-month");
 			const monthMoment = moment({ year: year, month: month, day: 1 });
 
@@ -79,66 +94,78 @@ export class YearView extends Component {
 			const monthBody = monthContainer.createDiv("mini-month-body");
 
 			// Calculate days with events for this month
+			const calcStartTime = performance.now();
 			const daysWithEvents = this.calculateDaysWithEvents(
 				monthMoment,
-				yearEvents
+				yearEvents // Pass already filtered year events
 			);
+			const calcEndTime = performance.now();
+
 			// Render the mini-grid for this month, passing the effective first day
+			const gridStartTime = performance.now();
 			this.renderMiniMonthGrid(
 				monthBody,
 				monthMoment,
 				daysWithEvents,
 				effectiveFirstDay
 			);
+			const gridEndTime = performance.now();
+
+			const monthEndTime = performance.now(); // End time for this month
+			console.log(
+				`YearView: Month ${month + 1} processed in ${
+					monthEndTime - monthStartTime
+				}ms ` +
+					`(Calc: ${calcEndTime - calcStartTime}ms, Grid: ${
+						gridEndTime - gridStartTime
+					}ms, Days with events: ${daysWithEvents.size})`
+			);
 		}
 
+		const totalRenderEndTime = performance.now(); // End total render time
 		console.log(
-			`Rendered Year View component for ${year} (First day: ${effectiveFirstDay})`
+			`YearView: Finished rendering year ${year} in ${
+				totalRenderEndTime - totalRenderStartTime
+			}ms. (First day: ${effectiveFirstDay})`
 		);
 	}
 
 	// Helper function to calculate which days in a month have events
 	private calculateDaysWithEvents(
 		monthMoment: moment.Moment,
-		yearEvents: CalendarEvent[]
+		relevantEvents: CalendarEvent[] // Use the pre-filtered events
 	): Set<number> {
 		const days = new Set<number>();
 		const monthStart = monthMoment.clone().startOf("month");
 		const monthEnd = monthMoment.clone().endOf("month");
 
-		// Filter events relevant to this specific month
-		const monthEvents = yearEvents.filter((e) => {
-			const start = moment(e.start);
-			const end = e.end ? moment(e.end) : start;
-			return (
-				start.isSameOrBefore(monthEnd.endOf("day")) &&
-				end.isSameOrAfter(monthStart.startOf("day"))
-			);
-		});
+		relevantEvents.forEach((event) => {
+			// Check if event has a specific date (start, scheduled, or due) within the current month
+			const datesToCheck: (
+				| string
+				| moment.Moment
+				| Date
+				| number
+				| null
+				| undefined
+			)[] = [
+				event.start,
+				event.scheduledDate, // Assuming 'scheduled' exists on CalendarEvent
+				event.dueDate, // Assuming 'due' exists on CalendarEvent
+			];
 
-		monthEvents.forEach((event) => {
-			const eventStartMoment = moment(event.start).startOf("day");
-			// Handle events ending exactly at midnight of the next day
-			const eventEndMoment = event.end
-				? moment(event.end).startOf("day")
-				: eventStartMoment; // Default single day if no end
-			const eventEffectiveEndMoment =
-				event.end &&
-				moment(event.end).hour() === 0 &&
-				moment(event.end).minute() === 0
-					? moment(event.end)
-							.subtract(1, "millisecond")
-							.startOf("day")
-					: eventEndMoment;
-
-			// Clamp loop dates to the current month
-			let loopMoment = moment.max(eventStartMoment, monthStart);
-			const loopEndMoment = moment.min(eventEffectiveEndMoment, monthEnd);
-
-			while (loopMoment.isSameOrBefore(loopEndMoment, "day")) {
-				days.add(loopMoment.date()); // Add the day number (1-31)
-				loopMoment.add(1, "day");
-			}
+			datesToCheck.forEach((dateInput) => {
+				if (dateInput) {
+					const dateMoment = moment(dateInput);
+					// Check if the date falls within the current month
+					if (
+						dateMoment.isBetween(monthStart, monthEnd, "day", "[]")
+					) {
+						// '[]' includes start and end days
+						days.add(dateMoment.date()); // Add the day number (1-31)
+					}
+				}
+			});
 		});
 
 		return days;
