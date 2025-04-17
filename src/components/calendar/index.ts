@@ -17,6 +17,7 @@ import { WeekView } from "./views/week-view";
 import { DayView } from "./views/day-view";
 import { AgendaView } from "./views/agenda-view";
 import { YearView } from "./views/year-view";
+import TaskProgressBarPlugin from "src";
 // Import algorithm functions (optional for now, could be used within views)
 // import { calculateEventLayout, determineEventColor } from './algorithm';
 
@@ -48,6 +49,7 @@ export class CalendarComponent extends Component {
 	private viewContainerEl: HTMLElement; // Parent container for all views
 
 	private app: App;
+	private plugin: TaskProgressBarPlugin;
 
 	// View instances - initialized in onload
 	private monthView: MonthView;
@@ -59,9 +61,15 @@ export class CalendarComponent extends Component {
 	// Track the currently active view component
 	private activeViewComponent: CalendarView | null = null;
 
-	constructor(app: App, parentEl: HTMLElement, initialTasks: Task[] = []) {
+	constructor(
+		app: App,
+		plugin: TaskProgressBarPlugin,
+		parentEl: HTMLElement,
+		initialTasks: Task[] = []
+	) {
 		super();
 		this.app = app;
+		this.plugin = plugin;
 		this.containerEl = parentEl.createDiv("full-calendar-container");
 		this.tasks = initialTasks;
 
@@ -78,12 +86,14 @@ export class CalendarComponent extends Component {
 		// Pass the viewContainerEl as the parent for each view's own container
 		this.monthView = new MonthView(
 			this.app,
+			this.plugin,
 			this.viewContainerEl,
 			this.currentDate,
 			this.events
 		);
 		this.weekView = new WeekView(
 			this.app,
+			this.plugin,
 			this.viewContainerEl,
 			this.currentDate,
 			this.events
@@ -102,6 +112,7 @@ export class CalendarComponent extends Component {
 		);
 		this.yearView = new YearView(
 			this.app,
+			this.plugin,
 			this.viewContainerEl,
 			this.currentDate,
 			this.events

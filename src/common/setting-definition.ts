@@ -53,6 +53,7 @@ export interface ViewConfig {
 	visible: boolean; // Show in sidebar
 	hideCompletedAndAbandonedTasks: boolean; // Per-view setting
 	filterRules?: ViewFilterRule; // ADDED: Optional filter rules for ALL views
+	firstDayOfWeek?: number; // ADDED: Optional override for first day of week (0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default)
 }
 
 /** Define the structure for task statuses */
@@ -386,6 +387,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "forecast",
@@ -395,6 +397,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "projects",
@@ -404,6 +407,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "tags",
@@ -413,6 +417,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "flagged",
@@ -422,6 +427,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "review",
@@ -431,6 +437,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "calendar",
@@ -440,6 +447,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
 		},
 	],
 
@@ -472,6 +480,7 @@ export function getViewSettingOrDefault(
 		visible: true,
 		hideCompletedAndAbandonedTasks: false,
 		filterRules: {},
+		firstDayOfWeek: undefined, // Default for custom views
 	};
 
 	// Use default config if it exists, otherwise use fallback
@@ -481,17 +490,23 @@ export function getViewSettingOrDefault(
 	const mergedConfig = {
 		...baseConfig,
 		...(savedConfig || {}),
-		// Explicitly handle merging filterRules
+		// Explicitly handle merging filterRules and ensure firstDayOfWeek is preserved/overridden
 		filterRules: savedConfig?.filterRules
 			? {
 					...(baseConfig.filterRules || {}),
 					...savedConfig.filterRules,
 			  }
 			: baseConfig.filterRules || {},
+		// Use saved firstDayOfWeek if present, otherwise baseConfig's (which could be default or fallback)
+		firstDayOfWeek:
+			savedConfig?.firstDayOfWeek !== undefined
+				? savedConfig.firstDayOfWeek
+				: baseConfig.firstDayOfWeek,
 	} as ViewConfig;
 
 	// Ensure essential properties exist even if defaults are weird
 	mergedConfig.filterRules = mergedConfig.filterRules || {};
+	// No need to default firstDayOfWeek here again, it's handled above
 
 	return mergedConfig;
 }

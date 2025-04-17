@@ -13,6 +13,7 @@ import {
 	ViewMode,
 } from "../common/setting-definition";
 import TaskProgressBarPlugin from "../index";
+import moment from "moment";
 
 export class ViewConfigModal extends Modal {
 	private viewConfig: ViewConfig;
@@ -240,6 +241,40 @@ export class ViewConfigModal extends Modal {
 				this.pathExcludesInput = text;
 				text.setValue(this.viewFilterRule.pathExcludes || "");
 			});
+
+		// --- First Day of Week ---
+		const days = [
+			{ value: -1, name: t("Locale Default") }, // Use -1 or undefined as sentinel
+			{ value: 0, name: moment.weekdays(true)[0] }, // Monday
+			{ value: 1, name: moment.weekdays(true)[1] }, // Tuesday
+			{ value: 2, name: moment.weekdays(true)[2] }, // Wednesday
+			{ value: 3, name: moment.weekdays(true)[3] }, // Thursday
+			{ value: 4, name: moment.weekdays(true)[4] }, // Friday
+			{ value: 5, name: moment.weekdays(true)[5] }, // Saturday
+			{ value: 6, name: moment.weekdays(true)[6] }, // Sunday
+		];
+
+		if (this.viewConfig.id === "calendar") {
+			new Setting(contentEl)
+				.setName(t("First Day of Week"))
+				.setDesc(t("Overrides the locale default for calendar views."))
+				.addDropdown((dropdown) => {
+					days.forEach((day) => {
+						dropdown.addOption(String(day.value), day.name);
+					});
+					// Load current value or default (-1 for locale default)
+					dropdown.setValue(
+						String(this.viewConfig.firstDayOfWeek ?? -1)
+					); // Use ?? -1 to handle undefined
+					dropdown.onChange((value) => {
+						const numValue = parseInt(value);
+						// Store undefined if 'Locale Default' (-1) is chosen, otherwise store the number
+						this.viewConfig.firstDayOfWeek =
+							numValue === -1 ? undefined : numValue;
+						// Note: The onSave callback in setting.ts handles saving the updated viewConfig
+					});
+				});
+		}
 
 		// --- Action Buttons ---
 		new Setting(contentEl)

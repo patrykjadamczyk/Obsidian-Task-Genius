@@ -6,6 +6,8 @@ import {
 	EventLayout,
 } from "../algorithm"; // Import layout functions
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Use new renderer
+import { getViewSettingOrDefault } from "../../../common/setting-definition"; // Import helper
+import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
 
 /**
  * Renders the week view grid as a component.
@@ -15,15 +17,18 @@ export class WeekView extends Component {
 	private currentDate: moment.Moment;
 	private events: CalendarEvent[];
 	private app: App;
+	private plugin: TaskProgressBarPlugin; // Add plugin instance
 
 	constructor(
 		app: App,
+		plugin: TaskProgressBarPlugin, // Pass plugin instance
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
 		events: CalendarEvent[]
 	) {
 		super();
 		this.app = app;
+		this.plugin = plugin; // Store plugin instance
 		this.containerEl = containerEl;
 		this.currentDate = currentDate;
 		this.events = events;
@@ -38,8 +43,15 @@ export class WeekView extends Component {
 	}
 
 	render(): void {
-		const startOfWeek = this.currentDate.clone().startOf("week");
-		const endOfWeek = this.currentDate.clone().endOf("week");
+		// Get view settings, including the first day of the week override
+		const viewConfig = getViewSettingOrDefault(this.plugin, "calendar"); // Assuming 'calendar' view for settings lookup, adjust if needed
+		const firstDayOfWeekSetting = viewConfig.firstDayOfWeek;
+		const effectiveFirstDay =
+			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
+
+		// Calculate start and end of week based on the setting
+		const startOfWeek = this.currentDate.clone().weekday(effectiveFirstDay);
+		const endOfWeek = startOfWeek.clone().add(6, "days"); // Week always has 7 days
 
 		this.containerEl.empty();
 		this.containerEl.addClass("view-week");
@@ -49,12 +61,20 @@ export class WeekView extends Component {
 		const dayHeaderCells: { [key: string]: HTMLElement } = {};
 		let currentDayIter = startOfWeek.clone();
 
+		// Generate rotated weekdays for header
+		const weekdays = moment.weekdaysShort(true); // Gets locale-aware short weekdays
+		const rotatedWeekdays = [
+			...weekdays.slice(effectiveFirstDay),
+			...weekdays.slice(0, effectiveFirstDay),
+		];
+		let dayIndex = 0;
+
 		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			const headerCell = headerRow.createDiv("calendar-header-cell");
 			dayHeaderCells[dateStr] = headerCell; // Store header cell if needed
 			const weekdayEl = headerCell.createDiv("calendar-weekday");
-			weekdayEl.textContent = currentDayIter.format("ddd"); // Short day name
+			weekdayEl.textContent = rotatedWeekdays[dayIndex % 7]; // Use rotated weekday name
 			const dayNumEl = headerCell.createDiv("calendar-day-number");
 			dayNumEl.textContent = currentDayIter.format("D"); // Date number
 
@@ -62,6 +82,7 @@ export class WeekView extends Component {
 				headerCell.addClass("is-today");
 			}
 			currentDayIter.add(1, "day");
+			dayIndex++;
 		}
 
 		// --- All-Day Section (Renamed for clarity, now holds all events) ---
@@ -85,6 +106,7 @@ export class WeekView extends Component {
 				dayCell.addClass("is-today"); // Apply to the main day cell
 			}
 			if (currentDayIter.day() === 0 || currentDayIter.day() === 6) {
+				// This weekend check is based on Sun/Sat, might need adjustment if start day changes weekend definition visually
 				dayCell.addClass("is-weekend"); // Apply to the main day cell
 			}
 			currentDayIter.add(1, "day");
@@ -139,13 +161,14 @@ export class WeekView extends Component {
 		}
 		*/
 
-		// 3. Filter Events for the Week (No change needed here initially)
+		// 3. Filter Events for the Week (Uses calculated startOfWeek/endOfWeek)
 		const weekEvents = this.events.filter((event) => {
 			const eventStart = moment(event.start);
 			const eventEnd = event.end ? moment(event.end) : eventStart;
 			return (
-				eventStart.isBefore(endOfWeek.clone().add(1, "day")) &&
-				eventEnd.isSameOrAfter(startOfWeek)
+				eventStart.isBefore(
+					endOfWeek.clone().endOf("day").add(1, "millisecond")
+				) && eventEnd.isSameOrAfter(startOfWeek.clone().startOf("day"))
 			);
 		});
 
@@ -186,8 +209,9 @@ export class WeekView extends Component {
 							.startOf("day")
 					: eventEndMoment;
 
-			const weekStartMoment = startOfWeek.clone();
-			const weekEndMoment = endOfWeek.clone();
+			// Use calculated week boundaries
+			const weekStartMoment = startOfWeek.clone().startOf("day");
+			const weekEndMoment = endOfWeek.clone().endOf("day");
 
 			// Clamp the event's rendering range to the current week view
 			const renderStartMoment = moment.max(
@@ -347,18 +371,20 @@ export class WeekView extends Component {
 		console.log(
 			`Rendered Simplified Week View from ${startOfWeek.format(
 				"YYYY-MM-DD"
-			)} to ${endOfWeek.format("YYYY-MM-DD")}`
+			)} to ${endOfWeek.format(
+				"YYYY-MM-DD"
+			)} (First day: ${effectiveFirstDay})`
 		);
 	}
 
 	// Update methods to allow changing data after initial render
 	updateEvents(events: CalendarEvent[]): void {
 		this.events = events;
-		this.render();
+		this.render(); // Re-render will pick up current settings
 	}
 
 	updateCurrentDate(date: moment.Moment): void {
 		this.currentDate = date;
-		this.render();
+		this.render(); // Re-render will pick up current settings and date
 	}
 }

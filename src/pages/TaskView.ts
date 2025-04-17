@@ -222,6 +222,7 @@ export class TaskView extends ItemView {
 
 		this.calendarComponent = new CalendarComponent(
 			this.plugin.app,
+			this.plugin,
 			this.rootContainerEl,
 			this.tasks
 		);
