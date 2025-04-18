@@ -451,6 +451,16 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			filterRules: {},
 			firstDayOfWeek: undefined, // Use locale default
 		},
+		{
+			id: "kanban",
+			name: "Kanban",
+			icon: "kanban",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			firstDayOfWeek: undefined, // Use locale default
+		},
 	],
 
 	// Review Settings
