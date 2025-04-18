@@ -55,6 +55,7 @@ export class ForecastComponent extends Component {
 	private windowFocusHandler: () => void;
 	private isTreeView: boolean = false;
 	private treeComponents: TaskTreeItemComponent[] = [];
+	private allTasksMap: Map<string, Task> = new Map();
 
 	// Events
 	public onTaskSelected: (task: Task) => void;
@@ -367,6 +368,9 @@ export class ForecastComponent extends Component {
 
 	public setTasks(tasks: Task[]) {
 		this.allTasks = tasks;
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
 
 		// Update header count
 		this.updateHeaderCount();
@@ -660,6 +664,11 @@ export class ForecastComponent extends Component {
 	private renderDateSectionsUI() {
 		this.cleanupRenderers();
 
+		// Ensure the map is up-to-date (belt and suspenders)
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
+
 		if (this.dateSections.length === 0) {
 			const emptyEl = this.taskListContainerEl.createDiv({
 				cls: "forecast-empty-state",
@@ -747,6 +756,7 @@ export class ForecastComponent extends Component {
 			section.renderer.renderTasks(
 				section.tasks,
 				this.isTreeView,
+				this.allTasksMap,
 				t("No tasks for this section.")
 			);
 		});
@@ -1026,20 +1036,20 @@ export class ForecastComponent extends Component {
 		} else {
 			this.allTasks.push(updatedTask); // Add if new
 		}
+		this.allTasksMap.set(updatedTask.id, updatedTask);
 
 		// Re-categorize tasks based on potentially changed relevantDate
-		this.categorizeTasks(); // <--- Uses new logic
+		this.categorizeTasks();
 
-		this.updateHeaderCount(); // Count might change if task added/removed status
-		this.updateTaskStats(); // Uses new categories
-		this.updateDueSoonSection(); // Uses new categories/logic and relation to selectedDate
-		this.calendarComponent.setTasks(this.allTasks); // Update calendar (needs internal update for relevantDate)
+		this.updateHeaderCount();
+		this.updateTaskStats();
+		this.updateDueSoonSection();
+		this.calendarComponent.setTasks(this.allTasks);
 
 		// Refresh UI based on current view state (filtered or full)
 		if (this.focusFilter) {
-			this.focusTaskList(this.focusFilter); // Re-apply filter with updated data
+			this.focusTaskList(this.focusFilter);
 		} else {
-			// When a task is updated, refresh the view based on the currently selected date
 			this.refreshDateSectionsUI();
 		}
 	}
