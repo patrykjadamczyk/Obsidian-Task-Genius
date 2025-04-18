@@ -2524,6 +2524,26 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl)
+			.setName(t("Prefer metadata format of task"))
+			.setDesc(
+				t(
+					"You can choose dataview format or tasks format, that will influence both index and save format."
+				)
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("dataview", "Dataview")
+					.addOption("tasks", "Tasks")
+					.setValue(this.plugin.settings.preferMetadataFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.preferMetadataFormat = value as
+							| "dataview"
+							| "tasks";
+						this.applySettingsUpdate();
+					});
+			});
+
 		if (!this.plugin.settings.enableView) return;
 
 		// --- New View Management Section ---

@@ -398,3 +398,13 @@
 	align-items: center;
 	justify-content: center;
 }
+
+.task-genius-tab-header {
+	container-type: inline-size !important;
+}
+
+@container (max-width: 120px) {
+	.task-genius-action-btn {
+		display: none;
+	}
+}

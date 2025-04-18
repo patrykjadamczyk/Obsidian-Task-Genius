@@ -56,6 +56,8 @@ export class TaskView extends ItemView {
 	private currentSelectedTaskDOM: HTMLElement | null = null;
 	private lastToggleTimestamp: number = 0;
 
+	private tabActionButton: HTMLElement;
+
 	// Data management
 	tasks: Task[] = [];
 
@@ -112,7 +114,13 @@ export class TaskView extends ItemView {
 		this.createActionButtons();
 
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
-		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).createEl(
+		(this.leaf.tabHeaderEl as HTMLElement).toggleClass(
+			"task-genius-tab-header",
+			true
+		);
+		this.tabActionButton = (
+			this.leaf.tabHeaderStatusContainerEl as HTMLElement
+		).createEl(
 			"span",
 			{
 				cls: "task-genius-action-btn",
@@ -132,6 +140,10 @@ export class TaskView extends ItemView {
 					});
 			}
 		);
+
+		this.register(() => {
+			this.tabActionButton.detach();
+		});
 
 		this.tasks = this.plugin.preloadedTasks;
 		this.triggerViewUpdate();
@@ -597,6 +609,7 @@ export class TaskView extends ItemView {
 		if (!taskManager) return;
 
 		this.tasks = taskManager.getAllTasks();
+		console.log("all tasks", this.tasks.length, this.tasks);
 		console.log("current tasks", this.tasks.length);
 		await this.triggerViewUpdate();
 	}
