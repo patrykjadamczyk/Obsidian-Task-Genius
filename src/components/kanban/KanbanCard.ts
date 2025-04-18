@@ -19,7 +19,12 @@ export class KanbanCardComponent extends Component {
 		private app: App,
 		plugin: TaskProgressBarPlugin,
 		private containerEl: HTMLElement, // The column's contentEl where the card should be added
-		task: Task
+		task: Task,
+		private params: {
+			onTaskSelected?: (task: Task) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
+		} = {}
 	) {
 		super();
 		this.plugin = plugin;
@@ -51,23 +56,7 @@ export class KanbanCardComponent extends Component {
 
 		// --- Context Menu ---
 		this.registerDomEvent(this.element, "contextmenu", (event) => {
-			this.showContextMenu(event);
-		});
-
-		// --- Click Action (e.g., open file) ---
-		this.registerDomEvent(this.element, "click", (event) => {
-			if (this.task.filePath) {
-				const file = this.app.vault.getAbstractFileByPath(
-					this.task.filePath
-				);
-				if (file instanceof TFile) {
-					this.app.workspace
-						.getLeaf(event.ctrlKey || event.metaKey)
-						.openFile(file, {
-							eState: { line: this.task.line },
-						});
-				}
-			}
+			this.params.onTaskContextMenu?.(event, this.task);
 		});
 	}
 

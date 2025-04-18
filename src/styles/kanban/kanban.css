@@ -10,6 +10,25 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 	flex-shrink: 0; /* Don't shrink filter bar */
 	/* TODO: Style filter controls */
+	/* Style filter controls */
+	display: flex;
+	align-items: center;
+}
+
+.task-genius-view .kanban-filter-input {
+	flex-grow: 1;
+	padding: 6px 10px;
+	font-size: var(--font-ui-small);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary);
+	margin-right: 10px; /* Optional: space if other controls are added */
+}
+
+.task-genius-view .kanban-filter-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .task-genius-view .kanban-column-container {
@@ -31,6 +50,8 @@
 	height: 100%; /* Fill container height */
 	max-height: 100%; /* Prevent exceeding container */
 	overflow: hidden; /* Hide overflow within the column */
+
+	border: 1px solid var(--background-modifier-border);
 }
 
 .task-genius-view .kanban-column-header {
@@ -42,27 +63,42 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+
+	text-transform: uppercase;
 }
 
 .task-genius-view .kanban-column-content {
 	flex-grow: 1; /* Take remaining space in the column */
-	overflow-y: auto; /* Allow vertical scrolling for cards */
+	overflow-y: scroll; /* Allow vertical scrolling for cards */
 	padding: 8px;
 	display: flex;
 	flex-direction: column;
 	gap: 8px; /* Space between cards */
-	min-height: 50px; /* Ensure drop zone is targetable even when empty */
+	padding-right: 0;
 }
-
 /* --- Card Styling --- */
 .task-genius-view .kanban-card {
 	background-color: var(--background-primary);
 	border-radius: var(--radius-s);
 	padding: 10px 12px;
 	border: 1px solid var(--background-modifier-border);
-	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
 	cursor: grab;
 	transition: box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+
+	/* Ensure card fits within column and handles content */
+	max-width: 100%; /* Prevent card from exceeding parent width */
+	box-sizing: border-box; /* Include padding/border in width */
+	white-space: nowrap; /* Allow text wrapping */
+	text-overflow: ellipsis;
+}
+
+.task-genius-view .kanban-card .kanban-card-content {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	max-width: 100%;
 }
 
 .task-genius-view .kanban-card:hover {
@@ -86,6 +122,8 @@
 }
 .task-genius-view .kanban-card-content p:last-child {
 	margin-bottom: 0; /* Avoid extra space from paragraph */
+	margin-block-end: 0;
+	margin-block-start: 0;
 }
 
 .task-genius-view .kanban-card-metadata {
@@ -105,6 +143,11 @@
 	padding: 2px 5px;
 	background-color: var(--background-secondary);
 	border-radius: var(--radius-s);
+
+	margin-inline-start: 0;
+	margin-inline-end: 0;
+	margin-left: 0;
+	margin-right: 0;
 }
 
 .task-genius-view .kanban-card-metadata .task-tag {
@@ -142,8 +185,8 @@
 /* --- Drag and Drop Styling --- */
 .task-genius-view .kanban-card-dragging {
 	/* Style for the clone being dragged */
-	opacity: 0.8;
-	transform: rotate(3deg); /* Slight tilt */
+	/* opacity: 0.8; */ /* Removed opacity */
+	transform: rotate(3deg); /* Slight tilt - Keep for now? */
 	box-shadow: var(--shadow-l); /* More prominent shadow */
 }
 
@@ -166,3 +209,56 @@
 	/* Style for the specific drop zone being hovered over */
 	background-color: var(--background-modifier-accent-hover);
 }
+
+/* Styles for Kanban drop indicators */
+.kanban-card--drop-indicator-before {
+	margin-top: 10px; /* Increased margin */
+	border-top: 2px dashed var(--interactive-accent); /* Indicator */
+	/* padding-top: 20px; */ /* Removed padding */
+	transition: margin-top 0.1s ease-out, border-top 0.1s ease-out; /* Updated transition */
+}
+
+.kanban-card--drop-indicator-after {
+	margin-bottom: 10px; /* Increased margin */
+	border-bottom: 2px dashed var(--interactive-accent); /* Indicator */
+	/* padding-bottom: 20px; */ /* Removed padding */
+	transition: margin-bottom 0.1s ease-out, border-bottom 0.1s ease-out; /* Updated transition */
+}
+
+/* Optional: Style for dropping into an empty column */
+.kanban-column-content--drop-indicator-empty {
+	border: 2px dashed var(--interactive-accent);
+	min-height: 50px; /* Ensure empty column has some height for the border */
+	box-sizing: border-box; /* Include border in height calculation */
+	margin-top: 5px; /* Add some space */
+	margin-bottom: 5px; /* Add some space */
+}
+
+/* Ensure transitions are smooth when classes are removed */
+.kanban-card {
+	/* Ensure existing transitions don't conflict, or add base transition */
+	transition: margin 0.1s ease-out, padding 0.1s ease-out,
+		border 0.1s ease-out, transform 0.2s ease-out,
+		box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out; /* Merged transitions */
+}
+
+/* Remove duplicate definitions below if they exist */
+/*
+.kanban-card-dragging {
+	opacity: 0.8;
+	transform: rotate(3deg);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.kanban-card-ghost {
+	opacity: 0.4;
+}
+
+.kanban-column-content.kanban-drop-target-active {
+
+}
+
+.kanban-column-content.kanban-drop-target-hover {
+
+}
+*/

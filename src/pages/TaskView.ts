@@ -276,10 +276,9 @@ export class TaskView extends ItemView {
 			this.rootContainerEl,
 			this.tasks || [],
 			{
-				onTaskStatusUpdate: this.handleKanbanTaskStatusUpdate,
-				onTaskSelected: this.handleTaskSelection,
-				onTaskCompleted: this.toggleTaskCompletion,
-				onTaskContextMenu: this.handleTaskContextMenu,
+				onTaskSelected: this.handleTaskSelection.bind(this),
+				onTaskCompleted: this.toggleTaskCompletion.bind(this),
+				onTaskContextMenu: this.handleTaskContextMenu.bind(this),
 			}
 		);
 		this.addChild(this.kanbanComponent);

@@ -2,6 +2,7 @@ import { App, Component, Point, TFile } from "obsidian";
 
 export interface DragStartEvent {
 	element: HTMLElement;
+	originalElement: HTMLElement;
 	startX: number;
 	startY: number;
 	event: PointerEvent | MouseEvent | TouchEvent;
@@ -34,16 +35,22 @@ export interface DragManagerOptions {
 export class DragManager extends Component {
 	private options: DragManagerOptions;
 	private isDragging = false;
+	private isPotentialDrag = false; // Flag to track if a drag might start
 	private startX = 0;
 	private startY = 0;
 	private currentX = 0;
 	private currentY = 0;
+	private initialPointerX = 0; // Store initial pointer down position
+	private initialPointerY = 0;
+	private dragThreshold = 5; // Minimum distance in pixels to initiate drag
 	private draggedElement: HTMLElement | null = null;
-	private originalElement: HTMLElement | null = null; // Store original if cloning
+	private originalElement: HTMLElement | null = null; // Store original always
+	private hasMovedBeyondThreshold = false; // Flag to track if threshold was crossed during move
 	private startEventData: DragStartEvent | null = null;
 	private boundHandlePointerDown: (event: PointerEvent) => void;
 	private boundHandlePointerMove: (event: PointerEvent) => void;
 	private boundHandlePointerUp: (event: PointerEvent) => void;
+	private initialTarget: EventTarget | null = null; // Store the initial target of pointerdown
 
 	constructor(options: DragManagerOptions) {
 		super();
@@ -62,9 +69,13 @@ export class DragManager extends Component {
 		if (this.isDragging) {
 			// Clean up if unloaded mid-drag
 			this.handlePointerUp(
-				new PointerEvent("pointerup") /* fake event */
+				new PointerEvent("pointerup", {
+					clientX: this.currentX,
+					clientY: this.currentY,
+				}) /* fake event */
 			);
 		}
+		this.resetDragState(); // Ensure cleanup
 	}
 
 	private registerListeners(): void {
@@ -79,6 +90,7 @@ export class DragManager extends Component {
 		if (event.button !== 0) return; // Only main button
 
 		let targetElement = event.target as HTMLElement;
+		this.initialTarget = event.target; // Store the initial target
 
 		// Check for drag handle if specified
 		if (this.options.dragHandleSelector) {
@@ -114,85 +126,142 @@ export class DragManager extends Component {
 			return; // Clicked directly on the container background
 		}
 
-		this.isDragging = true;
-		this.startX = event.clientX;
-		this.startY = event.clientY;
-		this.currentX = this.startX;
-		this.currentY = this.startY;
-		this.originalElement = targetElement; // Store the original element
+		// Potential drag start - record state but don't activate drag yet
+		this.isPotentialDrag = true;
+		this.initialPointerX = event.clientX;
+		this.initialPointerY = event.clientY;
+		this.originalElement = targetElement; // Store the element that received the pointerdown
 
-		// --- Cloning Logic ---
-		if (this.options.cloneElement) {
-			if (typeof this.options.cloneElement === "function") {
-				this.draggedElement = this.options.cloneElement();
-			} else {
-				this.draggedElement = targetElement.cloneNode(
-					true
-				) as HTMLElement;
-			}
-			// Position the clone absolutely
-			const rect = targetElement.getBoundingClientRect();
-			this.draggedElement.style.position = "absolute";
-			this.draggedElement.style.left = `${rect.left}px`;
-			this.draggedElement.style.top = `${rect.top}px`;
-			this.draggedElement.style.width = `${rect.width}px`;
-			this.draggedElement.style.height = `${rect.height}px`;
-			this.draggedElement.style.pointerEvents = "none"; // Prevent clone from interfering with pointer events
-			this.draggedElement.style.zIndex = "1000"; // Ensure clone is on top
-			document.body.appendChild(this.draggedElement); // Append to body to avoid container clipping
-
-			if (this.options.ghostClass) {
-				this.originalElement.classList.add(this.options.ghostClass);
-			}
-		} else {
-			this.draggedElement = targetElement;
-		}
-
-		if (this.options.dragClass && this.draggedElement) {
-			this.draggedElement.classList.add(this.options.dragClass);
-		}
-		// --- End Cloning Logic ---
-
-		this.startEventData = {
-			element: this.draggedElement!,
-			startX: this.startX,
-			startY: this.startY,
-			event: event,
-		};
-
-		// Check if drag should proceed
-		const proceed = this.options.onDragStart?.(this.startEventData);
-		if (proceed === false) {
-			this.resetDragState();
-			return;
-		}
-
-		// Prevent default text selection behavior during drag
-		// event.preventDefault(); // Careful: This can prevent other desired behaviors like scrolling
-
-		// Add global listeners
+		// Add global listeners immediately to capture move/up
 		document.addEventListener("pointermove", this.boundHandlePointerMove);
 		document.addEventListener("pointerup", this.boundHandlePointerUp);
+
+		// Prevent default only if needed (e.g., text selection), maybe delay this
+		// event.preventDefault(); // Let's avoid calling this here to allow clicks
 	}
 
 	private handlePointerMove(event: PointerEvent): void {
-		if (!this.isDragging || !this.draggedElement || !this.startEventData)
-			return;
-
-		// event.preventDefault(); // Prevent text selection, etc.
+		if (!this.isPotentialDrag && !this.isDragging) return;
 
 		this.currentX = event.clientX;
 		this.currentY = event.clientY;
+
+		if (this.isPotentialDrag) {
+			const deltaX = Math.abs(this.currentX - this.initialPointerX);
+			const deltaY = Math.abs(this.currentY - this.initialPointerY);
+
+			console.log(
+				`DragManager: Pointer move. deltaX: ${deltaX}, deltaY: ${deltaY}, distance: ${Math.sqrt(
+					deltaX * deltaX + deltaY * deltaY
+				)}`
+			);
+
+			// Check if threshold is exceeded
+			if (
+				Math.sqrt(deltaX * deltaX + deltaY * deltaY) >
+				this.dragThreshold
+			) {
+				this.isPotentialDrag = false; // It's now a confirmed drag
+				this.isDragging = true;
+				this.hasMovedBeyondThreshold = true; // Set the flag
+
+				// Prevent default actions like text selection *now* that it's a drag
+				if (event.cancelable) event.preventDefault();
+
+				// --- Perform Drag Initialization ---
+				this.startX = this.initialPointerX; // Use initial pointer pos as drag start
+				this.startY = this.initialPointerY;
+
+				// --- Cloning Logic ---
+				if (this.options.cloneElement && this.originalElement) {
+					if (typeof this.options.cloneElement === "function") {
+						this.draggedElement = this.options.cloneElement();
+					} else {
+						this.draggedElement = this.originalElement.cloneNode(
+							true
+						) as HTMLElement;
+					}
+					// Position the clone absolutely
+					const rect = this.originalElement.getBoundingClientRect();
+					this.draggedElement.style.position = "absolute";
+					// Start clone at the initial pointer down position offset by click inside element
+					const offsetX = this.startX - rect.left;
+					const offsetY = this.startY - rect.top;
+					this.draggedElement.style.left = `${
+						this.currentX - offsetX
+					}px`; // Position based on current mouse
+					this.draggedElement.style.top = `${
+						this.currentY - offsetY
+					}px`;
+					this.draggedElement.style.width = `${rect.width}px`;
+					// this.draggedElement.style.height = `${rect.height}px`; // Height might vary, let CSS handle?
+					this.draggedElement.style.pointerEvents = "none";
+					this.draggedElement.style.zIndex = "1000";
+					document.body.appendChild(this.draggedElement);
+
+					if (this.options.ghostClass) {
+						this.originalElement.classList.add(
+							this.options.ghostClass
+						);
+					}
+				} else {
+					this.draggedElement = this.originalElement; // Drag original element
+				}
+
+				if (this.options.dragClass && this.draggedElement) {
+					this.draggedElement.classList.add(this.options.dragClass);
+				}
+				// --- End Cloning Logic ---
+
+				this.startEventData = {
+					element: this.draggedElement!,
+					originalElement: this.originalElement!,
+					startX: this.startX,
+					startY: this.startY,
+					event: event, // Use the current move event as the 'start' trigger
+				};
+
+				// Check if drag should proceed (callback)
+				const proceed = this.options.onDragStart?.(
+					this.startEventData!
+				);
+				if (proceed === false) {
+					console.log("Drag start cancelled by callback");
+					this.resetDragState(); // Reset includes hasMovedBeyondThreshold
+					return;
+				}
+				// --- End Drag Initialization ---
+
+				// Trigger initial move callback immediately after start
+				this.triggerDragMove(event);
+			}
+			// If threshold not exceeded, do nothing - wait for more movement or pointerup
+			return; // Don't proceed further in this move event if we just initiated drag
+		}
+
+		// --- Continue Drag Move ---
+		if (this.isDragging) {
+			if (event.cancelable) event.preventDefault(); // Continue preventing defaults during drag
+			this.triggerDragMove(event);
+		}
+	}
+
+	private triggerDragMove(event: PointerEvent): void {
+		if (!this.isDragging || !this.draggedElement || !this.startEventData)
+			return;
+
 		const deltaX = this.currentX - this.startX;
 		const deltaY = this.currentY - this.startY;
 
 		// Update clone position if cloning
 		if (this.options.cloneElement) {
 			const startRect = this.originalElement!.getBoundingClientRect();
-			this.draggedElement.style.left = `${startRect.left + deltaX}px`;
-			this.draggedElement.style.top = `${startRect.top + deltaY}px`;
+			// Adjust based on where the pointer started *within* the element
+			const offsetX = this.startEventData.startX - startRect.left;
+			const offsetY = this.startEventData.startY - startRect.top;
+			this.draggedElement.style.left = `${this.currentX - offsetX}px`;
+			this.draggedElement.style.top = `${this.currentY - offsetY}px`;
 		}
-		// Note: If not cloning, the element's movement might be handled by CSS transforms or other means via the callback
 
 		const moveEventData: DragMoveEvent = {
 			...this.startEventData,
@@ -207,28 +276,61 @@ export class DragManager extends Component {
 	}
 
 	private handlePointerUp(event: PointerEvent): void {
-		if (!this.isDragging || !this.draggedElement || !this.startEventData)
-			return;
+		console.log(
+			"DragManager: Pointer up",
+			event,
+			this.hasMovedBeyondThreshold
+		);
+		// Check if the drag threshold was ever crossed during the pointermove phase
+		if (this.hasMovedBeyondThreshold) {
+			// If movement occurred, prevent the click event regardless of drop success etc.
+			event.preventDefault();
+			// console.log(`DragManager: Preventing click because threshold was crossed.`);
+		} else {
+			// console.log(`DragManager: Not preventing click because threshold was not crossed.`);
+		}
 
-		// event.preventDefault();
+		// Check if it was essentially a click (potential drag never became actual drag)
+		if (this.isPotentialDrag && !this.isDragging) {
+			// console.log("DragManager: PotentialDrag=true, IsDragging=false. Treating as click/short drag.");
+			this.resetDragState(); // Clean up listeners etc.
+			// Do not return here if preventDefault was called above
+			// If hasMovedBeyondThreshold is false (no preventDefault), this allows the click
+			// If hasMovedBeyondThreshold is true (preventDefault was called), the click is blocked anyway
+			return; // Allow default behavior (or prevented behavior)
+		}
+
+		// Check if drag state is inconsistent or drag didn't actually start properly
+		if (!this.isDragging || !this.draggedElement || !this.startEventData) {
+			// console.log(`DragManager: Inconsistent state? isDragging=${this.isDragging}, hasMoved=${this.hasMovedBeyondThreshold}`);
+			this.resetDragState();
+			return;
+		}
+
+		// --- Drag End --- (Now we are sure a drag was properly started)
+		// preventDefault() was potentially called at the beginning of this function.
+		// console.log("DragManager: Drag End logic. hasMovedBeyondThreshold:", this.hasMovedBeyondThreshold);
 
 		// Determine potential drop target
 		let dropTarget: HTMLElement | null = null;
 		if (this.options.dropZoneSelector) {
 			// Hide the clone temporarily to accurately find the element underneath
-			const originalDisplay = this.draggedElement.style.display;
+			// Use the dragged element (which might be the clone or original)
+			const elementToHide = this.draggedElement;
+			const originalDisplay = elementToHide.style.display;
+			// Only hide if it's the clone, otherwise elementFromPoint gets the original element itself
 			if (this.options.cloneElement) {
-				this.draggedElement.style.display = "none";
+				elementToHide.style.display = "none";
 			}
 
 			const elementUnderPointer = document.elementFromPoint(
-				this.currentX,
-				this.currentY
+				event.clientX, // Use event's clientX/Y which are the final pointer coords
+				event.clientY
 			);
 
-			// Restore clone visibility
+			// Restore visibility
 			if (this.options.cloneElement) {
-				this.draggedElement.style.display = originalDisplay;
+				elementToHide.style.display = originalDisplay;
 			}
 
 			if (elementUnderPointer) {
@@ -240,47 +342,67 @@ export class DragManager extends Component {
 
 		const endEventData: DragEndEvent = {
 			...this.startEventData,
-			currentX: this.currentX,
-			currentY: this.currentY,
-			deltaX: this.currentX - this.startX,
-			deltaY: this.currentY - this.startY,
+			currentX: event.clientX, // Use final pointer coords
+			currentY: event.clientY,
+			deltaX: event.clientX - this.startX, // Delta based on drag start coords (startX/Y)
+			deltaY: event.clientY - this.startY,
 			event: event,
 			dropTarget: dropTarget,
 		};
 
-		this.options.onDragEnd?.(endEventData);
-
-		this.resetDragState();
+		// Trigger the callback *before* final cleanup
+		try {
+			this.options.onDragEnd?.(endEventData);
+		} catch (error) {
+			console.error("DragManager: Error in onDragEnd callback:", error);
+		} finally {
+			// Ensure cleanup happens even if callback throws
+			this.resetDragState(); // This now resets hasMovedBeyondThreshold
+		}
 	}
 
 	private resetDragState(): void {
-		// Clean up global listeners
+		// Clean up global listeners first
 		document.removeEventListener(
 			"pointermove",
 			this.boundHandlePointerMove
 		);
 		document.removeEventListener("pointerup", this.boundHandlePointerUp);
 
+		// Clean up dragged element styles/DOM
 		if (this.draggedElement) {
 			if (this.options.dragClass) {
 				this.draggedElement.classList.remove(this.options.dragClass);
 			}
 			// Remove clone if it exists
-			if (this.options.cloneElement) {
+			if (
+				this.options.cloneElement &&
+				this.draggedElement !== this.originalElement
+			) {
+				// Check it's not the original element before removing
 				this.draggedElement.remove();
 			}
 		}
+		// Clean up original element styles
 		if (this.originalElement && this.options.ghostClass) {
 			this.originalElement.classList.remove(this.options.ghostClass);
 		}
 
+		// Reset state variables
 		this.isDragging = false;
+		this.isPotentialDrag = false; // Reset potential drag flag
+		this.hasMovedBeyondThreshold = false; // Reset the movement flag
 		this.draggedElement = null;
 		this.originalElement = null;
 		this.startEventData = null;
+		this.initialTarget = null;
 		this.startX = 0;
 		this.startY = 0;
 		this.currentX = 0;
 		this.currentY = 0;
+		// Reset initial pointer positions as well
+		this.initialPointerX = 0;
+		this.initialPointerY = 0;
+		// console.log("DragManager: resetDragState finished");
 	}
 }

@@ -10,7 +10,6 @@ import {
 	TFile,
 } from "obsidian";
 import { Task, TaskParserConfig } from "../types/TaskIndex";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Default configuration for the task parser
@@ -118,9 +117,10 @@ export class TaskParser extends Component {
 
 		const completed = status.toLowerCase() === "x";
 		const contentWithMetadata = taskIdentifierMatch[5] ?? "";
+		const id = `${filePath}-L${lineNum}`;
 
 		const task: Task = {
-			id: uuidv4(),
+			id,
 			content: "",
 			filePath,
 			line: lineNum,
