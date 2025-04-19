@@ -6,7 +6,10 @@ import {
 	EventLayout,
 } from "../algorithm"; // Import layout functions
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Use new renderer
-import { getViewSettingOrDefault } from "../../../common/setting-definition"; // Import helper
+import {
+	CalendarSpecificConfig,
+	getViewSettingOrDefault,
+} from "../../../common/setting-definition"; // Import helper
 import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
 import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class and options type
 
@@ -39,7 +42,9 @@ export class WeekView extends CalendarViewComponent {
 	render(): void {
 		// Get view settings, including the first day of the week override
 		const viewConfig = getViewSettingOrDefault(this.plugin, "calendar"); // Assuming 'calendar' view for settings lookup, adjust if needed
-		const firstDayOfWeekSetting = viewConfig.firstDayOfWeek;
+		const firstDayOfWeekSetting = (
+			viewConfig.specificConfig as CalendarSpecificConfig
+		).firstDayOfWeek;
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
 

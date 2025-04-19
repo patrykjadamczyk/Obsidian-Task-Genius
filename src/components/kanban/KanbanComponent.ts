@@ -7,10 +7,10 @@ import "../../styles/kanban/kanban.css";
 import { t } from "../../translations/helper"; // Added import for t
 
 // CSS classes for drop indicators
-const DROP_INDICATOR_BEFORE_CLASS = "kanban-card--drop-indicator-before";
-const DROP_INDICATOR_AFTER_CLASS = "kanban-card--drop-indicator-after";
+const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";
+const DROP_INDICATOR_AFTER_CLASS = "tg-kanban-card--drop-indicator-after";
 const DROP_INDICATOR_EMPTY_CLASS =
-	"kanban-column-content--drop-indicator-empty";
+	"tg-kanban-column-content--drop-indicator-empty";
 
 export class KanbanComponent extends Component {
 	plugin: TaskProgressBarPlugin;
@@ -51,7 +51,7 @@ export class KanbanComponent extends Component {
 		super();
 		this.app = app;
 		this.plugin = plugin;
-		this.containerEl = parentEl.createDiv("kanban-component-container");
+		this.containerEl = parentEl.createDiv("tg-kanban-component-container");
 		this.tasks = initialTasks;
 		this.params = params;
 	}
@@ -59,14 +59,14 @@ export class KanbanComponent extends Component {
 	override onload() {
 		super.onload();
 		this.containerEl.empty();
-		this.containerEl.addClass("kanban-view");
+		this.containerEl.addClass("tg-kanban-view");
 
 		this.renderFilterControls(
-			this.containerEl.createDiv({ cls: "kanban-filters" })
+			this.containerEl.createDiv({ cls: "tg-kanban-filters" })
 		);
 
 		this.columnContainerEl = this.containerEl.createDiv({
-			cls: "kanban-column-container",
+			cls: "tg-kanban-column-container",
 		});
 
 		this.initializeDragManager();
@@ -92,7 +92,7 @@ export class KanbanComponent extends Component {
 		this.filterInputEl = containerEl.createEl("input", {
 			type: "text",
 			placeholder: t("Filter tasks... (by content, project, tag)"),
-			cls: "kanban-filter-input",
+			cls: "tg-kanban-filter-input",
 		});
 
 		// Add event listener with debouncing
@@ -238,17 +238,17 @@ export class KanbanComponent extends Component {
 
 		this.dragManager = new DragManager({
 			container: this.columnContainerEl,
-			draggableSelector: ".kanban-card",
-			dropZoneSelector: ".kanban-column-content",
+			draggableSelector: ".tg-kanban-card",
+			dropZoneSelector: ".tg-kanban-column-content",
 			cloneElement: true,
-			dragClass: "kanban-card-dragging",
-			ghostClass: "kanban-card-ghost",
+			dragClass: "tg-kanban-card-dragging",
+			ghostClass: "tg-kanban-card-ghost",
 			onDragStart: (data) => {
 				console.log("Drag Start:", data.element.dataset.taskId);
 				this.columnContainerEl
-					.querySelectorAll(".kanban-column-content")
+					.querySelectorAll(".tg-kanban-column-content")
 					.forEach((el) => {
-						el.classList.add("kanban-drop-target-active");
+						el.classList.add("tg-kanban-drop-target-active");
 					});
 				return true;
 			},
@@ -299,12 +299,12 @@ export class KanbanComponent extends Component {
 		if (!elementUnderPointer) return;
 
 		const dropZone = elementUnderPointer.closest(
-			".kanban-column-content"
+			".tg-kanban-column-content"
 		) as HTMLElement;
 
 		if (dropZone) {
 			const cards = Array.from(
-				dropZone.querySelectorAll<HTMLElement>(".kanban-card")
+				dropZone.querySelectorAll<HTMLElement>(".tg-kanban-card")
 			).filter((card) => card !== data.originalElement); // Exclude the original dragged card if it's still technically in the DOM
 
 			if (cards.length === 0) {
@@ -366,12 +366,12 @@ export class KanbanComponent extends Component {
 		this.clearDropIndicators();
 		this.columnContainerEl
 			.querySelectorAll(
-				".kanban-drop-target-active, .kanban-drop-target-hover"
+				".tg-kanban-drop-target-active, .tg-kanban-drop-target-hover"
 			)
 			.forEach((el) => {
 				el.classList.remove(
-					"kanban-drop-target-active",
-					"kanban-drop-target-hover"
+					"tg-kanban-drop-target-active",
+					"tg-kanban-drop-target-hover"
 				);
 			});
 
@@ -380,7 +380,7 @@ export class KanbanComponent extends Component {
 
 		if (taskId && dropTargetColumnContent) {
 			const targetColumnEl =
-				dropTargetColumnContent.closest(".kanban-column");
+				dropTargetColumnContent.closest(".tg-kanban-column");
 			const targetStatusName = targetColumnEl
 				? (targetColumnEl as HTMLElement).dataset.statusName
 				: null;

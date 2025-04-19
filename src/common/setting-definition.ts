@@ -53,8 +53,22 @@ export interface ViewConfig {
 	visible: boolean; // Show in sidebar
 	hideCompletedAndAbandonedTasks: boolean; // Per-view setting
 	filterRules?: ViewFilterRule; // ADDED: Optional filter rules for ALL views
-	firstDayOfWeek?: number; // ADDED: Optional override for first day of week (0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default)
+	specificConfig?: SpecificViewConfig; // ADDED: Optional property for view-specific settings
 }
+
+// ADDED: Specific config interfaces
+export interface KanbanSpecificConfig {
+	viewType: "kanban"; // Discriminator
+	showCheckbox: boolean;
+}
+
+export interface CalendarSpecificConfig {
+	viewType: "calendar"; // Discriminator
+	firstDayOfWeek?: number; // 0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default
+}
+
+// ADDED: Union type for specific configs
+export type SpecificViewConfig = KanbanSpecificConfig | CalendarSpecificConfig;
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -389,7 +403,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "forecast",
@@ -399,7 +412,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "projects",
@@ -409,7 +421,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "tags",
@@ -419,7 +430,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "flagged",
@@ -429,7 +439,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "review",
@@ -439,7 +448,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
 		},
 		{
 			id: "calendar",
@@ -449,7 +457,10 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
+			specificConfig: {
+				viewType: "calendar",
+				firstDayOfWeek: undefined, // Use locale default initially
+			} as CalendarSpecificConfig,
 		},
 		{
 			id: "kanban",
@@ -459,7 +470,10 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
-			firstDayOfWeek: undefined, // Use locale default
+			specificConfig: {
+				viewType: "kanban",
+				showCheckbox: true, // Example default, adjust if needed
+			} as KanbanSpecificConfig,
 		},
 	],
 
@@ -484,41 +498,55 @@ export function getViewSettingOrDefault(
 	);
 
 	// If neither exists, create a fallback default for custom views
-	const fallbackConfig = {
+	// IMPORTANT: Fallback needs to determine if it *should* have specificConfig based on ID pattern or other logic if possible.
+	// For simplicity now, fallback won't have specificConfig unless explicitly added later for new custom types.
+	const fallbackConfig: ViewConfig = {
+		// Explicitly type fallback
 		id: viewId,
-		name: viewId,
+		name: viewId, // Consider using a better default name generation
 		icon: "list-plus",
 		type: "custom",
 		visible: true,
 		hideCompletedAndAbandonedTasks: false,
 		filterRules: {},
-		firstDayOfWeek: undefined, // Default for custom views
+		// No specificConfig for generic custom views by default
 	};
 
 	// Use default config if it exists, otherwise use fallback
 	const baseConfig = defaultConfig || fallbackConfig;
 
-	// Merge saved config onto base config, ensuring filterRules are merged properly
-	const mergedConfig = {
+	// Merge saved config onto base config
+	const mergedConfig: ViewConfig = {
+		// Explicitly type merged
 		...baseConfig,
-		...(savedConfig || {}),
-		// Explicitly handle merging filterRules and ensure firstDayOfWeek is preserved/overridden
+		...(savedConfig || {}), // Spread saved config properties, overriding base
+		// Explicitly handle merging filterRules
 		filterRules: savedConfig?.filterRules
 			? {
-					...(baseConfig.filterRules || {}),
-					...savedConfig.filterRules,
+					...(baseConfig.filterRules || {}), // Start with base's filterRules
+					...savedConfig.filterRules, // Override with saved filterRules properties
 			  }
-			: baseConfig.filterRules || {},
-		// Use saved firstDayOfWeek if present, otherwise baseConfig's (which could be default or fallback)
-		firstDayOfWeek:
-			savedConfig?.firstDayOfWeek !== undefined
-				? savedConfig.firstDayOfWeek
-				: baseConfig.firstDayOfWeek,
-	} as ViewConfig;
+			: baseConfig.filterRules || {}, // If no saved filterRules, use base's
+		// Merge specificConfig: Saved overrides default, default overrides base (which might be fallback without specificConfig)
+		// Ensure that the spread of savedConfig doesn't overwrite specificConfig object entirely if base has one and saved doesn't.
+		specificConfig:
+			savedConfig?.specificConfig !== undefined
+				? {
+						// If saved has specificConfig, merge it onto base's
+						...(baseConfig.specificConfig || {}),
+						...savedConfig.specificConfig,
+				  }
+				: baseConfig.specificConfig, // Otherwise, just use base's specificConfig (could be undefined)
+	};
 
 	// Ensure essential properties exist even if defaults are weird
 	mergedConfig.filterRules = mergedConfig.filterRules || {};
-	// No need to default firstDayOfWeek here again, it's handled above
+	// Optional: If specificConfig is expected for certain default types but missing after merge, could add fallback logic here.
+	// For example:
+	// if (mergedConfig.type === 'default' && (mergedConfig.id === 'kanban' || mergedConfig.id === 'calendar') && mergedConfig.specificConfig === undefined) {
+	//   console.warn(`Specific config missing for default view ${mergedConfig.id}, attempting to use default.`);
+	//   mergedConfig.specificConfig = DEFAULT_SETTINGS.viewConfiguration.find(v => v.id === mergedConfig.id)?.specificConfig;
+	// }
 
 	return mergedConfig;
 }

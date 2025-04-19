@@ -1,6 +1,9 @@
 import { App, Component, debounce, moment } from "obsidian";
 import { CalendarEvent } from "..";
-import { getViewSettingOrDefault } from "../../../common/setting-definition"; // Import helper
+import {
+	CalendarSpecificConfig,
+	getViewSettingOrDefault,
+} from "../../../common/setting-definition"; // Import helper
 import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
 import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class
 
@@ -62,7 +65,9 @@ export class YearView extends CalendarViewComponent {
 
 		// Get view settings (assuming 'calendar' or a 'year' specific setting)
 		const viewConfig = getViewSettingOrDefault(this.plugin, "calendar"); // Adjust if needed
-		const firstDayOfWeekSetting = viewConfig.firstDayOfWeek;
+		const firstDayOfWeekSetting = (
+			viewConfig.specificConfig as CalendarSpecificConfig
+		).firstDayOfWeek;
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
 

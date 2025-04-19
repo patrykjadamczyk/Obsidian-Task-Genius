@@ -8,6 +8,9 @@ import {
 } from "obsidian";
 import { t } from "../translations/helper";
 import {
+	CalendarSpecificConfig,
+	KanbanSpecificConfig,
+	SpecificViewConfig,
 	ViewConfig,
 	ViewFilterRule,
 	ViewMode,
@@ -102,6 +105,77 @@ export class ViewConfigModal extends Modal {
 				text.setValue(this.viewConfig.icon).setPlaceholder("list-plus");
 			});
 
+		if (this.viewConfig.id === "calendar") {
+			new Setting(contentEl)
+				.setName(t("First Day of Week"))
+				.setDesc(t("Overrides the locale default for calendar views."))
+				.addDropdown((dropdown) => {
+					days.forEach((day) => {
+						dropdown.addOption(String(day.value), day.name);
+					});
+
+					let initialValue = -1; // Default to 'Locale Default'
+					if (
+						this.viewConfig.specificConfig?.viewType === "calendar"
+					) {
+						initialValue =
+							(
+								this.viewConfig
+									.specificConfig as CalendarSpecificConfig
+							).firstDayOfWeek ?? -1;
+					}
+					dropdown.setValue(String(initialValue));
+
+					dropdown.onChange((value) => {
+						const numValue = parseInt(value);
+						const newFirstDayOfWeek =
+							numValue === -1 ? undefined : numValue;
+
+						if (
+							!this.viewConfig.specificConfig ||
+							this.viewConfig.specificConfig.viewType !==
+								"calendar"
+						) {
+							this.viewConfig.specificConfig = {
+								viewType: "calendar",
+								firstDayOfWeek: newFirstDayOfWeek,
+							};
+						} else {
+							(
+								this.viewConfig
+									.specificConfig as CalendarSpecificConfig
+							).firstDayOfWeek = newFirstDayOfWeek;
+						}
+					});
+				});
+		} else if (this.viewConfig.id === "kanban") {
+			new Setting(contentEl)
+				.setName(t("Show checkbox"))
+				.setDesc(t("Show a checkbox for each task in the kanban view."))
+				.addToggle((toggle) => {
+					toggle.setValue(
+						(this.viewConfig.specificConfig as KanbanSpecificConfig)
+							?.showCheckbox as boolean
+					);
+					toggle.onChange((value) => {
+						if (
+							!this.viewConfig.specificConfig ||
+							this.viewConfig.specificConfig.viewType !== "kanban"
+						) {
+							this.viewConfig.specificConfig = {
+								viewType: "kanban",
+								showCheckbox: value,
+							};
+						} else {
+							(
+								this.viewConfig
+									.specificConfig as KanbanSpecificConfig
+							).showCheckbox = value;
+						}
+					});
+				});
+		}
+
 		// --- Filter Rules ---
 		new Setting(contentEl).setName(t("Filter Rules")).setHeading();
 
@@ -182,7 +256,7 @@ export class ViewConfigModal extends Modal {
 				this.statusIncludeInput = text;
 				text.setValue(
 					(this.viewFilterRule.statusInclude || []).join(",")
-				).setPlaceholder("/,>");
+				).setPlaceholder("/.>");
 			});
 
 		new Setting(contentEl)
@@ -253,28 +327,6 @@ export class ViewConfigModal extends Modal {
 			{ value: 5, name: moment.weekdays(true)[5] }, // Saturday
 			{ value: 6, name: moment.weekdays(true)[6] }, // Sunday
 		];
-
-		if (this.viewConfig.id === "calendar") {
-			new Setting(contentEl)
-				.setName(t("First Day of Week"))
-				.setDesc(t("Overrides the locale default for calendar views."))
-				.addDropdown((dropdown) => {
-					days.forEach((day) => {
-						dropdown.addOption(String(day.value), day.name);
-					});
-					// Load current value or default (-1 for locale default)
-					dropdown.setValue(
-						String(this.viewConfig.firstDayOfWeek ?? -1)
-					); // Use ?? -1 to handle undefined
-					dropdown.onChange((value) => {
-						const numValue = parseInt(value);
-						// Store undefined if 'Locale Default' (-1) is chosen, otherwise store the number
-						this.viewConfig.firstDayOfWeek =
-							numValue === -1 ? undefined : numValue;
-						// Note: The onSave callback in setting.ts handles saving the updated viewConfig
-					});
-				});
-		}
 
 		// --- Action Buttons ---
 		new Setting(contentEl)

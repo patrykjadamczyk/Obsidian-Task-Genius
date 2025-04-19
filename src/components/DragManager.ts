@@ -6,6 +6,7 @@ export interface DragStartEvent {
 	startX: number;
 	startY: number;
 	event: PointerEvent | MouseEvent | TouchEvent;
+	dropZoneSelector?: string; // Selector for valid drop zones
 }
 
 export interface DragMoveEvent extends DragStartEvent {
@@ -50,7 +51,9 @@ export class DragManager extends Component {
 	private boundHandlePointerDown: (event: PointerEvent) => void;
 	private boundHandlePointerMove: (event: PointerEvent) => void;
 	private boundHandlePointerUp: (event: PointerEvent) => void;
+	private boundHandleKeyDown: (event: KeyboardEvent) => void; // Added for Escape key
 	private initialTarget: EventTarget | null = null; // Store the initial target of pointerdown
+	private currentDropTargetHover: HTMLElement | null = null; // Track the element currently highlighted as drop zone
 
 	constructor(options: DragManagerOptions) {
 		super();
@@ -58,6 +61,7 @@ export class DragManager extends Component {
 		this.boundHandlePointerDown = this.handlePointerDown.bind(this);
 		this.boundHandlePointerMove = this.handlePointerMove.bind(this);
 		this.boundHandlePointerUp = this.handlePointerUp.bind(this);
+		this.boundHandleKeyDown = this.handleKeyDown.bind(this); // Bind the new handler
 	}
 
 	override onload(): void {
@@ -66,16 +70,10 @@ export class DragManager extends Component {
 
 	override onunload(): void {
 		// Listeners are unregistered automatically by Component
-		if (this.isDragging) {
-			// Clean up if unloaded mid-drag
-			this.handlePointerUp(
-				new PointerEvent("pointerup", {
-					clientX: this.currentX,
-					clientY: this.currentY,
-				}) /* fake event */
-			);
+		if (this.isDragging || this.isPotentialDrag) {
+			// Clean up if unloaded mid-drag or potential drag
+			this.resetDragState(); // Ensure cleanup including keydown listener
 		}
-		this.resetDragState(); // Ensure cleanup
 	}
 
 	private registerListeners(): void {
@@ -84,6 +82,19 @@ export class DragManager extends Component {
 			"pointerdown",
 			this.boundHandlePointerDown
 		);
+	}
+
+	// Add a new handler for keyboard events
+	private handleKeyDown(event: KeyboardEvent): void {
+		if (
+			event.key === "Escape" &&
+			(this.isDragging || this.isPotentialDrag)
+		) {
+			console.log("DragManager: Escape key pressed, cancelling drag.");
+			event.stopPropagation(); // Prevent event from bubbling up
+			// Optionally trigger a specific cancel event/callback here
+			this.resetDragState();
+		}
 	}
 
 	private handlePointerDown(event: PointerEvent): void {
@@ -132,9 +143,10 @@ export class DragManager extends Component {
 		this.initialPointerY = event.clientY;
 		this.originalElement = targetElement; // Store the element that received the pointerdown
 
-		// Add global listeners immediately to capture move/up
+		// Add global listeners immediately to capture move/up/escape
 		document.addEventListener("pointermove", this.boundHandlePointerMove);
 		document.addEventListener("pointerup", this.boundHandlePointerUp);
+		document.addEventListener("keydown", this.boundHandleKeyDown); // Add keydown listener
 
 		// Prevent default only if needed (e.g., text selection), maybe delay this
 		// event.preventDefault(); // Let's avoid calling this here to allow clicks
@@ -194,7 +206,8 @@ export class DragManager extends Component {
 						this.currentY - offsetY
 					}px`;
 					this.draggedElement.style.width = `${rect.width}px`;
-					// this.draggedElement.style.height = `${rect.height}px`; // Height might vary, let CSS handle?
+					this.draggedElement.style.height = `${rect.height}px`; // Ensure height is set
+					this.draggedElement.style.boxSizing = "border-box"; // Crucial for layout consistency
 					this.draggedElement.style.pointerEvents = "none";
 					this.draggedElement.style.zIndex = "1000";
 					document.body.appendChild(this.draggedElement);
@@ -219,6 +232,7 @@ export class DragManager extends Component {
 					startX: this.startX,
 					startY: this.startY,
 					event: event, // Use the current move event as the 'start' trigger
+					dropZoneSelector: this.options.dropZoneSelector,
 				};
 
 				// Check if drag should proceed (callback)
@@ -262,6 +276,10 @@ export class DragManager extends Component {
 			this.draggedElement.style.left = `${this.currentX - offsetX}px`;
 			this.draggedElement.style.top = `${this.currentY - offsetY}px`;
 		}
+
+		// --- Highlight potential drop target ---
+		this.updateDropTargetHighlight(event.clientX, event.clientY);
+		// --- End Highlight ---
 
 		const moveEventData: DragMoveEvent = {
 			...this.startEventData,
@@ -368,6 +386,7 @@ export class DragManager extends Component {
 			this.boundHandlePointerMove
 		);
 		document.removeEventListener("pointerup", this.boundHandlePointerUp);
+		document.removeEventListener("keydown", this.boundHandleKeyDown); // Remove keydown listener
 
 		// Clean up dragged element styles/DOM
 		if (this.draggedElement) {
@@ -388,6 +407,12 @@ export class DragManager extends Component {
 			this.originalElement.classList.remove(this.options.ghostClass);
 		}
 
+		// Remove drop target highlight
+		if (this.currentDropTargetHover) {
+			this.currentDropTargetHover.classList.remove("drop-target-active"); // Use your defined class
+			this.currentDropTargetHover = null;
+		}
+
 		// Reset state variables
 		this.isDragging = false;
 		this.isPotentialDrag = false; // Reset potential drag flag
@@ -404,5 +429,55 @@ export class DragManager extends Component {
 		this.initialPointerX = 0;
 		this.initialPointerY = 0;
 		// console.log("DragManager: resetDragState finished");
+	}
+
+	// New method to handle highlighting drop targets during move
+	private updateDropTargetHighlight(
+		pointerX: number,
+		pointerY: number
+	): void {
+		if (!this.options.dropZoneSelector || !this.draggedElement) return;
+
+		let potentialDropTarget: HTMLElement | null = null;
+		const currentHighlight = this.currentDropTargetHover;
+
+		// Temporarily hide the clone to find the element underneath
+		const originalDisplay = this.draggedElement.style.display;
+		// Only hide if it's the clone
+		if (this.options.cloneElement) {
+			this.draggedElement.style.display = "none";
+		}
+
+		const elementUnderPointer = document.elementFromPoint(
+			pointerX,
+			pointerY
+		);
+
+		// Restore visibility
+		if (this.options.cloneElement) {
+			this.draggedElement.style.display = originalDisplay;
+		}
+
+		if (elementUnderPointer) {
+			potentialDropTarget = elementUnderPointer.closest(
+				this.options.dropZoneSelector
+			) as HTMLElement;
+		}
+
+		// Check if the highlighted target has changed
+		if (potentialDropTarget !== currentHighlight) {
+			// Remove highlight from the previous target
+			if (currentHighlight) {
+				currentHighlight.classList.remove("drop-target-active"); // Use your defined class
+			}
+
+			// Add highlight to the new target
+			if (potentialDropTarget) {
+				potentialDropTarget.classList.add("drop-target-active"); // Use your defined class
+				this.currentDropTargetHover = potentialDropTarget;
+			} else {
+				this.currentDropTargetHover = null; // No valid target under pointer
+			}
+		}
 	}
 }

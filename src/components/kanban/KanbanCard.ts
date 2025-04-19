@@ -2,6 +2,7 @@ import { App, Component, MarkdownRenderer, Menu, TFile } from "obsidian";
 import { Task } from "src/utils/types/TaskIndex"; // Adjust path
 import { MarkdownRendererComponent } from "../MarkdownRenderer"; // Adjust path
 import TaskProgressBarPlugin from "../../index"; // Adjust path
+import { KanbanSpecificConfig } from "../../common/setting-definition";
 
 export class KanbanCardComponent extends Component {
 	public element: HTMLElement;
@@ -33,7 +34,7 @@ export class KanbanCardComponent extends Component {
 
 	override onload(): void {
 		this.element = this.containerEl.createDiv({
-			cls: "kanban-card",
+			cls: "tg-kanban-card",
 			attr: { "data-task-id": this.task.id },
 		});
 
@@ -45,12 +46,53 @@ export class KanbanCardComponent extends Component {
 		}
 
 		// --- Card Content ---
-		this.contentEl = this.element.createDiv({ cls: "kanban-card-content" });
+		this.element.createDiv(
+			{
+				cls: "tg-kanban-card-container",
+			},
+			(el) => {
+				const checkbox = el.createEl("input", {
+					cls: "task-list-item-checkbox",
+					type: "checkbox",
+				});
+				checkbox.dataset.task = this.task.status;
+				if (this.task.status !== " ") {
+					checkbox.checked = true;
+				}
+
+				this.registerDomEvent(checkbox, "click", (ev) => {
+					ev.stopPropagation();
+
+					if (this.params?.onTaskCompleted) {
+						this.params.onTaskCompleted(this.task);
+					}
+
+					if (this.task.status === " ") {
+						checkbox.checked = true;
+						checkbox.dataset.task = "x";
+					}
+				});
+
+				if (
+					(
+						this.plugin.settings.viewConfiguration.find(
+							(v) => v.id === "kanban"
+						)?.specificConfig as KanbanSpecificConfig
+					)?.showCheckbox
+				) {
+					checkbox.show();
+				} else {
+					checkbox.hide();
+				}
+
+				this.contentEl = el.createDiv("tg-kanban-card-content");
+			}
+		);
 		this.renderMarkdown();
 
 		// --- Card Metadata ---
 		this.metadataEl = this.element.createDiv({
-			cls: "kanban-card-metadata",
+			cls: "tg-kanban-card-metadata",
 		});
 		this.renderMetadata();
 
@@ -132,7 +174,7 @@ export class KanbanCardComponent extends Component {
 				day: "numeric",
 			});
 		}
-		dueEl.textContent = `Due: ${dateText}`;
+		dueEl.textContent = `${dateText}`;
 		dueEl.setAttribute(
 			"aria-label",
 			`Due: ${dueDate.toLocaleDateString()}`

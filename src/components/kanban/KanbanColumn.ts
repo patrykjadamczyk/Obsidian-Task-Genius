@@ -35,7 +35,7 @@ export class KanbanColumnComponent extends Component {
 
 	override onload(): void {
 		this.element = this.containerEl.createDiv({
-			cls: "kanban-column",
+			cls: "tg-kanban-column",
 			attr: { "data-status-name": this.statusName },
 		});
 
@@ -43,7 +43,7 @@ export class KanbanColumnComponent extends Component {
 		this.element.createEl(
 			"div",
 			{
-				cls: "kanban-column-header",
+				cls: "tg-kanban-column-header",
 			},
 			(el) => {
 				const checkbox = el.createEl("input", {
@@ -74,11 +74,13 @@ export class KanbanColumnComponent extends Component {
 
 		// Column Content (Scrollable Area for Cards, and Drop Zone)
 		this.contentEl = this.element.createDiv({
-			cls: "kanban-column-content",
+			cls: "tg-kanban-column-content",
 		});
 
 		// Create sentinel element
-		this.sentinelEl = this.contentEl.createDiv({ cls: "kanban-sentinel" });
+		this.sentinelEl = this.contentEl.createDiv({
+			cls: "tg-kanban-sentinel",
+		});
 
 		// Setup Intersection Observer
 		this.setupIntersectionObserver();
