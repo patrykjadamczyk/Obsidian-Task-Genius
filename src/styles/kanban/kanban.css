@@ -253,3 +253,36 @@
 	/* padding-top: 20px; */
 	/* padding-bottom: 20px; */
 }
+
+/* Add Card Button */
+.tg-kanban-add-card-container {
+	padding: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+	flex-shrink: 0; /* Prevent container from shrinking */
+}
+
+/* Styles for the Add Card button in board view */
+.task-genius-add-card-container {
+	padding: 8px;
+	margin-top: auto; /* Push to the bottom if the column uses flex */
+	text-align: center;
+}
+
+.tg-kanban-add-card-button {
+	--icon-size: 16px;
+	width: 100%;
+	padding: 6px 12px;
+	border: none;
+	background-color: transparent; /* Make it less prominent */
+	color: var(--text-muted);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	font-size: var(--font-ui-small);
+	text-align: left;
+	transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.tg-kanban-add-card-button:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}

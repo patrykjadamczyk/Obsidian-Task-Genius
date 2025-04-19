@@ -1,7 +1,9 @@
-import { App, Component } from "obsidian";
+import { App, Component, setIcon } from "obsidian";
 import { Task } from "src/utils/types/TaskIndex"; // Adjust path
 import { KanbanCardComponent } from "./KanbanCard";
 import TaskProgressBarPlugin from "../../index"; // Adjust path
+import { QuickCaptureModal } from "../QuickCaptureModal"; // Import QuickCaptureModal
+import { t } from "../../translations/helper"; // Import translation helper
 
 const BATCH_SIZE = 20; // Number of cards to load at a time
 
@@ -81,6 +83,39 @@ export class KanbanColumnComponent extends Component {
 		this.sentinelEl = this.contentEl.createDiv({
 			cls: "tg-kanban-sentinel",
 		});
+
+		// --- Add Card Button ---
+		const addCardButtonContainer = this.element.createDiv({
+			cls: "tg-kanban-add-card-container",
+		});
+		const addCardButton = addCardButtonContainer.createEl(
+			"button",
+			{
+				cls: "tg-kanban-add-card-button",
+			},
+			(el) => {
+				el.createEl("span", {}, (el) => {
+					setIcon(el, "plus");
+				});
+				el.createEl("span", {
+					text: t("Add Card"),
+				});
+			}
+		);
+		this.registerDomEvent(addCardButton, "click", () => {
+			// Get the status symbol for the current column
+			const taskStatusSymbol =
+				this.plugin.settings.taskStatusMarks[this.statusName] ||
+				this.statusName ||
+				" ";
+			new QuickCaptureModal(
+				this.app,
+				this.plugin,
+				{ status: taskStatusSymbol },
+				true
+			).open();
+		});
+		// --- End Add Card Button ---
 
 		// Setup Intersection Observer
 		this.setupIntersectionObserver();

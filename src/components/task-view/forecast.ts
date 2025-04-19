@@ -309,7 +309,7 @@ export class ForecastComponent extends Component {
 			type: string
 		) => {
 			const statItem = this.statsContainerEl.createDiv({
-				cls: `stat-item ${id}`,
+				cls: `stat-item tg-${id}`,
 			});
 
 			const countEl = statItem.createDiv({
@@ -476,11 +476,11 @@ export class ForecastComponent extends Component {
 			const countEl = item.querySelector(".stat-count");
 			if (countEl) {
 				// Note: Labels remain "Past Due", "Today", "Future" but now include scheduled tasks.
-				if (item.classList.contains("past-due")) {
+				if (item.hasClass("tg-past-due")) {
 					countEl.textContent = this.pastTasks.length.toString(); // Use pastTasks
-				} else if (item.classList.contains("today")) {
+				} else if (item.hasClass("tg-today")) {
 					countEl.textContent = this.todayTasks.length.toString();
-				} else if (item.classList.contains("future")) {
+				} else if (item.hasClass("tg-future")) {
 					countEl.textContent = this.futureTasks.length.toString();
 				}
 			}
@@ -794,7 +794,7 @@ export class ForecastComponent extends Component {
 		} else {
 			this.focusFilter = type;
 			const activeItem = this.statsContainerEl.querySelector(
-				`.stat-item.${type}` // Use the type identifier passed during creation
+				`.stat-item.tg-${type}` // Use the type identifier passed during creation
 			);
 			if (activeItem) {
 				activeItem.classList.add("active");
