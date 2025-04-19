@@ -261,14 +261,6 @@ export class TaskView extends ItemView {
 		this.calendarComponent.load();
 		this.calendarComponent.containerEl.hide();
 
-		this.detailsComponent = new TaskDetailsComponent(
-			this.rootContainerEl,
-			this.app,
-			this.plugin
-		);
-		this.addChild(this.detailsComponent);
-		this.detailsComponent.load();
-
 		// Initialize KanbanComponent
 		this.kanbanComponent = new KanbanComponent(
 			this.app,
@@ -283,6 +275,14 @@ export class TaskView extends ItemView {
 		);
 		this.addChild(this.kanbanComponent);
 		this.kanbanComponent.containerEl.hide();
+
+		this.detailsComponent = new TaskDetailsComponent(
+			this.rootContainerEl,
+			this.app,
+			this.plugin
+		);
+		this.addChild(this.detailsComponent);
+		this.detailsComponent.load();
 
 		this.setupComponentEvents();
 	}

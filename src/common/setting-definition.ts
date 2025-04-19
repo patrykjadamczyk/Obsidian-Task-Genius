@@ -383,7 +383,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	viewConfiguration: [
 		{
 			id: "inbox",
-			name: "Inbox",
+			name: t("Inbox"),
 			icon: "inbox",
 			type: "default",
 			visible: true,
@@ -393,7 +393,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "forecast",
-			name: "Forecast",
+			name: t("Forecast"),
 			icon: "calendar-days",
 			type: "default",
 			visible: true,
@@ -403,7 +403,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "projects",
-			name: "Projects",
+			name: t("Projects"),
 			icon: "folders",
 			type: "default",
 			visible: true,
@@ -413,7 +413,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "tags",
-			name: "Tags",
+			name: t("Tags"),
 			icon: "tag",
 			type: "default",
 			visible: true,
@@ -423,7 +423,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "flagged",
-			name: "Flagged",
+			name: t("Flagged"),
 			icon: "flag",
 			type: "default",
 			visible: true,
@@ -433,7 +433,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "review",
-			name: "Review",
+			name: t("Review"),
 			icon: "eye",
 			type: "default",
 			visible: true,
@@ -443,7 +443,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "calendar",
-			name: "Calendar",
+			name: t("Calendar"),
 			icon: "calendar",
 			type: "default",
 			visible: true,
@@ -453,7 +453,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "kanban",
-			name: "Kanban",
+			name: t("Status"),
 			icon: "kanban",
 			type: "default",
 			visible: true,

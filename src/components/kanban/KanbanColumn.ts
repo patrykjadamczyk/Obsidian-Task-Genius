@@ -40,10 +40,37 @@ export class KanbanColumnComponent extends Component {
 		});
 
 		// Column Header
-		this.element.createEl("div", {
-			cls: "kanban-column-header",
-			text: this.statusName,
-		});
+		this.element.createEl(
+			"div",
+			{
+				cls: "kanban-column-header",
+			},
+			(el) => {
+				const checkbox = el.createEl("input", {
+					cls: "task-list-item-checkbox",
+					type: "checkbox",
+				});
+
+				checkbox.dataset.task =
+					this.plugin.settings.taskStatusMarks[this.statusName] ||
+					" ";
+				if (
+					this.plugin.settings.taskStatusMarks[this.statusName] !==
+					" "
+				) {
+					checkbox.checked = true;
+				}
+
+				this.registerDomEvent(checkbox, "click", (event) => {
+					event.stopPropagation();
+					event.preventDefault();
+				});
+
+				el.createEl("span", {
+					text: this.statusName,
+				});
+			}
+		);
 
 		// Column Content (Scrollable Area for Cards, and Drop Zone)
 		this.contentEl = this.element.createDiv({

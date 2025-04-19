@@ -65,6 +65,9 @@
 	text-overflow: ellipsis;
 
 	text-transform: uppercase;
+
+	display: flex;
+	align-items: center;
 }
 
 .task-genius-view .kanban-column-content {
