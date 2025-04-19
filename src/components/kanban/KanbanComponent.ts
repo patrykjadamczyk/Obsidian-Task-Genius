@@ -157,10 +157,37 @@ export class KanbanComponent extends Component {
 		this.columns = [];
 
 		const statusCycle = this.plugin.settings.taskStatusCycle;
-		const statusNames =
+		let statusNames =
 			statusCycle.length > 0
 				? statusCycle
 				: ["Todo", "In Progress", "Done"];
+
+		const spaceStatus: string[] = [];
+		const xStatus: string[] = [];
+		const otherStatuses: string[] = [];
+
+		statusNames.forEach((statusName) => {
+			const statusMark =
+				this.plugin.settings.taskStatusMarks[statusName] || " ";
+
+			if (
+				this.plugin.settings.excludeMarksFromCycle &&
+				this.plugin.settings.excludeMarksFromCycle.includes(statusName)
+			) {
+				return;
+			}
+
+			if (statusMark === " ") {
+				spaceStatus.push(statusName);
+			} else if (statusMark === "x") {
+				xStatus.push(statusName);
+			} else {
+				otherStatuses.push(statusName);
+			}
+		});
+
+		// 按照要求的顺序合并状态名称
+		statusNames = [...spaceStatus, ...otherStatuses, ...xStatus];
 
 		statusNames.forEach((statusName) => {
 			const column = new KanbanColumnComponent(
