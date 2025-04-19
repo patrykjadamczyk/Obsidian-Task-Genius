@@ -1562,7 +1562,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						.onClick(() => {
 							// Remove from cycle
 							cycle.splice(index, 1);
-							// Don't remove from marks to preserve settings
+							delete marks[state];
 							this.applySettingsUpdate();
 							refreshTaskStatesList();
 						});
