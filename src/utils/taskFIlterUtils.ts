@@ -212,10 +212,6 @@ export function filterTasks(
 	// This uses the hideCompletedAndAbandonedTasks setting from the viewConfig
 	filtered = filtered.filter((task) => isNotCompleted(plugin, task, viewId));
 
-	if (viewId === "forecast") {
-		console.log("forecast", filtered, options, viewConfig);
-	}
-
 	// --- Apply General Text Search (from options) ---
 	if (options.textQuery) {
 		const textFilter = options.textQuery.toLowerCase();

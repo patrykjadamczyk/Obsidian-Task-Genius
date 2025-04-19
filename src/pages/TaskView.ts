@@ -539,6 +539,11 @@ export class TaskView extends ItemView {
 		this.app.saveLocalStorage("task-genius:view-mode", viewId);
 		this.updateHeaderDisplay();
 		this.handleTaskSelection(null);
+
+		if (this.leaf.tabHeaderInnerIconEl) {
+			setIcon(this.leaf.tabHeaderInnerIconEl, this.getIcon());
+			this.leaf.tabHeaderInnerTitleEl.setText(this.getDisplayText());
+		}
 	}
 
 	private updateHeaderDisplay() {
