@@ -28,7 +28,7 @@ import {
 	ViewMode,
 	DEFAULT_SETTINGS,
 } from "../common/setting-definition";
-import { filterTasks } from "src/utils/taskFIlterUtils";
+import { filterTasks } from "../utils/taskFilterUtils";
 import { CalendarComponent, CalendarEvent } from "src/components/calendar";
 import { KanbanComponent } from "../components/kanban/KanbanComponent";
 
@@ -543,6 +543,7 @@ export class TaskView extends ItemView {
 		if (this.leaf.tabHeaderInnerIconEl) {
 			setIcon(this.leaf.tabHeaderInnerIconEl, this.getIcon());
 			this.leaf.tabHeaderInnerTitleEl.setText(this.getDisplayText());
+			this.titleEl.setText(this.getDisplayText());
 		}
 	}
 

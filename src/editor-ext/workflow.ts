@@ -1180,7 +1180,11 @@ function createWorkflowStageTransition(
 		// First, mark the current sub-stage as complete
 		const stageMarkerRegex = /\s*\[stage::[^\]]+\]/;
 		const stageMarker = line.match(stageMarkerRegex);
-		if (stageMarker && stageMarker.index) {
+		if (
+			stageMarker &&
+			stageMarker.index &&
+			plugin.settings.workflow.autoRemoveLastStageMarker
+		) {
 			changes.push({
 				from: lineStart.from + stageMarker.index,
 				to: lineStart.from + stageMarker.index + stageMarker[0].length,
@@ -1194,11 +1198,7 @@ function createWorkflowStageTransition(
 	}
 
 	// Create the new task text
-	if (
-		!isLastWorkflowStageOrNotWorkflow(line, lineNumber, doc, plugin)
-		// If there is a current sub-stage, we need to add a new task
-		// But this behavior would be controlled by the autoCompleteParent function
-	) {
+	if (!isLastWorkflowStageOrNotWorkflow(line, lineNumber, doc, plugin)) {
 		// Generate the task text using our helper
 		const newTaskText = generateWorkflowTaskText(
 			nextStage,
