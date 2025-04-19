@@ -66,7 +66,7 @@ export function getCustomTotalGoalReadMode(taskElement: HTMLElement | null | und
 	return goalValue;
 }
 
-export function checkIfParentElementHasGoalFormat(taskElement: HTMLElement | null): boolean {
+export function checkIfParentElementHasGoalFormat(taskElement: HTMLElement | null | undefined): boolean {
 	if (!taskElement) return false;
 
 	// Get the text content of the task

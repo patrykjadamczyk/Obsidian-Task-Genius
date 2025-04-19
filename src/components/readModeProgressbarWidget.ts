@@ -991,7 +991,8 @@ class ProgressBar extends Component {
 		for (let element of allTasks) {
 			// const isParentCustomGoal: boolean = checkIfParentElementHasGoalFormat(element.parentElement)
 			let subTaskGoal: null | number = null
-			const useTaskGoal: boolean = this.plugin?.settings.allowCustomProgressGoal && checkIfParentElementHasGoalFormat(element.parentElement)
+			const useTaskGoal: boolean = this.plugin?.settings.allowCustomProgressGoal && checkIfParentElementHasGoalFormat(element.parentElement?.parentElement)
+			console.log("useTaskGoal", useTaskGoal)
 			const checkboxElement = element.querySelector(
 				".task-list-item-checkbox"
 			);
