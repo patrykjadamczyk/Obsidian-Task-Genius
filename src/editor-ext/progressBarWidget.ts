@@ -15,7 +15,7 @@ import { RegExpCursor } from "./regexp-cursor";
 import TaskProgressBarPlugin, { showPopoverWithProgressBar } from "..";
 import { shouldHideProgressBarInLivePriview } from "../utils";
 import "../styles/progressbar.css";
-import { extractTaskAndGoalInfo } from "src/utils/goal/main";
+import { extractTaskAndGoalInfo } from "src/utils/goal/editMode";
 
 interface Tasks {
 	completed: number;

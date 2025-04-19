@@ -34,7 +34,6 @@ function groupElementsByParent(childrenElements: HTMLElement[]) {
 	parentMap.forEach((children, parent) => {
 		result.push({ parentElement: parent, childrenElement: children});
 	});
-	// console.warn("Grouped", result);
 	return result;
 }
 
@@ -1079,7 +1078,6 @@ class ProgressBar extends Component {
 			const checkboxElement = element.querySelector(
 				".task-list-item-checkbox"
 			);
-			// console.warn("Child Element", element) // [CustomGoalFeature] Child Element
 			// Get the parent of the current element
 
 			if (!checkboxElement) continue;
@@ -1119,7 +1117,6 @@ class ProgressBar extends Component {
 				}
 			}
 			const parentGoal = getCustomTotalGoalReadMode(element.parentElement?.parentElement);
-			// console.warn("Parent Goal Element", parentGoal) // [CustomGoalFeature] Parent Element
 			if (parentGoal) total = parentGoal
 			else total++;
 
