@@ -30,7 +30,8 @@ import {
 } from "../common/setting-definition";
 import { filterTasks } from "../utils/taskFilterUtils";
 import { CalendarComponent, CalendarEvent } from "src/components/calendar";
-import { KanbanComponent } from "../components/kanban/KanbanComponent";
+import { KanbanComponent } from "../components/kanban/kanban";
+import { GanttComponent } from "../components/gantt/gantt";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -48,6 +49,7 @@ export class TaskView extends ItemView {
 	private detailsComponent: TaskDetailsComponent;
 	private calendarComponent: CalendarComponent;
 	private kanbanComponent: KanbanComponent;
+	private ganttComponent: GanttComponent;
 	// UI state management
 	private isSidebarCollapsed: boolean = false;
 	private isDetailsVisible: boolean = false;
@@ -166,6 +168,7 @@ export class TaskView extends ItemView {
 		// Load initial tasks into components that need them immediately
 		if (this.tasks && this.tasks.length > 0) {
 			this.calendarComponent?.updateTasks(this.tasks);
+			this.ganttComponent?.setTasks(this.tasks);
 			// KanbanComponent will receive tasks via switchView initially
 		}
 	}
@@ -275,6 +278,18 @@ export class TaskView extends ItemView {
 		);
 		this.addChild(this.kanbanComponent);
 		this.kanbanComponent.containerEl.hide();
+
+		this.ganttComponent = new GanttComponent(
+			this.plugin,
+			this.rootContainerEl,
+			{
+				onTaskSelected: this.handleTaskSelection.bind(this),
+				onTaskCompleted: this.toggleTaskCompletion.bind(this),
+				onTaskContextMenu: this.handleTaskContextMenu.bind(this),
+			}
+		);
+		this.addChild(this.ganttComponent);
+		this.ganttComponent.containerEl.hide();
 
 		this.detailsComponent = new TaskDetailsComponent(
 			this.rootContainerEl,
@@ -477,6 +492,7 @@ export class TaskView extends ItemView {
 		this.reviewComponent.containerEl.hide();
 		this.calendarComponent.containerEl.hide();
 		this.kanbanComponent.containerEl.hide();
+		this.ganttComponent.containerEl.hide();
 
 		let targetComponent: any = null;
 		let modeForComponent: ViewMode = viewId;
@@ -499,6 +515,9 @@ export class TaskView extends ItemView {
 				break;
 			case "kanban":
 				targetComponent = this.kanbanComponent;
+				break;
+			case "gantt":
+				targetComponent = this.ganttComponent;
 				break;
 			case "inbox":
 			case "flagged":

@@ -1,6 +1,6 @@
 import { App, Component, setIcon } from "obsidian";
 import { Task } from "src/utils/types/TaskIndex"; // Adjust path
-import { KanbanCardComponent } from "./KanbanCard";
+import { KanbanCardComponent } from "./kanban-card";
 import TaskProgressBarPlugin from "../../index"; // Adjust path
 import { QuickCaptureModal } from "../QuickCaptureModal"; // Import QuickCaptureModal
 import { t } from "../../translations/helper"; // Import translation helper

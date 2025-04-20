@@ -1,7 +1,7 @@
 import { App, Component, WorkspaceLeaf } from "obsidian";
 import TaskProgressBarPlugin from "../../index"; // Adjust path as needed
 import { Task } from "src/utils/types/TaskIndex"; // Adjust path as needed
-import { KanbanColumnComponent } from "./KanbanColumn";
+import { KanbanColumnComponent } from "./kanban-column";
 import { DragManager, DragMoveEvent, DragEndEvent } from "../DragManager";
 import "../../styles/kanban/kanban.css";
 import { t } from "../../translations/helper"; // Added import for t
