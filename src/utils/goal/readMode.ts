@@ -1,3 +1,5 @@
+import { REGEX_GOAL } from "./config";
+
 function getParentTaskTextReadMode(taskElement: Element): string {
 	// Clone the element to avoid modifying the original
 	const clone = taskElement.cloneNode(true) as HTMLElement;
@@ -22,7 +24,7 @@ function extractTaskSpecificGoal(taskText: string): number | null {
     if (!taskText) return null;
 
     // Match only the patterns g::number or goal::number
-    const goalMatch = taskText.match(/\b(g|goal)::(\d+)\b/i);
+    const goalMatch = taskText.match(REGEX_GOAL);
     if (!goalMatch) return null;
 
     return Number(goalMatch[2]);
@@ -55,7 +57,7 @@ export function getCustomTotalGoalReadMode(taskElement: HTMLElement | null | und
 	if (!taskText) return null;
 
 	// Extract goal using pattern g::number or goal::number
-	const goalMatch = taskText.match(/\b(g|goal)::(\d+)\b/i);
+	const goalMatch = taskText.match(REGEX_GOAL);
 	if (!goalMatch) return null;
 
 	const goalValue = parseInt(goalMatch[2], 10);
@@ -74,6 +76,6 @@ export function checkIfParentElementHasGoalFormat(taskElement: HTMLElement | nul
 	if (!taskText) return false;
 
 	// Check for goal in g::number or goal::number format
-	const goalMatch = taskText.match(/\b(g|goal)::(\d+)\b/i);
+	const goalMatch = taskText.match(REGEX_GOAL);
 	return !!goalMatch;
 }

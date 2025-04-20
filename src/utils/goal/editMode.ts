@@ -5,6 +5,8 @@
  * @return The extracted task text or null if no task was found
  */
 
+import { REGEX_GOAL } from "./config";
+
 function extractTaskText(lineText: string): string | null {
     if (!lineText) return null;
 
@@ -27,8 +29,8 @@ function extractTaskText(lineText: string): string | null {
 function extractTaskSpecificGoal(taskText: string): number | null {
     if (!taskText) return null;
 
-    // Match only the patterns g::number or goal::number
-    const goalMatch = taskText.match(/\b(g|goal)::(\d+)\b/i);
+    // Match only the patterns g::number or goal::number \b(g|goal):: {0,1}(\d+)\b
+    const goalMatch = taskText.match(REGEX_GOAL);
     if (!goalMatch) return null;
 
     return Number(goalMatch[2]);
