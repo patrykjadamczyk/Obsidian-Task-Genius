@@ -1,4 +1,4 @@
-import { REGEX_GOAL } from "./config";
+import { REGEX_GOAL } from "./regexGoal";
 
 function getParentTaskTextReadMode(taskElement: Element): string {
 	// Clone the element to avoid modifying the original
