@@ -181,7 +181,9 @@ export function handleWorkflowTransaction(
 	if (
 		tr.annotation(workflowChangeAnnotation) ||
 		tr.annotation(priorityChangeAnnotation) ||
-		tr.annotation(taskStatusChangeAnnotation) === "workflowChange"
+		(tr.annotation(taskStatusChangeAnnotation) as string)?.startsWith(
+			"workflowChange"
+		)
 	) {
 		return tr;
 	}
