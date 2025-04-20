@@ -10,11 +10,29 @@ import "../../styles/gantt/gantt.css";
 
 // Import new components and helpers
 import { DateHelper } from "../../utils/DateHelper";
-import { FilterComponent } from "./filter";
 import { TimelineHeaderComponent } from "./timeline-header";
 import { GridBackgroundComponent } from "./grid-background";
 import { TaskRendererComponent } from "./task-renderer";
 import TaskProgressBarPlugin from "src";
+import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
+import { ActiveFilter, FilterCategory } from "../filter/filter-type";
+import { ScrollToDateButton } from "../filter/custom/scroll-to-date-button";
+
+// Define the PRIORITY_MAP here as well, or import it if moved to a shared location
+// This is needed to convert filter value (icon/text) back to number for comparison
+const PRIORITY_MAP: Record<string, number> = {
+	"🔺": 5,
+	"⏫": 4,
+	"🔼": 3,
+	"🔽": 2,
+	"⏬️": 1,
+	"⏬": 1,
+	highest: 5,
+	high: 4,
+	medium: 3,
+	low: 2,
+	lowest: 1,
+};
 
 // Constants for layout and styling
 const ROW_HEIGHT = 24;
@@ -88,6 +106,7 @@ export class GanttComponent extends Component {
 	public containerEl: HTMLElement;
 	private svgEl: SVGSVGElement | null = null;
 	private tasks: Task[] = [];
+	private allTasks: Task[] = [];
 	private preparedTasks: PlacedGanttTaskItem[] = [];
 	private app: App;
 
@@ -134,7 +153,7 @@ export class GanttComponent extends Component {
 	private debouncedHeaderUpdate: ReturnType<typeof debounce>; // Renamed for clarity
 
 	constructor(
-		plugin: TaskProgressBarPlugin,
+		private plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
 		private params: {
 			config?: GanttConfig;
@@ -182,9 +201,20 @@ export class GanttComponent extends Component {
 		// Instantiate Child Components
 		this.filterComponent = this.addChild(
 			new FilterComponent(
-				this.app,
-				this.filterContainerEl,
-				this.scrollToDate.bind(this)
+				{
+					container: this.filterContainerEl,
+					options: buildFilterOptionsFromTasks(this.tasks), // Initialize with empty array to satisfy type, will be updated dynamically
+					onChange: (activeFilters: ActiveFilter[]) => {
+						this.applyFiltersAndRender(activeFilters);
+					},
+					components: [
+						new ScrollToDateButton(
+							this.filterContainerEl,
+							(date: Date) => this.scrollToDate(date)
+						),
+					],
+				},
+				this.plugin
 			)
 		);
 
@@ -233,24 +263,36 @@ export class GanttComponent extends Component {
 
 		this.containerEl.removeClass("gantt-chart-container");
 		this.tasks = [];
+		this.allTasks = [];
 		this.preparedTasks = [];
 	}
 
 	setTasks(newTasks: Task[]) {
-		// No need to manually unload markdown renderers here anymore
-		// TaskRendererComponent handles its rendering scope
 		this.preparedTasks = []; // Clear prepared tasks
 
 		this.tasks = this.sortTasks(newTasks);
-		this.calculateDateRange(true); // Force recalculate date range
-		this.calculateTimescaleParams(); // Recalculate timescale based on new range
-		// prepareTasksForRender is still needed here to calculate layout
-		this.prepareTasksForRender();
-		this.debouncedRender(); // Trigger full render
+		this.allTasks = [...this.tasks]; // Store the original, sorted list
+
+		// Prepare tasks initially to generate relevant filter options
+		this.prepareTasksForRender(); // Calculate preparedTasks based on the initial full list
+
+		// Update filter options based on the initially prepared task list
+		if (this.filterComponent) {
+			// Extract the original Task objects from preparedTasks
+			const tasksForFiltering = this.preparedTasks.map((pt) => pt.task);
+			this.filterComponent.updateFilterOptions(tasksForFiltering); // Use prepared tasks for initial options
+		}
+
+		// Apply any existing filters from the component (will re-prepare and re-update filters)
+		const currentFilters = this.filterComponent?.getActiveFilters() || [];
+		this.applyFiltersAndRender(currentFilters); // This will call prepareTasksForRender again and update filters
 
 		// Scroll to today after the initial render is scheduled
 		requestAnimationFrame(() => {
-			this.scrollToDate(new Date());
+			// Check if component is still loaded before scrolling
+			if (this.scrollContainerEl) {
+				this.scrollToDate(new Date());
+			}
 		});
 	}
 
@@ -913,6 +955,69 @@ export class GanttComponent extends Component {
 		// Force recalculation of date range and re-render
 		this.calculateDateRange(true);
 		this.prepareTasksForRender(); // Prepare tasks with new date range
+
+		// Update filter options based on the refreshed prepared tasks
+		if (this.filterComponent) {
+			const tasksForFiltering = this.preparedTasks.map((pt) => pt.task);
+			this.filterComponent.updateFilterOptions(tasksForFiltering);
+		}
+
 		this.debouncedRender(); // Trigger full render
+	}
+
+	// --- Filtering Logic ---
+	private applyFiltersAndRender(activeFilters: ActiveFilter[]) {
+		console.log("Applying filters: ", activeFilters);
+		if (activeFilters.length === 0) {
+			this.tasks = [...this.allTasks]; // Show all tasks if no filters
+		} else {
+			this.tasks = this.allTasks.filter((task) => {
+				return activeFilters.every((filter) => {
+					switch (filter.category) {
+						case "status":
+							return task.status === filter.value;
+						case "tag":
+							return task.tags.includes(filter.value);
+						case "project":
+							return task.project === filter.value;
+						case "context":
+							return task.context === filter.value;
+						case "priority":
+							// Convert the selected filter value (icon/text) back to its numerical representation
+							const expectedPriorityNumber =
+								PRIORITY_MAP[filter.value];
+							// Compare the task's numerical priority
+							return task.priority === expectedPriorityNumber;
+						case "completed":
+							return (
+								(filter.value === "Yes" && task.completed) ||
+								(filter.value === "No" && !task.completed)
+							);
+						case "filePath":
+							return task.filePath === filter.value;
+						// Add cases for other filter types (date ranges etc.) if needed
+						default:
+							console.warn(
+								`Unknown filter category: ${filter.category}`
+							);
+							return true; // Don't filter if category is unknown
+					}
+				});
+			});
+		}
+
+		console.log("Filtered tasks count:", this.tasks.length);
+
+		// Recalculate date range based on filtered tasks and prepare for render
+		this.calculateDateRange(true); // Force recalculate based on filtered tasks
+		this.prepareTasksForRender(); // Uses the filtered this.tasks
+
+		// Update filter options based on the current set of prepared tasks after filtering
+		if (this.filterComponent) {
+			const tasksForFiltering = this.preparedTasks.map((pt) => pt.task);
+			this.filterComponent.updateFilterOptions(tasksForFiltering);
+		}
+
+		this.debouncedRender();
 	}
 }

@@ -1,3 +1,5 @@
+import { Component } from "obsidian";
+
 export interface FilterCategory {
 	id: string;
 	label: string;
@@ -15,6 +17,7 @@ export interface FilterComponentOptions {
 	container: HTMLElement;
 	options: FilterCategory[];
 	onChange?: (activeFilters: ActiveFilter[]) => void;
+	components?: Component[];
 }
 
 export interface FilterDropdownOptions {

@@ -5,6 +5,8 @@ import { KanbanColumnComponent } from "./kanban-column";
 import { DragManager, DragMoveEvent, DragEndEvent } from "../DragManager";
 import "../../styles/kanban/kanban.css";
 import { t } from "../../translations/helper"; // Added import for t
+import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
+import { ActiveFilter } from "../filter/filter-type";
 
 // CSS classes for drop indicators
 const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";
@@ -20,9 +22,7 @@ export class KanbanComponent extends Component {
 	private columnContainerEl: HTMLElement;
 	private dragManager: DragManager;
 	private tasks: Task[] = [];
-	private filteredTasks: Task[] = []; // Added for filtering
-	private filterQuery: string = ""; // Added for filtering
-	private filterInputEl: HTMLInputElement; // Added for filter input element
+	private allTasks: Task[] = [];
 	private params: {
 		onTaskStatusUpdate?: (
 			taskId: string,
@@ -32,6 +32,9 @@ export class KanbanComponent extends Component {
 		onTaskCompleted?: (task: Task) => void;
 		onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
 	};
+	private filterComponent: FilterComponent | null = null;
+	private activeFilters: ActiveFilter[] = [];
+	private filterContainerEl: HTMLElement; // Assume you have a container for filters
 
 	constructor(
 		app: App,
@@ -61,9 +64,11 @@ export class KanbanComponent extends Component {
 		this.containerEl.empty();
 		this.containerEl.addClass("tg-kanban-view");
 
-		this.renderFilterControls(
-			this.containerEl.createDiv({ cls: "tg-kanban-filters" })
+		// Create the container for filter controls early if it's part of the main layout
+		this.filterContainerEl = this.containerEl.createDiv(
+			"kanban-filter-controls-container" // Example class
 		);
+		this.renderFilterControls(this.filterContainerEl);
 
 		this.columnContainerEl = this.containerEl.createDiv({
 			cls: "tg-kanban-column-container",
@@ -71,7 +76,6 @@ export class KanbanComponent extends Component {
 
 		this.initializeDragManager();
 		this.renderColumns();
-
 		console.log("KanbanComponent loaded.");
 	}
 
@@ -85,74 +89,109 @@ export class KanbanComponent extends Component {
 	}
 
 	private renderFilterControls(containerEl: HTMLElement) {
-		// Clear placeholder text
-		containerEl.empty();
+		containerEl.empty(); // Clear previous controls
 
-		// Create filter input
-		this.filterInputEl = containerEl.createEl("input", {
-			type: "text",
-			placeholder: t("Filter tasks... (by content, project, tag)"),
-			cls: "tg-kanban-filter-input",
-		});
+		// Build initial options from the current full task list
+		const initialFilterOptions = buildFilterOptionsFromTasks(this.allTasks);
+		console.log("Kanban initial filter options:", initialFilterOptions);
 
-		// Add event listener with debouncing
-		this.registerDomEvent(
-			this.filterInputEl,
-			"input",
-			this.debounce(() => {
-				this.filterQuery = this.filterInputEl.value.toLowerCase();
-				this.applyFiltersAndRender();
-			}, 300)
+		this.filterComponent = new FilterComponent(
+			{
+				container: containerEl,
+				options: initialFilterOptions,
+				onChange: (updatedFilters: ActiveFilter[]) => {
+					if (!this.columnContainerEl) {
+						return;
+					}
+					this.activeFilters = updatedFilters;
+					this.applyFiltersAndRender(); // Re-render when filters change
+				},
+			},
+			this.plugin // Pass plugin instance
 		);
+
+		this.addChild(this.filterComponent); // Register as child component
 	}
 
-	// Debounce utility
-	private debounce(func: (...args: any[]) => void, wait: number) {
-		let timeout: number | null = null;
-		return (...args: any[]) => {
-			const later = () => {
-				timeout = null;
-				func(...args);
-			};
-			if (timeout !== null) {
-				clearTimeout(timeout);
-			}
-			timeout = window.setTimeout(later, wait);
-		};
-	}
+	public setTasks(newTasks: Task[]) {
+		console.log("Kanban setting tasks:", newTasks.length);
+		this.allTasks = [...newTasks]; // Store the full list
 
-	public setTasks(tasks: Task[]) {
-		this.tasks = tasks;
-		// Apply filters and render when tasks are set
+		console.log(this.filterComponent);
+		// Update filter options based on the complete task list
+		if (this.filterComponent) {
+			this.filterComponent.updateFilterOptions(this.allTasks);
+		} else {
+			console.warn(
+				"Filter component not initialized when setting tasks."
+			);
+			// Options will be built when renderFilterControls is called if it hasn't been yet.
+			// If renderFilterControls already ran, this might indicate an issue.
+		}
+
+		// Apply current filters (which might be empty initially) and render the board
 		this.applyFiltersAndRender();
 	}
 
 	private applyFiltersAndRender() {
-		// 1. Filter tasks
-		if (!this.filterQuery) {
-			this.filteredTasks = [...this.tasks]; // No filter, use all tasks
+		console.log("Kanban applying filters:", this.activeFilters);
+		// Filter the full list based on active filters
+		if (this.activeFilters.length === 0) {
+			this.tasks = [...this.allTasks]; // No filters active, show all tasks
 		} else {
-			this.filteredTasks = this.tasks.filter((task) => {
-				const query = this.filterQuery;
-				// Check content, project, and tags
-				return (
-					task.content.toLowerCase().includes(query) ||
-					(task.project &&
-						task.project.toLowerCase().includes(query)) ||
-					(task.tags &&
-						task.tags.some((tag) =>
-							tag.toLowerCase().includes(query)
-						))
-				);
+			// Import or define PRIORITY_MAP if needed for priority filtering
+			const PRIORITY_MAP: Record<string, number> = {
+				"🔺": 5,
+				"⏫": 4,
+				"🔼": 3,
+				"🔽": 2,
+				"⏬️": 1,
+				"⏬": 1,
+				highest: 5,
+				high: 4,
+				medium: 3,
+				low: 2,
+				lowest: 1,
+			};
+
+			this.tasks = this.allTasks.filter((task) => {
+				return this.activeFilters.every((filter) => {
+					switch (filter.category) {
+						case "status":
+							return task.status === filter.value;
+						case "tag":
+							return task.tags.includes(filter.value);
+						case "project":
+							return task.project === filter.value;
+						case "context":
+							return task.context === filter.value;
+						case "priority":
+							const expectedPriority = PRIORITY_MAP[filter.value];
+							return task.priority === expectedPriority;
+						case "completed":
+							return (
+								(filter.value === "Yes" && task.completed) ||
+								(filter.value === "No" && !task.completed)
+							);
+						case "filePath":
+							return task.filePath === filter.value;
+						default:
+							console.warn(
+								`Unknown filter category in Kanban: ${filter.category}`
+							);
+							return true;
+					}
+				});
 			});
 		}
 
-		// 2. Re-render columns with filtered tasks
+		console.log("Kanban filtered tasks count:", this.tasks.length);
+
 		this.renderColumns();
 	}
 
 	private renderColumns() {
-		this.columnContainerEl.empty();
+		this.columnContainerEl?.empty();
 		this.columns.forEach((col) => this.removeChild(col));
 		this.columns = [];
 
@@ -212,7 +251,7 @@ export class KanbanComponent extends Component {
 			this.plugin.settings.taskStatusMarks[statusName] || " ";
 
 		// Filter from the already filtered list
-		const tasksForStatus = this.filteredTasks.filter((task) => {
+		const tasksForStatus = this.tasks.filter((task) => {
 			const taskStatusMark = task.status || " ";
 			return taskStatusMark === statusMark;
 		});

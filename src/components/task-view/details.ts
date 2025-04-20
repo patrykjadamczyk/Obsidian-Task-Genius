@@ -60,7 +60,6 @@ export function createTaskCheckbox(
 		cls: "task-list-item-checkbox",
 		type: "checkbox",
 	});
-	console.log("status", status, task.status);
 	checkbox.dataset.task = status;
 	if (status !== " ") {
 		checkbox.checked = true;

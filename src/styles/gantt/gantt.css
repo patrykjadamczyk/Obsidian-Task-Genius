@@ -1,21 +1,33 @@
 .gantt-chart-container {
 	width: 100%;
 	height: 100%;
-	overflow: auto; /* Enable scrolling */
-	position: relative; /* Needed for potential absolute positioning inside */
+	overflow: auto;
+	position: relative;
 	background-color: var(--background-secondary);
+
+	--gantt-header-height: 50px;
+	--gantt-row-height: 40px;
+	--gantt-bar-height: 20px;
+	--gantt-bar-radius: 3px;
+
+	--gantt-bg-color: var(--background-secondary);
+	--gantt-grid-color: var(--background-modifier-border);
+	--gantt-row-color: var(--background-secondary);
+	--gantt-bar-color: var(--color-blue);
+	--gantt-milestone-color: var(--color-purple);
+	--gantt-progress-color: var(--color-blue);
+	--gantt-today-color: var(--color-accent);
 }
 
 .gantt-svg {
-	display: block; /* Prevent extra space below SVG */
+	display: block;
 	font-family: var(--font-interface);
 	font-size: var(--font-ui-small);
-	user-select: none; /* Prevent text selection during interaction */
+	user-select: none;
 }
 
-/* Header */
 .gantt-header-bg {
-	fill: var(--background-secondary-alt);
+	fill: var(--background-primary);
 	stroke: var(--background-modifier-border);
 	stroke-width: 1px;
 }
@@ -25,9 +37,8 @@
 	font-weight: 500;
 }
 
-/* Grid */
 .gantt-grid-bg {
-	fill: transparent; /* Or var(--background-primary) */
+	fill: transparent;
 	stroke: var(--background-modifier-border);
 	stroke-width: 0;
 }
@@ -38,7 +49,6 @@
 	stroke-dasharray: 2, 2;
 }
 
-/* Tasks */
 .gantt-task-item {
 	cursor: pointer;
 }
@@ -63,52 +73,22 @@
 .gantt-task-label {
 	fill: var(--text-on-accent);
 	font-size: calc(var(--font-ui-small) * 0.9);
-	pointer-events: none; /* Allow clicks to pass through to the bar */
-	white-space: pre; /* Prevent wrapping */
-	/* Consider text clipping or masking */
+	pointer-events: none;
+	white-space: pre;
 }
 
-/* Add more specific styles based on task status, priority, project etc. */
 .gantt-task-bar.status-completed {
 	fill: var(--color-green);
 	stroke: var(--color-green-border);
 }
 
 .gantt-task-bar.priority-high {
-	/* Add styles for high priority */
 }
 
 /**
  * Gantt Chart Styles
  */
 
-/* Main container */
-.gantt-chart {
-	position: relative;
-	box-sizing: border-box;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-		Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-	background-color: var(--gantt-bg-color, #ffffff);
-	border: 1px solid var(--gantt-grid-color, #e5e7eb);
-	overflow: hidden;
-
-	/* Default variables */
-	--gantt-header-height: 50px;
-	--gantt-row-height: 40px;
-	--gantt-bar-height: 20px;
-	--gantt-bar-radius: 3px;
-
-	/* Colors */
-	--gantt-bg-color: var(--background-secondary);
-	--gantt-grid-color: var(--background-modifier-border);
-	--gantt-row-color: var(--background-secondary);
-	--gantt-bar-color: var(--color-blue);
-	--gantt-milestone-color: var(--color-purple);
-	--gantt-progress-color: var(--color-blue);
-	--gantt-today-color: var(--color-accent);
-}
-
-/* Header */
 .gantt-header {
 	position: sticky;
 	top: 0;
@@ -143,14 +123,13 @@
 	justify-content: center;
 	text-align: center;
 	font-size: 12px;
-	color: #374151;
+	color: var(--text-normal);
 	border-right: 1px solid var(--gantt-grid-color);
 	box-sizing: border-box;
 	background-color: var(--gantt-bg-color);
 	pointer-events: auto;
 }
 
-/* Body */
 .gantt-body {
 	position: relative;
 	overflow: auto;
@@ -159,7 +138,6 @@
 	margin-top: calc(var(--gantt-header-height) * -1);
 }
 
-/* Grid */
 .gantt-grid {
 	position: absolute;
 	top: var(--gantt-header-height);
@@ -192,7 +170,6 @@
 	background-color: var(--gantt-bg-color);
 }
 
-/* Task bars */
 .gantt-bars {
 	position: absolute;
 	top: var(--gantt-header-height);
@@ -242,7 +219,7 @@
 	top: 0;
 	white-space: nowrap;
 	font-size: 12px;
-	color: #1f2937;
+	color: var(--text-normal);
 	line-height: var(--gantt-bar-height);
 }
 
@@ -252,7 +229,6 @@
 	text-align: right;
 }
 
-/* Responsive adjustments */
 @media (max-width: 680px) {
 	.gantt-header-cell {
 		font-size: 10px;
@@ -263,45 +239,39 @@
 	}
 }
 
-/* Add/Update styles in gantt.css */
-
 .gantt-chart-container {
 	display: flex;
-	flex-direction: column; /* Stack header and scroll area */
-	height: 100%; /* Take full height of its parent */
-	overflow: hidden; /* Prevent container itself from scrolling */
-	position: relative; /* For potential absolute positioning inside */
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+	position: relative;
 }
 
 .gantt-header-container {
-	height: 40px; /* Fixed header height */
-	flex-shrink: 0; /* Prevent header from shrinking */
-	overflow: hidden; /* Hide horizontal overflow, handled by SVG transform */
-	position: relative; /* Needed for absolute positioning or z-index if required */
-	border-bottom: 1px solid var(--background-modifier-border); /* Separator */
-	background-color: var(--background-secondary); /* Match Obsidian UI */
+	height: 40px;
+	flex-shrink: 0;
+	overflow: hidden;
+	position: relative;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
 }
 
 .gantt-header-svg {
-	display: block; /* Remove extra space below SVG */
-}
-
-.gantt-header-bg {
-	fill: var(--background-secondary); /* Header background */
+	display: block;
 }
 
 .gantt-header-tick-major,
 .gantt-header-tick-minor,
 .gantt-header-tick-day,
 .gantt-header-today-marker {
-	stroke: var(--background-modifier-border); /* Grid line color */
+	stroke: var(--background-modifier-border);
 	stroke-width: 1;
 }
 .gantt-header-tick-major {
 	stroke-width: 1.5;
 }
 .gantt-header-today-marker {
-	stroke: var(--color-orange); /* Today marker color */
+	stroke: var(--color-orange);
 	stroke-width: 1.5;
 	stroke-dasharray: 4, 2;
 }
@@ -320,27 +290,26 @@
 }
 
 .gantt-scroll-container {
-	flex-grow: 1; /* Allow scroll area to take remaining space */
-	overflow: auto; /* Enable both horizontal and vertical scrolling */
-	position: relative; /* For positioning content inside */
+	flex-grow: 1;
+	overflow: auto;
+	position: relative;
 }
 
 .gantt-content-wrapper {
-	position: relative; /* Needed for absolute positioning or if children use it */
-	/* Width and height are set dynamically by JS */
+	position: relative;
+	background: var(--background-primary);
 }
 
-/* Grid Styles */
 .gantt-grid-line-major,
 .gantt-grid-line-minor {
-	stroke: var(--background-modifier-border-hover); /* Subtle grid lines */
+	stroke: var(--background-modifier-border-hover);
 	stroke-width: 0.5;
 }
 .gantt-grid-line-major {
 	stroke-width: 1;
 }
 .gantt-grid-line-horizontal {
-	stroke: var(--background-modifier-border); /* Row separators */
+	stroke: var(--background-modifier-border);
 	stroke-width: 1;
 }
 
@@ -350,78 +319,92 @@
 	stroke-dasharray: 4, 2;
 }
 
-/* Task Styles */
 .gantt-task-item {
 	cursor: pointer;
 }
 
 .gantt-task-bar {
-	fill: var(--color-blue); /* Default task color */
-	stroke: var(--color-blue-hover); /* Optional border */
+	fill: var(--color-blue);
+	stroke: var(--color-blue-hover);
 	stroke-width: 0.5;
 	transition: fill 0.1s ease;
 }
 .gantt-task-item:hover .gantt-task-bar {
-	fill: var(--color-blue-hover);
+	fill: var(--color-accent);
 }
 
 .gantt-task-milestone {
-	fill: var(--color-purple); /* Default milestone color */
-	stroke: var(--color-purple-hover);
+	fill: var(--color-purple);
+	stroke: var(--color-purple);
 	stroke-width: 1;
 	transition: fill 0.1s ease;
 }
 .gantt-task-item:hover .gantt-task-milestone {
-	fill: var(--color-purple-hover);
+	fill: var(--color-accent);
 }
 
-/* Status-based coloring examples */
 .gantt-task-item.status-done .gantt-task-bar,
 .gantt-task-item.status-done .gantt-task-milestone {
 	fill: var(--color-green);
-	stroke: var(--color-green-hover);
+	stroke: var(--color-green);
 	opacity: 0.7;
 }
 .gantt-task-item.status-cancelled .gantt-task-bar,
 .gantt-task-item.status-cancelled .gantt-task-milestone {
 	fill: var(--color-red);
-	stroke: var(--color-red-hover);
+	stroke: var(--color-red);
 	opacity: 0.6;
-	text-decoration: line-through; /* Apply to label via CSS if needed */
+	text-decoration: line-through;
 }
 .gantt-task-item.status-inprogress .gantt-task-bar {
-	/* Maybe a slightly different shade or pattern */
 }
 
-/* Task Label Styles */
 .gantt-task-label-fo {
-	pointer-events: none; /* Prevent foreignObject from blocking bar interaction */
-	overflow: hidden; /* Clip content outside the FO bounds */
+	pointer-events: none;
+	overflow: hidden;
 	user-select: none;
 }
 
 .gantt-task-label-markdown {
-	color: var(--text-on-accent); /* White text on default blue bar */
+	color: var(--text-on-accent);
 	font-size: var(--font-ui-small);
-	line-height: 1.2; /* Adjust as needed */
-	padding: 0 2px; /* Small padding */
-	white-space: nowrap; /* Prevent wrapping */
-	overflow: hidden; /* Hide overflow */
-	text-overflow: ellipsis; /* Show ellipsis */
-	/* Vertical alignment is tricky with markdown, handled partially in JS */
+	line-height: 1.2;
+	padding: 0 2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+
 	display: flex;
-	align-items: center; /* Try flexbox centering */
-	height: 100%; /* Take full height of foreignObject */
+	align-items: center;
+	height: 100%;
 }
 .gantt-task-label-markdown p {
-	margin: 0 !important; /* Override Obsidian's default p margin */
+	margin: 0 !important;
 }
 
-/* Adjust label color for different status backgrounds if needed */
 .gantt-task-item.status-done .gantt-task-label-markdown {
-	color: var(--text-on-accent); /* Or adjust if green is too light */
+	color: var(--text-on-accent);
 }
 .gantt-task-item.status-cancelled .gantt-task-label-markdown {
 	color: var(--text-on-accent);
 	text-decoration: line-through;
+}
+
+.gantt-milestone-label {
+	fill: var(--text-normal);
+}
+
+.gantt-filter-area {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+
+	width: 100%;
+
+	padding-left: var(--size-2-2);
+	padding-right: var(--size-4-2);
+}
+
+.gantt-filter-area .filter-component {
+	flex: 1;
 }

@@ -11,6 +11,7 @@ import {
 	clearAllMarks,
 	MarkdownRendererComponent,
 } from "src/components/MarkdownRenderer";
+import { createTaskCheckbox } from "../../task-view/details";
 
 export type EventViewType =
 	| "month"
@@ -169,29 +170,24 @@ export class CalendarEventComponent extends Component {
 	private renderAllDayEvent(): void {
 		this.eventEl.addClass("calendar-event-allday");
 
-		this.eventEl.createEl(
-			"input",
-			{ cls: "task-list-item-checkbox", type: "checkbox" },
-			(checkbox) => {
-				checkbox.dataset.task = this.event.status;
-				if (this.event.status !== " ") {
-					checkbox.checked = true;
-				}
-
-				this.registerDomEvent(checkbox, "click", (ev) => {
-					ev.stopPropagation();
-
-					if (this.params?.onEventComplete) {
-						this.params.onEventComplete(ev, this.event);
-					}
-
-					if (this.event.status === " ") {
-						checkbox.checked = true;
-						checkbox.dataset.task = "x";
-					}
-				});
-			}
+		const checkbox = createTaskCheckbox(
+			this.event.status,
+			this.event,
+			this.eventEl
 		);
+
+		this.registerDomEvent(checkbox, "click", (ev) => {
+			ev.stopPropagation();
+
+			if (this.params?.onEventComplete) {
+				this.params.onEventComplete(ev, this.event);
+			}
+
+			if (this.event.status === " ") {
+				checkbox.checked = true;
+				checkbox.dataset.task = "x";
+			}
+		});
 
 		// Create a container for the title to render markdown into
 		const titleContainer = this.eventEl.createDiv({
@@ -260,29 +256,24 @@ export class CalendarEventComponent extends Component {
 			});
 		}
 
-		this.eventEl.createEl(
-			"input",
-			{ cls: "task-list-item-checkbox", type: "checkbox" },
-			(checkbox) => {
-				checkbox.dataset.task = this.event.status;
-				if (this.event.status !== " ") {
-					checkbox.checked = true;
-				}
-
-				this.registerDomEvent(checkbox, "click", (ev) => {
-					ev.stopPropagation();
-
-					if (this.params?.onEventComplete) {
-						this.params.onEventComplete(ev, this.event);
-					}
-
-					if (this.event.status === " ") {
-						checkbox.checked = true;
-						checkbox.dataset.task = "x";
-					}
-				});
-			}
+		const checkbox = createTaskCheckbox(
+			this.event.status,
+			this.event,
+			this.eventEl
 		);
+
+		this.registerDomEvent(checkbox, "click", (ev) => {
+			ev.stopPropagation();
+
+			if (this.params?.onEventComplete) {
+				this.params.onEventComplete(ev, this.event);
+			}
+
+			if (this.event.status === " ") {
+				checkbox.checked = true;
+				checkbox.dataset.task = "x";
+			}
+		});
 
 		const titleEl = this.eventEl.createDiv({ cls: "calendar-event-title" });
 		this.markdownRenderer = new MarkdownRendererComponent(
@@ -308,29 +299,24 @@ export class CalendarEventComponent extends Component {
 			});
 			this.eventEl.appendChild(timeEl);
 		}
-		this.eventEl.createEl(
-			"input",
-			{ cls: "task-list-item-checkbox", type: "checkbox" },
-			(checkbox) => {
-				checkbox.dataset.task = this.event.status;
-				if (this.event.status !== " ") {
-					checkbox.checked = true;
-				}
-
-				this.registerDomEvent(checkbox, "click", (ev) => {
-					ev.stopPropagation();
-
-					if (this.params?.onEventComplete) {
-						this.params.onEventComplete(ev, this.event);
-					}
-
-					if (this.event.status === " ") {
-						checkbox.checked = true;
-						checkbox.dataset.task = "x";
-					}
-				});
-			}
+		const checkbox = createTaskCheckbox(
+			this.event.status,
+			this.event,
+			this.eventEl
 		);
+
+		this.registerDomEvent(checkbox, "click", (ev) => {
+			ev.stopPropagation();
+
+			if (this.params?.onEventComplete) {
+				this.params.onEventComplete(ev, this.event);
+			}
+
+			if (this.event.status === " ") {
+				checkbox.checked = true;
+				checkbox.dataset.task = "x";
+			}
+		});
 
 		// Append title
 		const titleEl = this.eventEl.createSpan({
