@@ -1392,22 +1392,23 @@ export function taskProgressBarExtension(
 								});
 							}
 
+							const taskGoal = extractTaskAndGoalInfo(lineTextTrimmed); // Check for task-specific goal [CustomGoalFeature]
 							// Count based on status
 							if (status === "completed") {
 								if (!useTaskGoal) completed++;
-								else {
-									// Check for task-specific goal [CustomGoalFeature]
-									const taskGoal = extractTaskAndGoalInfo(lineTextTrimmed);
-									if (taskGoal !== null) completed += taskGoal;
-								}
+								if (useTaskGoal && taskGoal !== null) completed += taskGoal;
 							} else if (status === "inProgress") {
-								inProgress++;
+								if (!useTaskGoal) inProgress++;
+								if (useTaskGoal && taskGoal !== null) inProgress += taskGoal;
 							} else if (status === "abandoned") {
-								abandoned++;
+								if (!useTaskGoal) abandoned++;
+								if (useTaskGoal && taskGoal !== null) abandoned += taskGoal;
 							} else if (status === "planned") {
-								planned++;
+								if (!useTaskGoal) planned++;
+								if (useTaskGoal && taskGoal !== null) planned += taskGoal;
 							} else if (status === "notStarted") {
-								notStarted++;
+								if (!useTaskGoal) notStarted++;
+								if (useTaskGoal && taskGoal !== null) notStarted += taskGoal;
 							}
 						}
 					} else if (plugin?.settings.addTaskProgressBarToHeading) {
