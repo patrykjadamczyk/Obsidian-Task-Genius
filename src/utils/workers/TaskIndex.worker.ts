@@ -421,7 +421,137 @@ function parseTasksFromContent(
 }
 
 /**
+<<<<<<< HEAD
  * Process a single file - NOW ACCEPTS METADATA FORMAT
+=======
+ * Extract dates from task content
+ */
+function extractDates(task: Task, content: string): void {
+	// Helper function to parse YYYY-MM-DD as local date midnight
+	const parseLocalDate = (dateString: string): number | undefined => {
+		if (!dateString) return undefined;
+		// Split 'YYYY-MM-DD'
+		const parts = dateString.split("-");
+		if (parts.length === 3) {
+			const year = parseInt(parts[0], 10);
+			const month = parseInt(parts[1], 10); // 1-based month
+			const day = parseInt(parts[2], 10);
+
+			// Check if parsing was successful
+			if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+				// Create Date object using local timezone constructor
+				// Note: month is 0-indexed in Date constructor
+				return new Date(year, month - 1, day).getTime();
+			}
+		}
+		// Fallback or invalid format - return undefined or handle as needed
+		console.warn(`Invalid date format encountered: ${dateString}`);
+		return undefined;
+	};
+
+	// Start date
+	const startDateMatch = content.match(START_DATE_REGEX);
+	if (startDateMatch) {
+		task.startDate = parseLocalDate(startDateMatch[1]);
+	}
+
+	// Due date
+	const dueDateMatch = content.match(DUE_DATE_REGEX);
+	if (dueDateMatch) {
+		task.dueDate = parseLocalDate(dueDateMatch[1]);
+	}
+
+	// Scheduled date
+	const scheduledDateMatch = content.match(SCHEDULED_DATE_REGEX);
+	if (scheduledDateMatch) {
+		task.scheduledDate = parseLocalDate(scheduledDateMatch[1]);
+	}
+
+	// Completion date
+	const completedDateMatch = content.match(COMPLETED_DATE_REGEX);
+	if (completedDateMatch) {
+		task.completedDate = parseLocalDate(completedDateMatch[1]);
+	}
+}
+
+/**
+ * Extract tags from task content
+ */
+function extractTags(task: Task, content: string): void {
+	const tagMatches = content.match(TAG_REGEX) || [];
+	// Filter out priority tags like [#A], [#B], [#C]
+	task.tags = tagMatches
+		.map((tag) => tag.trim())
+		.filter((tag) => !tag.match(/#[A-C]/));
+
+	// Check for project tags
+	const projectTag = task.tags.find((tag) => tag.startsWith("#project/"));
+	if (projectTag) {
+		task.project = projectTag.substring("#project/".length);
+	}
+}
+
+/**
+ * Extract context from task content
+ */
+function extractContext(task: Task, content: string): void {
+	const contextMatches = content.match(CONTEXT_REGEX) || [];
+	if (contextMatches.length > 0) {
+		// Use the first context tag as the primary context
+		task.context = contextMatches[0]?.substring(1); // Remove the @ symbol
+	}
+}
+
+/**
+ * Extract priority from task content
+ */
+function extractPriority(task: Task, content: string): void {
+	const priorityMatch = content.match(PRIORITY_REGEX);
+	if (priorityMatch) {
+		task.priority = PRIORITY_MAP[priorityMatch[0]] || undefined;
+	}
+}
+
+/**
+ * Build parent-child relationships between tasks
+ */
+function buildTaskHierarchy(tasks: Task[]): void {
+	// Sort tasks by line number
+	tasks.sort((a, b) => a.line - b.line);
+
+	// Build parent-child relationships based on indentation
+	for (let i = 0; i < tasks.length; i++) {
+		const currentTask = tasks[i];
+		const currentIndent = getIndentLevel(currentTask.originalMarkdown);
+
+		// Look for potential parent tasks (must be before current task and have less indentation)
+		for (let j = i - 1; j >= 0; j--) {
+			const potentialParent = tasks[j];
+			const parentIndent = getIndentLevel(
+				potentialParent.originalMarkdown
+			);
+
+			if (parentIndent < currentIndent) {
+				// Found a parent
+				currentTask.parent = potentialParent.id;
+				potentialParent.children.push(currentTask.id);
+				break;
+			}
+		}
+	}
+}
+
+/**
+ * Get indentation level of a line
+ */
+function getIndentLevel(line: string): number {
+	const match = line.match(/^(\s*)/);
+	return match ? match[1].length : 0;
+}
+
+/**
+ * Process a single file
+>>>>>>> d79e4e5 (feat: support gantt view)
  */
 function processFile(
 	filePath: string,
