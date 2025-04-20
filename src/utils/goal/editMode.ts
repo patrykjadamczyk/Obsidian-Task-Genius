@@ -5,7 +5,7 @@
  * @return The extracted task text or null if no task was found
  */
 
-import { REGEX_GOAL } from "./config";
+import { REGEX_GOAL } from "./regexGoal";
 
 function extractTaskText(lineText: string): string | null {
     if (!lineText) return null;
