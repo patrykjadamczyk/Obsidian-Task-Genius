@@ -97,15 +97,19 @@ export function buildFilterOptionsFromTasks(tasks: Task[]): FilterCategory[] {
 	const categories: FilterCategory[] = [
 		{
 			id: "status",
-			label: "Status",
+			label: t("Status"),
 			options: sortedStatuses,
 		},
-		{ id: "tag", label: "Tag", options: sortedTags },
-		{ id: "project", label: "Project", options: sortedProjects },
-		{ id: "context", label: "Context", options: sortedContexts },
-		{ id: "priority", label: "Priority", options: sortedPriorityOptions }, // Use the mapped & sorted icons/strings
-		{ id: "completed", label: "Completed", options: ["Yes", "No"] }, // Static options
-		{ id: "filePath", label: "File Path", options: sortedFilePaths },
+		{ id: "tag", label: t("Tag"), options: sortedTags },
+		{ id: "project", label: t("Project"), options: sortedProjects },
+		{ id: "context", label: t("Context"), options: sortedContexts },
+		{
+			id: "priority",
+			label: t("Priority"),
+			options: sortedPriorityOptions,
+		}, // Use the mapped & sorted icons/strings
+		{ id: "completed", label: t("Completed"), options: ["Yes", "No"] }, // Static options
+		{ id: "filePath", label: t("File Path"), options: sortedFilePaths },
 		// Add other categories as needed (e.g., dueDate, startDate)
 		// These might require different option generation logic (e.g., date ranges)
 	];

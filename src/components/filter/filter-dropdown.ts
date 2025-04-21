@@ -1,6 +1,7 @@
 import { Component, debounce, setIcon } from "obsidian";
 import { FilterCategory, FilterDropdownOptions } from "./filter-type";
 import TaskProgressBarPlugin from "../../index";
+import { t } from "../../translations/helper";
 
 export class FilterDropdown extends Component {
 	private options: FilterCategory[];
@@ -147,7 +148,7 @@ export class FilterDropdown extends Component {
 
 		// Add back button
 		const backButton = this.createListItem(
-			"Back to categories",
+			t("Back to categories"),
 			() => {
 				this.currentCategory = null;
 				this.renderCategoryList();
@@ -188,7 +189,7 @@ export class FilterDropdown extends Component {
 		if (filteredValues.length === 0) {
 			this.listContainer.createEl("div", {
 				cls: "filter-dropdown-empty",
-				text: "No matching options found",
+				text: t("No matching options found"),
 			});
 		} else {
 			filteredValues.forEach((value) => {
@@ -341,7 +342,7 @@ export class FilterDropdown extends Component {
 		if (filteredOptions.length === 0) {
 			this.listContainer.createEl("div", {
 				cls: "filter-dropdown-empty",
-				text: "No matching filters found",
+				text: t("No matching filters found"),
 			});
 		} else {
 			filteredOptions.forEach((category) => {

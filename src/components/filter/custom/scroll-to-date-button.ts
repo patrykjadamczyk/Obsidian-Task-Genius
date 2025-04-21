@@ -1,5 +1,5 @@
 import { Component } from "obsidian";
-
+import { t } from "../../../translations/helper";
 export class ScrollToDateButton extends Component {
 	private containerEl: HTMLElement;
 	private scrollToDateCallback: (date: Date) => void;
@@ -15,7 +15,7 @@ export class ScrollToDateButton extends Component {
 
 	onload() {
 		const todayButton = this.containerEl.createEl("button", {
-			text: "Today",
+			text: t("Today"),
 			cls: "gantt-filter-today-button",
 		});
 
