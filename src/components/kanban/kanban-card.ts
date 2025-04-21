@@ -3,10 +3,7 @@ import { Task } from "src/utils/types/TaskIndex"; // Adjust path
 import { MarkdownRendererComponent } from "../MarkdownRenderer"; // Adjust path
 import TaskProgressBarPlugin from "../../index"; // Adjust path
 import { KanbanSpecificConfig } from "../../common/setting-definition";
-<<<<<<< HEAD:src/components/kanban/kanban-card.ts
 import { createTaskCheckbox } from "../task-view/details";
-=======
->>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanCard.ts
 
 export class KanbanCardComponent extends Component {
 	public element: HTMLElement;
@@ -55,22 +52,11 @@ export class KanbanCardComponent extends Component {
 				cls: "tg-kanban-card-container",
 			},
 			(el) => {
-<<<<<<< HEAD:src/components/kanban/kanban-card.ts
 				const checkbox = createTaskCheckbox(
 					this.task.status,
 					this.task,
 					el
 				);
-=======
-				const checkbox = el.createEl("input", {
-					cls: "task-list-item-checkbox",
-					type: "checkbox",
-				});
-				checkbox.dataset.task = this.task.status;
-				if (this.task.status !== " ") {
-					checkbox.checked = true;
-				}
->>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanCard.ts
 
 				this.registerDomEvent(checkbox, "click", (ev) => {
 					ev.stopPropagation();

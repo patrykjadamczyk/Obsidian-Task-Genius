@@ -17,10 +17,7 @@ import "../../styles/task-details.css";
 import { t } from "../../translations/helper";
 import { clearAllMarks } from "../MarkdownRenderer";
 import { StatusComponent } from "../StatusComponent";
-<<<<<<< HEAD
 import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
-=======
->>>>>>> 5577e09 (feat: support checkbox status)
 
 function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	const status = Object.keys(settings.taskStatuses).find((key) => {

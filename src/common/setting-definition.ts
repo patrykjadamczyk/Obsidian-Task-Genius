@@ -67,33 +67,17 @@ export interface CalendarSpecificConfig {
 	firstDayOfWeek?: number; // 0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 5a47d35 (chore: bump version)
 export interface GanttSpecificConfig {
 	viewType: "gantt"; // Discriminator
 	showTaskLabels: boolean;
 	useMarkdownRenderer: boolean;
 }
 
-<<<<<<< HEAD
 // ADDED: Union type for specific configs
 export type SpecificViewConfig =
 	| KanbanSpecificConfig
 	| CalendarSpecificConfig
 	| GanttSpecificConfig;
-=======
-// ADDED: Union type for specific configs
-export type SpecificViewConfig = KanbanSpecificConfig | CalendarSpecificConfig;
->>>>>>> 44a35f7 (feat: support show checkbox)
-=======
-// ADDED: Union type for specific configs
-export type SpecificViewConfig =
-	| KanbanSpecificConfig
-	| CalendarSpecificConfig
-	| GanttSpecificConfig;
->>>>>>> 5a47d35 (chore: bump version)
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -478,11 +462,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "calendar",
-<<<<<<< HEAD
 			name: t("Events"),
-=======
-			name: t("Calendar"),
->>>>>>> 76d92e6 (chore: bump version)
 			icon: "calendar",
 			type: "default",
 			visible: true,
@@ -505,7 +485,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				viewType: "kanban",
 				showCheckbox: true, // Example default, adjust if needed
 			} as KanbanSpecificConfig,
-<<<<<<< HEAD
 		},
 		{
 			id: "gantt",
@@ -520,8 +499,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				showTaskLabels: true,
 				useMarkdownRenderer: true,
 			} as GanttSpecificConfig,
-=======
->>>>>>> 44a35f7 (feat: support show checkbox)
 		},
 		{
 			id: "gantt",

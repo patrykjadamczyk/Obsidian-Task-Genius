@@ -999,10 +999,6 @@ class ProgressBar extends Component {
 				checkIfParentElementHasGoalFormat(
 					element.parentElement?.parentElement
 				);
-<<<<<<< HEAD
-=======
-			console.log("useTaskGoal", useTaskGoal);
->>>>>>> 6c87b00 (chore: bump version)
 			const checkboxElement = element.querySelector(
 				".task-list-item-checkbox"
 			);

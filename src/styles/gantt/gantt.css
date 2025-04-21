@@ -49,10 +49,6 @@
 	stroke-dasharray: 2, 2;
 }
 
-<<<<<<< HEAD
-=======
-/* Tasks */
->>>>>>> 5a47d35 (chore: bump version)
 .gantt-task-item {
 	cursor: pointer;
 }
@@ -509,7 +505,6 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-<<<<<<< HEAD
 
 /**
  * Gantt Chart Styles
@@ -858,5 +853,3 @@
 	color: var(--text-on-accent);
 	text-decoration: line-through;
 }
-=======
->>>>>>> 6c87b00 (chore: bump version)
