@@ -347,7 +347,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					toggle
 						.setValue(this.plugin.settings.allowCustomProgressGoal)
 						.onChange(async (value) => {
-							this.plugin.settings.allowCustomProgressGoal = value;
+							this.plugin.settings.allowCustomProgressGoal =
+								value;
 							this.applySettingsUpdate();
 						})
 				);
@@ -1276,22 +1277,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.enableCycleCompleteStatus)
 					.onChange(async (value) => {
 						this.plugin.settings.enableCycleCompleteStatus = value;
-						this.applySettingsUpdate();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t("Always cycle new tasks"))
-			.setDesc(
-				t(
-					"When enabled, newly inserted tasks will immediately cycle to the next status. When disabled, newly inserted tasks with valid marks will keep their original mark."
-				)
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.alwaysCycleNewTasks)
-					.onChange(async (value) => {
-						this.plugin.settings.alwaysCycleNewTasks = value;
 						this.applySettingsUpdate();
 					});
 			});

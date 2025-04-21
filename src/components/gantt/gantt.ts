@@ -567,7 +567,12 @@ export class GanttComponent extends Component {
 		console.log("Prepared Tasks:", this.preparedTasks);
 
 		// Calculate total dimensions
-		this.totalHeight = this.preparedTasks.length * ROW_HEIGHT;
+		// Ensure a minimum height even if there are no tasks initially
+		const MIN_ROWS_DISPLAY = 5; // Show at least 5 rows worth of height
+		this.totalHeight = Math.max(
+			this.preparedTasks.length * ROW_HEIGHT,
+			MIN_ROWS_DISPLAY * ROW_HEIGHT
+		);
 		const totalDays = this.dateHelper.daysBetween(
 			this.startDate!,
 			this.endDate!
@@ -638,6 +643,7 @@ export class GanttComponent extends Component {
 
 		// Update SVG container dimensions
 		this.svgEl.setAttribute("width", `${this.totalWidth}`);
+		// Use the calculated totalHeight (which now has a minimum)
 		this.svgEl.setAttribute("height", `${this.totalHeight}`);
 		this.contentWrapperEl.style.width = `${this.totalWidth}px`;
 		this.contentWrapperEl.style.height = `${this.totalHeight}px`;

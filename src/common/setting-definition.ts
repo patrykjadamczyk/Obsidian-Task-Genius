@@ -211,7 +211,6 @@ export interface TaskProgressBarSettings {
 	enableCustomTaskMarks: boolean;
 	enableTextMarkInSourceMode: boolean;
 	enableCycleCompleteStatus: boolean;
-	alwaysCycleNewTasks: boolean;
 	taskStatusCycle: string[];
 	taskStatusMarks: TaskStatusCycle;
 	excludeMarksFromCycle: string[];
@@ -286,7 +285,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	enableCustomTaskMarks: true,
 	enableTextMarkInSourceMode: true,
 	enableCycleCompleteStatus: true,
-	alwaysCycleNewTasks: false,
 	taskStatusCycle: [
 		"Not Started",
 		"In Progress",
