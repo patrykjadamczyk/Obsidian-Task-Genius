@@ -8,7 +8,11 @@ import {
 } from "obsidian";
 import { shouldHideProgressBarInPreview } from "../utils";
 import { formatProgressText } from "../editor-ext/progressBarWidget";
-import { checkIfParentElementHasGoalFormat, extractTaskAndGoalInfoReadMode, getCustomTotalGoalReadMode } from "src/utils/goal/readMode";
+import {
+	checkIfParentElementHasGoalFormat,
+	extractTaskAndGoalInfoReadMode,
+	getCustomTotalGoalReadMode,
+} from "src/utils/goal/readMode";
 
 interface GroupElement {
 	parentElement: HTMLElement;
@@ -27,12 +31,12 @@ function groupElementsByParent(childrenElements: HTMLElement[]) {
 			} else {
 				parentMap.set(parent, [child]);
 			}
-		} 
+		}
 	});
 
 	const result: GroupElement[] = [];
 	parentMap.forEach((children, parent) => {
-		result.push({ parentElement: parent, childrenElement: children});
+		result.push({ parentElement: parent, childrenElement: children });
 	});
 	return result;
 }
@@ -364,9 +368,9 @@ class ProgressBar extends Component {
 							) as HTMLElement;
 							if (container) {
 								// Force refresh of the view by triggering a layout change
-								container.style.display = "none";
+								container.hide();
 								setTimeout(() => {
-									container.style.display = "";
+									container.show();
 								}, 10);
 							}
 						}
@@ -395,9 +399,9 @@ class ProgressBar extends Component {
 									) as HTMLElement;
 								if (container) {
 									// Force refresh of the view by triggering a layout change
-									container.style.display = "none";
+									container.hide();
 									setTimeout(() => {
-										container.style.display = "";
+										container.show();
 									}, 10);
 								}
 							}
@@ -986,13 +990,16 @@ class ProgressBar extends Component {
 		let planned = 0;
 		let notStarted = 0;
 		let total = 0;
-		
 
 		for (let element of allTasks) {
 			// const isParentCustomGoal: boolean = checkIfParentElementHasGoalFormat(element.parentElement)
-			let subTaskGoal: null | number = null
-			const useTaskGoal: boolean = this.plugin?.settings.allowCustomProgressGoal && checkIfParentElementHasGoalFormat(element.parentElement?.parentElement)
-			console.log("useTaskGoal", useTaskGoal)
+			let subTaskGoal: null | number = null;
+			const useTaskGoal: boolean =
+				this.plugin?.settings.allowCustomProgressGoal &&
+				checkIfParentElementHasGoalFormat(
+					element.parentElement?.parentElement
+				);
+			console.log("useTaskGoal", useTaskGoal);
 			const checkboxElement = element.querySelector(
 				".task-list-item-checkbox"
 			);
@@ -1003,24 +1010,28 @@ class ProgressBar extends Component {
 			if (dataTask) {
 				const status = this.getTaskStatusFromDataTask(dataTask);
 
-				if(useTaskGoal) subTaskGoal = extractTaskAndGoalInfoReadMode(element)
-				
-				if (this.isCompletedTaskFromDataTask(dataTask)) {
-					if (!useTaskGoal) completed++
-					if (subTaskGoal !== null) completed += subTaskGoal
+				if (useTaskGoal)
+					subTaskGoal = extractTaskAndGoalInfoReadMode(element);
 
+				if (this.isCompletedTaskFromDataTask(dataTask)) {
+					if (!useTaskGoal) completed++;
+					if (subTaskGoal !== null) completed += subTaskGoal;
 				} else if (status === "inProgress") {
-					if (!useTaskGoal) inProgress++
-					if (useTaskGoal && subTaskGoal !== null) inProgress += subTaskGoal
+					if (!useTaskGoal) inProgress++;
+					if (useTaskGoal && subTaskGoal !== null)
+						inProgress += subTaskGoal;
 				} else if (status === "abandoned") {
-					if (!useTaskGoal) abandoned++
-					if (useTaskGoal && subTaskGoal !== null) abandoned += subTaskGoal
+					if (!useTaskGoal) abandoned++;
+					if (useTaskGoal && subTaskGoal !== null)
+						abandoned += subTaskGoal;
 				} else if (status === "planned") {
-					if (!useTaskGoal) planned++
-					if (useTaskGoal && subTaskGoal !== null) planned += subTaskGoal
+					if (!useTaskGoal) planned++;
+					if (useTaskGoal && subTaskGoal !== null)
+						planned += subTaskGoal;
 				} else if (status === "notStarted") {
-					if (!useTaskGoal) notStarted++
-					if (useTaskGoal && subTaskGoal !== null) notStarted += subTaskGoal
+					if (!useTaskGoal) notStarted++;
+					if (useTaskGoal && subTaskGoal !== null)
+						notStarted += subTaskGoal;
 				}
 			} else {
 				// Fallback to the text content method
@@ -1117,8 +1128,10 @@ class ProgressBar extends Component {
 					allTasks.push(child);
 				}
 			}
-			const parentGoal = getCustomTotalGoalReadMode(element.parentElement?.parentElement);
-			if (parentGoal) total = parentGoal
+			const parentGoal = getCustomTotalGoalReadMode(
+				element.parentElement?.parentElement
+			);
+			if (parentGoal) total = parentGoal;
 			else total++;
 
 			// total++;

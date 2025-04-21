@@ -16,3 +16,4 @@ This is an Obsidian plugin project, likely built using TypeScript and ESBuild.
 - **Styles:** Custom styles for the plugin are in [`styles.css`](mdc:styles.css).
 - **Entry Point:** The primary entry point for the plugin logic is likely within the `src/` directory, possibly a file named `main.ts` or `plugin.ts` (though this needs confirmation by looking inside `src/`).
 
+

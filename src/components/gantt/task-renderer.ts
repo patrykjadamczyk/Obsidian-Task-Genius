@@ -6,6 +6,7 @@ import {
 } from "obsidian";
 import { GanttTaskItem, PlacedGanttTaskItem, Timescale } from "./gantt"; // 添加PlacedGanttTaskItem导入
 import { Task } from "../../utils/types/TaskIndex";
+import { MarkdownRendererComponent } from "../MarkdownRenderer";
 
 // Constants from GanttComponent (consider moving to a shared config/constants file)
 const ROW_HEIGHT = 24;
@@ -149,18 +150,50 @@ export class TaskRendererComponent extends Component {
 
 			// Add text label to the right
 			if (showTaskLabels && task.content) {
-				const textLabel = group.createSvg("text", {
-					attr: {
-						x: x + radius + TASK_LABEL_PADDING,
-						y: y,
-						class: "gantt-milestone-label",
-						// Vertically align middle of text with circle center
-						"dominant-baseline": "middle",
-					},
-				});
-				textLabel.textContent = task.content;
-				// Prevent text from capturing pointer events meant for the group/circle
-				textLabel.style.pointerEvents = "none";
+				// Check if we should use markdown renderer
+				if (useMarkdownRenderer) {
+					// Create a foreign object to hold the markdown content
+					const foreignObject = group.createSvg("foreignObject", {
+						attr: {
+							x: x + radius + TASK_LABEL_PADDING,
+							y: y - 8, // Adjust y position to center the content
+							width: 300, // Set a reasonable width
+							height: 16, // Set a reasonable height
+							class: "gantt-milestone-label-container",
+						},
+					});
+
+					// Create a div inside the foreignObject for markdown rendering
+					const labelContainer = document.createElementNS(
+						"http://www.w3.org/1999/xhtml",
+						"div"
+					);
+					labelContainer.style.pointerEvents = "none"; // Prevent capturing events
+					foreignObject.appendChild(labelContainer);
+
+					// Use markdown renderer to render the task content
+					const markdownRenderer = new MarkdownRendererComponent(
+						this.app,
+						labelContainer,
+						task.filePath
+					);
+					this.addChild(markdownRenderer);
+					markdownRenderer.render(task.content);
+				} else {
+					// Use regular SVG text if markdown rendering is disabled
+					const textLabel = group.createSvg("text", {
+						attr: {
+							x: x + radius + TASK_LABEL_PADDING,
+							y: y,
+							class: "gantt-milestone-label",
+							// Vertically align middle of text with circle center
+							"dominant-baseline": "middle",
+						},
+					});
+					textLabel.textContent = task.content;
+					// Prevent text from capturing pointer events meant for the group/circle
+					textLabel.style.pointerEvents = "none";
+				}
 			}
 
 			// Add tooltip for milestone
@@ -236,24 +269,19 @@ export class TaskRendererComponent extends Component {
 
 					if (useMarkdownRenderer) {
 						const sourcePath = task.filePath || "";
-						labelDiv.empty(); // Clear previous content
-						ObsidianMarkdownRenderer.render(
-							app,
-							task.content,
-							labelDiv,
-							sourcePath,
-							parentComponent // Pass the appropriate component context
-						);
+						labelDiv.empty();
 
-						// Style the rendered content
-						const p = labelDiv.querySelector("p");
-						if (p) {
-							p.style.margin = "0";
-							p.style.lineHeight = `${barHeight}px`;
-							p.style.whiteSpace = "nowrap";
-							p.style.overflow = "hidden";
-							p.style.textOverflow = "ellipsis";
-						}
+						console.log("sourcePath", sourcePath);
+
+						const markdownRenderer = this.addChild(
+							new MarkdownRendererComponent(
+								this.app,
+								labelDiv as HTMLElement,
+								sourcePath,
+								true
+							)
+						);
+						markdownRenderer.update(task.content);
 					} else {
 						// Fallback to simple text
 						labelDiv.textContent = task.content;

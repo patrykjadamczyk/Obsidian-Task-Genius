@@ -43,6 +43,7 @@ const DAY_WIDTH_DEFAULT = 50; // Default width for a day column
 // const TASK_LABEL_PADDING = 5; // Moved to TaskRendererComponent
 const MIN_DAY_WIDTH = 10; // Minimum width for a day during zoom out
 const MAX_DAY_WIDTH = 200; // Maximum width for a day during zoom in
+const INDICATOR_HEIGHT = 4; // Height of individual offscreen task indicators
 
 // Define the structure for tasks prepared for rendering
 export interface GanttTaskItem {
@@ -153,8 +154,8 @@ export class GanttComponent extends Component {
 	private debouncedHeaderUpdate: ReturnType<typeof debounce>; // Renamed for clarity
 
 	// Offscreen task indicators
-	private leftIndicatorEl: HTMLElement;
-	private rightIndicatorEl: HTMLElement;
+	private leftIndicatorEl: HTMLElement; // Now a container
+	private rightIndicatorEl: HTMLElement; // Now a container
 
 	constructor(
 		private plugin: TaskProgressBarPlugin,
@@ -186,15 +187,14 @@ export class GanttComponent extends Component {
 			"gantt-content-wrapper"
 		);
 
-		// Create offscreen indicators (initially hidden)
+		// Create offscreen indicator containers
 		this.leftIndicatorEl = this.containerEl.createDiv(
-			"gantt-offscreen-indicator gantt-offscreen-indicator-left"
+			"gantt-indicator-container gantt-indicator-container-left" // Updated classes
 		);
 		this.rightIndicatorEl = this.containerEl.createDiv(
-			"gantt-offscreen-indicator gantt-offscreen-indicator-right"
+			"gantt-indicator-container gantt-indicator-container-right" // Updated classes
 		);
-		this.leftIndicatorEl.style.display = "none";
-		this.rightIndicatorEl.style.display = "none";
+		// Containers are always visible, content determines if indicators show
 
 		// Debounced functions
 		this.debouncedRender = debounce(
@@ -269,13 +269,13 @@ export class GanttComponent extends Component {
 		// Child components are unloaded automatically when the parent is unloaded
 		// Remove specific elements if needed
 		if (this.svgEl) {
-			this.svgEl.remove();
+			this.svgEl.detach();
 		}
-		this.filterContainerEl.remove();
-		this.headerContainerEl.remove();
-		this.scrollContainerEl.remove(); // This removes contentWrapperEl and svgEl too
-		this.leftIndicatorEl.remove(); // Remove indicators
-		this.rightIndicatorEl.remove(); // Remove indicators
+		this.filterContainerEl.detach();
+		this.headerContainerEl.detach();
+		this.scrollContainerEl.detach(); // This removes contentWrapperEl and svgEl too
+		this.leftIndicatorEl.detach(); // Remove indicator containers
+		this.rightIndicatorEl.detach(); // Remove indicator containers
 
 		this.containerEl.removeClass("gantt-chart-container");
 		this.tasks = [];
@@ -619,10 +619,12 @@ export class GanttComponent extends Component {
 			!this.scrollContainerEl ||
 			!this.gridBackgroundComponent || // Check if children are loaded
 			!this.taskRendererComponent ||
-			!this.timelineHeaderComponent
+			!this.timelineHeaderComponent ||
+			!this.leftIndicatorEl || // Check indicator containers too
+			!this.rightIndicatorEl
 		) {
 			console.warn(
-				"Cannot render: Core elements or child components not initialized."
+				"Cannot render: Core elements, child components, or indicator containers not initialized."
 			);
 			return;
 		}
@@ -652,53 +654,95 @@ export class GanttComponent extends Component {
 
 		// Calculate visible tasks *before* updating grid and task renderer
 		const scrollLeft = this.scrollContainerEl.scrollLeft;
+		const scrollTop = this.scrollContainerEl.scrollTop; // Get vertical scroll position
 		const containerWidth = this.scrollContainerEl.clientWidth;
 		const visibleStartX = scrollLeft;
 		const visibleEndX = scrollLeft + containerWidth;
 
-		// Determine if tasks exist outside the visible range
-		let hasTasksBefore = false;
-		let hasTasksAfter = false;
+		// --- Update Offscreen Indicators ---
+		// Clear existing indicators
+		this.leftIndicatorEl.empty();
+		this.rightIndicatorEl.empty();
+
+		const visibleTasks: PlacedGanttTaskItem[] = [];
+		const renderBuffer = 300; // Keep a render buffer for smooth scrolling
+		const indicatorYOffset = INDICATOR_HEIGHT / 2;
+
 		for (const pt of this.preparedTasks) {
 			const taskStartX = pt.startX;
 			const taskEndX = pt.isMilestone
 				? pt.startX
 				: pt.startX + (pt.width ?? 0);
-			const buffer = 1; // Small buffer to avoid flicker at edges
 
-			if (taskEndX < visibleStartX - buffer) {
-				hasTasksBefore = true;
-			}
-			if (taskStartX > visibleEndX + buffer) {
-				hasTasksAfter = true;
-			}
-			if (hasTasksBefore && hasTasksAfter) {
-				break; // Optimization
-			}
-		}
-
-		// Update indicator visibility
-		if (this.leftIndicatorEl) {
-			this.leftIndicatorEl.style.display = hasTasksBefore
-				? "block"
-				: "none";
-		}
-		if (this.rightIndicatorEl) {
-			this.rightIndicatorEl.style.display = hasTasksAfter
-				? "block"
-				: "none";
-		}
-
-		const visibleTasks = this.preparedTasks.filter((pt) => {
-			const taskStartX = pt.startX;
-			const taskEndX = pt.isMilestone
-				? pt.startX
-				: pt.startX + (pt.width ?? 0);
-			const renderBuffer = 300; // Keep a render buffer for smooth scrolling
-			return (
+			// Check visibility for task rendering
+			const isVisible =
 				taskEndX > visibleStartX - renderBuffer &&
-				taskStartX < visibleEndX + renderBuffer
-			);
+				taskStartX < visibleEndX + renderBuffer;
+
+			if (isVisible) {
+				visibleTasks.push(pt);
+			}
+
+			// Check for offscreen indicators (use smaller buffer or none)
+			const indicatorBuffer = 5; // Small buffer to prevent flicker
+			// Calculate top position relative to the scroll container's viewport
+			const indicatorTop = pt.y - scrollTop - indicatorYOffset;
+
+			if (taskEndX < visibleStartX - indicatorBuffer) {
+				// Task is offscreen to the left
+				this.leftIndicatorEl.createDiv({
+					cls: "gantt-single-indicator",
+					attr: {
+						style: `top: ${indicatorTop + 45}px;`, // Use calculated relative top
+						title: pt.task.content,
+						"data-task-id": pt.task.id,
+					},
+				});
+			} else if (taskStartX > visibleEndX + indicatorBuffer) {
+				// Task is offscreen to the right
+				this.rightIndicatorEl.createDiv({
+					cls: "gantt-single-indicator",
+					attr: {
+						style: `top: ${indicatorTop + 45}px;`, // Use calculated relative top
+						title: pt.task.content,
+						"data-task-id": pt.task.id,
+					},
+				});
+			}
+		}
+
+		this.registerDomEvent(this.leftIndicatorEl, "click", (e) => {
+			const target = e.target as HTMLElement;
+			const taskId = target.getAttribute("data-task-id");
+			if (taskId) {
+				const task = this.tasks.find((t) => t.id === taskId);
+				if (task) {
+					this.scrollToDate(
+						new Date(
+							task.dueDate ||
+								task.startDate ||
+								task.scheduledDate!
+						)
+					);
+				}
+			}
+		});
+
+		this.registerDomEvent(this.rightIndicatorEl, "click", (e) => {
+			const target = e.target as HTMLElement;
+			const taskId = target.getAttribute("data-task-id");
+			if (taskId) {
+				const task = this.tasks.find((t) => t.id === taskId);
+				if (task) {
+					this.scrollToDate(
+						new Date(
+							task.startDate ||
+								task.dueDate ||
+								task.scheduledDate!
+						)
+					);
+				}
+			}
 		});
 
 		// 2. Update Grid Background (Now using visibleTasks)

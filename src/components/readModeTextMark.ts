@@ -112,7 +112,7 @@ class TaskTextMark extends Component {
 		}
 
 		// Hide the original checkbox in both cases
-		this.originalCheckbox.style.display = "none";
+		this.originalCheckbox.hide();
 
 		return this;
 	}
