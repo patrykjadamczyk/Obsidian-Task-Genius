@@ -798,6 +798,29 @@ export class TaskManager extends Component {
 	}
 
 	/**
+	 * get available context or projects from current all tasks
+	 */
+	public getAvailableContextOrProjects(): {
+		contexts: string[];
+		projects: string[];
+	} {
+		const allTasks = this.getAllTasks();
+
+		const contextSet = new Set<string>();
+		const projectSet = new Set<string>();
+
+		for (const task of allTasks) {
+			if (task.context) contextSet.add(task.context);
+			if (task.project) projectSet.add(task.project);
+		}
+
+		return {
+			contexts: Array.from(contextSet),
+			projects: Array.from(projectSet),
+		};
+	}
+
+	/**
 	 * Get a task by ID
 	 */
 	public getTaskById(id: string): Task | undefined {
@@ -1090,7 +1113,7 @@ export class TaskManager extends Component {
 				metadata.push(
 					useDataviewFormat
 						? `[due:: ${formattedDueDate}]`
-						: `🗓️ ${formattedDueDate}`
+						: `📅 ${formattedDueDate}`
 				); // Use boolean flag
 			}
 			if (formattedStartDate) {

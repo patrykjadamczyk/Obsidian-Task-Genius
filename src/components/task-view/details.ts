@@ -17,6 +17,7 @@ import "../../styles/task-details.css";
 import { t } from "../../translations/helper";
 import { clearAllMarks } from "../MarkdownRenderer";
 import { StatusComponent } from "../StatusComponent";
+import { TagSuggest } from "../AutoComplete";
 
 function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	const status = Object.keys(settings.taskStatuses).find((key) => {
@@ -311,6 +312,8 @@ export class TaskDetailsComponent extends Component {
 		tagsField
 			.createSpan({ cls: "field-description" })
 			.setText(t("Comma separated"));
+
+		new TagSuggest(this.app, tagsInput.inputEl, this.plugin);
 
 		// Context field
 		const contextField = this.createFormField(
