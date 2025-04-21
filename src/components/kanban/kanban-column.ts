@@ -45,7 +45,11 @@ export class KanbanColumnComponent extends Component {
 		this.element.createEl(
 			"div",
 			{
+<<<<<<< HEAD:src/components/kanban/kanban-column.ts
 				cls: "tg-kanban-column-header",
+=======
+				cls: "kanban-column-header",
+>>>>>>> 76d92e6 (chore: bump version):src/components/kanban/KanbanColumn.ts
 			},
 			(el) => {
 				const checkbox = el.createEl("input", {

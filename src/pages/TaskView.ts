@@ -281,6 +281,7 @@ export class TaskView extends ItemView {
 		this.addChild(this.kanbanComponent);
 		this.kanbanComponent.containerEl.hide();
 
+<<<<<<< HEAD
 		this.ganttComponent = new GanttComponent(
 			this.plugin,
 			this.rootContainerEl,
@@ -293,6 +294,8 @@ export class TaskView extends ItemView {
 		this.addChild(this.ganttComponent);
 		this.ganttComponent.containerEl.hide();
 
+=======
+>>>>>>> 76d92e6 (chore: bump version)
 		this.detailsComponent = new TaskDetailsComponent(
 			this.rootContainerEl,
 			this.app,
