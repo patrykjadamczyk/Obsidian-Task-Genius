@@ -18,7 +18,10 @@ import { t } from "../translations/helper";
 import { MarkdownRendererComponent } from "./MarkdownRenderer";
 import { StatusComponent } from "./StatusComponent";
 import { Task } from "../utils/types/TaskIndex";
+<<<<<<< HEAD
 import { ContextSuggest, ProjectSuggest } from "./AutoComplete";
+=======
+>>>>>>> 5577e09 (feat: support checkbox status)
 
 interface TaskMetadata {
 	startDate?: Date;
