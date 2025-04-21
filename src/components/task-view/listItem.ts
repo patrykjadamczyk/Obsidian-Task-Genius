@@ -2,6 +2,7 @@ import { App, Component, Menu } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import "../../styles/task-list.css";
+import { createTaskCheckbox } from "./details";
 
 export class TaskListItemComponent extends Component {
 	public element: HTMLElement;
@@ -51,14 +52,11 @@ export class TaskListItemComponent extends Component {
 			},
 			(el) => {
 				// Create a checkbox input element
-				const checkbox = el.createEl("input", {
-					cls: "task-list-item-checkbox",
-					type: "checkbox",
-				});
-				checkbox.dataset.task = this.task.status;
-				if (this.task.status !== " ") {
-					checkbox.checked = true;
-				}
+				const checkbox = createTaskCheckbox(
+					this.task.status,
+					this.task,
+					el
+				);
 
 				this.registerDomEvent(checkbox, "click", (event) => {
 					event.stopPropagation();

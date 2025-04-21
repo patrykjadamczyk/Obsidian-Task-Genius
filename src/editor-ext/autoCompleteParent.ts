@@ -396,17 +396,30 @@ function areAllSiblingsCompleted(
 					// Found an incomplete descendant task
 					return false;
 				} else {
-					if (
-						plugin.settings.workflow.enableWorkflow && // Only check if workflow enabled
-						!isLastWorkflowStageOrNotWorkflow(
-							lineText,
-							i,
-							doc,
-							plugin
-						)
-					) {
-						return false;
+					// Task IS marked [x] or [X]. Now, consider workflow.
+					if (plugin.settings.workflow.enableWorkflow) {
+						// Only perform the strict workflow stage check IF autoRemoveLastStageMarker is ON.
+						// If autoRemoveLastStageMarker is OFF, we trust the '[x]' status for parent completion.
+						if (
+							plugin.settings.workflow.autoRemoveLastStageMarker
+						) {
+							// Setting is ON: Rely on the stage check.
+							if (
+								!isLastWorkflowStageOrNotWorkflow(
+									lineText,
+									i,
+									doc,
+									plugin
+								)
+							) {
+								// It's [x], workflow is enabled, marker removal is ON,
+								// but it's not considered the final stage by the check.
+								return false;
+							}
+						}
+						// else: Setting is OFF. Do nothing. The task is [x], so we consider it complete for parent checking.
 					}
+					// If workflow is disabled, or passed the workflow checks, continue loop.
 				}
 			}
 		}

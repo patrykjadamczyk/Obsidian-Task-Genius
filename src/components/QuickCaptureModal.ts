@@ -16,6 +16,9 @@ import { saveCapture } from "../utils/fileUtils";
 import { FileSuggest } from "../editor-ext/quickCapture";
 import { t } from "../translations/helper";
 import { MarkdownRendererComponent } from "./MarkdownRenderer";
+import { StatusComponent } from "./StatusComponent";
+import { Task } from "../utils/types/TaskIndex";
+import { ContextSuggest, ProjectSuggest } from "./AutoComplete";
 
 interface TaskMetadata {
 	startDate?: Date;
@@ -25,6 +28,7 @@ interface TaskMetadata {
 	project?: string;
 	context?: string;
 	recurrence?: string;
+	status?: string;
 }
 
 export class QuickCaptureModal extends Modal {
@@ -38,6 +42,9 @@ export class QuickCaptureModal extends Modal {
 
 	previewContainerEl: HTMLElement | null = null;
 	markdownRenderer: MarkdownRendererComponent | null = null;
+
+	preferMetadataFormat: "dataview" | "tasks" = "tasks";
+
 	constructor(
 		app: App,
 		plugin: TaskProgressBarPlugin,
@@ -47,6 +54,7 @@ export class QuickCaptureModal extends Modal {
 		super(app);
 		this.plugin = plugin;
 		this.tempTargetFilePath = this.plugin.settings.quickCapture.targetFile;
+		this.preferMetadataFormat = this.plugin.settings.preferMetadataFormat;
 
 		if (metadata) {
 			this.taskMetadata = metadata;
@@ -170,6 +178,22 @@ export class QuickCaptureModal extends Modal {
 			cls: "quick-capture-section-title",
 		});
 
+		const statusComponent = new StatusComponent(
+			this.plugin,
+			configPanel,
+			{
+				status: this.taskMetadata.status,
+			} as Task,
+			{
+				type: "quick-capture",
+				onTaskStatusSelected: (status: string) => {
+					this.taskMetadata.status = status;
+					this.updatePreview();
+				},
+			}
+		);
+		statusComponent.load();
+
 		// Start Date
 		new Setting(configPanel).setName(t("Start Date")).addText((text) => {
 			text.setPlaceholder("YYYY-MM-DD")
@@ -252,6 +276,7 @@ export class QuickCaptureModal extends Modal {
 
 		// Project
 		new Setting(configPanel).setName(t("Project")).addText((text) => {
+			new ProjectSuggest(this.app, text.inputEl, this.plugin);
 			text.setPlaceholder(t("Project name"))
 				.setValue(this.taskMetadata.project || "")
 				.onChange((value) => {
@@ -262,6 +287,7 @@ export class QuickCaptureModal extends Modal {
 
 		// Context
 		new Setting(configPanel).setName(t("Context")).addText((text) => {
+			new ContextSuggest(this.app, text.inputEl, this.plugin);
 			text.setPlaceholder(t("Context"))
 				.setValue(this.taskMetadata.context || "")
 				.onChange((value) => {
@@ -444,14 +470,14 @@ export class QuickCaptureModal extends Modal {
 			// Check if line is already a task or a list item
 			const isTaskOrList = line
 				.trim()
-				.match(/^(-|\d+\.|\*|\+)(\s+\[[-x ]\])?/);
+				.match(/^(-|\d+\.|\*|\+)(\s+\[[^\]]+\])?/);
 
 			if (isSubTask) {
 				// Don't add metadata to sub-tasks
 				processedLines.push(line);
 			} else if (isTaskOrList) {
 				// If it's a task, add metadata
-				if (line.trim().match(/^(-|\d+\.|\*|\+)\s+\[[-x ]\]/)) {
+				if (line.trim().match(/^(-|\d+\.|\*|\+)\s+\[[^\]]+\]/)) {
 					processedLines.push(this.addMetadataToTask(line));
 				} else {
 					// If it's a list item but not a task, convert to task and add metadata
@@ -462,15 +488,22 @@ export class QuickCaptureModal extends Modal {
 						.trim()
 						.substring(listPrefix?.length || 0)
 						.trim();
+
+					// Use the specified status or default to empty checkbox
+					const statusMark = this.taskMetadata.status || " ";
 					processedLines.push(
 						this.addMetadataToTask(
-							`${listPrefix} [ ] ${restOfLine}`
+							`${listPrefix} [${statusMark}] ${restOfLine}`
 						)
 					);
 				}
 			} else {
 				// Not a list item or task, convert to task and add metadata
-				processedLines.push(this.addMetadataToTask(`- [ ] ${line}`));
+				// Use the specified status or default to empty checkbox
+				const statusMark = this.taskMetadata.status || " ";
+				processedLines.push(
+					this.addMetadataToTask(`- [${statusMark}] ${line}`)
+				);
 			}
 		}
 
@@ -486,60 +519,116 @@ export class QuickCaptureModal extends Modal {
 
 	generateMetadataString(): string {
 		const metadata: string[] = [];
+		const useDataviewFormat = this.preferMetadataFormat === "dataview";
 
 		// Format dates to strings in YYYY-MM-DD format
 		if (this.taskMetadata.startDate) {
-			metadata.push(`🛫 ${this.formatDate(this.taskMetadata.startDate)}`);
+			const formattedStartDate = this.formatDate(
+				this.taskMetadata.startDate
+			);
+			metadata.push(
+				useDataviewFormat
+					? `[start:: ${formattedStartDate}]`
+					: `🛫 ${formattedStartDate}`
+			);
 		}
 
 		if (this.taskMetadata.dueDate) {
-			metadata.push(`📅 ${this.formatDate(this.taskMetadata.dueDate)}`);
+			const formattedDueDate = this.formatDate(this.taskMetadata.dueDate);
+			metadata.push(
+				useDataviewFormat
+					? `[due:: ${formattedDueDate}]`
+					: `📅 ${formattedDueDate}`
+			);
 		}
 
 		if (this.taskMetadata.scheduledDate) {
+			const formattedScheduledDate = this.formatDate(
+				this.taskMetadata.scheduledDate
+			);
 			metadata.push(
-				`⏳ ${this.formatDate(this.taskMetadata.scheduledDate)}`
+				useDataviewFormat
+					? `[scheduled:: ${formattedScheduledDate}]`
+					: `⏳ ${formattedScheduledDate}`
 			);
 		}
 
 		// Add priority if set
 		if (this.taskMetadata.priority) {
-			let priorityMarker = "";
-			switch (this.taskMetadata.priority) {
-				case 5:
-					priorityMarker = "🔺";
-					break; // Highest
-				case 4:
-					priorityMarker = "⏫";
-					break; // High
-				case 3:
-					priorityMarker = "🔼";
-					break; // Medium
-				case 2:
-					priorityMarker = "🔽";
-					break; // Low
-				case 1:
-					priorityMarker = "⏬";
-					break; // Lowest
-			}
-			if (priorityMarker) {
-				metadata.push(priorityMarker);
+			if (useDataviewFormat) {
+				// 使用 dataview 格式
+				let priorityValue: string | number;
+				switch (this.taskMetadata.priority) {
+					case 5:
+						priorityValue = "highest";
+						break;
+					case 4:
+						priorityValue = "high";
+						break;
+					case 3:
+						priorityValue = "medium";
+						break;
+					case 2:
+						priorityValue = "low";
+						break;
+					case 1:
+						priorityValue = "lowest";
+						break;
+					default:
+						priorityValue = this.taskMetadata.priority;
+				}
+				metadata.push(`[priority:: ${priorityValue}]`);
+			} else {
+				// 使用 emoji 格式
+				let priorityMarker = "";
+				switch (this.taskMetadata.priority) {
+					case 5:
+						priorityMarker = "🔺";
+						break; // Highest
+					case 4:
+						priorityMarker = "⏫";
+						break; // High
+					case 3:
+						priorityMarker = "🔼";
+						break; // Medium
+					case 2:
+						priorityMarker = "🔽";
+						break; // Low
+					case 1:
+						priorityMarker = "⏬";
+						break; // Lowest
+				}
+				if (priorityMarker) {
+					metadata.push(priorityMarker);
+				}
 			}
 		}
 
 		// Add project if set
 		if (this.taskMetadata.project) {
-			metadata.push(`#project/${this.taskMetadata.project}`);
+			if (useDataviewFormat) {
+				metadata.push(`[project:: ${this.taskMetadata.project}]`);
+			} else {
+				metadata.push(`#project/${this.taskMetadata.project}`);
+			}
 		}
 
 		// Add context if set
 		if (this.taskMetadata.context) {
-			metadata.push(`@${this.taskMetadata.context}`);
+			if (useDataviewFormat) {
+				metadata.push(`[context:: ${this.taskMetadata.context}]`);
+			} else {
+				metadata.push(`@${this.taskMetadata.context}`);
+			}
 		}
 
 		// Add recurrence if set
 		if (this.taskMetadata.recurrence) {
-			metadata.push(`🔁 ${this.taskMetadata.recurrence}`);
+			metadata.push(
+				useDataviewFormat
+					? `[repeat:: ${this.taskMetadata.recurrence}]`
+					: `🔁 ${this.taskMetadata.recurrence}`
+			);
 		}
 
 		return metadata.join(" ");
@@ -553,7 +642,8 @@ export class QuickCaptureModal extends Modal {
 	}
 
 	parseDate(dateString: string): Date {
-		return new Date(dateString);
+		const [year, month, day] = dateString.split("-").map(Number);
+		return new Date(year, month - 1, day); // month is 0-indexed in JavaScript Date
 	}
 
 	onClose() {

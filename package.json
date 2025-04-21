@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-task-progress-bar",
-	"version": "7.2.1",
+	"version": "8.0.0",
 	"description": "Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features.",
 	"main": "main.js",
 	"scripts": {
@@ -52,7 +52,6 @@
 		"typescript": "4.7.3"
 	},
 	"dependencies": {
-		"localforage": "^1.10.0",
-		"uuid": "^11.1.0"
+		"localforage": "^1.10.0"
 	}
 }

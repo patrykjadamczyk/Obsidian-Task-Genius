@@ -533,7 +533,31 @@ const translations = {
   "Move Down": "Move Down",
   "Delete View": "Delete View",
   "Add Custom View": "Add Custom View",
-  "Error: View ID already exists.": "Error: View ID already exists."
+  "Error: View ID already exists.": "Error: View ID already exists.",
+  "Events": "Events",
+  "Plan": "Plan",
+  "Year": "Year",
+  "Month": "Month",
+  "Week": "Week",
+  "Day": "Day",
+  "Agenda": "Agenda",
+  "Back to categories": "Back to categories",
+  "No matching options found": "No matching options found",
+  "No matching filters found": "No matching filters found",
+  "Tag": "Tag",
+  "File Path": "File Path",
+  "Add filter": "Add filter",
+  "Clear all": "Clear all",
+  "Add Card": "Add Card",
+  "First Day of Week": "First Day of Week",
+  "Overrides the locale default for calendar views.": "Overrides the locale default for calendar views.",
+  "Show checkbox": "Show checkbox",
+  "Show a checkbox for each task in the kanban view.": "Show a checkbox for each task in the kanban view.",
+  "Locale Default": "Locale Default",
+  "Use custom goal for progress bar": "Use custom goal for progress bar",
+  "Toggle this to allow this plugin to find the pattern g::number as goal of the parent task.": "Toggle this to allow this plugin to find the pattern g::number as goal of the parent task.",
+  "Prefer metadata format of task": "Prefer metadata format of task",
+  "You can choose dataview format or tasks format, that will influence both index and save format.": "You can choose dataview format or tasks format, that will influence both index and save format."
 };
 
 export default translations;
