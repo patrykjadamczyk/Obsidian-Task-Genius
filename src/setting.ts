@@ -264,6 +264,26 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Only show these options if some form of progress bar is enabled
 		if (this.plugin.settings.progressBarDisplayMode !== "none") {
 			new Setting(containerEl)
+				.setName(t("Enable progress bar in reading mode"))
+				.setDesc(
+					t(
+						"Toggle this to allow this plugin to show progress bars in reading mode."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.enableProgressbarInReadingMode
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.enableProgressbarInReadingMode =
+								value;
+
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
 				.setName(t("Support hover to show progress info"))
 				.setDesc(
 					t(
@@ -1230,8 +1250,16 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.enableTaskStatusSwitcher = value;
 						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					});
 			});
+
+		if (!this.plugin.settings.enableTaskStatusSwitcher) {
+			return;
+		}
 
 		new Setting(containerEl)
 			.setName(t("Enable custom task marks"))

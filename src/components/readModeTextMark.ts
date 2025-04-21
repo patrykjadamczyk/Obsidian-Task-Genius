@@ -58,6 +58,10 @@ class TaskTextMark extends Component {
 	}
 
 	load() {
+		if ((this.ctx as any)?.el?.hasClass("planner-sticky-block-content")) {
+			return;
+		}
+
 		if (this.plugin.settings.enableCustomTaskMarks) {
 			// Create container for custom task mark
 			this.markContainerEl = createEl("span", {

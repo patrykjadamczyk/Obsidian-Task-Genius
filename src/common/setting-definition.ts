@@ -187,6 +187,7 @@ export interface TaskProgressBarSettings {
 	supportHoverToShowProgressInfo: boolean;
 	addProgressBarToNonTaskBullet: boolean;
 	addTaskProgressBarToHeading: boolean;
+	enableProgressbarInReadingMode: boolean;
 	countSubLevel: boolean;
 	displayMode: string; // e.g., 'percentage', 'bracketPercentage', 'fraction', 'bracketFraction', 'detailed', 'custom', 'range-based'
 	customFormat?: string;
@@ -249,6 +250,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	supportHoverToShowProgressInfo: true,
 	addProgressBarToNonTaskBullet: false,
 	addTaskProgressBarToHeading: true,
+	enableProgressbarInReadingMode: true,
 	countSubLevel: true,
 	displayMode: "bracketFraction",
 	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",

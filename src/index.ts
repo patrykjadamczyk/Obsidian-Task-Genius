@@ -265,11 +265,16 @@ export default class TaskProgressBarPlugin extends Plugin {
 				}
 
 				// Apply progress bars (existing functionality)
-				updateProgressBarInElement({
-					plugin: this,
-					element: el,
-					ctx: ctx,
-				});
+				if (
+					this.settings.enableProgressbarInReadingMode &&
+					this.settings.progressBarDisplayMode !== "none"
+				) {
+					updateProgressBarInElement({
+						plugin: this,
+						element: el,
+						ctx: ctx,
+					});
+				}
 			});
 
 			if (this.settings.enableView) {
