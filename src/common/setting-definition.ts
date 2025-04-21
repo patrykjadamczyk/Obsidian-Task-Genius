@@ -68,12 +68,16 @@ export interface CalendarSpecificConfig {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 export interface GanttSpecificConfig {
 	viewType: "gantt"; // Discriminator
 	showTaskLabels: boolean;
 	useMarkdownRenderer: boolean;
 }
 
+<<<<<<< HEAD
 // ADDED: Union type for specific configs
 export type SpecificViewConfig =
 	| KanbanSpecificConfig
@@ -83,6 +87,13 @@ export type SpecificViewConfig =
 // ADDED: Union type for specific configs
 export type SpecificViewConfig = KanbanSpecificConfig | CalendarSpecificConfig;
 >>>>>>> 44a35f7 (feat: support show checkbox)
+=======
+// ADDED: Union type for specific configs
+export type SpecificViewConfig =
+	| KanbanSpecificConfig
+	| CalendarSpecificConfig
+	| GanttSpecificConfig;
+>>>>>>> 5a47d35 (chore: bump version)
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -511,6 +522,20 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			} as GanttSpecificConfig,
 =======
 >>>>>>> 44a35f7 (feat: support show checkbox)
+		},
+		{
+			id: "gantt",
+			name: t("Plan"),
+			icon: "chart-gantt",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			specificConfig: {
+				viewType: "gantt",
+				showTaskLabels: true,
+				useMarkdownRenderer: true,
+			} as GanttSpecificConfig,
 		},
 	],
 

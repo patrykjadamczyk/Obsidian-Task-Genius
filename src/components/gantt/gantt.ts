@@ -10,10 +10,15 @@ import "../../styles/gantt/gantt.css";
 
 // Import new components and helpers
 import { DateHelper } from "../../utils/DateHelper";
+<<<<<<< HEAD
+=======
+import { FilterComponent } from "./filter";
+>>>>>>> 5a47d35 (chore: bump version)
 import { TimelineHeaderComponent } from "./timeline-header";
 import { GridBackgroundComponent } from "./grid-background";
 import { TaskRendererComponent } from "./task-renderer";
 import TaskProgressBarPlugin from "src";
+<<<<<<< HEAD
 import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
 import { ActiveFilter, FilterCategory } from "../filter/filter-type";
 import { ScrollToDateButton } from "../filter/custom/scroll-to-date-button";
@@ -33,6 +38,8 @@ const PRIORITY_MAP: Record<string, number> = {
 	low: 2,
 	lowest: 1,
 };
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 
 // Constants for layout and styling
 const ROW_HEIGHT = 24;
@@ -43,7 +50,10 @@ const DAY_WIDTH_DEFAULT = 50; // Default width for a day column
 // const TASK_LABEL_PADDING = 5; // Moved to TaskRendererComponent
 const MIN_DAY_WIDTH = 10; // Minimum width for a day during zoom out
 const MAX_DAY_WIDTH = 200; // Maximum width for a day during zoom in
+<<<<<<< HEAD
 const INDICATOR_HEIGHT = 4; // Height of individual offscreen task indicators
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 
 // Define the structure for tasks prepared for rendering
 export interface GanttTaskItem {
@@ -107,7 +117,10 @@ export class GanttComponent extends Component {
 	public containerEl: HTMLElement;
 	private svgEl: SVGSVGElement | null = null;
 	private tasks: Task[] = [];
+<<<<<<< HEAD
 	private allTasks: Task[] = [];
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 	private preparedTasks: PlacedGanttTaskItem[] = [];
 	private app: App;
 
@@ -153,12 +166,17 @@ export class GanttComponent extends Component {
 	private debouncedRender: ReturnType<typeof debounce>;
 	private debouncedHeaderUpdate: ReturnType<typeof debounce>; // Renamed for clarity
 
+<<<<<<< HEAD
 	// Offscreen task indicators
 	private leftIndicatorEl: HTMLElement; // Now a container
 	private rightIndicatorEl: HTMLElement; // Now a container
 
 	constructor(
 		private plugin: TaskProgressBarPlugin,
+=======
+	constructor(
+		plugin: TaskProgressBarPlugin,
+>>>>>>> 5a47d35 (chore: bump version)
 		containerEl: HTMLElement,
 		private params: {
 			config?: GanttConfig;
@@ -187,6 +205,7 @@ export class GanttComponent extends Component {
 			"gantt-content-wrapper"
 		);
 
+<<<<<<< HEAD
 		// Create offscreen indicator containers
 		this.leftIndicatorEl = this.containerEl.createDiv(
 			"gantt-indicator-container gantt-indicator-container-left" // Updated classes
@@ -196,6 +215,8 @@ export class GanttComponent extends Component {
 		);
 		// Containers are always visible, content determines if indicators show
 
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 		// Debounced functions
 		this.debouncedRender = debounce(
 			this.renderInternal,
@@ -215,6 +236,7 @@ export class GanttComponent extends Component {
 		// Instantiate Child Components
 		this.filterComponent = this.addChild(
 			new FilterComponent(
+<<<<<<< HEAD
 				{
 					container: this.filterContainerEl,
 					options: buildFilterOptionsFromTasks(this.tasks), // Initialize with empty array to satisfy type, will be updated dynamically
@@ -229,6 +251,11 @@ export class GanttComponent extends Component {
 					],
 				},
 				this.plugin
+=======
+				this.app,
+				this.filterContainerEl,
+				this.scrollToDate.bind(this)
+>>>>>>> 5a47d35 (chore: bump version)
 			)
 		);
 
@@ -269,6 +296,7 @@ export class GanttComponent extends Component {
 		// Child components are unloaded automatically when the parent is unloaded
 		// Remove specific elements if needed
 		if (this.svgEl) {
+<<<<<<< HEAD
 			this.svgEl.detach();
 		}
 		this.filterContainerEl.detach();
@@ -280,10 +308,21 @@ export class GanttComponent extends Component {
 		this.containerEl.removeClass("gantt-chart-container");
 		this.tasks = [];
 		this.allTasks = [];
+=======
+			this.svgEl.remove();
+		}
+		this.filterContainerEl.remove();
+		this.headerContainerEl.remove();
+		this.scrollContainerEl.remove(); // This removes contentWrapperEl and svgEl too
+
+		this.containerEl.removeClass("gantt-chart-container");
+		this.tasks = [];
+>>>>>>> 5a47d35 (chore: bump version)
 		this.preparedTasks = [];
 	}
 
 	setTasks(newTasks: Task[]) {
+<<<<<<< HEAD
 		this.preparedTasks = []; // Clear prepared tasks
 
 		this.tasks = this.sortTasks(newTasks);
@@ -309,6 +348,22 @@ export class GanttComponent extends Component {
 			if (this.scrollContainerEl) {
 				this.scrollToDate(new Date());
 			}
+=======
+		// No need to manually unload markdown renderers here anymore
+		// TaskRendererComponent handles its rendering scope
+		this.preparedTasks = []; // Clear prepared tasks
+
+		this.tasks = this.sortTasks(newTasks);
+		this.calculateDateRange(true); // Force recalculate date range
+		this.calculateTimescaleParams(); // Recalculate timescale based on new range
+		// prepareTasksForRender is still needed here to calculate layout
+		this.prepareTasksForRender();
+		this.debouncedRender(); // Trigger full render
+
+		// Scroll to today after the initial render is scheduled
+		requestAnimationFrame(() => {
+			this.scrollToDate(new Date());
+>>>>>>> 5a47d35 (chore: bump version)
 		});
 	}
 
@@ -567,12 +622,16 @@ export class GanttComponent extends Component {
 		console.log("Prepared Tasks:", this.preparedTasks);
 
 		// Calculate total dimensions
+<<<<<<< HEAD
 		// Ensure a minimum height even if there are no tasks initially
 		const MIN_ROWS_DISPLAY = 5; // Show at least 5 rows worth of height
 		this.totalHeight = Math.max(
 			this.preparedTasks.length * ROW_HEIGHT,
 			MIN_ROWS_DISPLAY * ROW_HEIGHT
 		);
+=======
+		this.totalHeight = this.preparedTasks.length * ROW_HEIGHT;
+>>>>>>> 5a47d35 (chore: bump version)
 		const totalDays = this.dateHelper.daysBetween(
 			this.startDate!,
 			this.endDate!
@@ -624,12 +683,19 @@ export class GanttComponent extends Component {
 			!this.scrollContainerEl ||
 			!this.gridBackgroundComponent || // Check if children are loaded
 			!this.taskRendererComponent ||
+<<<<<<< HEAD
 			!this.timelineHeaderComponent ||
 			!this.leftIndicatorEl || // Check indicator containers too
 			!this.rightIndicatorEl
 		) {
 			console.warn(
 				"Cannot render: Core elements, child components, or indicator containers not initialized."
+=======
+			!this.timelineHeaderComponent
+		) {
+			console.warn(
+				"Cannot render: Core elements or child components not initialized."
+>>>>>>> 5a47d35 (chore: bump version)
 			);
 			return;
 		}
@@ -643,7 +709,10 @@ export class GanttComponent extends Component {
 
 		// Update SVG container dimensions
 		this.svgEl.setAttribute("width", `${this.totalWidth}`);
+<<<<<<< HEAD
 		// Use the calculated totalHeight (which now has a minimum)
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 		this.svgEl.setAttribute("height", `${this.totalHeight}`);
 		this.contentWrapperEl.style.width = `${this.totalWidth}px`;
 		this.contentWrapperEl.style.height = `${this.totalHeight}px`;
@@ -660,11 +729,15 @@ export class GanttComponent extends Component {
 
 		// Calculate visible tasks *before* updating grid and task renderer
 		const scrollLeft = this.scrollContainerEl.scrollLeft;
+<<<<<<< HEAD
 		const scrollTop = this.scrollContainerEl.scrollTop; // Get vertical scroll position
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 		const containerWidth = this.scrollContainerEl.clientWidth;
 		const visibleStartX = scrollLeft;
 		const visibleEndX = scrollLeft + containerWidth;
 
+<<<<<<< HEAD
 		// --- Update Offscreen Indicators ---
 		// Clear existing indicators
 		this.leftIndicatorEl.empty();
@@ -675,10 +748,14 @@ export class GanttComponent extends Component {
 		const indicatorYOffset = INDICATOR_HEIGHT / 2;
 
 		for (const pt of this.preparedTasks) {
+=======
+		const visibleTasks = this.preparedTasks.filter((pt) => {
+>>>>>>> 5a47d35 (chore: bump version)
 			const taskStartX = pt.startX;
 			const taskEndX = pt.isMilestone
 				? pt.startX
 				: pt.startX + (pt.width ?? 0);
+<<<<<<< HEAD
 
 			// Check visibility for task rendering
 			const isVisible =
@@ -749,6 +826,13 @@ export class GanttComponent extends Component {
 					);
 				}
 			}
+=======
+			const buffer = 300;
+			return (
+				taskEndX > visibleStartX - buffer &&
+				taskStartX < visibleEndX + buffer
+			);
+>>>>>>> 5a47d35 (chore: bump version)
 		});
 
 		// 2. Update Grid Background (Now using visibleTasks)
@@ -1054,6 +1138,7 @@ export class GanttComponent extends Component {
 		// Force recalculation of date range and re-render
 		this.calculateDateRange(true);
 		this.prepareTasksForRender(); // Prepare tasks with new date range
+<<<<<<< HEAD
 
 		// Update filter options based on the refreshed prepared tasks
 		if (this.filterComponent) {
@@ -1119,4 +1204,8 @@ export class GanttComponent extends Component {
 
 		this.debouncedRender();
 	}
+=======
+		this.debouncedRender(); // Trigger full render
+	}
+>>>>>>> 5a47d35 (chore: bump version)
 }

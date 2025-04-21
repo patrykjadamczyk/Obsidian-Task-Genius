@@ -6,7 +6,10 @@ import {
 } from "obsidian";
 import { GanttTaskItem, PlacedGanttTaskItem, Timescale } from "./gantt"; // 添加PlacedGanttTaskItem导入
 import { Task } from "../../utils/types/TaskIndex";
+<<<<<<< HEAD
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
+=======
+>>>>>>> 5a47d35 (chore: bump version)
 
 // Constants from GanttComponent (consider moving to a shared config/constants file)
 const ROW_HEIGHT = 24;
@@ -150,6 +153,7 @@ export class TaskRendererComponent extends Component {
 
 			// Add text label to the right
 			if (showTaskLabels && task.content) {
+<<<<<<< HEAD
 				// Check if we should use markdown renderer
 				if (useMarkdownRenderer) {
 					// Create a foreign object to hold the markdown content
@@ -194,6 +198,20 @@ export class TaskRendererComponent extends Component {
 					// Prevent text from capturing pointer events meant for the group/circle
 					textLabel.style.pointerEvents = "none";
 				}
+=======
+				const textLabel = group.createSvg("text", {
+					attr: {
+						x: x + radius + TASK_LABEL_PADDING,
+						y: y,
+						class: "gantt-milestone-label",
+						// Vertically align middle of text with circle center
+						"dominant-baseline": "middle",
+					},
+				});
+				textLabel.textContent = task.content;
+				// Prevent text from capturing pointer events meant for the group/circle
+				textLabel.style.pointerEvents = "none";
+>>>>>>> 5a47d35 (chore: bump version)
 			}
 
 			// Add tooltip for milestone
@@ -269,6 +287,7 @@ export class TaskRendererComponent extends Component {
 
 					if (useMarkdownRenderer) {
 						const sourcePath = task.filePath || "";
+<<<<<<< HEAD
 						labelDiv.empty();
 
 						console.log("sourcePath", sourcePath);
@@ -282,6 +301,26 @@ export class TaskRendererComponent extends Component {
 							)
 						);
 						markdownRenderer.update(task.content);
+=======
+						labelDiv.empty(); // Clear previous content
+						ObsidianMarkdownRenderer.render(
+							app,
+							task.content,
+							labelDiv,
+							sourcePath,
+							parentComponent // Pass the appropriate component context
+						);
+
+						// Style the rendered content
+						const p = labelDiv.querySelector("p");
+						if (p) {
+							p.style.margin = "0";
+							p.style.lineHeight = `${barHeight}px`;
+							p.style.whiteSpace = "nowrap";
+							p.style.overflow = "hidden";
+							p.style.textOverflow = "ellipsis";
+						}
+>>>>>>> 5a47d35 (chore: bump version)
 					} else {
 						// Fallback to simple text
 						labelDiv.textContent = task.content;
