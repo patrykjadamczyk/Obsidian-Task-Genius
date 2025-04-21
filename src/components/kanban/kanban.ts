@@ -64,9 +64,10 @@ export class KanbanComponent extends Component {
 		this.containerEl.empty();
 		this.containerEl.addClass("tg-kanban-view");
 
-		this.renderFilterControls(
-			this.containerEl.createDiv({ cls: "tg-kanban-filters" })
-		);
+		this.filterContainerEl = this.containerEl.createDiv({
+			cls: "tg-kanban-filters",
+		});
+
 		this.renderFilterControls(this.filterContainerEl);
 
 		this.columnContainerEl = this.containerEl.createDiv({
