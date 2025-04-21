@@ -743,27 +743,6 @@ export class TaskView extends ItemView {
 		}
 	}
 
-	private getActiveViewComponent(): any {
-		switch (this.currentViewId) {
-			case "forecast":
-				return this.forecastComponent;
-			case "tags":
-				return this.tagsComponent;
-			case "projects":
-				return this.projectsComponent;
-			case "review":
-				return this.reviewComponent;
-			case "calendar":
-				return this.calendarComponent;
-			case "kanban":
-				return this.kanbanComponent;
-			case "inbox":
-			case "flagged":
-			default:
-				return this.contentComponent;
-		}
-	}
-
 	private async editTask(task: Task) {
 		const file = this.app.vault.getAbstractFileByPath(task.filePath);
 		if (!(file instanceof TFile)) return;
