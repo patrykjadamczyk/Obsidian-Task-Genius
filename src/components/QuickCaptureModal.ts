@@ -42,6 +42,8 @@ export class QuickCaptureModal extends Modal {
 	previewContainerEl: HTMLElement | null = null;
 	markdownRenderer: MarkdownRendererComponent | null = null;
 
+	preferMetadataFormat: "dataview" | "tasks" = "tasks";
+
 	constructor(
 		app: App,
 		plugin: TaskProgressBarPlugin,
@@ -51,6 +53,7 @@ export class QuickCaptureModal extends Modal {
 		super(app);
 		this.plugin = plugin;
 		this.tempTargetFilePath = this.plugin.settings.quickCapture.targetFile;
+		this.preferMetadataFormat = this.plugin.settings.preferMetadataFormat;
 
 		if (metadata) {
 			this.taskMetadata = metadata;
@@ -513,60 +516,116 @@ export class QuickCaptureModal extends Modal {
 
 	generateMetadataString(): string {
 		const metadata: string[] = [];
+		const useDataviewFormat = this.preferMetadataFormat === "dataview";
 
 		// Format dates to strings in YYYY-MM-DD format
 		if (this.taskMetadata.startDate) {
-			metadata.push(`🛫 ${this.formatDate(this.taskMetadata.startDate)}`);
+			const formattedStartDate = this.formatDate(
+				this.taskMetadata.startDate
+			);
+			metadata.push(
+				useDataviewFormat
+					? `[start:: ${formattedStartDate}]`
+					: `🛫 ${formattedStartDate}`
+			);
 		}
 
 		if (this.taskMetadata.dueDate) {
-			metadata.push(`📅 ${this.formatDate(this.taskMetadata.dueDate)}`);
+			const formattedDueDate = this.formatDate(this.taskMetadata.dueDate);
+			metadata.push(
+				useDataviewFormat
+					? `[due:: ${formattedDueDate}]`
+					: `📅 ${formattedDueDate}`
+			);
 		}
 
 		if (this.taskMetadata.scheduledDate) {
+			const formattedScheduledDate = this.formatDate(
+				this.taskMetadata.scheduledDate
+			);
 			metadata.push(
-				`⏳ ${this.formatDate(this.taskMetadata.scheduledDate)}`
+				useDataviewFormat
+					? `[scheduled:: ${formattedScheduledDate}]`
+					: `⏳ ${formattedScheduledDate}`
 			);
 		}
 
 		// Add priority if set
 		if (this.taskMetadata.priority) {
-			let priorityMarker = "";
-			switch (this.taskMetadata.priority) {
-				case 5:
-					priorityMarker = "🔺";
-					break; // Highest
-				case 4:
-					priorityMarker = "⏫";
-					break; // High
-				case 3:
-					priorityMarker = "🔼";
-					break; // Medium
-				case 2:
-					priorityMarker = "🔽";
-					break; // Low
-				case 1:
-					priorityMarker = "⏬";
-					break; // Lowest
-			}
-			if (priorityMarker) {
-				metadata.push(priorityMarker);
+			if (useDataviewFormat) {
+				// 使用 dataview 格式
+				let priorityValue: string | number;
+				switch (this.taskMetadata.priority) {
+					case 5:
+						priorityValue = "highest";
+						break;
+					case 4:
+						priorityValue = "high";
+						break;
+					case 3:
+						priorityValue = "medium";
+						break;
+					case 2:
+						priorityValue = "low";
+						break;
+					case 1:
+						priorityValue = "lowest";
+						break;
+					default:
+						priorityValue = this.taskMetadata.priority;
+				}
+				metadata.push(`[priority:: ${priorityValue}]`);
+			} else {
+				// 使用 emoji 格式
+				let priorityMarker = "";
+				switch (this.taskMetadata.priority) {
+					case 5:
+						priorityMarker = "🔺";
+						break; // Highest
+					case 4:
+						priorityMarker = "⏫";
+						break; // High
+					case 3:
+						priorityMarker = "🔼";
+						break; // Medium
+					case 2:
+						priorityMarker = "🔽";
+						break; // Low
+					case 1:
+						priorityMarker = "⏬";
+						break; // Lowest
+				}
+				if (priorityMarker) {
+					metadata.push(priorityMarker);
+				}
 			}
 		}
 
 		// Add project if set
 		if (this.taskMetadata.project) {
-			metadata.push(`#project/${this.taskMetadata.project}`);
+			if (useDataviewFormat) {
+				metadata.push(`[project:: ${this.taskMetadata.project}]`);
+			} else {
+				metadata.push(`#project/${this.taskMetadata.project}`);
+			}
 		}
 
 		// Add context if set
 		if (this.taskMetadata.context) {
-			metadata.push(`@${this.taskMetadata.context}`);
+			if (useDataviewFormat) {
+				metadata.push(`[context:: ${this.taskMetadata.context}]`);
+			} else {
+				metadata.push(`@${this.taskMetadata.context}`);
+			}
 		}
 
 		// Add recurrence if set
 		if (this.taskMetadata.recurrence) {
-			metadata.push(`🔁 ${this.taskMetadata.recurrence}`);
+			metadata.push(
+				useDataviewFormat
+					? `[repeat:: ${this.taskMetadata.recurrence}]`
+					: `🔁 ${this.taskMetadata.recurrence}`
+			);
 		}
 
 		return metadata.join(" ");

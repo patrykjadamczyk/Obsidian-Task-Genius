@@ -408,3 +408,30 @@
 .gantt-filter-area .filter-component {
 	flex: 1;
 }
+
+.gantt-offscreen-indicator {
+	position: absolute;
+	top: calc(50% + 20px);
+	transform: translateY(-50%);
+	width: 8px;
+	height: 8px;
+	background-color: rgba(128, 128, 128, 0.6);
+	border-radius: 50%;
+	z-index: 10;
+	pointer-events: none;
+	display: none;
+	transition: opacity 0.2s ease-in-out;
+	opacity: 1;
+}
+
+.gantt-offscreen-indicator[style*="display: none"] {
+	opacity: 0;
+}
+
+.gantt-offscreen-indicator-left {
+	left: 5px;
+}
+
+.gantt-offscreen-indicator-right {
+	right: 5px;
+}

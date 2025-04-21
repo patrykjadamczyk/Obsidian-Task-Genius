@@ -462,7 +462,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "calendar",
-			name: t("Calendar"),
+			name: t("Events"),
 			icon: "calendar",
 			type: "default",
 			visible: true,

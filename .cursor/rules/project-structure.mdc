@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Structure
+
+This is an Obsidian plugin project, likely built using TypeScript and ESBuild.
+
+- **Source Code:** The main source code is located in the [`src/`](mdc:src) directory.
+- **Build Configuration:** The build process is configured in [`esbuild.config.mjs`](mdc:esbuild.config.mjs).
+- **Package Management:** Dependencies are managed using pnpm, defined in [`package.json`](mdc:package.json) and [`pnpm-lock.yaml`](mdc:pnpm-lock.yaml).
+- **TypeScript Configuration:** TypeScript settings are in [`tsconfig.json`](mdc:tsconfig.json).
+- **Plugin Manifest:** The Obsidian plugin manifest is [`manifest.json`](mdc:manifest.json).
+- **Built Output:** The likely compiled main JavaScript file is [`main.js`](mdc:main.js).
+- **Styles:** Custom styles for the plugin are in [`styles.css`](mdc:styles.css).
+- **Entry Point:** The primary entry point for the plugin logic is likely within the `src/` directory, possibly a file named `main.ts` or `plugin.ts` (though this needs confirmation by looking inside `src/`).
+

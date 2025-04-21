@@ -48,6 +48,9 @@ export class SidebarComponent extends Component {
 		}
 
 		this.plugin.settings.viewConfiguration.forEach((viewConfig) => {
+			if (viewConfig.id === "calendar") {
+				this.createNavSpacer();
+			}
 			if (viewConfig.visible) {
 				this.createNavItem(
 					viewConfig.id,
@@ -59,6 +62,10 @@ export class SidebarComponent extends Component {
 
 		// Highlight the currently active view
 		this.updateActiveItem();
+	}
+
+	private createNavSpacer() {
+		this.navEl.createDiv({ cls: "sidebar-nav-spacer" });
 	}
 
 	private createNavItem(viewId: ViewMode, label: string, icon: string) {

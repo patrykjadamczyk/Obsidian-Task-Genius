@@ -152,6 +152,10 @@ export class GanttComponent extends Component {
 	private debouncedRender: ReturnType<typeof debounce>;
 	private debouncedHeaderUpdate: ReturnType<typeof debounce>; // Renamed for clarity
 
+	// Offscreen task indicators
+	private leftIndicatorEl: HTMLElement;
+	private rightIndicatorEl: HTMLElement;
+
 	constructor(
 		private plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
@@ -181,6 +185,16 @@ export class GanttComponent extends Component {
 		this.contentWrapperEl = this.scrollContainerEl.createDiv(
 			"gantt-content-wrapper"
 		);
+
+		// Create offscreen indicators (initially hidden)
+		this.leftIndicatorEl = this.containerEl.createDiv(
+			"gantt-offscreen-indicator gantt-offscreen-indicator-left"
+		);
+		this.rightIndicatorEl = this.containerEl.createDiv(
+			"gantt-offscreen-indicator gantt-offscreen-indicator-right"
+		);
+		this.leftIndicatorEl.style.display = "none";
+		this.rightIndicatorEl.style.display = "none";
 
 		// Debounced functions
 		this.debouncedRender = debounce(
@@ -260,6 +274,8 @@ export class GanttComponent extends Component {
 		this.filterContainerEl.remove();
 		this.headerContainerEl.remove();
 		this.scrollContainerEl.remove(); // This removes contentWrapperEl and svgEl too
+		this.leftIndicatorEl.remove(); // Remove indicators
+		this.rightIndicatorEl.remove(); // Remove indicators
 
 		this.containerEl.removeClass("gantt-chart-container");
 		this.tasks = [];
@@ -640,15 +656,48 @@ export class GanttComponent extends Component {
 		const visibleStartX = scrollLeft;
 		const visibleEndX = scrollLeft + containerWidth;
 
+		// Determine if tasks exist outside the visible range
+		let hasTasksBefore = false;
+		let hasTasksAfter = false;
+		for (const pt of this.preparedTasks) {
+			const taskStartX = pt.startX;
+			const taskEndX = pt.isMilestone
+				? pt.startX
+				: pt.startX + (pt.width ?? 0);
+			const buffer = 1; // Small buffer to avoid flicker at edges
+
+			if (taskEndX < visibleStartX - buffer) {
+				hasTasksBefore = true;
+			}
+			if (taskStartX > visibleEndX + buffer) {
+				hasTasksAfter = true;
+			}
+			if (hasTasksBefore && hasTasksAfter) {
+				break; // Optimization
+			}
+		}
+
+		// Update indicator visibility
+		if (this.leftIndicatorEl) {
+			this.leftIndicatorEl.style.display = hasTasksBefore
+				? "block"
+				: "none";
+		}
+		if (this.rightIndicatorEl) {
+			this.rightIndicatorEl.style.display = hasTasksAfter
+				? "block"
+				: "none";
+		}
+
 		const visibleTasks = this.preparedTasks.filter((pt) => {
 			const taskStartX = pt.startX;
 			const taskEndX = pt.isMilestone
 				? pt.startX
 				: pt.startX + (pt.width ?? 0);
-			const buffer = 300;
+			const renderBuffer = 300; // Keep a render buffer for smooth scrolling
 			return (
-				taskEndX > visibleStartX - buffer &&
-				taskStartX < visibleEndX + buffer
+				taskEndX > visibleStartX - renderBuffer &&
+				taskStartX < visibleEndX + renderBuffer
 			);
 		});
 
