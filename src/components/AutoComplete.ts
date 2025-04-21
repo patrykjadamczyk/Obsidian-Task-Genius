@@ -24,7 +24,7 @@ abstract class BaseSuggest<T> extends AbstractInputSuggest<T> {
 }
 
 class CustomSuggest extends BaseSuggest<string> {
-	private availableChoices: string[] = [];
+	protected availableChoices: string[] = [];
 
 	constructor(
 		app: App,
@@ -107,9 +107,31 @@ export class TagSuggest extends CustomSuggest {
 		super(app, inputEl, tags);
 	}
 
-	// Override to add # prefix
+	// Override getSuggestions to handle comma-separated tags
+	getSuggestions(query: string): string[] {
+		const parts = query.split(",");
+		const currentTagInput = parts[parts.length - 1].trim();
+
+		if (!currentTagInput) {
+			return this.availableChoices.slice(0, 100);
+		}
+
+		const fuzzySearch = prepareFuzzySearch(currentTagInput.toLowerCase());
+		return this.availableChoices
+			.filter((tag) => fuzzySearch(tag.toLowerCase()))
+			.slice(0, 100);
+	}
+
+	// Override to add # prefix and keep previous tags
 	getSuggestionValue(item: string): string {
-		return `#${item}`;
+		const currentValue = this.inputEl.value;
+		const parts = currentValue.split(",");
+
+		// Replace the last part with the selected tag
+		parts[parts.length - 1] = `#${item}`;
+
+		// Join back with commas and add a new comma for the next tag
+		return `${parts.join(",")},`;
 	}
 
 	// Override to display full tag

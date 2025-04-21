@@ -17,7 +17,7 @@ import "../../styles/task-details.css";
 import { t } from "../../translations/helper";
 import { clearAllMarks } from "../MarkdownRenderer";
 import { StatusComponent } from "../StatusComponent";
-import { TagSuggest } from "../AutoComplete";
+import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
 
 function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	const status = Object.keys(settings.taskStatuses).find((key) => {
@@ -305,6 +305,8 @@ export class TaskDetailsComponent extends Component {
 		const projectInput = new TextComponent(projectField);
 		projectInput.setValue(task.project || "");
 
+		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
+
 		// Tags field
 		const tagsField = this.createFormField(this.editFormEl, t("Tags"));
 		const tagsInput = new TextComponent(tagsField);
@@ -322,6 +324,8 @@ export class TaskDetailsComponent extends Component {
 		);
 		const contextInput = new TextComponent(contextField);
 		contextInput.setValue(task.context || "");
+
+		new ContextSuggest(this.app, contextInput.inputEl, this.plugin);
 
 		// Priority dropdown
 		const priorityField = this.createFormField(
