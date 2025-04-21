@@ -64,9 +64,14 @@ export class KanbanComponent extends Component {
 		this.containerEl.empty();
 		this.containerEl.addClass("tg-kanban-view");
 
+<<<<<<< HEAD:src/components/kanban/kanban.ts
 		// Create the container for filter controls early if it's part of the main layout
 		this.filterContainerEl = this.containerEl.createDiv(
 			"kanban-filter-controls-container" // Example class
+=======
+		this.renderFilterControls(
+			this.containerEl.createDiv({ cls: "tg-kanban-filters" })
+>>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanComponent.ts
 		);
 		this.renderFilterControls(this.filterContainerEl);
 
@@ -91,9 +96,18 @@ export class KanbanComponent extends Component {
 	private renderFilterControls(containerEl: HTMLElement) {
 		containerEl.empty(); // Clear previous controls
 
+<<<<<<< HEAD:src/components/kanban/kanban.ts
 		// Build initial options from the current full task list
 		const initialFilterOptions = buildFilterOptionsFromTasks(this.allTasks);
 		console.log("Kanban initial filter options:", initialFilterOptions);
+=======
+		// Create filter input
+		this.filterInputEl = containerEl.createEl("input", {
+			type: "text",
+			placeholder: t("Filter tasks... (by content, project, tag)"),
+			cls: "tg-kanban-filter-input",
+		});
+>>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanComponent.ts
 
 		this.filterComponent = new FilterComponent(
 			{

@@ -253,6 +253,7 @@
 	/* padding-top: 20px; */
 	/* padding-bottom: 20px; */
 }
+<<<<<<< HEAD
 
 /* Add Card Button */
 .tg-kanban-add-card-container {
@@ -286,3 +287,5 @@
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
+=======
+>>>>>>> 44a35f7 (feat: support show checkbox)

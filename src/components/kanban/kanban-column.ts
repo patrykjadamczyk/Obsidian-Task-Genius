@@ -46,10 +46,14 @@ export class KanbanColumnComponent extends Component {
 			"div",
 			{
 <<<<<<< HEAD:src/components/kanban/kanban-column.ts
+<<<<<<< HEAD:src/components/kanban/kanban-column.ts
 				cls: "tg-kanban-column-header",
 =======
 				cls: "kanban-column-header",
 >>>>>>> 76d92e6 (chore: bump version):src/components/kanban/KanbanColumn.ts
+=======
+				cls: "tg-kanban-column-header",
+>>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanColumn.ts
 			},
 			(el) => {
 				const checkbox = el.createEl("input", {
@@ -87,6 +91,7 @@ export class KanbanColumnComponent extends Component {
 		this.sentinelEl = this.contentEl.createDiv({
 			cls: "tg-kanban-sentinel",
 		});
+<<<<<<< HEAD:src/components/kanban/kanban-column.ts
 
 		// --- Add Card Button ---
 		const addCardButtonContainer = this.element.createDiv({
@@ -120,6 +125,8 @@ export class KanbanColumnComponent extends Component {
 			).open();
 		});
 		// --- End Add Card Button ---
+=======
+>>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanColumn.ts
 
 		// Setup Intersection Observer
 		this.setupIntersectionObserver();
