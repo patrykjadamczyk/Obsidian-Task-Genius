@@ -128,6 +128,39 @@ export class KanbanColumnComponent extends Component {
 =======
 >>>>>>> 44a35f7 (feat: support show checkbox):src/components/kanban/KanbanColumn.ts
 
+		// --- Add Card Button ---
+		const addCardButtonContainer = this.element.createDiv({
+			cls: "tg-kanban-add-card-container",
+		});
+		const addCardButton = addCardButtonContainer.createEl(
+			"button",
+			{
+				cls: "tg-kanban-add-card-button",
+			},
+			(el) => {
+				el.createEl("span", {}, (el) => {
+					setIcon(el, "plus");
+				});
+				el.createEl("span", {
+					text: t("Add Card"),
+				});
+			}
+		);
+		this.registerDomEvent(addCardButton, "click", () => {
+			// Get the status symbol for the current column
+			const taskStatusSymbol =
+				this.plugin.settings.taskStatusMarks[this.statusName] ||
+				this.statusName ||
+				" ";
+			new QuickCaptureModal(
+				this.app,
+				this.plugin,
+				{ status: taskStatusSymbol },
+				true
+			).open();
+		});
+		// --- End Add Card Button ---
+
 		// Setup Intersection Observer
 		this.setupIntersectionObserver();
 
