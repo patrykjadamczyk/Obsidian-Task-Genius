@@ -10,7 +10,6 @@ import {
 	TFile,
 } from "obsidian";
 import { Task, TaskParserConfig } from "../types/TaskIndex";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Default configuration for the task parser
@@ -83,7 +82,7 @@ export class TaskParser extends Component {
 
 			// Create the task object
 			const task: Task = {
-				id: uuidv4(),
+				id: `${filePath}-L${lineNum}`,
 				content: content.trim(),
 				filePath,
 				line: lineNum,
@@ -116,7 +115,7 @@ export class TaskParser extends Component {
 
 			// Basic task info
 			const task: Task = {
-				id: uuidv4(),
+				id: `${filePath}-L${lineNum}`,
 				content: content.trim(),
 				filePath,
 				line: lineNum,
