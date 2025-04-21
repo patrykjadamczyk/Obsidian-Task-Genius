@@ -509,6 +509,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+<<<<<<< HEAD
 
 /**
  * Gantt Chart Styles
@@ -857,3 +858,5 @@
 	color: var(--text-on-accent);
 	text-decoration: line-through;
 }
+=======
+>>>>>>> 6c87b00 (chore: bump version)

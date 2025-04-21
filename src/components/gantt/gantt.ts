@@ -51,9 +51,13 @@ const DAY_WIDTH_DEFAULT = 50; // Default width for a day column
 const MIN_DAY_WIDTH = 10; // Minimum width for a day during zoom out
 const MAX_DAY_WIDTH = 200; // Maximum width for a day during zoom in
 <<<<<<< HEAD
+<<<<<<< HEAD
 const INDICATOR_HEIGHT = 4; // Height of individual offscreen task indicators
 =======
 >>>>>>> 5a47d35 (chore: bump version)
+=======
+const INDICATOR_HEIGHT = 4; // Height of individual offscreen task indicators
+>>>>>>> 6c87b00 (chore: bump version)
 
 // Define the structure for tasks prepared for rendering
 export interface GanttTaskItem {
@@ -206,6 +210,9 @@ export class GanttComponent extends Component {
 		);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6c87b00 (chore: bump version)
 		// Create offscreen indicator containers
 		this.leftIndicatorEl = this.containerEl.createDiv(
 			"gantt-indicator-container gantt-indicator-container-left" // Updated classes
@@ -297,6 +304,7 @@ export class GanttComponent extends Component {
 		// Remove specific elements if needed
 		if (this.svgEl) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 			this.svgEl.detach();
 		}
 		this.filterContainerEl.detach();
@@ -314,6 +322,15 @@ export class GanttComponent extends Component {
 		this.filterContainerEl.remove();
 		this.headerContainerEl.remove();
 		this.scrollContainerEl.remove(); // This removes contentWrapperEl and svgEl too
+=======
+			this.svgEl.detach();
+		}
+		this.filterContainerEl.detach();
+		this.headerContainerEl.detach();
+		this.scrollContainerEl.detach(); // This removes contentWrapperEl and svgEl too
+		this.leftIndicatorEl.detach(); // Remove indicator containers
+		this.rightIndicatorEl.detach(); // Remove indicator containers
+>>>>>>> 6c87b00 (chore: bump version)
 
 		this.containerEl.removeClass("gantt-chart-container");
 		this.tasks = [];
@@ -684,6 +701,7 @@ export class GanttComponent extends Component {
 			!this.gridBackgroundComponent || // Check if children are loaded
 			!this.taskRendererComponent ||
 <<<<<<< HEAD
+<<<<<<< HEAD
 			!this.timelineHeaderComponent ||
 			!this.leftIndicatorEl || // Check indicator containers too
 			!this.rightIndicatorEl
@@ -696,6 +714,14 @@ export class GanttComponent extends Component {
 			console.warn(
 				"Cannot render: Core elements or child components not initialized."
 >>>>>>> 5a47d35 (chore: bump version)
+=======
+			!this.timelineHeaderComponent ||
+			!this.leftIndicatorEl || // Check indicator containers too
+			!this.rightIndicatorEl
+		) {
+			console.warn(
+				"Cannot render: Core elements, child components, or indicator containers not initialized."
+>>>>>>> 6c87b00 (chore: bump version)
 			);
 			return;
 		}
@@ -730,14 +756,21 @@ export class GanttComponent extends Component {
 		// Calculate visible tasks *before* updating grid and task renderer
 		const scrollLeft = this.scrollContainerEl.scrollLeft;
 <<<<<<< HEAD
+<<<<<<< HEAD
 		const scrollTop = this.scrollContainerEl.scrollTop; // Get vertical scroll position
 =======
 >>>>>>> 5a47d35 (chore: bump version)
+=======
+		const scrollTop = this.scrollContainerEl.scrollTop; // Get vertical scroll position
+>>>>>>> 6c87b00 (chore: bump version)
 		const containerWidth = this.scrollContainerEl.clientWidth;
 		const visibleStartX = scrollLeft;
 		const visibleEndX = scrollLeft + containerWidth;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6c87b00 (chore: bump version)
 		// --- Update Offscreen Indicators ---
 		// Clear existing indicators
 		this.leftIndicatorEl.empty();
@@ -748,14 +781,20 @@ export class GanttComponent extends Component {
 		const indicatorYOffset = INDICATOR_HEIGHT / 2;
 
 		for (const pt of this.preparedTasks) {
+<<<<<<< HEAD
 =======
 		const visibleTasks = this.preparedTasks.filter((pt) => {
 >>>>>>> 5a47d35 (chore: bump version)
+=======
+>>>>>>> 6c87b00 (chore: bump version)
 			const taskStartX = pt.startX;
 			const taskEndX = pt.isMilestone
 				? pt.startX
 				: pt.startX + (pt.width ?? 0);
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6c87b00 (chore: bump version)
 
 			// Check visibility for task rendering
 			const isVisible =
@@ -826,6 +865,7 @@ export class GanttComponent extends Component {
 					);
 				}
 			}
+<<<<<<< HEAD
 =======
 			const buffer = 300;
 			return (
@@ -833,6 +873,8 @@ export class GanttComponent extends Component {
 				taskStartX < visibleEndX + buffer
 			);
 >>>>>>> 5a47d35 (chore: bump version)
+=======
+>>>>>>> 6c87b00 (chore: bump version)
 		});
 
 		// 2. Update Grid Background (Now using visibleTasks)
