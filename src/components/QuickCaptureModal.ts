@@ -18,6 +18,7 @@ import { t } from "../translations/helper";
 import { MarkdownRendererComponent } from "./MarkdownRenderer";
 import { StatusComponent } from "./StatusComponent";
 import { Task } from "../utils/types/TaskIndex";
+import { ContextSuggest, ProjectSuggest } from "./AutoComplete";
 
 interface TaskMetadata {
 	startDate?: Date;
@@ -275,6 +276,7 @@ export class QuickCaptureModal extends Modal {
 
 		// Project
 		new Setting(configPanel).setName(t("Project")).addText((text) => {
+			new ProjectSuggest(this.app, text.inputEl, this.plugin);
 			text.setPlaceholder(t("Project name"))
 				.setValue(this.taskMetadata.project || "")
 				.onChange((value) => {
@@ -285,6 +287,7 @@ export class QuickCaptureModal extends Modal {
 
 		// Context
 		new Setting(configPanel).setName(t("Context")).addText((text) => {
+			new ContextSuggest(this.app, text.inputEl, this.plugin);
 			text.setPlaceholder(t("Context"))
 				.setValue(this.taskMetadata.context || "")
 				.onChange((value) => {

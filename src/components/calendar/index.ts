@@ -214,7 +214,7 @@ export class CalendarComponent extends Component {
 			["calendar-nav-button", "today-button"],
 			true
 		);
-		todayButton.setButtonText("Today");
+		todayButton.setButtonText(t("Today"));
 		todayButton.onClick(() => this.goToToday());
 
 		// Next button
