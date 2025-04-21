@@ -18,6 +18,10 @@
 	opacity: 1;
 }
 
+.task-sidebar.collapsed .sidebar-nav {
+	align-items: center;
+}
+
 /* Sidebar Navigation */
 .sidebar-nav {
 	display: flex;
