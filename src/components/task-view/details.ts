@@ -310,6 +310,7 @@ export class TaskDetailsComponent extends Component {
 		// Tags field
 		const tagsField = this.createFormField(this.editFormEl, t("Tags"));
 		const tagsInput = new TextComponent(tagsField);
+		console.log("tagsInput", tagsInput, task.tags);
 		tagsInput.setValue(task.tags ? task.tags.join(", ") : "");
 		tagsField
 			.createSpan({ cls: "field-description" })

@@ -52,6 +52,7 @@ export interface ViewConfig {
 	type: "default" | "custom";
 	visible: boolean; // Show in sidebar
 	hideCompletedAndAbandonedTasks: boolean; // Per-view setting
+	filterBlanks: boolean; // Per-view setting
 	filterRules?: ViewFilterRule; // ADDED: Optional filter rules for ALL views
 	specificConfig?: SpecificViewConfig; // ADDED: Optional property for view-specific settings
 }
@@ -414,6 +415,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
+			filterBlanks: false,
 		},
 		{
 			id: "forecast",
@@ -423,6 +425,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
+			filterBlanks: false,
 		},
 		{
 			id: "projects",
@@ -432,6 +435,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 		},
 		{
 			id: "tags",
@@ -441,6 +445,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 		},
 		{
 			id: "flagged",
@@ -450,6 +455,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
+			filterBlanks: false,
 		},
 		{
 			id: "review",
@@ -459,6 +465,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 		},
 		{
 			id: "calendar",
@@ -468,6 +475,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 			specificConfig: {
 				viewType: "calendar",
 				firstDayOfWeek: undefined, // Use locale default initially
@@ -481,6 +489,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 			specificConfig: {
 				viewType: "kanban",
 				showCheckbox: true, // Example default, adjust if needed
@@ -494,6 +503,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 			specificConfig: {
 				viewType: "gantt",
 				showTaskLabels: true,
@@ -508,6 +518,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
+			filterBlanks: false,
 			specificConfig: {
 				viewType: "gantt",
 				showTaskLabels: true,
@@ -546,6 +557,7 @@ export function getViewSettingOrDefault(
 		icon: "list-plus",
 		type: "custom",
 		visible: true,
+		filterBlanks: false,
 		hideCompletedAndAbandonedTasks: false,
 		filterRules: {},
 		// No specificConfig for generic custom views by default

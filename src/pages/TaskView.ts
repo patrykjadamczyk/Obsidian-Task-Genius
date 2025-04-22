@@ -12,8 +12,8 @@ import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent } from "../components/task-view/sidebar";
 import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";
-import { TagsComponent } from "../components/task-view/tags";
-import { ProjectsComponent } from "../components/task-view/projects";
+import { TagViewComponent } from "../components/task-view/TagViewComponent";
+import { ProjectViewComponent } from "../components/task-view/ProjectViewComponent";
 import { ReviewComponent } from "../components/task-view/review";
 import {
 	createTaskCheckbox,
@@ -43,8 +43,8 @@ export class TaskView extends ItemView {
 	private sidebarComponent: SidebarComponent;
 	private contentComponent: ContentComponent;
 	private forecastComponent: ForecastComponent;
-	private tagsComponent: TagsComponent;
-	private projectsComponent: ProjectsComponent;
+	private tagsComponent: TagViewComponent;
+	private projectsComponent: ProjectViewComponent;
 	private reviewComponent: ReviewComponent;
 	private detailsComponent: TaskDetailsComponent;
 	private calendarComponent: CalendarComponent;
@@ -216,7 +216,7 @@ export class TaskView extends ItemView {
 		this.forecastComponent.load();
 		this.forecastComponent.containerEl.hide();
 
-		this.tagsComponent = new TagsComponent(
+		this.tagsComponent = new TagViewComponent(
 			this.rootContainerEl,
 			this.plugin.app,
 			this.plugin
@@ -225,7 +225,7 @@ export class TaskView extends ItemView {
 		this.tagsComponent.load();
 		this.tagsComponent.containerEl.hide();
 
-		this.projectsComponent = new ProjectsComponent(
+		this.projectsComponent = new ProjectViewComponent(
 			this.rootContainerEl,
 			this.plugin.app,
 			this.plugin
