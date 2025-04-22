@@ -27,7 +27,8 @@ const EMOJI_CREATED_DATE_REGEX = /➕\s*(\d{4}-\d{2}-\d{2})/;
 const EMOJI_RECURRENCE_REGEX = /🔁\s*(.*?)(?=\s(?:🗓️|🛫|⏳|✅|➕|🔁|@|#)|$)/u;
 const EMOJI_PRIORITY_REGEX = /(([🔺⏫🔼🔽⏬️⏬])|(\[#[A-E]\]))/u; // Using the corrected variant selector
 const EMOJI_CONTEXT_REGEX = /@([\w-]+)/g;
-const EMOJI_TAG_REGEX = /#([\w/-]+)/g; // Includes #project/ tags
+const EMOJI_TAG_REGEX =
+	/#[^\u2000-\u206F\u2E00-\u2E7F'!"#$%&()*+,.:;<=>?@^`{|}~\[\]\\\s]+/g; // Includes #project/ tags
 const EMOJI_PROJECT_PREFIX = "#project/";
 
 // --- Dataview Style Regexes ---

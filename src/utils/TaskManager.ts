@@ -1162,6 +1162,8 @@ export class TaskManager extends Component {
 					if (!updatedTask.tags.includes(projectTag)) {
 						updatedTask.tags.push(projectTag); // Will be added with other tags below
 					}
+					// add project tag to metadata
+					metadata.push(projectTag);
 				}
 			}
 
@@ -1175,7 +1177,11 @@ export class TaskManager extends Component {
 			}
 
 			// Add non-project/context tags for emoji format
-			if (!useDataviewFormat && updatedTask.tags) {
+			if (
+				!useDataviewFormat &&
+				updatedTask.tags &&
+				updatedTask.tags.length > 0
+			) {
 				// Check if NOT using dataview format
 				const generalTags = updatedTask.tags.filter(
 					(tag) => !tag.startsWith("#project/") // Project tags added separately if needed
@@ -1183,6 +1189,28 @@ export class TaskManager extends Component {
 				// Avoid adding duplicate tags; context already added above for emoji
 				const uniqueGeneralTags = [...new Set(generalTags)];
 				metadata.push(...uniqueGeneralTags);
+			} else if (
+				useDataviewFormat &&
+				updatedTask.tags &&
+				updatedTask.tags.length > 0
+			) {
+				// filter out duplicate tags
+				const tagsToAdd = updatedTask.tags.filter((tag) => {
+					// filter out project tags (already added as [project::...])
+					if (tag.startsWith("#project/")) return false;
+					// filter out context tags (already added as [context::...])
+					if (
+						tag.startsWith("@") &&
+						updatedTask.context &&
+						tag === `@${updatedTask.context}`
+					)
+						return false;
+					return true;
+				});
+				// add tags to metadata
+				if (tagsToAdd.length > 0) {
+					metadata.push(...tagsToAdd);
+				}
 			}
 
 			// Append all metadata to the line
