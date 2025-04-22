@@ -24,6 +24,9 @@ export class ViewConfigModal extends Modal {
 	private plugin: TaskProgressBarPlugin;
 	private isCreate: boolean;
 	private onSave: (config: ViewConfig, rules: ViewFilterRule) => void;
+	private originalViewConfig: string;
+	private originalViewFilterRule: string;
+	private hasChanges: boolean = false;
 
 	// References to input components to read values later
 	private nameInput: TextComponent;
@@ -72,6 +75,10 @@ export class ViewConfigModal extends Modal {
 			);
 		}
 
+		// Store original values for change detection
+		this.originalViewConfig = JSON.stringify(this.viewConfig);
+		this.originalViewFilterRule = JSON.stringify(this.viewFilterRule);
+
 		this.onSave = onSave;
 	}
 
@@ -92,6 +99,7 @@ export class ViewConfigModal extends Modal {
 			text.setValue(this.viewConfig.name).setPlaceholder(
 				t("My Custom Task View")
 			);
+			text.onChange(() => this.checkForChanges());
 		});
 
 		new Setting(contentEl)
@@ -104,6 +112,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.iconInput = text;
 				text.setValue(this.viewConfig.icon).setPlaceholder("list-plus");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		if (this.viewConfig.id === "calendar") {
@@ -147,6 +156,7 @@ export class ViewConfigModal extends Modal {
 									.specificConfig as CalendarSpecificConfig
 							).firstDayOfWeek = newFirstDayOfWeek;
 						}
+						this.checkForChanges();
 					});
 				});
 		} else if (this.viewConfig.id === "kanban") {
@@ -173,6 +183,7 @@ export class ViewConfigModal extends Modal {
 									.specificConfig as KanbanSpecificConfig
 							).showCheckbox = value;
 						}
+						this.checkForChanges();
 					});
 				});
 		}
@@ -187,6 +198,7 @@ export class ViewConfigModal extends Modal {
 				toggle.setValue(this.viewConfig.hideCompletedAndAbandonedTasks);
 				toggle.onChange((value) => {
 					this.viewConfig.hideCompletedAndAbandonedTasks = value;
+					this.checkForChanges();
 				});
 			});
 
@@ -197,6 +209,7 @@ export class ViewConfigModal extends Modal {
 				toggle.setValue(this.viewConfig.filterBlanks);
 				toggle.onChange((value) => {
 					this.viewConfig.filterBlanks = value;
+					this.checkForChanges();
 				});
 			});
 
@@ -210,6 +223,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.textContainsInput = text;
 				text.setValue(this.viewFilterRule.textContains || "");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		new Setting(contentEl)
@@ -220,6 +234,7 @@ export class ViewConfigModal extends Modal {
 				text.setValue(
 					(this.viewFilterRule.tagsInclude || []).join(", ")
 				).setPlaceholder("#important, #projectA");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		new Setting(contentEl)
@@ -232,6 +247,7 @@ export class ViewConfigModal extends Modal {
 				text.setValue(
 					(this.viewFilterRule.tagsExclude || []).join(", ")
 				).setPlaceholder("#waiting, #someday");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		new Setting(contentEl)
@@ -240,6 +256,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.projectInput = text;
 				text.setValue(this.viewFilterRule.project || "");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		new Setting(contentEl)
@@ -253,6 +270,7 @@ export class ViewConfigModal extends Modal {
 						? String(this.viewFilterRule.priority)
 						: ""
 				);
+				text.onChange(() => this.checkForChanges());
 			});
 
 		// --- Status Filters (Potentially complex, using simple text for now) ---
@@ -268,6 +286,7 @@ export class ViewConfigModal extends Modal {
 				text.setValue(
 					(this.viewFilterRule.statusInclude || []).join(",")
 				).setPlaceholder("/.>");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		new Setting(contentEl)
@@ -282,6 +301,7 @@ export class ViewConfigModal extends Modal {
 				text.setValue(
 					(this.viewFilterRule.statusExclude || []).join(",")
 				).setPlaceholder("-,x");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		// --- Date Filters ---
@@ -295,6 +315,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.dueDateInput = text;
 				text.setValue(this.viewFilterRule.dueDate || "");
+				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
 			.setName(t("Start Date Is"))
@@ -302,6 +323,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.startDateInput = text;
 				text.setValue(this.viewFilterRule.startDate || "");
+				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
 			.setName(t("Scheduled Date Is"))
@@ -309,6 +331,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.scheduledDateInput = text;
 				text.setValue(this.viewFilterRule.scheduledDate || "");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		// --- Path Filters ---
@@ -318,6 +341,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.pathIncludesInput = text;
 				text.setValue(this.viewFilterRule.pathIncludes || "");
+				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
 			.setName(t("Path Excludes"))
@@ -325,6 +349,7 @@ export class ViewConfigModal extends Modal {
 			.addText((text) => {
 				this.pathExcludesInput = text;
 				text.setValue(this.viewFilterRule.pathExcludes || "");
+				text.onChange(() => this.checkForChanges());
 			});
 
 		// --- First Day of Week ---
@@ -364,41 +389,43 @@ export class ViewConfigModal extends Modal {
 			.filter((s) => s !== "");
 	}
 
-	private saveChanges() {
-		// Update viewConfig
-		this.viewConfig.name =
-			this.nameInput.getValue().trim() || t("Unnamed View");
-		this.viewConfig.icon = this.iconInput.getValue().trim() || "list";
+	private checkForChanges() {
+		const currentConfig = JSON.stringify(this.viewConfig);
+		const currentFilterRule = JSON.stringify(this.getCurrentFilterRule());
+		this.hasChanges =
+			currentConfig !== this.originalViewConfig ||
+			currentFilterRule !== this.originalViewFilterRule;
+	}
 
-		// Update viewFilterRule
+	private getCurrentFilterRule(): ViewFilterRule {
 		const rules: ViewFilterRule = {};
-		const textContains = this.textContainsInput.getValue().trim();
+		const textContains = this.textContainsInput?.getValue()?.trim();
 		if (textContains) rules.textContains = textContains;
 
 		const tagsInclude = this.parseStringToArray(
-			this.tagsIncludeInput.getValue()
+			this.tagsIncludeInput?.getValue() || ""
 		);
 		if (tagsInclude.length > 0) rules.tagsInclude = tagsInclude;
 
 		const tagsExclude = this.parseStringToArray(
-			this.tagsExcludeInput.getValue()
+			this.tagsExcludeInput?.getValue() || ""
 		);
 		if (tagsExclude.length > 0) rules.tagsExclude = tagsExclude;
 
 		const statusInclude = this.parseStringToArray(
-			this.statusIncludeInput.getValue()
+			this.statusIncludeInput?.getValue() || ""
 		);
 		if (statusInclude.length > 0) rules.statusInclude = statusInclude;
 
 		const statusExclude = this.parseStringToArray(
-			this.statusExcludeInput.getValue()
+			this.statusExcludeInput?.getValue() || ""
 		);
 		if (statusExclude.length > 0) rules.statusExclude = statusExclude;
 
-		const project = this.projectInput.getValue().trim();
+		const project = this.projectInput?.getValue()?.trim();
 		if (project) rules.project = project;
 
-		const priorityStr = this.priorityInput.getValue().trim();
+		const priorityStr = this.priorityInput?.getValue()?.trim();
 		if (priorityStr) {
 			const priorityNum = parseInt(priorityStr, 10);
 			if (!isNaN(priorityNum)) {
@@ -406,22 +433,37 @@ export class ViewConfigModal extends Modal {
 			}
 		}
 
-		const dueDate = this.dueDateInput.getValue().trim();
+		const dueDate = this.dueDateInput?.getValue()?.trim();
 		if (dueDate) rules.dueDate = dueDate;
 
-		const startDate = this.startDateInput.getValue().trim();
+		const startDate = this.startDateInput?.getValue()?.trim();
 		if (startDate) rules.startDate = startDate;
 
-		const scheduledDate = this.scheduledDateInput.getValue().trim();
+		const scheduledDate = this.scheduledDateInput?.getValue()?.trim();
 		if (scheduledDate) rules.scheduledDate = scheduledDate;
 
-		const pathIncludes = this.pathIncludesInput.getValue().trim();
+		const pathIncludes = this.pathIncludesInput?.getValue()?.trim();
 		if (pathIncludes) rules.pathIncludes = pathIncludes;
 
-		const pathExcludes = this.pathExcludesInput.getValue().trim();
+		const pathExcludes = this.pathExcludesInput?.getValue()?.trim();
 		if (pathExcludes) rules.pathExcludes = pathExcludes;
 
-		this.viewFilterRule = rules;
+		return rules;
+	}
+
+	private saveChanges() {
+		// Update viewConfig
+		this.viewConfig.name =
+			this.nameInput.getValue().trim() || t("Unnamed View");
+		this.viewConfig.icon = this.iconInput.getValue().trim() || "list";
+
+		// Update viewFilterRule
+		this.viewFilterRule = this.getCurrentFilterRule();
+
+		// Reset change tracking state
+		this.originalViewConfig = JSON.stringify(this.viewConfig);
+		this.originalViewFilterRule = JSON.stringify(this.viewFilterRule);
+		this.hasChanges = false;
 
 		// Call the onSave callback
 		this.onSave(this.viewConfig, this.viewFilterRule);
@@ -430,6 +472,16 @@ export class ViewConfigModal extends Modal {
 	}
 
 	onClose() {
+		if (this.hasChanges) {
+			const confirmed = confirm(
+				t("You have unsaved changes. Save before closing?")
+			);
+			if (confirmed) {
+				this.saveChanges();
+				return;
+			}
+		}
+
 		const { contentEl } = this;
 		contentEl.empty();
 	}

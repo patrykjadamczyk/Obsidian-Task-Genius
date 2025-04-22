@@ -98,10 +98,10 @@ export function isBlank(
 	const viewConfig = getViewSettingOrDefault(plugin, viewId);
 
 	if (viewConfig.filterBlanks) {
-		return task.content.trim() === "";
+		return task.content.trim() !== "";
 	}
 
-	return false;
+	return true;
 }
 
 /**
