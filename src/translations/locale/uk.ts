@@ -470,7 +470,7 @@ const translations = {
   "Task Genius View": "Подання Task Genius",
   "Toggle Sidebar": "Перемикач бічної панелі",
   "Details": "Підробиці",
-  "View": "Переглянути",
+  "View": "Вид",
   "Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way.": "Перегляд задачь - всеосяжний огляд, який дозволяє більш ефективно керувати задачами.",
   "Enable task genius view": "Увімкнути режим представлення Task Genius",
   "Select a task to view details": "Виберіть задачі для представлення подробиць",
