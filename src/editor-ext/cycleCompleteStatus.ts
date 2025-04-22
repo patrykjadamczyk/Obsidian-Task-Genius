@@ -369,6 +369,14 @@ export function handleCycleCompleteStatusTransaction(
 			continue;
 		}
 
+		// Get line context for the current position to check task type
+		const posLine = tr.newDoc.lineAt(position);
+		const newLineText = posLine.text;
+		const originalPosLine = tr.startState.doc.lineAt(
+			Math.min(position, tr.startState.doc.length)
+		);
+		const originalLineText = originalPosLine.text;
+
 		// For newly inserted complete tasks, check if the mark matches the first status
 		// If so, we may choose to leave it as is rather than immediately cycling it
 		if (wasCompleteTask) {
@@ -381,39 +389,108 @@ export function handleCycleCompleteStatusTransaction(
 				}
 			}
 
-			// If the mark is valid and this is a complete task insertion,
-			// don't cycle it immediately
-			if (foundStatus && !plugin.settings.alwaysCycleNewTasks) {
+			// Check if this is a brand new task insertion with "[ ]" (space) mark
+			const isNewEmptyTask =
+				currentMark === " " &&
+				// Verify the original content contains the full task marker with "[ ]"
+				(tasksInfo?.originalInsertedText?.includes("[ ]") ||
+					// Or check if the line now contains a task marker that wasn't there before
+					(newLineText.includes("[ ]") &&
+						!originalLineText.includes("[ ]")));
+
+			// Additional check for when a user is specifically creating a task with [ ]
+			const isManualTaskCreation =
+				currentMark === " " &&
+				// Check if the insertion includes the full task syntax
+				((insertedText) => {
+					// Look for common patterns of task creation
+					return (
+						insertedText?.includes("- [ ]") ||
+						insertedText?.includes("* [ ]") ||
+						insertedText?.includes("+ [ ]") ||
+						/^\d+\.\s+\[\s\]/.test(insertedText || "")
+					);
+				})(tasksInfo?.originalInsertedText);
+
+			// Don't cycle newly created empty tasks, even if alwaysCycleNewTasks is true
+			// This prevents unexpected data loss when creating a task
+			if (isNewEmptyTask || isManualTaskCreation) {
 				console.log(
-					`Complete task with valid mark '${currentMark}' inserted, leaving as is`
+					`New empty task detected with mark ' ', leaving as is regardless of alwaysCycleNewTasks setting`
 				);
 				continue;
 			}
+
+			// If the mark is valid and this is a complete task insertion,
+			// don't cycle it immediately - we've removed alwaysCycleNewTasks entirely
 		}
 
 		// Find the exact position to place the mark
 		const markPosition = position;
+
+		// Get the line information to ensure we don't go beyond the current line
+		const lineAtMark = tr.newDoc.lineAt(markPosition);
+		const lineEnd = lineAtMark.to;
+
+		// Check if the mark position is within the current line and valid
+		if (markPosition < lineAtMark.from || markPosition >= lineEnd) {
+			console.log(
+				`Mark position ${markPosition} is beyond the current line range ${lineAtMark.from}-${lineEnd}, skipping processing`
+			);
+			continue;
+		}
+
+		// Ensure the modification range doesn't exceed the current line
+		const validTo = Math.min(markPosition + 1, lineEnd);
+		if (validTo <= markPosition) {
+			console.log(
+				`Invalid modification range ${markPosition}-${validTo}, skipping processing`
+			);
+			continue;
+		}
 
 		// If nextMark is 'x', 'X', or space and we have Tasks plugin info, use the original insertion
 		if (
 			(nextMark === "x" || nextMark === "X" || nextMark === " ") &&
 			tasksInfo !== null
 		) {
-			// Use the original insertion from Tasks plugin
-			newChanges.push({
-				from: tasksInfo.originalFromA,
-				to: tasksInfo.originalToA,
-				insert: tasksInfo.originalInsertedText,
-			});
+			// Verify if the Tasks plugin's modification range is within the same line
+			const origLineAtFromA = tr.startState.doc.lineAt(
+				tasksInfo.originalFromA
+			);
+			const origLineAtToA = tr.startState.doc.lineAt(
+				Math.min(tasksInfo.originalToA, tr.startState.doc.length)
+			);
+
+			if (origLineAtFromA.number !== origLineAtToA.number) {
+				console.log(
+					`Tasks plugin modification range spans multiple lines ${origLineAtFromA.number}-${origLineAtToA.number}, using safe modification range`
+				);
+				// Use the safe modification range
+				newChanges.push({
+					from: markPosition,
+					to: validTo,
+					insert: nextMark,
+				});
+			} else {
+				// Use the original insertion from Tasks plugin
+				newChanges.push({
+					from: tasksInfo.originalFromA,
+					to: tasksInfo.originalToA,
+					insert: tasksInfo.originalInsertedText,
+				});
+			}
 		} else {
 			// Add a change to replace the current mark with the next one
 			newChanges.push({
 				from: markPosition,
-				to: markPosition + 1,
+				to: validTo,
 				insert: nextMark,
 			});
 		}
 	}
+
+	console.log(newChanges);
 
 	// If we found any changes to make, create a new transaction
 	if (newChanges.length > 0) {

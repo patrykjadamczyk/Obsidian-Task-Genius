@@ -264,6 +264,26 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Only show these options if some form of progress bar is enabled
 		if (this.plugin.settings.progressBarDisplayMode !== "none") {
 			new Setting(containerEl)
+				.setName(t("Enable progress bar in reading mode"))
+				.setDesc(
+					t(
+						"Toggle this to allow this plugin to show progress bars in reading mode."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.enableProgressbarInReadingMode
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.enableProgressbarInReadingMode =
+								value;
+
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
 				.setName(t("Support hover to show progress info"))
 				.setDesc(
 					t(
@@ -332,6 +352,23 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						.setValue(this.plugin.settings.countSubLevel)
 						.onChange(async (value) => {
 							this.plugin.settings.countSubLevel = value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Use custom goal for progress bar"))
+				.setDesc(
+					t(
+						"Toggle this to allow this plugin to find the pattern g::number as goal of the parent task."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.allowCustomProgressGoal)
+						.onChange(async (value) => {
+							this.plugin.settings.allowCustomProgressGoal =
+								value;
 							this.applySettingsUpdate();
 						})
 				);
@@ -1213,8 +1250,16 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.enableTaskStatusSwitcher = value;
 						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					});
 			});
+
+		if (!this.plugin.settings.enableTaskStatusSwitcher) {
+			return;
+		}
 
 		new Setting(containerEl)
 			.setName(t("Enable custom task marks"))
@@ -1260,22 +1305,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.enableCycleCompleteStatus)
 					.onChange(async (value) => {
 						this.plugin.settings.enableCycleCompleteStatus = value;
-						this.applySettingsUpdate();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t("Always cycle new tasks"))
-			.setDesc(
-				t(
-					"When enabled, newly inserted tasks will immediately cycle to the next status. When disabled, newly inserted tasks with valid marks will keep their original mark."
-				)
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.alwaysCycleNewTasks)
-					.onChange(async (value) => {
-						this.plugin.settings.alwaysCycleNewTasks = value;
 						this.applySettingsUpdate();
 					});
 			});
@@ -1562,7 +1591,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						.onClick(() => {
 							// Remove from cycle
 							cycle.splice(index, 1);
-							// Don't remove from marks to preserve settings
+							delete marks[state];
 							this.applySettingsUpdate();
 							refreshTaskStatesList();
 						});
@@ -2522,6 +2551,26 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					this.applySettingsUpdate();
 					this.display(); // Refresh settings display
 				});
+			});
+
+		new Setting(containerEl)
+			.setName(t("Prefer metadata format of task"))
+			.setDesc(
+				t(
+					"You can choose dataview format or tasks format, that will influence both index and save format."
+				)
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("dataview", "Dataview")
+					.addOption("tasks", "Tasks")
+					.setValue(this.plugin.settings.preferMetadataFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.preferMetadataFormat = value as
+							| "dataview"
+							| "tasks";
+						this.applySettingsUpdate();
+					});
 			});
 
 		if (!this.plugin.settings.enableView) return;

@@ -670,6 +670,34 @@ const translations = {
 	"Delete View": "ビューを削除",
 	"Add Custom View": "カスタムビューを追加",
 	"Error: View ID already exists.": "エラー：ビューIDはすでに存在します。",
+	Events: "イベント",
+	Plan: "プラン",
+	Year: "年",
+	Month: "月",
+	Week: "週",
+	Day: "日",
+	Agenda: "アジェンダ",
+	"Back to categories": "カテゴリーに戻る",
+	"No matching options found": "一致するオプションが見つかりません",
+	"No matching filters found": "一致するフィルターが見つかりません",
+	Tag: "タグ",
+	"File Path": "ファイルパス",
+	"Add filter": "フィルターを追加",
+	"Clear all": "すべてクリア",
+	"Add Card": "カードを追加",
+	"First Day of Week": "週の最初の日",
+	"Overrides the locale default for calendar views.":
+		"カレンダービューのロケールデフォルトを上書きします。",
+	"Show checkbox": "チェックボックスを表示",
+	"Show a checkbox for each task in the kanban view.":
+		"かんばんビューの各タスクにチェックボックスを表示します。",
+	"Locale Default": "ロケールデフォルト",
+	"Use custom goal for progress bar": "プログレスバーにカスタム目標を使用",
+	"Toggle this to allow this plugin to find the pattern g::number as goal of the parent task.":
+		"このプラグインが親タスクの目標として g::number パターンを見つけられるようにするにはこれを切り替えてください。",
+	"Prefer metadata format of task": "タスクのメタデータ形式を優先",
+	"You can choose dataview format or tasks format, that will influence both index and save format.":
+		"dataview形式またはtasks形式を選択できます。これはインデックスと保存形式の両方に影響します。",
 };
 
 export default translations;

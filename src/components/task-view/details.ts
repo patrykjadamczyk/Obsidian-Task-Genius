@@ -16,6 +16,8 @@ import { TaskProgressBarSettings } from "../../common/setting-definition";
 import "../../styles/task-details.css";
 import { t } from "../../translations/helper";
 import { clearAllMarks } from "../MarkdownRenderer";
+import { StatusComponent } from "../StatusComponent";
+import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
 
 function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	const status = Object.keys(settings.taskStatuses).find((key) => {
@@ -59,7 +61,6 @@ export function createTaskCheckbox(
 		cls: "task-list-item-checkbox",
 		type: "checkbox",
 	});
-	console.log("status", status, task.status);
 	checkbox.dataset.task = status;
 	if (status !== " ") {
 		checkbox.checked = true;
@@ -159,98 +160,16 @@ export class TaskDetailsComponent extends Component {
 			statusEl.setText(getStatus(task, this.plugin.settings));
 		});
 
-		this.contentEl.createDiv({ cls: "details-status-selector" }, (el) => {
-			const allStatuses = Object.keys(
-				this.plugin.settings.taskStatuses
-			).map((status) => {
-				return {
-					status: status,
-					text: this.plugin.settings.taskStatuses[
-						status as keyof typeof this.plugin.settings.taskStatuses
-					].split("|")[0],
-				}; // Get the first status from each group
-			});
+		const statusComponent = new StatusComponent(
+			this.plugin,
+			this.contentEl,
+			task,
+			{
+				onTaskUpdate: this.onTaskUpdate,
+			}
+		);
 
-			// Create five side-by-side status elements
-			allStatuses.forEach((status) => {
-				const statusEl = el.createEl("div", {
-					cls:
-						"status-option" +
-						(status.text === task.status ? " current-status" : ""),
-					attr: {
-						"aria-label": getStatusText(
-							status.status,
-							this.plugin.settings
-						),
-					},
-				});
-
-				// Create checkbox-like element for the status
-				const checkbox = createTaskCheckbox(
-					status.text,
-					task,
-					statusEl
-				);
-				this.registerDomEvent(checkbox, "click", (evt) => {
-					evt.stopPropagation();
-					evt.preventDefault();
-					if (status.text === this.getTaskStatus()) {
-						return;
-					}
-
-					this.onTaskUpdate(task, {
-						...task,
-						status: status.text,
-					});
-				});
-			});
-
-			const moreStatus = el.createEl("div", {
-				cls: "more-status",
-			});
-			const moreStatusBtn = new ExtraButtonComponent(moreStatus)
-				.setIcon("ellipsis")
-				.onClick(() => {
-					const menu = new Menu();
-					for (const status of Object.keys(
-						this.plugin.settings.taskStatusMarks
-					)) {
-						const mark =
-							this.plugin.settings.taskStatusMarks[
-								status as keyof typeof this.plugin.settings.taskStatusMarks
-							];
-						menu.addItem((item) => {
-							item.titleEl.createEl(
-								"span",
-								{
-									cls: "status-option-checkbox",
-								},
-								(el) => {
-									createTaskCheckbox(mark, task, el);
-								}
-							);
-							item.titleEl.createEl("span", {
-								cls: "status-option",
-								text: status,
-							});
-							item.onClick(() => {
-								this.onTaskUpdate(task, {
-									...task,
-									status: mark,
-								});
-							});
-						});
-					}
-					const rect =
-						moreStatusBtn.extraSettingsEl?.getBoundingClientRect();
-					if (rect) {
-						menu.showAtPosition({
-							x: rect.left,
-							y: rect.bottom + 10,
-						});
-					}
-				});
-		});
+		this.addChild(statusComponent);
 
 		// // Task metadata
 		const metaEl = this.contentEl.createDiv({ cls: "details-metadata" });
@@ -386,6 +305,8 @@ export class TaskDetailsComponent extends Component {
 		const projectInput = new TextComponent(projectField);
 		projectInput.setValue(task.project || "");
 
+		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
+
 		// Tags field
 		const tagsField = this.createFormField(this.editFormEl, t("Tags"));
 		const tagsInput = new TextComponent(tagsField);
@@ -394,6 +315,8 @@ export class TaskDetailsComponent extends Component {
 			.createSpan({ cls: "field-description" })
 			.setText(t("Comma separated"));
 
+		new TagSuggest(this.app, tagsInput.inputEl, this.plugin);
+
 		// Context field
 		const contextField = this.createFormField(
 			this.editFormEl,
@@ -401,6 +324,8 @@ export class TaskDetailsComponent extends Component {
 		);
 		const contextInput = new TextComponent(contextField);
 		contextInput.setValue(task.context || "");
+
+		new ContextSuggest(this.app, contextInput.inputEl, this.plugin);
 
 		// Priority dropdown
 		const priorityField = this.createFormField(

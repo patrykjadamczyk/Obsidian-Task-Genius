@@ -643,6 +643,34 @@ const translations = {
 	"Delete View": "刪除視圖",
 	"Add Custom View": "添加自定義視圖",
 	"Error: View ID already exists.": "錯誤：視圖 ID 已存在。",
+	Events: "事件",
+	Plan: "計劃",
+	Year: "年",
+	Month: "月",
+	Week: "周",
+	Day: "日",
+	Agenda: "議程",
+	"Back to categories": "返回分類",
+	"No matching options found": "未找到匹配選項",
+	"No matching filters found": "未找到匹配過濾器",
+	Tag: "標籤",
+	"File Path": "文件路徑",
+	"Add filter": "添加過濾器",
+	"Clear all": "清除全部",
+	"Add Card": "添加卡片",
+	"First Day of Week": "每周第一天",
+	"Overrides the locale default for calendar views.":
+		"Overrides the locale default for calendar views.",
+	"Show checkbox": "顯示複選框",
+	"Show a checkbox for each task in the kanban view.":
+		"在看板視圖中為每個任務顯示複選框。",
+	"Locale Default": "區域默認設置",
+	"Use custom goal for progress bar": "為進度條使用自定義目標",
+	"Toggle this to allow this plugin to find the pattern g::number as goal of the parent task.":
+		"允許此插件查找父任務的 g::number 模式作為目標。",
+	"Prefer metadata format of task": "優先使用任務的元數據格式",
+	"You can choose dataview format or tasks format, that will influence both index and save format.":
+		"你可以選擇 dataview 格式或 tasks 格式，這將影響索引和保存格式。",
 };
 
 export default translations;

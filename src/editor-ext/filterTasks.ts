@@ -6,6 +6,7 @@ import {
 	MarkdownFileInfo,
 	MarkdownView,
 	Menu,
+	Notice,
 	Setting,
 	TextComponent,
 	View,

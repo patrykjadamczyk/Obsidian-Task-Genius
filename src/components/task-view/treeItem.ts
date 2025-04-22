@@ -3,6 +3,7 @@ import { Task } from "../../utils/types/TaskIndex";
 import { formatDate } from "../../utils/dateUtil";
 import "../../styles/tree-view.css";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
+import { createTaskCheckbox } from "./details";
 
 export class TaskTreeItemComponent extends Component {
 	public element: HTMLElement;
@@ -140,14 +141,11 @@ export class TaskTreeItemComponent extends Component {
 				cls: "task-checkbox",
 			},
 			(el) => {
-				const checkbox = el.createEl("input", {
-					cls: "task-list-item-checkbox",
-					type: "checkbox",
-				});
-				checkbox.dataset.task = this.task.status;
-				if (this.task.status !== " ") {
-					checkbox.checked = true;
-				}
+				const checkbox = createTaskCheckbox(
+					this.task.status,
+					this.task,
+					el
+				);
 
 				this.registerDomEvent(checkbox, "click", (event) => {
 					event.stopPropagation();

@@ -160,17 +160,17 @@
 	}
 }
 
-.stat-item.past-due::after {
+.stat-item.tg-past-due::after {
 	background-color: var(--text-error);
 	opacity: 0.7;
 }
 
-.stat-item.today::after {
+.stat-item.tg-today::after {
 	background-color: var(--interactive-accent);
 	opacity: 0.7;
 }
 
-.stat-item.future::after {
+.stat-item.tg-future::after {
 	background-color: var(--text-accent);
 	opacity: 0.7;
 }
@@ -180,7 +180,7 @@
 	font-weight: 600;
 }
 
-.stat-item.past-due .stat-count {
+.stat-item.tg-past-due .stat-count {
 	color: var(--text-error);
 }
 

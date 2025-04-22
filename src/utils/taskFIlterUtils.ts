@@ -200,7 +200,8 @@ export function filterTasks(
 			case "flagged":
 				filtered = filtered.filter(
 					(task) =>
-						task.priority === 3 || task.tags?.includes("flagged")
+						(task.priority ?? 0) >= 3 ||
+						task.tags?.includes("flagged")
 				);
 				break;
 			// Projects, Tags, Review logic are handled by their specific components / options
@@ -210,10 +211,6 @@ export function filterTasks(
 	// --- Apply `isNotCompleted` Filter ---
 	// This uses the hideCompletedAndAbandonedTasks setting from the viewConfig
 	filtered = filtered.filter((task) => isNotCompleted(plugin, task, viewId));
-
-	if (viewId === "forecast") {
-		console.log("forecast", filtered, options, viewConfig);
-	}
 
 	// --- Apply General Text Search (from options) ---
 	if (options.textQuery) {

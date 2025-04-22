@@ -155,6 +155,8 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 		// Initialize task manager
 		if (this.settings.enableView) {
+			this.loadViews();
+
 			this.taskManager = new TaskManager(
 				this.app,
 				this.app.vault,
@@ -263,11 +265,16 @@ export default class TaskProgressBarPlugin extends Plugin {
 				}
 
 				// Apply progress bars (existing functionality)
-				updateProgressBarInElement({
-					plugin: this,
-					element: el,
-					ctx: ctx,
-				});
+				if (
+					this.settings.enableProgressbarInReadingMode &&
+					this.settings.progressBarDisplayMode !== "none"
+				) {
+					updateProgressBarInElement({
+						plugin: this,
+						element: el,
+						ctx: ctx,
+					});
+				}
 			});
 
 			if (this.settings.enableView) {
@@ -629,6 +636,27 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	async loadViews() {
+		const defaultViews = DEFAULT_SETTINGS.viewConfiguration;
+
+		// Ensure all default views exist in user settings
+		if (!this.settings.viewConfiguration) {
+			this.settings.viewConfiguration = [];
+		}
+
+		// Add any missing default views to user settings
+		defaultViews.forEach((defaultView) => {
+			const existingView = this.settings.viewConfiguration.find(
+				(v) => v.id === defaultView.id
+			);
+			if (!existingView) {
+				this.settings.viewConfiguration.push({ ...defaultView });
+			}
+		});
+
+		await this.saveSettings();
 	}
 
 	// Helper method to set priority at cursor position
