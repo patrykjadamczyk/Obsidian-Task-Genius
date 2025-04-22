@@ -61,6 +61,7 @@ export class ViewConfigModal extends Modal {
 				type: "custom",
 				visible: true,
 				hideCompletedAndAbandonedTasks: false,
+				filterBlanks: false,
 			};
 			this.viewFilterRule = initialFilterRule || {}; // Start with empty rules or provided defaults
 		} else {
@@ -186,6 +187,16 @@ export class ViewConfigModal extends Modal {
 				toggle.setValue(this.viewConfig.hideCompletedAndAbandonedTasks);
 				toggle.onChange((value) => {
 					this.viewConfig.hideCompletedAndAbandonedTasks = value;
+				});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Filter Blanks"))
+			.setDesc(t("Filter out blank tasks in this view."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewConfig.filterBlanks);
+				toggle.onChange((value) => {
+					this.viewConfig.filterBlanks = value;
 				});
 			});
 

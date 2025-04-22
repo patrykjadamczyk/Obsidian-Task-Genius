@@ -83,6 +83,28 @@ export function isNotCompleted(
 }
 
 /**
+ * Checks if a task is blank based on view settings and task content.
+ *
+ * @param plugin The plugin instance
+ * @param task The task to check
+ * @param viewId The current view mode
+ * @returns true if the task is blank
+ */
+export function isBlank(
+	plugin: TaskProgressBarPlugin,
+	task: Task,
+	viewId: ViewMode
+): boolean {
+	const viewConfig = getViewSettingOrDefault(plugin, viewId);
+
+	if (viewConfig.filterBlanks) {
+		return task.content.trim() === "";
+	}
+
+	return false;
+}
+
+/**
  * Centralized function to filter tasks based on view configuration and options.
  * Includes completion status filtering.
  */
@@ -211,6 +233,10 @@ export function filterTasks(
 	// --- Apply `isNotCompleted` Filter ---
 	// This uses the hideCompletedAndAbandonedTasks setting from the viewConfig
 	filtered = filtered.filter((task) => isNotCompleted(plugin, task, viewId));
+
+	// --- Apply `isBlank` Filter ---
+	// This uses the filterBlanks setting from the viewConfig
+	filtered = filtered.filter((task) => isBlank(plugin, task, viewId));
 
 	// --- Apply General Text Search (from options) ---
 	if (options.textQuery) {
