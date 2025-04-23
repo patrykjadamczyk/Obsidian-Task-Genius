@@ -1,5 +1,11 @@
-import { App, Scope, TFile, WorkspaceLeaf } from "obsidian";
-import { MarkdownScrollableEditView, WidgetEditorView } from "obsidian-typings";
+import {
+	App,
+	MarkdownScrollableEditView,
+	Scope,
+	TFile,
+	WidgetEditorView,
+	WorkspaceLeaf,
+} from "obsidian";
 
 import { EditorSelection, Prec } from "@codemirror/state";
 import { EditorView, keymap, placeholder, ViewUpdate } from "@codemirror/view";
