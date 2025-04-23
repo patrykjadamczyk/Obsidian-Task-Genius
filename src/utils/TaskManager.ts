@@ -1088,10 +1088,78 @@ export class TaskManager extends Component {
 				updatedTask.completedDate
 			);
 
-			// Priority
+			// --- Add non-project/context tags first (1. Tags) ---
+			if (updatedTask.tags && updatedTask.tags.length > 0) {
+				if (!useDataviewFormat) {
+					// For emoji format: add tags that aren't project tags
+					const generalTags = updatedTask.tags.filter(
+						(tag) =>
+							!tag.startsWith("#project/") && !tag.startsWith("@")
+					);
+
+					// Convert array to Set and back to ensure uniqueness
+					const finalUniqueTags = [...new Set(generalTags)];
+
+					if (finalUniqueTags.length > 0) {
+						metadata.push(...finalUniqueTags);
+					}
+				} else {
+					// For dataview format: add tags that aren't project/context tags
+					const tagsToAdd = updatedTask.tags.filter((tag) => {
+						// filter out project tags (already added as [project::...])
+						if (tag.startsWith("#project/")) return false;
+						// filter out context tags (already added as [context::...])
+						if (
+							tag.startsWith("@") &&
+							updatedTask.context &&
+							tag === `@${updatedTask.context}`
+						)
+							return false;
+						return true;
+					});
+
+					const uniqueTagsToAdd = [...new Set(tagsToAdd)];
+
+					if (uniqueTagsToAdd.length > 0) {
+						metadata.push(...uniqueTagsToAdd);
+					}
+				}
+			}
+
+			// 2. Project
+			if (updatedTask.project) {
+				if (useDataviewFormat) {
+					metadata.push(`[project:: ${updatedTask.project}]`);
+				} else {
+					const projectTag = `#project/${updatedTask.project}`;
+					// Only add to tags array if not already present
+					if (!updatedTask.tags) updatedTask.tags = [];
+					if (!updatedTask.tags.includes(projectTag)) {
+						updatedTask.tags.push(projectTag);
+					}
+					// Only add to metadata if not already added before
+					if (!metadata.includes(projectTag)) {
+						metadata.push(projectTag);
+					}
+				}
+			}
+
+			// 3. Context
+			if (updatedTask.context) {
+				if (useDataviewFormat) {
+					metadata.push(`[context:: ${updatedTask.context}]`);
+				} else {
+					const contextTag = `@${updatedTask.context}`;
+					// Only add to metadata if not already present
+					if (!metadata.includes(contextTag)) {
+						metadata.push(contextTag);
+					}
+				}
+			}
+
+			// 4. Priority
 			if (updatedTask.priority) {
 				if (useDataviewFormat) {
-					// Use the boolean flag
 					let priorityValue: string | number;
 					switch (updatedTask.priority) {
 						case 5:
@@ -1131,48 +1199,13 @@ export class TaskManager extends Component {
 							break;
 						case 1:
 							priorityMarker = "⏬";
-							break; // Use ⏬ for lowest
+							break;
 					}
 					if (priorityMarker) metadata.push(priorityMarker);
 				}
 			}
 
-			// Dates
-			if (formattedDueDate) {
-				metadata.push(
-					useDataviewFormat
-						? `[due:: ${formattedDueDate}]`
-						: `📅 ${formattedDueDate}`
-				); // Use boolean flag
-			}
-			if (formattedStartDate) {
-				metadata.push(
-					useDataviewFormat
-						? `[start:: ${formattedStartDate}]`
-						: `🛫 ${formattedStartDate}`
-				);
-			}
-			if (formattedScheduledDate) {
-				metadata.push(
-					useDataviewFormat
-						? `[scheduled:: ${formattedScheduledDate}]`
-						: `⏳ ${formattedScheduledDate}`
-				);
-			}
-			if (formattedCompletedDate && updatedTask.completed) {
-				metadata.push(
-					useDataviewFormat
-						? `[completion:: ${formattedCompletedDate}]`
-						: `✅ ${formattedCompletedDate}`
-				);
-			}
-			// Optionally add created date if missing and using dataview
-			// if (!taskLine.includes('[created::') && !taskLine.includes('➕') && updatedTask.createdDate && useDataviewFormat) {
-			//    const formattedCreatedDate = formatDate(updatedTask.createdDate);
-			//    if(formattedCreatedDate) metadata.push(`[created:: ${formattedCreatedDate}]`);
-			// }
-
-			// Recurrence
+			// 5. Recurrence
 			if (updatedTask.recurrence) {
 				metadata.push(
 					useDataviewFormat
@@ -1181,93 +1214,40 @@ export class TaskManager extends Component {
 				);
 			}
 
-			// Project
-			if (updatedTask.project) {
-				if (useDataviewFormat) {
-					metadata.push(`[project:: ${updatedTask.project}]`);
-				} else {
-					if (!updatedTask.tags) updatedTask.tags = [];
-					const projectTag = `#project/${updatedTask.project}`;
-					// Only add to tags array if not already present
-					if (!updatedTask.tags.includes(projectTag)) {
-						updatedTask.tags.push(projectTag);
-					}
-					// Only add to metadata if not already added before
-					if (!metadata.includes(projectTag)) {
-						metadata.push(projectTag);
-					}
-				}
+			// 6. Start Date
+			if (formattedStartDate) {
+				metadata.push(
+					useDataviewFormat
+						? `[start:: ${formattedStartDate}]`
+						: `🛫 ${formattedStartDate}`
+				);
 			}
 
-			// Context
-			if (updatedTask.context) {
-				if (useDataviewFormat) {
-					metadata.push(`[context:: ${updatedTask.context}]`);
-				} else {
-					const contextTag = `@${updatedTask.context}`;
-					// Only add to metadata if not already present
-					if (!metadata.includes(contextTag)) {
-						metadata.push(contextTag);
-					}
-				}
+			// 7. Scheduled Date
+			if (formattedScheduledDate) {
+				metadata.push(
+					useDataviewFormat
+						? `[scheduled:: ${formattedScheduledDate}]`
+						: `⏳ ${formattedScheduledDate}`
+				);
 			}
 
-			// --- Add non-project/context tags for emoji format
-			if (
-				!useDataviewFormat &&
-				updatedTask.tags &&
-				updatedTask.tags.length > 0
-			) {
-				// Check if NOT using dataview format
-				const generalTags = updatedTask.tags.filter(
-					(tag) => !tag.startsWith("#project/") // Project tags added separately if needed
+			// 8. Due Date
+			if (formattedDueDate) {
+				metadata.push(
+					useDataviewFormat
+						? `[due:: ${formattedDueDate}]`
+						: `📅 ${formattedDueDate}`
 				);
+			}
 
-				// Check for duplicates with what's already been added to metadata
-				const existingTagsInMetadata = new Set(metadata);
-				const uniqueGeneralTags = generalTags.filter(
-					(tag) => !existingTagsInMetadata.has(tag)
+			// 9. Completion Date (only if completed)
+			if (formattedCompletedDate && updatedTask.completed) {
+				metadata.push(
+					useDataviewFormat
+						? `[completion:: ${formattedCompletedDate}]`
+						: `✅ ${formattedCompletedDate}`
 				);
-
-				console.log("uniqueGeneralTags", uniqueGeneralTags);
-
-				// Convert array to Set and back to ensure uniqueness (in case tags array itself has duplicates)
-				const finalUniqueTags = [...new Set(uniqueGeneralTags)];
-
-				console.log("finalUniqueTags", finalUniqueTags);
-
-				if (finalUniqueTags.length > 0) {
-					metadata.push(...finalUniqueTags);
-				}
-			} else if (
-				useDataviewFormat &&
-				updatedTask.tags &&
-				updatedTask.tags.length > 0
-			) {
-				// filter out duplicate tags
-				const tagsToAdd = updatedTask.tags.filter((tag) => {
-					// filter out project tags (already added as [project::...])
-					if (tag.startsWith("#project/")) return false;
-					// filter out context tags (already added as [context::...])
-					if (
-						tag.startsWith("@") &&
-						updatedTask.context &&
-						tag === `@${updatedTask.context}`
-					)
-						return false;
-					return true;
-				});
-
-				// Check for duplicates with what's already been added to metadata
-				const existingTagsInMetadata = new Set(metadata);
-				const uniqueTagsToAdd = tagsToAdd.filter(
-					(tag) => !existingTagsInMetadata.has(tag)
-				);
-
-				// add tags to metadata
-				if (uniqueTagsToAdd.length > 0) {
-					metadata.push(...uniqueTagsToAdd);
-				}
 			}
 
 			// Append all metadata to the line
@@ -1381,41 +1361,45 @@ export class TaskManager extends Component {
 		// Add metadata based on format preference
 		const metadata = [];
 
-		// Add dates
-		if (formattedDueDate) {
-			metadata.push(
-				useDataviewFormat
-					? `[due:: ${formattedDueDate}]`
-					: `📅 ${formattedDueDate}`
-			);
+		// 1. Tags (excluding project/context tags that are handled separately)
+		if (completedTask.tags && completedTask.tags.length > 0) {
+			const tagsToAdd = completedTask.tags.filter((tag) => {
+				// Skip project tags (handled separately)
+				if (tag.startsWith("#project/")) return false;
+				// Skip context tags (handled separately)
+				if (
+					tag.startsWith("@") &&
+					completedTask.context &&
+					tag === `@${completedTask.context}`
+				)
+					return false;
+				return true;
+			});
+
+			if (tagsToAdd.length > 0) {
+				metadata.push(...tagsToAdd);
+			}
 		}
 
-		if (formattedStartDate) {
-			metadata.push(
-				useDataviewFormat
-					? `[start:: ${formattedStartDate}]`
-					: `🛫 ${formattedStartDate}`
-			);
+		// 2. Project
+		if (completedTask.project) {
+			if (useDataviewFormat) {
+				metadata.push(`[project:: ${completedTask.project}]`);
+			} else {
+				metadata.push(`#project/${completedTask.project}`);
+			}
 		}
 
-		if (formattedScheduledDate) {
-			metadata.push(
-				useDataviewFormat
-					? `[scheduled:: ${formattedScheduledDate}]`
-					: `⏳ ${formattedScheduledDate}`
-			);
+		// 3. Context
+		if (completedTask.context) {
+			if (useDataviewFormat) {
+				metadata.push(`[context:: ${completedTask.context}]`);
+			} else {
+				metadata.push(`@${completedTask.context}`);
+			}
 		}
 
-		// Add recurrence
-		if (completedTask.recurrence) {
-			metadata.push(
-				useDataviewFormat
-					? `[repeat:: ${completedTask.recurrence}]`
-					: `🔁 ${completedTask.recurrence}`
-			);
-		}
-
-		// Add priority
+		// 4. Priority
 		if (completedTask.priority) {
 			if (useDataviewFormat) {
 				let priorityValue: string | number;
@@ -1462,42 +1446,40 @@ export class TaskManager extends Component {
 			}
 		}
 
-		// Add project
-		if (completedTask.project) {
-			if (useDataviewFormat) {
-				metadata.push(`[project:: ${completedTask.project}]`);
-			} else {
-				metadata.push(`#project/${completedTask.project}`);
-			}
+		// 5. Recurrence
+		if (completedTask.recurrence) {
+			metadata.push(
+				useDataviewFormat
+					? `[repeat:: ${completedTask.recurrence}]`
+					: `🔁 ${completedTask.recurrence}`
+			);
 		}
 
-		// Add context
-		if (completedTask.context) {
-			if (useDataviewFormat) {
-				metadata.push(`[context:: ${completedTask.context}]`);
-			} else {
-				metadata.push(`@${completedTask.context}`);
-			}
+		// 6. Start Date
+		if (formattedStartDate) {
+			metadata.push(
+				useDataviewFormat
+					? `[start:: ${formattedStartDate}]`
+					: `🛫 ${formattedStartDate}`
+			);
 		}
 
-		// Add tags (excluding project/context tags that are handled separately)
-		if (completedTask.tags && completedTask.tags.length > 0) {
-			const tagsToAdd = completedTask.tags.filter((tag) => {
-				// Skip project tags (already added above)
-				if (tag.startsWith("#project/")) return false;
-				// Skip context tags (already added above)
-				if (
-					tag.startsWith("@") &&
-					completedTask.context &&
-					tag === `@${completedTask.context}`
-				)
-					return false;
-				return true;
-			});
+		// 7. Scheduled Date
+		if (formattedScheduledDate) {
+			metadata.push(
+				useDataviewFormat
+					? `[scheduled:: ${formattedScheduledDate}]`
+					: `⏳ ${formattedScheduledDate}`
+			);
+		}
 
-			if (tagsToAdd.length > 0) {
-				metadata.push(...tagsToAdd);
-			}
+		// 8. Due Date
+		if (formattedDueDate) {
+			metadata.push(
+				useDataviewFormat
+					? `[due:: ${formattedDueDate}]`
+					: `📅 ${formattedDueDate}`
+			);
 		}
 
 		// Append all metadata to the line
