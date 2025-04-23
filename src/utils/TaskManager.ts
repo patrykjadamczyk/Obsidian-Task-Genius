@@ -903,7 +903,6 @@ export class TaskManager extends Component {
 	public async updateTask(updatedTask: Task): Promise<void> {
 		// Get the original task to compare changes
 		const originalTask = this.indexer.getTaskById(updatedTask.id);
-		console.log("originalTask", originalTask);
 		if (!originalTask) {
 			throw new Error(`Task with ID ${updatedTask.id} not found`);
 		}
