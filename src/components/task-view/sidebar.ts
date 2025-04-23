@@ -47,15 +47,34 @@ export class SidebarComponent extends Component {
 			return;
 		}
 
+		// 将视图分成顶部组和底部组
+		const topViews = [];
+		const bottomViews = ["calendar", "gantt", "kanban"]; // 这些视图将放在底部
+
+		// 首先渲染顶部组视图
 		this.plugin.settings.viewConfiguration.forEach((viewConfig) => {
-			if (viewConfig.id === "calendar") {
-				this.createNavSpacer();
-			}
-			if (viewConfig.visible) {
+			if (viewConfig.visible && !bottomViews.includes(viewConfig.id)) {
 				this.createNavItem(
 					viewConfig.id,
-					t(viewConfig.name), // Use name from config, translate if needed
-					viewConfig.icon // Use icon from config
+					t(viewConfig.name),
+					viewConfig.icon
+				);
+				topViews.push(viewConfig.id);
+			}
+		});
+
+		// 添加分隔符
+		if (topViews.length > 0) {
+			this.createNavSpacer();
+		}
+
+		// 然后渲染底部组视图
+		this.plugin.settings.viewConfiguration.forEach((viewConfig) => {
+			if (viewConfig.visible && bottomViews.includes(viewConfig.id)) {
+				this.createNavItem(
+					viewConfig.id,
+					t(viewConfig.name),
+					viewConfig.icon
 				);
 			}
 		});

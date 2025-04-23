@@ -11,6 +11,8 @@ import { t } from "../translations/helper";
 import {
 	CalendarSpecificConfig,
 	KanbanSpecificConfig,
+	GanttSpecificConfig,
+	TwoColumnSpecificConfig,
 	SpecificViewConfig,
 	ViewConfig,
 	ViewFilterRule,
@@ -43,6 +45,13 @@ export class ViewConfigModal extends Modal {
 	private scheduledDateInput: TextComponent;
 	private pathIncludesInput: TextComponent;
 	private pathExcludesInput: TextComponent;
+
+	// TwoColumnView specific settings
+	private taskPropertyKeyInput: TextComponent;
+	private leftColumnTitleInput: TextComponent;
+	private rightColumnTitleInput: TextComponent;
+	private multiSelectTextInput: TextComponent;
+	private emptyStateTextInput: TextComponent;
 
 	constructor(
 		app: App,
@@ -186,6 +195,239 @@ export class ViewConfigModal extends Modal {
 						this.checkForChanges();
 					});
 				});
+		}
+
+		// Two Column View specific config
+		if (
+			this.isCreate ||
+			this.viewConfig.specificConfig?.viewType === "twocolumn"
+		) {
+			// For new views, add a "View Type" dropdown
+			if (this.isCreate) {
+				new Setting(contentEl)
+					.setName(t("View Type"))
+					.setDesc(t("Select the type of view to create"))
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("standard", t("Standard View"))
+							.addOption("twocolumn", t("Two Column View"))
+							.setValue("standard")
+							.onChange((value) => {
+								if (value === "twocolumn") {
+									// Create a new TwoColumnSpecificConfig
+									this.viewConfig.specificConfig = {
+										viewType: "twocolumn",
+										taskPropertyKey: "tags", // Default to tags
+										leftColumnTitle: t("Items"),
+										rightColumnDefaultTitle: t("Tasks"),
+										multiSelectText: t("selected items"),
+										emptyStateText: t("No items selected"),
+									};
+								} else {
+									// Remove specificConfig if not needed
+									delete this.viewConfig.specificConfig;
+								}
+								this.checkForChanges();
+
+								// Refresh the modal to show/hide the two column specific settings
+								this.onOpen();
+							});
+					});
+			}
+
+			// Only show TwoColumn specific settings if the view type is twocolumn
+			if (this.viewConfig.specificConfig?.viewType === "twocolumn") {
+				new Setting(contentEl)
+					.setName(t("Two Column View Settings"))
+					.setHeading();
+
+				// Task Property Key selector
+				new Setting(contentEl)
+					.setName(t("Group by Task Property"))
+					.setDesc(
+						t(
+							"Select which task property to use for left column grouping"
+						)
+					)
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("tags", t("Tags"))
+							.addOption("project", t("Project"))
+							.addOption("priority", t("Priority"))
+							.addOption("context", t("Context"))
+							.addOption("status", t("Status"))
+							.addOption("dueDate", t("Due Date"))
+							.addOption("scheduledDate", t("Scheduled Date"))
+							.addOption("startDate", t("Start Date"))
+							.addOption("filePath", t("File Path"))
+							.setValue(
+								(
+									this.viewConfig
+										.specificConfig as TwoColumnSpecificConfig
+								).taskPropertyKey || "tags"
+							)
+							.onChange((value) => {
+								if (
+									this.viewConfig.specificConfig?.viewType ===
+									"twocolumn"
+								) {
+									(
+										this.viewConfig
+											.specificConfig as TwoColumnSpecificConfig
+									).taskPropertyKey = value;
+
+									// Set appropriate default titles based on the selected property
+									if (!this.leftColumnTitleInput.getValue()) {
+										let title = t("Items");
+										switch (value) {
+											case "tags":
+												title = t("Tags");
+												break;
+											case "project":
+												title = t("Projects");
+												break;
+											case "priority":
+												title = t("Priorities");
+												break;
+											case "context":
+												title = t("Contexts");
+												break;
+											case "status":
+												title = t("Status");
+												break;
+											case "dueDate":
+												title = t("Due Dates");
+												break;
+											case "scheduledDate":
+												title = t("Scheduled Dates");
+												break;
+											case "startDate":
+												title = t("Start Dates");
+												break;
+											case "filePath":
+												title = t("Files");
+												break;
+										}
+										this.leftColumnTitleInput.setValue(
+											title
+										);
+										(
+											this.viewConfig
+												.specificConfig as TwoColumnSpecificConfig
+										).leftColumnTitle = title;
+									}
+
+									this.checkForChanges();
+								}
+							});
+					});
+
+				// Left Column Title
+				new Setting(contentEl)
+					.setName(t("Left Column Title"))
+					.setDesc(t("Title for the left column (items list)"))
+					.addText((text) => {
+						this.leftColumnTitleInput = text;
+						text.setValue(
+							(
+								this.viewConfig
+									.specificConfig as TwoColumnSpecificConfig
+							).leftColumnTitle || t("Items")
+						);
+						text.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"twocolumn"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as TwoColumnSpecificConfig
+								).leftColumnTitle = value;
+								this.checkForChanges();
+							}
+						});
+					});
+
+				// Right Column Title
+				new Setting(contentEl)
+					.setName(t("Right Column Title"))
+					.setDesc(
+						t("Default title for the right column (tasks list)")
+					)
+					.addText((text) => {
+						this.rightColumnTitleInput = text;
+						text.setValue(
+							(
+								this.viewConfig
+									.specificConfig as TwoColumnSpecificConfig
+							).rightColumnDefaultTitle || t("Tasks")
+						);
+						text.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"twocolumn"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as TwoColumnSpecificConfig
+								).rightColumnDefaultTitle = value;
+								this.checkForChanges();
+							}
+						});
+					});
+
+				// Multi-select Text
+				new Setting(contentEl)
+					.setName(t("Multi-select Text"))
+					.setDesc(t("Text to show when multiple items are selected"))
+					.addText((text) => {
+						this.multiSelectTextInput = text;
+						text.setValue(
+							(
+								this.viewConfig
+									.specificConfig as TwoColumnSpecificConfig
+							).multiSelectText || t("selected items")
+						);
+						text.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"twocolumn"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as TwoColumnSpecificConfig
+								).multiSelectText = value;
+								this.checkForChanges();
+							}
+						});
+					});
+
+				// Empty State Text
+				new Setting(contentEl)
+					.setName(t("Empty State Text"))
+					.setDesc(t("Text to show when no items are selected"))
+					.addText((text) => {
+						this.emptyStateTextInput = text;
+						text.setValue(
+							(
+								this.viewConfig
+									.specificConfig as TwoColumnSpecificConfig
+							).emptyStateText || t("No items selected")
+						);
+						text.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"twocolumn"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as TwoColumnSpecificConfig
+								).emptyStateText = value;
+								this.checkForChanges();
+							}
+						});
+					});
+			}
 		}
 
 		// --- Filter Rules ---

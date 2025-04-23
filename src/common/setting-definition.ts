@@ -74,11 +74,21 @@ export interface GanttSpecificConfig {
 	useMarkdownRenderer: boolean;
 }
 
+export interface TwoColumnSpecificConfig {
+	viewType: "twocolumn"; // Discriminator
+	taskPropertyKey: string; // Task property to use as the left column grouping (e.g., "tags", "project", "priority", "context")
+	leftColumnTitle: string; // Title for the left column
+	rightColumnDefaultTitle: string; // Default title for the right column
+	multiSelectText: string; // Text to show when multiple items are selected
+	emptyStateText: string; // Text to show when no items are selected
+}
+
 // ADDED: Union type for specific configs
 export type SpecificViewConfig =
 	| KanbanSpecificConfig
 	| CalendarSpecificConfig
-	| GanttSpecificConfig;
+	| GanttSpecificConfig
+	| TwoColumnSpecificConfig;
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -212,7 +222,7 @@ export interface TaskProgressBarSettings {
 	enableTaskStatusSwitcher: boolean;
 	enableCustomTaskMarks: boolean;
 	enableTextMarkInSourceMode: boolean;
-	enableCycleCompleteStatus: boolean;
+	enableCycleCompleteStatus: boolean; // Enable cycling through task statuses when clicking on task checkboxes
 	taskStatusCycle: string[];
 	taskStatusMarks: TaskStatusCycle;
 	excludeMarksFromCycle: string[];
