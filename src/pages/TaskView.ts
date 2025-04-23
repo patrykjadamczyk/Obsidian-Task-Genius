@@ -30,7 +30,7 @@ import {
 	DEFAULT_SETTINGS,
 	TwoColumnSpecificConfig,
 } from "../common/setting-definition";
-import { filterTasks } from "../utils/taskFilterUtils";
+import { filterTasks } from "../utils/TaskFilterUtils";
 import { CalendarComponent, CalendarEvent } from "../components/calendar";
 import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
