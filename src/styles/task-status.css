@@ -155,3 +155,11 @@
 	margin-right: 4px;
 	vertical-align: middle;
 }
+
+ol > .task-list-item .task-fake-bullet {
+	display: none;
+}
+
+ol > .task-list-item .task-state-container {
+	margin-inline-start: 0;
+}
