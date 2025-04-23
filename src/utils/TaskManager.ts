@@ -1021,29 +1021,52 @@ export class TaskManager extends Component {
 				.substring(contentStartIndex)
 				.trim();
 
-			// Remove existing tags and context from the content part only
+			// Remove all instances of existing tags and context from the content part
+
+			// First completely remove project tags from content
 			taskTextContent = taskTextContent
 				.replace(/#project\/[^\s]+/g, "")
-				.trim(); // Remove #project tags
-			taskTextContent = taskTextContent.replace(/@[^\s]+/g, "").trim(); // Remove @context tags
-			// Remove general tags (ensure not removing parts of words)
-			if (originalTask.tags) {
-				// Filter out project tags as they are handled differently now based on format
-				const generalTags = originalTask.tags.filter(
-					(tag) => !tag.startsWith("#project/")
+				.replace(/\s+/g, " ") // Normalize spaces
+				.trim();
+
+			// Then remove context tags from content
+			taskTextContent = taskTextContent
+				.replace(/@[^\s]+/g, "")
+				.replace(/\s+/g, " ") // Normalize spaces
+				.trim();
+
+			// Then remove general tags, ensuring all instances are removed
+			if (originalTask.tags && originalTask.tags.length > 0) {
+				// Get a unique list of tags to avoid processing duplicates
+				const uniqueTags = [...new Set(originalTask.tags)];
+
+				// Filter out project tags as they are handled differently
+				const generalTags = uniqueTags.filter(
+					(tag) =>
+						!tag.startsWith("#project/") && !tag.startsWith("@")
 				);
+
+				// Remove each general tag, ensuring we handle all instances
 				for (const tag of generalTags) {
+					// Extract the tag text without the # prefix
+					const tagText = tag.replace(/^#/, "");
+
+					// Create a regex that looks for the tag preceded by whitespace and followed by word boundary
+					// This ensures we don't remove parts of words or other content
 					const tagRegex = new RegExp(
-						`\s#${tag
-							.replace(/^#/, "")
-							.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`,
+						`\\s+#${tagText.replace(
+							/[.*+?^${}()|[\]\\]/g,
+							"\\$&"
+						)}\\b`,
 						"g"
 					);
 					taskTextContent = taskTextContent
-						.replace(tagRegex, "")
+						.replace(tagRegex, " ")
+						.replace(/\s+/g, " ") // Normalize spaces
 						.trim();
 				}
 			}
+
 			// Reconstruct the beginning of the line
 			updatedLine =
 				updatedLine.substring(0, contentStartIndex) + taskTextContent;
@@ -1159,11 +1182,14 @@ export class TaskManager extends Component {
 				} else {
 					if (!updatedTask.tags) updatedTask.tags = [];
 					const projectTag = `#project/${updatedTask.project}`;
+					// Only add to tags array if not already present
 					if (!updatedTask.tags.includes(projectTag)) {
-						updatedTask.tags.push(projectTag); // Will be added with other tags below
+						updatedTask.tags.push(projectTag);
 					}
-					// add project tag to metadata
-					metadata.push(projectTag);
+					// Only add to metadata if not already added before
+					if (!metadata.includes(projectTag)) {
+						metadata.push(projectTag);
+					}
 				}
 			}
 
@@ -1172,11 +1198,15 @@ export class TaskManager extends Component {
 				if (useDataviewFormat) {
 					metadata.push(`[context:: ${updatedTask.context}]`);
 				} else {
-					metadata.push(`@${updatedTask.context}`); // Add directly for emoji format
+					const contextTag = `@${updatedTask.context}`;
+					// Only add to metadata if not already present
+					if (!metadata.includes(contextTag)) {
+						metadata.push(contextTag);
+					}
 				}
 			}
 
-			// Add non-project/context tags for emoji format
+			// --- Add non-project/context tags for emoji format
 			if (
 				!useDataviewFormat &&
 				updatedTask.tags &&
@@ -1186,9 +1216,23 @@ export class TaskManager extends Component {
 				const generalTags = updatedTask.tags.filter(
 					(tag) => !tag.startsWith("#project/") // Project tags added separately if needed
 				);
-				// Avoid adding duplicate tags; context already added above for emoji
-				const uniqueGeneralTags = [...new Set(generalTags)];
-				metadata.push(...uniqueGeneralTags);
+
+				// Check for duplicates with what's already been added to metadata
+				const existingTagsInMetadata = new Set(metadata);
+				const uniqueGeneralTags = generalTags.filter(
+					(tag) => !existingTagsInMetadata.has(tag)
+				);
+
+				console.log("uniqueGeneralTags", uniqueGeneralTags);
+
+				// Convert array to Set and back to ensure uniqueness (in case tags array itself has duplicates)
+				const finalUniqueTags = [...new Set(uniqueGeneralTags)];
+
+				console.log("finalUniqueTags", finalUniqueTags);
+
+				if (finalUniqueTags.length > 0) {
+					metadata.push(...finalUniqueTags);
+				}
 			} else if (
 				useDataviewFormat &&
 				updatedTask.tags &&
@@ -1207,11 +1251,22 @@ export class TaskManager extends Component {
 						return false;
 					return true;
 				});
+
+				// Check for duplicates with what's already been added to metadata
+				const existingTagsInMetadata = new Set(metadata);
+				const uniqueTagsToAdd = tagsToAdd.filter(
+					(tag) => !existingTagsInMetadata.has(tag)
+				);
+
+				console.log("uniqueTagsToAdd", uniqueTagsToAdd);
+
 				// add tags to metadata
-				if (tagsToAdd.length > 0) {
-					metadata.push(...tagsToAdd);
+				if (uniqueTagsToAdd.length > 0) {
+					metadata.push(...uniqueTagsToAdd);
 				}
 			}
+
+			console.log("metadata", metadata);
 
 			// Append all metadata to the line
 			if (metadata.length > 0) {
