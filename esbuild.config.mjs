@@ -98,6 +98,7 @@ esbuild
 			"@lezer/common",
 			"@lezer/lr",
 			"@lezer/highlight",
+			"obsidian-typings",
 			...builtins,
 		],
 		format: "cjs",

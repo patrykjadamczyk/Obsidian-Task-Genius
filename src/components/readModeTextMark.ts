@@ -18,14 +18,23 @@ export function applyTaskTextMarks({
 	element: HTMLElement;
 	ctx: MarkdownPostProcessorContext;
 }) {
-	// Find all task list items in the element
+	// Find all task list items in the element - handle both ul and ol lists
 	const taskItems = element.findAll(".task-list-item");
+
+	// Track processed task items to avoid duplicates
+	const processedItems = new Set();
 
 	for (const taskItem of taskItems) {
 		// Skip if this task item already has our custom mark
-		if (taskItem.querySelector(".task-text-mark")) {
+		if (
+			taskItem.querySelector(".task-text-mark") ||
+			processedItems.has(taskItem)
+		) {
 			continue;
 		}
+
+		// Mark this item as processed
+		processedItems.add(taskItem);
 
 		// Get the original checkbox
 		const checkbox = taskItem.querySelector(

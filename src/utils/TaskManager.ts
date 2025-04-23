@@ -16,6 +16,7 @@ import { TaskIndexer } from "./import/TaskIndexer";
 import { TaskWorkerManager } from "./workers/TaskWorkerManager";
 import { LocalStorageCache } from "./persister";
 import TaskProgressBarPlugin from "src";
+import { RRule, RRuleSet, rrulestr } from "rrule";
 
 /**
  * TaskManager options
@@ -902,10 +903,15 @@ export class TaskManager extends Component {
 	public async updateTask(updatedTask: Task): Promise<void> {
 		// Get the original task to compare changes
 		const originalTask = this.indexer.getTaskById(updatedTask.id);
-		console.log("originalTask", originalTask);
 		if (!originalTask) {
 			throw new Error(`Task with ID ${updatedTask.id} not found`);
 		}
+
+		// Check if this is a completion of a recurring task
+		const isCompletingRecurringTask =
+			!originalTask.completed &&
+			updatedTask.completed &&
+			updatedTask.recurrence;
 
 		// Determine the metadata format from plugin settings
 		const useDataviewFormat =
@@ -1021,29 +1027,52 @@ export class TaskManager extends Component {
 				.substring(contentStartIndex)
 				.trim();
 
-			// Remove existing tags and context from the content part only
+			// Remove all instances of existing tags and context from the content part
+
+			// First completely remove project tags from content
 			taskTextContent = taskTextContent
 				.replace(/#project\/[^\s]+/g, "")
-				.trim(); // Remove #project tags
-			taskTextContent = taskTextContent.replace(/@[^\s]+/g, "").trim(); // Remove @context tags
-			// Remove general tags (ensure not removing parts of words)
-			if (originalTask.tags) {
-				// Filter out project tags as they are handled differently now based on format
-				const generalTags = originalTask.tags.filter(
-					(tag) => !tag.startsWith("#project/")
+				.replace(/\s+/g, " ") // Normalize spaces
+				.trim();
+
+			// Then remove context tags from content
+			taskTextContent = taskTextContent
+				.replace(/@[^\s]+/g, "")
+				.replace(/\s+/g, " ") // Normalize spaces
+				.trim();
+
+			// Then remove general tags, ensuring all instances are removed
+			if (originalTask.tags && originalTask.tags.length > 0) {
+				// Get a unique list of tags to avoid processing duplicates
+				const uniqueTags = [...new Set(originalTask.tags)];
+
+				// Filter out project tags as they are handled differently
+				const generalTags = uniqueTags.filter(
+					(tag) =>
+						!tag.startsWith("#project/") && !tag.startsWith("@")
 				);
+
+				// Remove each general tag, ensuring we handle all instances
 				for (const tag of generalTags) {
+					// Extract the tag text without the # prefix
+					const tagText = tag.replace(/^#/, "");
+
+					// Create a regex that looks for the tag preceded by whitespace and followed by word boundary
+					// This ensures we don't remove parts of words or other content
 					const tagRegex = new RegExp(
-						`\s#${tag
-							.replace(/^#/, "")
-							.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`,
+						`\\s+#${tagText.replace(
+							/[.*+?^${}()|[\]\\]/g,
+							"\\$&"
+						)}\\b`,
 						"g"
 					);
 					taskTextContent = taskTextContent
-						.replace(tagRegex, "")
+						.replace(tagRegex, " ")
+						.replace(/\s+/g, " ") // Normalize spaces
 						.trim();
 				}
 			}
+
 			// Reconstruct the beginning of the line
 			updatedLine =
 				updatedLine.substring(0, contentStartIndex) + taskTextContent;
@@ -1159,11 +1188,14 @@ export class TaskManager extends Component {
 				} else {
 					if (!updatedTask.tags) updatedTask.tags = [];
 					const projectTag = `#project/${updatedTask.project}`;
+					// Only add to tags array if not already present
 					if (!updatedTask.tags.includes(projectTag)) {
-						updatedTask.tags.push(projectTag); // Will be added with other tags below
+						updatedTask.tags.push(projectTag);
 					}
-					// add project tag to metadata
-					metadata.push(projectTag);
+					// Only add to metadata if not already added before
+					if (!metadata.includes(projectTag)) {
+						metadata.push(projectTag);
+					}
 				}
 			}
 
@@ -1172,11 +1204,15 @@ export class TaskManager extends Component {
 				if (useDataviewFormat) {
 					metadata.push(`[context:: ${updatedTask.context}]`);
 				} else {
-					metadata.push(`@${updatedTask.context}`); // Add directly for emoji format
+					const contextTag = `@${updatedTask.context}`;
+					// Only add to metadata if not already present
+					if (!metadata.includes(contextTag)) {
+						metadata.push(contextTag);
+					}
 				}
 			}
 
-			// Add non-project/context tags for emoji format
+			// --- Add non-project/context tags for emoji format
 			if (
 				!useDataviewFormat &&
 				updatedTask.tags &&
@@ -1186,9 +1222,23 @@ export class TaskManager extends Component {
 				const generalTags = updatedTask.tags.filter(
 					(tag) => !tag.startsWith("#project/") // Project tags added separately if needed
 				);
-				// Avoid adding duplicate tags; context already added above for emoji
-				const uniqueGeneralTags = [...new Set(generalTags)];
-				metadata.push(...uniqueGeneralTags);
+
+				// Check for duplicates with what's already been added to metadata
+				const existingTagsInMetadata = new Set(metadata);
+				const uniqueGeneralTags = generalTags.filter(
+					(tag) => !existingTagsInMetadata.has(tag)
+				);
+
+				console.log("uniqueGeneralTags", uniqueGeneralTags);
+
+				// Convert array to Set and back to ensure uniqueness (in case tags array itself has duplicates)
+				const finalUniqueTags = [...new Set(uniqueGeneralTags)];
+
+				console.log("finalUniqueTags", finalUniqueTags);
+
+				if (finalUniqueTags.length > 0) {
+					metadata.push(...finalUniqueTags);
+				}
 			} else if (
 				useDataviewFormat &&
 				updatedTask.tags &&
@@ -1207,9 +1257,16 @@ export class TaskManager extends Component {
 						return false;
 					return true;
 				});
+
+				// Check for duplicates with what's already been added to metadata
+				const existingTagsInMetadata = new Set(metadata);
+				const uniqueTagsToAdd = tagsToAdd.filter(
+					(tag) => !existingTagsInMetadata.has(tag)
+				);
+
 				// add tags to metadata
-				if (tagsToAdd.length > 0) {
-					metadata.push(...tagsToAdd);
+				if (uniqueTagsToAdd.length > 0) {
+					metadata.push(...uniqueTagsToAdd);
 				}
 			}
 
@@ -1227,6 +1284,25 @@ export class TaskManager extends Component {
 			// Update the line in the file content
 			if (updatedLine !== taskLine) {
 				lines[updatedTask.line] = updatedLine;
+
+				// If this is a completed recurring task, create a new task with updated dates
+				if (isCompletingRecurringTask) {
+					try {
+						const newTaskLine = this.createRecurringTask(
+							updatedTask,
+							indentation
+						);
+
+						// Insert the new task line after the current task
+						lines.splice(updatedTask.line + 1, 0, newTaskLine);
+						this.log(
+							`Created new recurring task after line ${updatedTask.line}`
+						);
+					} catch (error) {
+						console.error("Error creating recurring task:", error);
+					}
+				}
+
 				await this.vault.modify(file, lines.join("\n"));
 				await this.indexFile(file); // Re-index the modified file
 				this.log(
@@ -1241,6 +1317,316 @@ export class TaskManager extends Component {
 			console.error("Error updating task:", error);
 			throw error;
 		}
+	}
+
+	/**
+	 * Creates a new task line based on a completed recurring task
+	 */
+	private createRecurringTask(
+		completedTask: Task,
+		indentation: string
+	): string {
+		// Calculate the next due date based on the recurrence pattern
+		const nextDueDate = this.calculateNextDueDate(completedTask);
+
+		// Create a new task with the same content but updated dates
+		const newTask = { ...completedTask };
+
+		// Reset completion status and date
+		newTask.completed = false;
+		newTask.completedDate = undefined;
+
+		// Update due date
+		newTask.dueDate = nextDueDate;
+
+		// Format dates for task markdown
+		const formattedDueDate = nextDueDate
+			? this.formatDateForDisplay(nextDueDate)
+			: undefined;
+
+		// For other dates, copy the original ones if they exist
+		const formattedStartDate = completedTask.startDate
+			? this.formatDateForDisplay(completedTask.startDate)
+			: undefined;
+
+		const formattedScheduledDate = completedTask.scheduledDate
+			? this.formatDateForDisplay(completedTask.scheduledDate)
+			: undefined;
+
+		// Extract the original list marker (-, *, 1., etc.) from the original markdown
+		let listMarker = "- ";
+		if (completedTask.originalMarkdown) {
+			// Match the list marker pattern: could be "- ", "* ", "1. ", etc.
+			const listMarkerMatch = completedTask.originalMarkdown.match(
+				/^(\s*)([*\-+]|\d+\.)\s+\[/
+			);
+			if (listMarkerMatch && listMarkerMatch[2]) {
+				listMarker = listMarkerMatch[2] + " ";
+
+				// If it's a numbered list, increment the number
+				if (/^\d+\.$/.test(listMarkerMatch[2])) {
+					const numberStr = listMarkerMatch[2].replace(/\.$/, "");
+					const number = parseInt(numberStr);
+					listMarker = number + 1 + ". ";
+				}
+			}
+		}
+
+		// Create the task markdown with the correct list marker
+		const useDataviewFormat =
+			this.plugin.settings.preferMetadataFormat === "dataview";
+		// Start with the basic task using the extracted list marker
+		let newTaskLine = `${indentation}${listMarker}[ ] ${completedTask.content}`;
+
+		// Add metadata based on format preference
+		const metadata = [];
+
+		// Add dates
+		if (formattedDueDate) {
+			metadata.push(
+				useDataviewFormat
+					? `[due:: ${formattedDueDate}]`
+					: `📅 ${formattedDueDate}`
+			);
+		}
+
+		if (formattedStartDate) {
+			metadata.push(
+				useDataviewFormat
+					? `[start:: ${formattedStartDate}]`
+					: `🛫 ${formattedStartDate}`
+			);
+		}
+
+		if (formattedScheduledDate) {
+			metadata.push(
+				useDataviewFormat
+					? `[scheduled:: ${formattedScheduledDate}]`
+					: `⏳ ${formattedScheduledDate}`
+			);
+		}
+
+		// Add recurrence
+		if (completedTask.recurrence) {
+			metadata.push(
+				useDataviewFormat
+					? `[repeat:: ${completedTask.recurrence}]`
+					: `🔁 ${completedTask.recurrence}`
+			);
+		}
+
+		// Add priority
+		if (completedTask.priority) {
+			if (useDataviewFormat) {
+				let priorityValue: string | number;
+				switch (completedTask.priority) {
+					case 5:
+						priorityValue = "highest";
+						break;
+					case 4:
+						priorityValue = "high";
+						break;
+					case 3:
+						priorityValue = "medium";
+						break;
+					case 2:
+						priorityValue = "low";
+						break;
+					case 1:
+						priorityValue = "lowest";
+						break;
+					default:
+						priorityValue = completedTask.priority;
+				}
+				metadata.push(`[priority:: ${priorityValue}]`);
+			} else {
+				let priorityMarker = "";
+				switch (completedTask.priority) {
+					case 5:
+						priorityMarker = "🔺";
+						break;
+					case 4:
+						priorityMarker = "⏫";
+						break;
+					case 3:
+						priorityMarker = "🔼";
+						break;
+					case 2:
+						priorityMarker = "🔽";
+						break;
+					case 1:
+						priorityMarker = "⏬";
+						break;
+				}
+				if (priorityMarker) metadata.push(priorityMarker);
+			}
+		}
+
+		// Add project
+		if (completedTask.project) {
+			if (useDataviewFormat) {
+				metadata.push(`[project:: ${completedTask.project}]`);
+			} else {
+				metadata.push(`#project/${completedTask.project}`);
+			}
+		}
+
+		// Add context
+		if (completedTask.context) {
+			if (useDataviewFormat) {
+				metadata.push(`[context:: ${completedTask.context}]`);
+			} else {
+				metadata.push(`@${completedTask.context}`);
+			}
+		}
+
+		// Add tags (excluding project/context tags that are handled separately)
+		if (completedTask.tags && completedTask.tags.length > 0) {
+			const tagsToAdd = completedTask.tags.filter((tag) => {
+				// Skip project tags (already added above)
+				if (tag.startsWith("#project/")) return false;
+				// Skip context tags (already added above)
+				if (
+					tag.startsWith("@") &&
+					completedTask.context &&
+					tag === `@${completedTask.context}`
+				)
+					return false;
+				return true;
+			});
+
+			if (tagsToAdd.length > 0) {
+				metadata.push(...tagsToAdd);
+			}
+		}
+
+		// Append all metadata to the line
+		if (metadata.length > 0) {
+			newTaskLine = `${newTaskLine} ${metadata.join(" ")}`;
+		}
+
+		return newTaskLine;
+	}
+
+	/**
+	 * Calculates the next due date based on recurrence pattern
+	 */
+	private calculateNextDueDate(task: Task): number | undefined {
+		if (!task.recurrence) return undefined;
+
+		// Start with current due date or today if no due date
+		const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+
+		try {
+			// Parse different recurrence formats
+			// Tasks plugin style: "every day", "every 2 weeks", etc.
+			const recurrence = task.recurrence.trim().toLowerCase();
+
+			// Default to adding 1 day if we can't parse the recurrence
+			let nextDate = new Date(baseDate);
+			nextDate.setDate(nextDate.getDate() + 1);
+
+			// Parse "every X days/weeks/months/years" format
+			if (recurrence.startsWith("every")) {
+				const parts = recurrence.split(" ");
+
+				// Handle "every day/week/month/year"
+				if (parts.length >= 2) {
+					let interval = 1;
+					let unit = parts[1];
+
+					// Check if there's a number after "every"
+					if (parts.length >= 3 && !isNaN(parseInt(parts[1]))) {
+						interval = parseInt(parts[1]);
+						unit = parts[2];
+					}
+
+					// Make unit singular for matching
+					if (unit.endsWith("s")) {
+						unit = unit.substring(0, unit.length - 1);
+					}
+
+					// Calculate next date based on unit
+					switch (unit) {
+						case "day":
+							nextDate.setDate(baseDate.getDate() + interval);
+							break;
+						case "week":
+							nextDate.setDate(baseDate.getDate() + interval * 7);
+							break;
+						case "month":
+							nextDate.setMonth(baseDate.getMonth() + interval);
+							break;
+						case "year":
+							nextDate.setFullYear(
+								baseDate.getFullYear() + interval
+							);
+							break;
+						default:
+							// For unknown units, default to days
+							nextDate.setDate(baseDate.getDate() + interval);
+					}
+				}
+			}
+			// Handle specific weekday recurrences like "every Monday"
+			else if (
+				recurrence.includes("monday") ||
+				recurrence.includes("tuesday") ||
+				recurrence.includes("wednesday") ||
+				recurrence.includes("thursday") ||
+				recurrence.includes("friday") ||
+				recurrence.includes("saturday") ||
+				recurrence.includes("sunday")
+			) {
+				const weekdays = {
+					sunday: 0,
+					monday: 1,
+					tuesday: 2,
+					wednesday: 3,
+					thursday: 4,
+					friday: 5,
+					saturday: 6,
+				};
+
+				// Find which weekday is mentioned
+				let targetDay = -1;
+				for (const [day, value] of Object.entries(weekdays)) {
+					if (recurrence.includes(day)) {
+						targetDay = value;
+						break;
+					}
+				}
+
+				if (targetDay >= 0) {
+					// Start from tomorrow to avoid repeating on the same day
+					nextDate.setDate(baseDate.getDate() + 1);
+
+					// Find the next occurrence of the target day
+					while (nextDate.getDay() !== targetDay) {
+						nextDate.setDate(nextDate.getDate() + 1);
+					}
+				}
+			}
+
+			return nextDate.getTime();
+		} catch (error) {
+			console.error("Error calculating next due date:", error);
+			// Default fallback: add one day
+			const tomorrow = new Date(baseDate);
+			tomorrow.setDate(tomorrow.getDate() + 1);
+			return tomorrow.getTime();
+		}
+	}
+
+	/**
+	 * Format a date for display in task metadata
+	 */
+	private formatDateForDisplay(timestamp: number): string {
+		const date = new Date(timestamp);
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+			2,
+			"0"
+		)}-${String(date.getDate()).padStart(2, "0")}`;
 	}
 
 	/**

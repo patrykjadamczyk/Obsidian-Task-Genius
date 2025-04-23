@@ -272,6 +272,18 @@ export function updateProgressBarInElement({
 			const tasksByHeading = groupTasksByHeading(element);
 			addHeadingProgressBars(plugin, tasksByHeading, "normal");
 		}
+	}
+	// Process ordered lists with tasks
+	else if (element.find("ol.contains-task-list")) {
+		const elements = element.findAll(".task-list-item");
+		const groupedElements = groupElementsByParent(elements);
+		loadProgressbar(plugin, groupedElements, "normal");
+
+		// Add heading progress bars if enabled in settings
+		if (plugin.settings.addTaskProgressBarToHeading) {
+			const tasksByHeading = groupTasksByHeading(element);
+			addHeadingProgressBars(plugin, tasksByHeading, "normal");
+		}
 	} else if (element.closest(".dataview-container")) {
 		const parentElement = element.closest(".dataview-container");
 		if (!parentElement) return;

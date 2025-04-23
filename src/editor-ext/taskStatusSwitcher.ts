@@ -36,6 +36,7 @@ class TaskStatusWidget extends WidgetType {
 	private cycle: string[] = [];
 	private marks: Record<string, string> = {};
 	private isLivePreview: boolean;
+	private bulletText: string;
 
 	constructor(
 		readonly app: App,
@@ -43,20 +44,23 @@ class TaskStatusWidget extends WidgetType {
 		readonly view: EditorView,
 		readonly from: number,
 		readonly to: number,
-		readonly currentState: TaskState
+		readonly currentState: TaskState,
+		readonly listPrefix: string
 	) {
 		super();
 		const config = this.getStatusConfig();
 		this.cycle = config.cycle;
 		this.marks = config.marks;
 		this.isLivePreview = view.state.field(editorLivePreviewField);
+		this.bulletText = listPrefix.trim();
 	}
 
 	eq(other: TaskStatusWidget): boolean {
 		return (
 			this.from === other.from &&
 			this.to === other.to &&
-			this.currentState === other.currentState
+			this.currentState === other.currentState &&
+			this.bulletText === other.bulletText
 		);
 	}
 
@@ -83,15 +87,19 @@ class TaskStatusWidget extends WidgetType {
 
 		// Only add the bullet point in Live Preview mode
 		if (this.isLivePreview) {
+			const isNumberedList = /^\d+[.)]$/.test(this.bulletText);
+
 			wrapper.createEl(
 				"span",
 				{
-					cls: "cm-formatting cm-formatting-list cm-formatting-list-ul",
+					cls: isNumberedList
+						? "cm-formatting cm-formatting-list cm-formatting-list-ol"
+						: "cm-formatting cm-formatting-list cm-formatting-list-ul",
 				},
 				(el) => {
 					el.createEl("span", {
-						cls: "list-bullet",
-						text: "-",
+						cls: isNumberedList ? "list-number" : "list-bullet",
+						text: this.bulletText,
 					});
 				}
 			);
@@ -289,9 +297,10 @@ export function taskStatusSwitcherExtension(
 				}
 
 				const mark = match[4];
-				const bulletWithSpace = match[2]; // e.g., "- "
-				const checkboxWithSpace = match[3]; // e.g., "[x] "
-				const checkbox = checkboxWithSpace.trim(); // e.g., "[x]"
+				const bulletWithSpace = match[2];
+				const bulletText = bulletWithSpace.trim();
+				const checkboxWithSpace = match[3];
+				const checkbox = checkboxWithSpace.trim();
 				const isLivePreview = this.isLivePreview(view.state);
 				const cycle = plugin.settings.taskStatusCycle;
 				const marks = plugin.settings.taskStatusMarks;
@@ -331,7 +340,8 @@ export function taskStatusSwitcherExtension(
 								view,
 								checkboxStart,
 								checkboxEnd,
-								currentState
+								currentState,
+								bulletText
 							),
 						})
 					);
@@ -353,7 +363,8 @@ export function taskStatusSwitcherExtension(
 									match[1].length +
 									bulletWithSpace.length +
 									checkbox.length,
-								currentState
+								currentState,
+								bulletText
 							),
 						})
 					);

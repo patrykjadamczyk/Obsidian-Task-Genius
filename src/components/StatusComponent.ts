@@ -74,10 +74,17 @@ export class StatusComponent extends Component {
 						return;
 					}
 
-					this.params.onTaskUpdate?.(this.task, {
+					const options = {
 						...this.task,
 						status: status.text,
-					});
+					};
+
+					if (status.text === "x" && !this.task.completed) {
+						options.completed = true;
+						options.completedDate = new Date().getTime();
+					}
+
+					this.params.onTaskUpdate?.(this.task, options);
 					this.params.onTaskStatusSelected?.(status.text);
 				});
 			});

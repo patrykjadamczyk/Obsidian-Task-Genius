@@ -7,31 +7,34 @@ import {
 	ExtraButtonComponent,
 	ButtonComponent,
 	Menu,
+	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import { SidebarComponent } from "../components/task-view/sidebar";
 import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";
-import { TagViewComponent } from "../components/task-view/TagViewComponent";
-import { ProjectViewComponent } from "../components/task-view/ProjectViewComponent";
+import { TagsComponent } from "../components/task-view/tags";
+import { ProjectsComponent } from "../components/task-view/projects";
 import { ReviewComponent } from "../components/task-view/review";
 import {
-	createTaskCheckbox,
 	TaskDetailsComponent,
+	createTaskCheckbox,
 } from "../components/task-view/details";
 import "../styles/view.css";
 import TaskProgressBarPlugin from "../index";
-import { QuickCaptureModal } from "src/components/QuickCaptureModal";
+import { QuickCaptureModal } from "../components/QuickCaptureModal";
 import { t } from "../translations/helper";
 import {
 	getViewSettingOrDefault,
 	ViewMode,
 	DEFAULT_SETTINGS,
+	TwoColumnSpecificConfig,
 } from "../common/setting-definition";
-import { filterTasks } from "../utils/taskFilterUtils";
-import { CalendarComponent, CalendarEvent } from "src/components/calendar";
+import { filterTasks } from "../utils/TaskFilterUtils";
+import { CalendarComponent, CalendarEvent } from "../components/calendar";
 import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
+import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -43,13 +46,16 @@ export class TaskView extends ItemView {
 	private sidebarComponent: SidebarComponent;
 	private contentComponent: ContentComponent;
 	private forecastComponent: ForecastComponent;
-	private tagsComponent: TagViewComponent;
-	private projectsComponent: ProjectViewComponent;
+	private tagsComponent: TagsComponent;
+	private projectsComponent: ProjectsComponent;
 	private reviewComponent: ReviewComponent;
 	private detailsComponent: TaskDetailsComponent;
 	private calendarComponent: CalendarComponent;
 	private kanbanComponent: KanbanComponent;
 	private ganttComponent: GanttComponent;
+	// Custom view components by view ID
+	private twoColumnViewComponents: Map<string, TaskPropertyTwoColumnView> =
+		new Map();
 	// UI state management
 	private isSidebarCollapsed: boolean = false;
 	private isDetailsVisible: boolean = false;
@@ -216,7 +222,7 @@ export class TaskView extends ItemView {
 		this.forecastComponent.load();
 		this.forecastComponent.containerEl.hide();
 
-		this.tagsComponent = new TagViewComponent(
+		this.tagsComponent = new TagsComponent(
 			this.rootContainerEl,
 			this.plugin.app,
 			this.plugin
@@ -225,7 +231,7 @@ export class TaskView extends ItemView {
 		this.tagsComponent.load();
 		this.tagsComponent.containerEl.hide();
 
-		this.projectsComponent = new ProjectViewComponent(
+		this.projectsComponent = new ProjectsComponent(
 			this.rootContainerEl,
 			this.plugin.app,
 			this.plugin
@@ -404,17 +410,17 @@ export class TaskView extends ItemView {
 			this.toggleTaskCompletion(task);
 		};
 
-		this.detailsComponent.onTaskToggleComplete = (task) => {
+		this.detailsComponent.onTaskToggleComplete = (task: Task) => {
 			this.toggleTaskCompletion(task);
 		};
 
-		this.detailsComponent.onTaskEdit = (task) => {
+		this.detailsComponent.onTaskEdit = (task: Task) => {
 			this.editTask(task);
 		};
 
 		this.detailsComponent.onTaskUpdate = async (
-			originalTask,
-			updatedTask
+			originalTask: Task,
+			updatedTask: Task
 		) => {
 			await this.updateTask(originalTask, updatedTask);
 		};
@@ -492,6 +498,11 @@ export class TaskView extends ItemView {
 		this.tagsComponent.containerEl.hide();
 		this.projectsComponent.containerEl.hide();
 		this.reviewComponent.containerEl.hide();
+		// Hide any visible TwoColumnView components
+		this.twoColumnViewComponents.forEach((component) => {
+			component.containerEl.hide();
+		});
+
 		this.calendarComponent.containerEl.hide();
 		this.kanbanComponent.containerEl.hide();
 		this.ganttComponent.containerEl.hide();
@@ -499,34 +510,73 @@ export class TaskView extends ItemView {
 		let targetComponent: any = null;
 		let modeForComponent: ViewMode = viewId;
 
-		switch (viewId) {
-			case "forecast":
-				targetComponent = this.forecastComponent;
-				break;
-			case "tags":
-				targetComponent = this.tagsComponent;
-				break;
-			case "projects":
-				targetComponent = this.projectsComponent;
-				break;
-			case "review":
-				targetComponent = this.reviewComponent;
-				break;
-			case "calendar":
-				targetComponent = this.calendarComponent;
-				break;
-			case "kanban":
-				targetComponent = this.kanbanComponent;
-				break;
-			case "gantt":
-				targetComponent = this.ganttComponent;
-				break;
-			case "inbox":
-			case "flagged":
-			default:
-				targetComponent = this.contentComponent;
-				modeForComponent = viewId;
-				break;
+		// Get view configuration to check for specific view types
+		const viewConfig = getViewSettingOrDefault(this.plugin, viewId);
+
+		// Handle TwoColumn views
+		if (viewConfig.specificConfig?.viewType === "twocolumn") {
+			// Get or create TwoColumnView component
+			if (!this.twoColumnViewComponents.has(viewId)) {
+				// Create a new TwoColumnView component
+				const twoColumnConfig =
+					viewConfig.specificConfig as TwoColumnSpecificConfig;
+				const twoColumnComponent = new TaskPropertyTwoColumnView(
+					this.rootContainerEl,
+					this.app,
+					this.plugin,
+					twoColumnConfig,
+					viewId
+				);
+				this.addChild(twoColumnComponent);
+
+				// Set up event handlers
+				twoColumnComponent.onTaskSelected = (task) => {
+					this.handleTaskSelection(task);
+				};
+				twoColumnComponent.onTaskCompleted = (task) => {
+					this.toggleTaskCompletion(task);
+				};
+				twoColumnComponent.onTaskContextMenu = (event, task) => {
+					this.handleTaskContextMenu(event, task);
+				};
+
+				// Store for later use
+				this.twoColumnViewComponents.set(viewId, twoColumnComponent);
+			}
+
+			// Get the component to display
+			targetComponent = this.twoColumnViewComponents.get(viewId);
+		} else {
+			// Standard view types
+			switch (viewId) {
+				case "forecast":
+					targetComponent = this.forecastComponent;
+					break;
+				case "tags":
+					targetComponent = this.tagsComponent;
+					break;
+				case "projects":
+					targetComponent = this.projectsComponent;
+					break;
+				case "review":
+					targetComponent = this.reviewComponent;
+					break;
+				case "calendar":
+					targetComponent = this.calendarComponent;
+					break;
+				case "kanban":
+					targetComponent = this.kanbanComponent;
+					break;
+				case "gantt":
+					targetComponent = this.ganttComponent;
+					break;
+				case "inbox":
+				case "flagged":
+				default:
+					targetComponent = this.contentComponent;
+					modeForComponent = viewId;
+					break;
+			}
 		}
 
 		if (targetComponent) {
@@ -547,6 +597,22 @@ export class TaskView extends ItemView {
 				);
 				targetComponent.setViewMode(modeForComponent, project);
 			}
+
+			this.twoColumnViewComponents.forEach((component) => {
+				if (
+					component &&
+					typeof component.setTasks === "function" &&
+					component.getViewId() === viewId
+				) {
+					component.setTasks(
+						filterTasks(
+							this.tasks,
+							component.getViewId(),
+							this.plugin
+						)
+					);
+				}
+			});
 			if (
 				viewId === "review" &&
 				typeof targetComponent.refreshReviewSettings === "function"
@@ -680,7 +746,8 @@ export class TaskView extends ItemView {
 	}
 
 	public async triggerViewUpdate() {
-		console.log(`Triggering view update for: ${this.currentViewId}`);
+		// Update tasks in all TwoColumnView components
+
 		this.switchView(this.currentViewId);
 	}
 
@@ -756,6 +823,12 @@ export class TaskView extends ItemView {
 	}
 
 	async onClose() {
+		// Cleanup TwoColumnView components
+		this.twoColumnViewComponents.forEach((component) => {
+			this.removeChild(component);
+		});
+		this.twoColumnViewComponents.clear();
+
 		this.unload();
 		this.rootContainerEl.empty();
 		this.rootContainerEl.detach();

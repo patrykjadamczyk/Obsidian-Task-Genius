@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-task-progress-bar",
-	"version": "8.1.0",
+	"version": "8.2.0",
 	"description": "Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features.",
 	"main": "main.js",
 	"scripts": {
@@ -25,15 +25,9 @@
 	"author": "Boninall",
 	"license": "MIT",
 	"devDependencies": {
-		"@codemirror/autocomplete": "^6.0.0",
-		"@codemirror/commands": "^6.0.0",
-		"@codemirror/lang-css": "^6.0.0",
-		"@codemirror/lang-html": "^6.0.0",
 		"@codemirror/language": "https://github.com/lishid/cm-language",
-		"@codemirror/lint": "^6.0.0",
 		"@codemirror/search": "^6.0.0",
 		"@codemirror/state": "^6.0.0",
-		"@codemirror/stream-parser": "https://github.com/lishid/stream-parser",
 		"@codemirror/view": "^6.0.0",
 		"@datastructures-js/queue": "^4.2.3",
 		"@types/node": "^16.11.6",
@@ -46,8 +40,8 @@
 		"esbuild-plugin-inline-worker": "https://github.com/mitschabaude/esbuild-plugin-inline-worker",
 		"monkey-around": "^3.0.0",
 		"obsidian": "^1.8.7",
-		"obsidian-typings": "^2.39.0",
 		"regexp-match-indices": "^1.0.2",
+		"rrule": "^2.8.1",
 		"tslib": "2.4.0",
 		"typescript": "4.7.3"
 	},
