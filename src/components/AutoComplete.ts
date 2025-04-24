@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, App, prepareFuzzySearch } from "obsidian";
+import { AbstractInputSuggest, App, prepareFuzzySearch, TFile } from "obsidian";
 import TaskProgressBarPlugin from "src";
 
 abstract class BaseSuggest<T> extends AbstractInputSuggest<T> {
@@ -137,5 +137,61 @@ export class TagSuggest extends CustomSuggest {
 	// Override to display full tag
 	getSuggestionText(item: string): string {
 		return `#${item}`;
+	}
+}
+
+/**
+ * PathSuggest - Provides autocomplete for file paths
+ */
+export class FolderSuggest extends CustomSuggest {
+	private plugin: TaskProgressBarPlugin;
+
+	constructor(
+		app: App,
+		inputEl: HTMLInputElement,
+		plugin: TaskProgressBarPlugin
+	) {
+		// Get all markdown files in the vault
+		const folders = app.vault.getAllFolders();
+		const paths = folders.map((file) => file.path);
+		super(app, inputEl, paths);
+		this.plugin = plugin;
+	}
+
+	// Override getSuggestions to handle comma-separated paths
+	getSuggestions(query: string): string[] {
+		const parts = query.split(",");
+		const currentPathInput = parts[parts.length - 1].trim();
+
+		if (!currentPathInput) {
+			return this.availableChoices.slice(0, 20);
+		}
+
+		const fuzzySearch = prepareFuzzySearch(currentPathInput.toLowerCase());
+		return this.availableChoices
+			.filter((path) => fuzzySearch(path.toLowerCase()))
+			.sort((a, b) => {
+				// Sort by path length (shorter paths first)
+				// This helps prioritize files in the root or with shorter paths
+				return a.length - b.length;
+			})
+			.slice(0, 20);
+	}
+
+	// Override to display the path with folder structure
+	getSuggestionText(item: string): string {
+		return item;
+	}
+
+	// Override to keep previous paths and add the selected one
+	getSuggestionValue(item: string): string {
+		const currentValue = this.inputEl.value;
+		const parts = currentValue.split(",");
+
+		// Replace the last part with the selected path
+		parts[parts.length - 1] = item;
+
+		// Join back with commas and add a new comma for the next path
+		return `${parts.join(",")},`;
 	}
 }

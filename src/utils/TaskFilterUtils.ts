@@ -140,7 +140,7 @@ export function filterTasks(
 	}
 	if (filterRules.project) {
 		filtered = filtered.filter(
-			(task) => task.project === filterRules.project
+			(task) => task.project?.trim() === filterRules.project?.trim()
 		);
 	}
 	if (filterRules.priority !== undefined) {
@@ -162,6 +162,7 @@ export function filterTasks(
 	if (filterRules.pathIncludes) {
 		const query = filterRules.pathIncludes
 			.split(",")
+			.filter((p) => p.trim() !== "")
 			.map((p) => p.trim().toLowerCase());
 		filtered = filtered.filter((task) =>
 			query.some((q) => task.filePath.toLowerCase().includes(q))
@@ -170,6 +171,7 @@ export function filterTasks(
 	if (filterRules.pathExcludes) {
 		const query = filterRules.pathExcludes
 			.split(",")
+			.filter((p) => p.trim() !== "")
 			.map((p) => p.trim().toLowerCase());
 		filtered = filtered.filter(
 			(task) =>

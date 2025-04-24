@@ -19,6 +19,7 @@ import {
 	ViewMode,
 } from "../common/setting-definition";
 import TaskProgressBarPlugin from "../index";
+import { FolderSuggest } from "./AutoComplete";
 
 export class ViewConfigModal extends Modal {
 	private viewConfig: ViewConfig;
@@ -585,6 +586,7 @@ export class ViewConfigModal extends Modal {
 				)
 			)
 			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl, this.plugin);
 				this.pathIncludesInput = text;
 				text.setValue(this.viewFilterRule.pathIncludes || "");
 				text.onChange(() => this.checkForChanges());
@@ -597,6 +599,7 @@ export class ViewConfigModal extends Modal {
 				)
 			)
 			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl, this.plugin);
 				this.pathExcludesInput = text;
 				text.setValue(this.viewFilterRule.pathExcludes || "");
 				text.onChange(() => this.checkForChanges());
