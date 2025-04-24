@@ -35,7 +35,7 @@ export function autoCompleteParentExtension(
  * @param plugin The plugin instance
  * @returns The original transaction or a modified transaction
  */
-export function handleParentTaskUpdateTransaction(
+function handleParentTaskUpdateTransaction(
 	tr: Transaction,
 	app: App,
 	plugin: TaskProgressBarPlugin
@@ -69,7 +69,6 @@ export function handleParentTaskUpdateTransaction(
 		doc,
 		parentInfo.lineNumber,
 		parentInfo.indentationLevel,
-		app,
 		plugin
 	);
 
@@ -331,7 +330,6 @@ function findParentTask(
  * @param doc The document to check
  * @param parentLineNumber The line number of the parent task
  * @param parentIndentLevel The indentation level of the parent task
- * @param app The Obsidian app instance
  * @param plugin The plugin instance
  * @returns True if all siblings are completed (considering workflow rules), false otherwise
  */
@@ -339,15 +337,14 @@ function areAllSiblingsCompleted(
 	doc: Text,
 	parentLineNumber: number,
 	parentIndentLevel: number,
-	app: App,
 	plugin: TaskProgressBarPlugin
 ): boolean {
-	const tabSize = getTabSize(app);
+	const tabSize = getTabSize(plugin.app);
 
 	// The expected indentation level for child tasks
 	// Ensure childIndentLevel is correctly calculated based on actual indentation characters if mixed tabs/spaces are possible
 	const parentLine = doc.line(parentLineNumber);
-	const parentIndentMatch = parentLine.text.match(/^[/s|\t]*/);
+	const parentIndentMatch = parentLine.text.match(/^[\s|\t]*/);
 	const parentIndentText = parentIndentMatch ? parentIndentMatch[0] : "";
 	// Simple addition might not be robust if mixing tabs and spaces; getTabSize helps standardize comparison
 	// We'll primarily compare raw length for hierarchy, assuming consistent indentation within a list.
@@ -379,12 +376,14 @@ function areAllSiblingsCompleted(
 		}
 
 		if (
-			indentLevel > parentIndentLevel &&
+			indentLevel === childIndentLevel &&
 			lineText.startsWith(parentIndentText)
 		) {
 			// Check if it's a task using a regex that allows for flexible indentation matching
 			const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
+
+			console.log(taskMatch);
 
 			if (taskMatch) {
 				// Check if this task's indentation makes it a direct child
@@ -646,3 +645,13 @@ function markParentAsInProgress(
 		],
 	};
 }
+
+export {
+	handleParentTaskUpdateTransaction,
+	findTaskStatusChange,
+	findParentTask,
+	areAllSiblingsCompleted,
+	anySiblingWithStatus,
+	getParentTaskStatus,
+	taskStatusChangeAnnotation,
+};

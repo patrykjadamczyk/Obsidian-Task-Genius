@@ -7,7 +7,7 @@ import {
 	WidgetType,
 } from "@codemirror/view";
 import { SearchCursor } from "@codemirror/search";
-import { App } from "obsidian";
+import { App, Vault } from "obsidian";
 import { EditorState, Range, Text } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { foldable, syntaxTree, tokenClassNodeProp } from "@codemirror/language";
@@ -704,7 +704,9 @@ export function taskProgressBarExtension(
 						line.to
 					);
 					// [CustomGoalFeature] Extract the task text and check for goal information
-					const customGoal = plugin?.settings.allowCustomProgressGoal? extractTaskAndGoalInfo(lineText): null;
+					const customGoal = plugin?.settings.allowCustomProgressGoal
+						? extractTaskAndGoalInfo(lineText)
+						: null;
 					if (
 						!lineText ||
 						!/^[\s|\t]*([-*+]|\d+\.)\s\[(.)\]/.test(lineText)
@@ -1265,13 +1267,14 @@ export function taskProgressBarExtension(
 			 */
 			private getTabSize(): number {
 				try {
-					const vaultConfig = app.vault as any;
+					const vaultConfig = app.vault as Vault;
 					const useTab =
 						vaultConfig.getConfig?.("useTab") === undefined ||
 						vaultConfig.getConfig?.("useTab") === true;
-					return useTab
-						? (vaultConfig.getConfig?.("tabSize") || 4) / 4
-						: vaultConfig.getConfig?.("tabSize") || 4;
+					const tabSize = vaultConfig.getConfig?.("tabSize");
+					const numericTabSize =
+						typeof tabSize === "number" ? tabSize : 4;
+					return useTab ? numericTabSize / 4 : numericTabSize;
 				} catch (e) {
 					console.error("Error getting tab size:", e);
 					return 4; // Default tab size
@@ -1350,7 +1353,9 @@ export function taskProgressBarExtension(
 				const headingTotalRegex = this.createTotalTaskRegex(true);
 
 				// [CustomGoalFeature] - Check to use custom goal
-				const useTaskGoal: boolean = plugin?.settings.allowCustomProgressGoal && customGoalTotal !== null;
+				const useTaskGoal: boolean =
+					plugin?.settings.allowCustomProgressGoal &&
+					customGoalTotal !== null;
 				// Count tasks
 				for (let i = 0; i < textArray.length; i++) {
 					if (i === 0) continue; // Skip the first line
@@ -1392,23 +1397,29 @@ export function taskProgressBarExtension(
 								});
 							}
 
-							const taskGoal = extractTaskAndGoalInfo(lineTextTrimmed); // Check for task-specific goal [CustomGoalFeature]
+							const taskGoal =
+								extractTaskAndGoalInfo(lineTextTrimmed); // Check for task-specific goal [CustomGoalFeature]
 							// Count based on status
 							if (status === "completed") {
 								if (!useTaskGoal) completed++;
-								if (useTaskGoal && taskGoal !== null) completed += taskGoal;
+								if (useTaskGoal && taskGoal !== null)
+									completed += taskGoal;
 							} else if (status === "inProgress") {
 								if (!useTaskGoal) inProgress++;
-								if (useTaskGoal && taskGoal !== null) inProgress += taskGoal;
+								if (useTaskGoal && taskGoal !== null)
+									inProgress += taskGoal;
 							} else if (status === "abandoned") {
 								if (!useTaskGoal) abandoned++;
-								if (useTaskGoal && taskGoal !== null) abandoned += taskGoal;
+								if (useTaskGoal && taskGoal !== null)
+									abandoned += taskGoal;
 							} else if (status === "planned") {
 								if (!useTaskGoal) planned++;
-								if (useTaskGoal && taskGoal !== null) planned += taskGoal;
+								if (useTaskGoal && taskGoal !== null)
+									planned += taskGoal;
 							} else if (status === "notStarted") {
 								if (!useTaskGoal) notStarted++;
-								if (useTaskGoal && taskGoal !== null) notStarted += taskGoal;
+								if (useTaskGoal && taskGoal !== null)
+									notStarted += taskGoal;
 							}
 						}
 					} else if (plugin?.settings.addTaskProgressBarToHeading) {

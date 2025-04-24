@@ -41,9 +41,10 @@ function getTaskStatusConfig(plugin: TaskProgressBarPlugin) {
 /**
  * Finds a task status change event in the transaction
  * @param tr The transaction to check
+ * @param tasksPluginLoaded Whether the Obsidian Tasks plugin is loaded
  * @returns Information about all changed task statuses or empty array if no status was changed
  */
-function findTaskStatusChanges(
+export function findTaskStatusChanges(
 	tr: Transaction,
 	tasksPluginLoaded: boolean
 ): {
@@ -504,3 +505,6 @@ export function handleCycleCompleteStatusTransaction(
 	// If no changes were made, return the original transaction
 	return tr;
 }
+
+export { taskStatusChangeAnnotation };
+export { priorityChangeAnnotation };
