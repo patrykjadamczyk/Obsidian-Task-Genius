@@ -160,15 +160,20 @@ export function filterTasks(
 	}
 	// Path filters (Added based on content.ts logic)
 	if (filterRules.pathIncludes) {
-		const query = filterRules.pathIncludes.toLowerCase();
+		const query = filterRules.pathIncludes
+			.split(",")
+			.map((p) => p.trim().toLowerCase());
 		filtered = filtered.filter((task) =>
-			task.filePath.toLowerCase().includes(query)
+			query.some((q) => task.filePath.toLowerCase().includes(q))
 		);
 	}
 	if (filterRules.pathExcludes) {
-		const query = filterRules.pathExcludes.toLowerCase();
+		const query = filterRules.pathExcludes
+			.split(",")
+			.map((p) => p.trim().toLowerCase());
 		filtered = filtered.filter(
-			(task) => !task.filePath.toLowerCase().includes(query)
+			(task) =>
+				!query.some((q) => task.filePath.toLowerCase().includes(q))
 		);
 	}
 

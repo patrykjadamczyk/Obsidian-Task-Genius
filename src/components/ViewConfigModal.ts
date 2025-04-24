@@ -579,7 +579,11 @@ export class ViewConfigModal extends Modal {
 		// --- Path Filters ---
 		new Setting(contentEl)
 			.setName(t("Path Includes"))
-			.setDesc(t("Task must contain this path (case-insensitive)."))
+			.setDesc(
+				t(
+					"Task must contain this path (case-insensitive). Separate multiple paths with commas."
+				)
+			)
 			.addText((text) => {
 				this.pathIncludesInput = text;
 				text.setValue(this.viewFilterRule.pathIncludes || "");
@@ -587,7 +591,11 @@ export class ViewConfigModal extends Modal {
 			});
 		new Setting(contentEl)
 			.setName(t("Path Excludes"))
-			.setDesc(t("Task must NOT contain this path (case-insensitive)."))
+			.setDesc(
+				t(
+					"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas."
+				)
+			)
 			.addText((text) => {
 				this.pathExcludesInput = text;
 				text.setValue(this.viewFilterRule.pathExcludes || "");
