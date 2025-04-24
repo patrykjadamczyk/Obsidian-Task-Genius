@@ -351,6 +351,27 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
+	// Check for markdown link insertion (cmd+k)
+	if (tr.isUserEvent("input.autocomplete")) {
+		// Look for typical markdown link pattern [text]() in the changes
+		let isMarkdownLinkInsertion = false;
+		tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+			const insertedText = inserted.toString();
+			// Check if the insertedText matches a markdown link pattern
+			if (
+				insertedText.includes("](") &&
+				insertedText.startsWith("[") &&
+				insertedText.endsWith(")")
+			) {
+				isMarkdownLinkInsertion = true;
+			}
+		});
+
+		if (isMarkdownLinkInsertion) {
+			return tr;
+		}
+	}
+
 	// Check for suspicious transaction that might be a task deletion
 	// For example, when user presses backspace to delete a dash at the beginning of a task line
 	let hasInvalidTaskChange = false;

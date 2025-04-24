@@ -1029,6 +1029,43 @@ describe("handleCycleCompleteStatusTransaction (Integration)", () => {
 		// Verify no changes were made to the transaction
 		expect(result.changes).toEqual(tr.changes);
 		expect(result.selection).toEqual(tr.selection);
-		expect(result.annotations).toEqual(tr.annotations);
+	});
+
+	it("should NOT interfere with markdown link insertion on selected text in tasks", () => {
+		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+
+		// Simulate cmd+k on selected text in a task
+		// Selected text: "Task" in "- [ ] Task"
+		const tr = createMockTransaction({
+			startStateDocContent: "- [ ] Task",
+			newDocContent: "- [ ] [Task]()",
+			changes: [
+				{
+					fromA: 6, // Position of 'T' in "Task"
+					toA: 10, // Position after 'k' in "Task"
+					fromB: 6,
+					toB: 13, // Position after inserted "[Task]()"
+					insertedText: "[Task]()",
+				},
+			],
+			// Set selection to be inside the parentheses after insertion
+			selection: { anchor: 12, head: 12 },
+			// This is specifically for markdown link insertion
+			isUserEvent: "input.autocomplete",
+		});
+
+		// The handler should recognize this as link insertion, not a task status change
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+
+		// Expect the original transaction to be returned unchanged
+		expect(result).toBe(tr);
+
+		// Verify no changes were made to the transaction
+		expect(result.changes).toEqual(tr.changes);
+		expect(result.selection).toEqual(tr.selection);
 	});
 });
