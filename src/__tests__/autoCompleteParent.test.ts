@@ -112,7 +112,7 @@ const createMockText = (content: string): Text => {
 const createMockChangeSet = (doc: Text, changes: any[] = []): ChangeSet => {
 	// Basic mock, might need refinement based on actual usage
 	return {
-		length: doc.length, // Length of the new document
+		length: changes.length, // Length of the new document
 		// @ts-ignore
 		iterChanges: jest.fn((callback) => {
 			changes.forEach((change) => {
@@ -865,6 +865,130 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 				"autoCompleteParent.IN_PROGRESS"
 			),
 		]);
+	});
+
+	it("should NOT change parent task status when deleting a dash with backspace", () => {
+		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+
+		// Set up a complete task and an incomplete task line below (just a dash)
+		const startContent = "- [ ] Task 1\n- ";
+		// After pressing Backspace to delete the dash on the second line, the first line task should not become [/]
+		const newContent = "- [ ] Task 1";
+
+		// Simulate pressing Backspace to delete the dash at the beginning of the second line
+		const tr = createMockTransaction({
+			startStateDocContent: startContent,
+			newDocContent: newContent,
+			changes: [
+				{
+					fromA: 15, // Position of the dash on the second line
+					toA: 15, // End position of the dash
+					fromB: 12, // Same position in the new content
+					toB: 12, // Position after deletion
+					insertedText: "", // Delete operation, no inserted text
+				},
+			],
+			docChanged: true,
+		});
+
+		// The function should detect this is a deletion operation, not a task status change
+		const result = handleParentTaskUpdateTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+
+		// Expect the original transaction to be returned (no modification)
+		expect(result).toBe(tr);
+		expect(result.changes).toEqual(tr.changes);
+		expect(result.selection).toEqual(tr.selection);
+	});
+
+	it("should NOT change parent task status when deleting an indented dash", () => {
+		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+		const indent = buildIndentString(createMockApp());
+
+		// Test with indentation
+		const startContentIndented = "- [ ] Task 1\n" + indent + "- ";
+		const newContentIndented = "- [ ] Task 1\n" + indent; // Delete the dash after indentation
+
+		const trIndented = createMockTransaction({
+			startStateDocContent: startContentIndented,
+			newDocContent: newContentIndented,
+			changes: [
+				{
+					fromA: 15, // Position of the dash after indentation
+					toA: 16, // End position of the dash
+					fromB: 15, // Same position in the new content
+					toB: 14, // Position after deletion
+					insertedText: "", // Delete operation, no inserted text
+				},
+			],
+			docChanged: true,
+		});
+
+		const resultIndented = handleParentTaskUpdateTransaction(
+			trIndented,
+			mockApp,
+			mockPlugin
+		);
+
+		// The function should not change parent task status when deleting a dash
+		expect(resultIndented).toBe(trIndented);
+		expect((resultIndented as any).changes).toEqual(
+			(trIndented as any).changes
+		);
+		expect(resultIndented.selection).toEqual(trIndented.selection);
+		// Verify no parent task status change annotation was added
+		expect(resultIndented.annotations).not.toEqual(
+			mockParentTaskStatusChangeAnnotation.of(
+				"autoCompleteParent.COMPLETED"
+			)
+		);
+		expect((resultIndented as any).annotations).not.toEqual(
+			mockParentTaskStatusChangeAnnotation.of(
+				"autoCompleteParent.IN_PROGRESS"
+			)
+		);
+	});
+
+	it("should prevent accidental parent status changes when deleting a dash and newline marker", () => {
+		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+
+		// Test erroneous behavior: deleting a dash incorrectly changes the status of the previous task
+		const startContent = "- [ ] Task 1\n- ";
+		const newContent = "- [ ] Task 1"; // Status incorrectly changed
+
+		const tr = createMockTransaction({
+			startStateDocContent: startContent,
+			newDocContent: newContent,
+			changes: [
+				{
+					fromA: 15, // Position of the dash on the second line
+					toA: 15, // End position of the dash
+					fromB: 12, // Position of the task status
+					toB: 12, // End position of the status
+					insertedText: "", // Incorrectly inserted new status
+				},
+			],
+			docChanged: true,
+		});
+
+		// Even when receiving such a transaction, the function should detect this is not a valid status change
+		const result = handleParentTaskUpdateTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+
+		console.log((result as any).changes);
+
+		// The function should identify and prevent such accidental parent status changes
+		expect(result).toBe(tr);
+		expect(result.changes).toEqual(tr.changes);
+		// Verify no new changes were added to modify parent task status
+		// Use type assertion to access changes property in test mocks
+		expect((result as any).changes.length).toBe(1);
 	});
 });
 

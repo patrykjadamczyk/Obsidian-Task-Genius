@@ -19,7 +19,8 @@ import {
 import {
 	TaskProgressBarSettings,
 	WorkflowSettings,
-} from "src/common/setting-definition";
+} from "../common/setting-definition";
+import { buildIndentString } from "../utils";
 
 // --- Mock Setup (Reusing mocks from autoCompleteParent.test.ts) ---
 
@@ -994,5 +995,40 @@ describe("handleCycleCompleteStatusTransaction (Integration)", () => {
 			mockPlugin
 		);
 		expect(result).toBe(trTypeSpace); // Expect no cycling for new empty task creation
+	});
+
+	it("should NOT cycle task status when pressing tab key", () => {
+		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+		const indent = buildIndentString(createMockApp());
+
+		// Simulate pressing tab key after a task
+		const tr = createMockTransaction({
+			startStateDocContent: "- [ ] Task",
+			newDocContent: indent + "- [ ] Task", // Tab added at the end
+			changes: [
+				{
+					fromA: indent.length,
+					toA: indent.length + 1,
+					fromB: indent.length,
+					toB: indent.length + 1,
+					insertedText: indent, // Tab character inserted
+				},
+			],
+		});
+
+		// The handler should recognize this is a tab insertion, not a task status change
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+
+		// Expect the original transaction to be returned unchanged
+		expect(result).toBe(tr);
+
+		// Verify no changes were made to the transaction
+		expect(result.changes).toEqual(tr.changes);
+		expect(result.selection).toEqual(tr.selection);
+		expect(result.annotations).toEqual(tr.annotations);
 	});
 });

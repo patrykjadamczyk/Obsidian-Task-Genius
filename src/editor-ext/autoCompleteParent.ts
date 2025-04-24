@@ -60,6 +60,8 @@ function handleParentTaskUpdateTransaction(
 	const { doc, lineNumber } = taskStatusChangeInfo;
 	const parentInfo = findParentTask(doc, lineNumber);
 
+	console.log(parentInfo, lineNumber, tr.changes.length);
+
 	if (!parentInfo) {
 		return tr;
 	}
@@ -98,6 +100,7 @@ function handleParentTaskUpdateTransaction(
 		!allSiblingsCompleted &&
 		plugin.settings.markParentInProgressWhenPartiallyComplete
 	) {
+		console.log(isAutoCompleteAnnotation);
 		// Prevent reverting parent if the trigger was an auto-complete itself
 		if (!isAutoCompleteAnnotation) {
 			return markParentAsInProgress(
@@ -127,6 +130,11 @@ function handleParentTaskUpdateTransaction(
 		const inProgressStatuses =
 			plugin.settings.taskStatuses.inProgress.split("|") || ["/"];
 		// Prevent updating parent if the trigger was an auto-complete itself
+		console.log(
+			isAutoCompleteAnnotation,
+			anySiblingsWithStatus,
+			tr.changes
+		);
 		if (!isAutoCompleteAnnotation) {
 			return markParentAsInProgress(
 				tr,
@@ -382,8 +390,6 @@ function areAllSiblingsCompleted(
 			// Check if it's a task using a regex that allows for flexible indentation matching
 			const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
-
-			console.log(taskMatch);
 
 			if (taskMatch) {
 				// Check if this task's indentation makes it a direct child
