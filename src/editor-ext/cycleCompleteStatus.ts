@@ -469,6 +469,83 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
+	// Check if the transaction is just indentation or unindentation
+	let isIndentationChange = false;
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		const deletedText = tr.startState.doc.sliceString(fromA, toA);
+		const insertedText = inserted.toString();
+
+		// Check if from the start of a line
+		const isLineStart =
+			fromA === 0 ||
+			tr.startState.doc.sliceString(fromA - 1, fromA) === "\n";
+
+		if (isLineStart) {
+			const originalLine = tr.startState.doc.lineAt(fromA).text;
+			const newLine = inserted.toString();
+
+			// Check for indentation (adding spaces/tabs at beginning)
+			if (
+				newLine.trim() === originalLine.trim() &&
+				newLine.length > originalLine.length
+			) {
+				isIndentationChange = true;
+			}
+
+			// Check for unindentation (removing spaces/tabs from beginning)
+			if (
+				originalLine.trim() === newLine.trim() &&
+				originalLine.length > newLine.length
+			) {
+				isIndentationChange = true;
+			}
+		}
+	});
+
+	if (isIndentationChange) {
+		return tr;
+	}
+
+	// Check if the transaction is just deleting a line after a task
+	// or replacing the entire content with the exact same line
+	let isLineDeleteOrReplace = false;
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		const deletedText = tr.startState.doc.sliceString(fromA, toA);
+		const insertedText = inserted.toString();
+
+		// Check if deleting a line that contains a newline
+		if (deletedText.includes("\n") && !insertedText.includes("\n")) {
+			// If we're replacing with a task line (with any status marker), this is a line deletion
+			const taskMarkerPattern = /(?:-|\*|\+|\d+\.)\s\[.\]/;
+			if (
+				taskMarkerPattern.test(insertedText) &&
+				taskMarkerPattern.test(deletedText)
+			) {
+				// Check if we're just keeping the task line but deleting what comes after
+				const taskLine = insertedText.trim();
+				if (deletedText.includes(taskLine)) {
+					isLineDeleteOrReplace = true;
+				}
+			}
+		}
+
+		console.log(fromA, toA, fromB, toB, insertedText);
+
+		// Check if we're replacing the entire content with a full line that includes task markers
+		if (
+			fromA === 0 &&
+			toA === tr.startState.doc.length &&
+			/\-\s+\[.\]/.test(insertedText) &&
+			!insertedText.includes("\n")
+		) {
+			isLineDeleteOrReplace = true;
+		}
+	});
+
+	if (isLineDeleteOrReplace) {
+		return tr;
+	}
+
 	// Build a new list of changes to replace the original ones
 	const newChanges = [];
 

@@ -1068,4 +1068,138 @@ describe("handleCycleCompleteStatusTransaction (Integration)", () => {
 		expect(result.changes).toEqual(tr.changes);
 		expect(result.selection).toEqual(tr.selection);
 	});
+
+	it("should NOT cycle task status when line is only unindented", () => {
+		const mockPlugin = createMockPlugin();
+		const indent = buildIndentString(createMockApp());
+		const tr = createMockTransaction({
+			startStateDocContent: indent + "- [ ] Task",
+			newDocContent: "- [ ] Task",
+			changes: [
+				{
+					fromA: 0,
+					toA: indent.length + "- [ ] Task".length,
+					fromB: 0,
+					toB: indent.length + "- [ ] Task".length,
+					insertedText: "- [ ] Task",
+				},
+			],
+		});
+
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+		expect(result.annotations).not.toBe("taskStatusChange");
+		expect(result).toBe(tr);
+	});
+
+	it("should NOT cycle task status when line is indented", () => {
+		const mockPlugin = createMockPlugin();
+		const indent = buildIndentString(createMockApp());
+		const tr = createMockTransaction({
+			startStateDocContent: "- [ ] Task",
+			newDocContent: indent + "- [ ] Task",
+			changes: [
+				{
+					fromA: 0,
+					toA: "- [ ] Task".length,
+					fromB: 0,
+					toB: "- [ ] Task".length,
+					insertedText: indent + "- [ ] Task",
+				},
+			],
+		});
+
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+		expect(result.annotations).not.toBe("taskStatusChange");
+		expect(result).toBe(tr);
+	});
+
+	it("should NOT cycle task status when delete new line behind task", () => {
+		const mockPlugin = createMockPlugin();
+		const originalLine = "- [ ] Task\n" + "- ";
+		const newLine = "- [ ] Task";
+		const tr = createMockTransaction({
+			startStateDocContent: originalLine,
+			newDocContent: newLine,
+			changes: [
+				{
+					fromA: 0,
+					toA: originalLine.length - 1,
+					fromB: 0,
+					toB: originalLine.length - 4,
+					insertedText: newLine,
+				},
+			],
+		});
+
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+		expect(result.annotations).not.toBe("taskStatusChange");
+		expect(result).toBe(tr);
+	});
+
+	it("should NOT cycle task status when delete new line behind a completed task", () => {
+		const mockPlugin = createMockPlugin();
+		const originalLine = "- [x] Task\n" + "- ";
+		const newLine = "- [x] Task";
+		const tr = createMockTransaction({
+			startStateDocContent: originalLine,
+			newDocContent: newLine,
+			changes: [
+				{
+					fromA: 0,
+					toA: originalLine.length - 1,
+					fromB: 0,
+					toB: originalLine.length - 4,
+					insertedText: newLine,
+				},
+			],
+		});
+
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+		expect(result.annotations).not.toBe("taskStatusChange");
+		expect(result).toBe(tr);
+	});
+
+	it("should NOT cycle task status when delete new line with indent behind task", () => {
+		const mockPlugin = createMockPlugin();
+		const indent = buildIndentString(createMockApp());
+		const originalLine = "- [ ] Task\n" + indent + "- ";
+		const newLine = "- [ ] Task";
+		const tr = createMockTransaction({
+			startStateDocContent: originalLine,
+			newDocContent: newLine,
+			changes: [
+				{
+					fromA: 0,
+					toA: originalLine.length - 1,
+					fromB: 0,
+					toB: originalLine.length - indent.length - 4,
+					insertedText: newLine,
+				},
+			],
+		});
+
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+		expect(result.annotations).not.toBe("taskStatusChange");
+		expect(result).toBe(tr);
+	});
 });
