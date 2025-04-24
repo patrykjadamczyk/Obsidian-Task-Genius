@@ -163,19 +163,21 @@ export function filterTasks(
 		const query = filterRules.pathIncludes
 			.split(",")
 			.filter((p) => p.trim() !== "")
-			.map((p) => p.trim().toLowerCase());
+			.map((p) => p.trim().toLocaleLowerCase());
 		filtered = filtered.filter((task) =>
-			query.some((q) => task.filePath.toLowerCase().includes(q))
+			query.some((q) => task.filePath.toLocaleLowerCase().includes(q))
 		);
 	}
 	if (filterRules.pathExcludes) {
 		const query = filterRules.pathExcludes
 			.split(",")
 			.filter((p) => p.trim() !== "")
-			.map((p) => p.trim().toLowerCase());
+			.map((p) => p.trim().toLocaleLowerCase());
 		filtered = filtered.filter(
 			(task) =>
-				!query.some((q) => task.filePath.toLowerCase().includes(q))
+				!query.some((q) =>
+					task.filePath.toLocaleLowerCase().includes(q)
+				)
 		);
 	}
 
