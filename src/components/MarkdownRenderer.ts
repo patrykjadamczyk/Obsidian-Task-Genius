@@ -68,16 +68,71 @@ export function clearAllMarks(markdown: string): string {
 	);
 
 	// --- General Cleaning ---
-	cleanedMarkdown = cleanedMarkdown.replace(TAG_REGEX, "");
-	cleanedMarkdown = cleanedMarkdown.replace(/@[\w-]+/g, "");
-	cleanedMarkdown = cleanedMarkdown.replace(
+	// Process tags and context tags while preserving wiki links
+
+	// Extract and preserve wiki links
+	const wikiLinks: { text: string; index: number }[] = [];
+	const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+	let wikiMatch;
+	while ((wikiMatch = wikiLinkRegex.exec(cleanedMarkdown)) !== null) {
+		wikiLinks.push({
+			text: wikiMatch[0],
+			index: wikiMatch.index,
+		});
+	}
+
+	// Create a temporary version of markdown with wiki links replaced by placeholders
+	let tempMarkdown = cleanedMarkdown;
+	if (wikiLinks.length > 0) {
+		// Sort wiki links by index in descending order to process from end to beginning
+		// This prevents indices from shifting when replacing
+		wikiLinks.sort((a, b) => b.index - a.index);
+
+		for (const link of wikiLinks) {
+			const placeholder = "".padStart(link.text.length, "█"); // Use a rare character as placeholder
+			tempMarkdown =
+				tempMarkdown.substring(0, link.index) +
+				placeholder +
+				tempMarkdown.substring(link.index + link.text.length);
+		}
+	}
+
+	// Remove tags from temporary markdown
+	tempMarkdown = tempMarkdown.replace(TAG_REGEX, "");
+	// Remove context tags from temporary markdown
+	tempMarkdown = tempMarkdown.replace(/@[\w-]+/g, "");
+
+	// Now restore the wiki links in the cleaned version
+	if (wikiLinks.length > 0) {
+		// Process wiki links in original order (ascending by index)
+		wikiLinks.sort((a, b) => a.index - b.index);
+
+		let resultMarkdown = "";
+		let lastIndex = 0;
+
+		for (const link of wikiLinks) {
+			// Add cleaned content up to this wiki link
+			resultMarkdown += tempMarkdown.substring(lastIndex, link.index);
+			// Add the original wiki link
+			resultMarkdown += link.text;
+			// Update lastIndex
+			lastIndex = link.index + link.text.length;
+		}
+
+		// Add any remaining content after the last wiki link
+		resultMarkdown += tempMarkdown.substring(lastIndex);
+		tempMarkdown = resultMarkdown;
+	}
+
+	// Task marker and final cleaning
+	tempMarkdown = tempMarkdown.replace(
 		/^([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\]\s*/,
 		""
 	);
-	cleanedMarkdown = cleanedMarkdown.replace(/^# /, "");
-	cleanedMarkdown = cleanedMarkdown.replace(/\s+/g, " ").trim();
+	tempMarkdown = tempMarkdown.replace(/^# /, "");
+	tempMarkdown = tempMarkdown.replace(/\s+/g, " ").trim();
 
-	return cleanedMarkdown;
+	return tempMarkdown;
 }
 
 /**
