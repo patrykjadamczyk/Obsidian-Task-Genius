@@ -1202,4 +1202,33 @@ describe("handleCycleCompleteStatusTransaction (Integration)", () => {
 		expect(result.annotations).not.toBe("taskStatusChange");
 		expect(result).toBe(tr);
 	});
+
+	it("should NOT cycle task status when insert whole line of task", () => {
+		const mockPlugin = createMockPlugin();
+		const indent = buildIndentString(createMockApp());
+		const originalLine = indent + "- [x] ✅ 2025-04-24";
+		const newLine = indent + "- [ ] ";
+		const tr = createMockTransaction({
+			startStateDocContent: originalLine,
+			newDocContent: newLine,
+			changes: [
+				{
+					fromA: 0,
+					toA: originalLine.length,
+					fromB: 0,
+					toB: originalLine.length,
+					insertedText: newLine,
+				},
+			],
+		});
+
+		const result = handleCycleCompleteStatusTransaction(
+			tr,
+			mockApp,
+			mockPlugin
+		);
+		console.log(result.changes);
+		expect(result.annotations).not.toBe("taskStatusChange");
+		expect(result).toBe(tr);
+	});
 });
