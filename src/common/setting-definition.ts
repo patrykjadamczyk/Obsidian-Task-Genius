@@ -245,9 +245,14 @@ export interface TaskProgressBarSettings {
 	// Workflow Settings
 	workflow: WorkflowSettings;
 
+	// Index Related
+	useDailyNotePathAsDate: boolean;
+	dailyNotePathFormat: string;
+	useAsDateType: "due" | "start" | "scheduled";
+	preferMetadataFormat: "dataview" | "tasks";
+
 	// View Settings (Updated Structure)
 	enableView: boolean;
-	preferMetadataFormat: "dataview" | "tasks";
 	viewConfiguration: ViewConfig[]; // Manages order, visibility, basic info, AND filter rules
 
 	// Review Settings
@@ -413,9 +418,14 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		],
 	},
 
+	// Index Related Defaults
+	useDailyNotePathAsDate: false,
+	dailyNotePathFormat: "YYYY-MM-DD",
+	useAsDateType: "due",
+	preferMetadataFormat: "tasks",
+
 	// View Defaults (Updated Structure)
 	enableView: true,
-	preferMetadataFormat: "tasks",
 	viewConfiguration: [
 		{
 			id: "inbox",

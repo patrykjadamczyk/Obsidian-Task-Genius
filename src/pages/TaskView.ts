@@ -177,6 +177,37 @@ export class TaskView extends ItemView {
 			this.ganttComponent?.setTasks(this.tasks);
 			// KanbanComponent will receive tasks via switchView initially
 		}
+
+		this.plugin.settings.viewConfiguration.forEach((view) => {
+			this.plugin.addCommand({
+				id: `switch-view-${view.id}`,
+				name: view.name,
+				checkCallback: (checking) => {
+					if (checking) {
+						return true;
+					}
+
+					const currentView =
+						this.plugin.app.workspace.getActiveViewOfType(TaskView);
+					if (currentView) {
+						currentView.switchView(view.id);
+					} else {
+						// If no view is active, activate one and then switch
+						this.plugin.activateTaskView().then(() => {
+							const newView =
+								this.plugin.app.workspace.getActiveViewOfType(
+									TaskView
+								);
+							if (newView) {
+								newView.switchView(view.id);
+							}
+						});
+					}
+
+					return true;
+				},
+			});
+		});
 	}
 
 	onResize(): void {
