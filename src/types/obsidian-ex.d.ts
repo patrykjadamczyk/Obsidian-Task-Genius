@@ -654,4 +654,8 @@ declare module "obsidian" {
 	interface AbstractInputSuggest<T> {
 		suggestEl: HTMLElement;
 	}
+
+	interface Vault {
+		getConfig(key: string): string | number | boolean | null;
+	}
 }

@@ -19,6 +19,7 @@ import {
 	ViewMode,
 } from "../common/setting-definition";
 import TaskProgressBarPlugin from "../index";
+import { FolderSuggest } from "./AutoComplete";
 
 export class ViewConfigModal extends Modal {
 	private viewConfig: ViewConfig;
@@ -579,16 +580,26 @@ export class ViewConfigModal extends Modal {
 		// --- Path Filters ---
 		new Setting(contentEl)
 			.setName(t("Path Includes"))
-			.setDesc(t("Task must contain this path (case-insensitive)."))
+			.setDesc(
+				t(
+					"Task must contain this path (case-insensitive). Separate multiple paths with commas."
+				)
+			)
 			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl, this.plugin);
 				this.pathIncludesInput = text;
 				text.setValue(this.viewFilterRule.pathIncludes || "");
 				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
 			.setName(t("Path Excludes"))
-			.setDesc(t("Task must NOT contain this path (case-insensitive)."))
+			.setDesc(
+				t(
+					"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas."
+				)
+			)
 			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl, this.plugin);
 				this.pathExcludesInput = text;
 				text.setValue(this.viewFilterRule.pathExcludes || "");
 				text.onChange(() => this.checkForChanges());

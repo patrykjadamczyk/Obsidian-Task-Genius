@@ -140,7 +140,7 @@ export function filterTasks(
 	}
 	if (filterRules.project) {
 		filtered = filtered.filter(
-			(task) => task.project === filterRules.project
+			(task) => task.project?.trim() === filterRules.project?.trim()
 		);
 	}
 	if (filterRules.priority !== undefined) {
@@ -160,15 +160,24 @@ export function filterTasks(
 	}
 	// Path filters (Added based on content.ts logic)
 	if (filterRules.pathIncludes) {
-		const query = filterRules.pathIncludes.toLowerCase();
+		const query = filterRules.pathIncludes
+			.split(",")
+			.filter((p) => p.trim() !== "")
+			.map((p) => p.trim().toLocaleLowerCase());
 		filtered = filtered.filter((task) =>
-			task.filePath.toLowerCase().includes(query)
+			query.some((q) => task.filePath.toLocaleLowerCase().includes(q))
 		);
 	}
 	if (filterRules.pathExcludes) {
-		const query = filterRules.pathExcludes.toLowerCase();
+		const query = filterRules.pathExcludes
+			.split(",")
+			.filter((p) => p.trim() !== "")
+			.map((p) => p.trim().toLocaleLowerCase());
 		filtered = filtered.filter(
-			(task) => !task.filePath.toLowerCase().includes(query)
+			(task) =>
+				!query.some((q) =>
+					task.filePath.toLocaleLowerCase().includes(q)
+				)
 		);
 	}
 

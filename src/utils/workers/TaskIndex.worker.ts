@@ -285,15 +285,36 @@ function extractContext(
 		}
 	}
 
+	// Skip @ contexts inside wiki links [[...]]
+	// First, extract all wiki link patterns
+	const wikiLinkMatches: string[] = [];
+	const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+	let wikiMatch;
+	while ((wikiMatch = wikiLinkRegex.exec(remainingContent)) !== null) {
+		wikiLinkMatches.push(wikiMatch[0]);
+	}
+
 	// Try @ prefix (primary or fallback)
 	// Use .exec to find the first match only for @context
 	const contextMatch = new RegExp(EMOJI_CONTEXT_REGEX.source, "").exec(
 		remainingContent
 	); // Non-global search for first
+
 	if (contextMatch && contextMatch[1]) {
-		task.context = contextMatch[1].trim();
-		// Remove the first matched context tag here to avoid it being parsed as a general tag
-		remainingContent = remainingContent.replace(contextMatch[0], "");
+		// Check if this @context is inside a wiki link
+		const matchPosition = contextMatch.index;
+		const isInsideWikiLink = wikiLinkMatches.some((link) => {
+			const linkStart = remainingContent.indexOf(link);
+			const linkEnd = linkStart + link.length;
+			return matchPosition >= linkStart && matchPosition < linkEnd;
+		});
+
+		// Only process if not inside a wiki link
+		if (!isInsideWikiLink) {
+			task.context = contextMatch[1].trim();
+			// Remove the first matched context tag here to avoid it being parsed as a general tag
+			remainingContent = remainingContent.replace(contextMatch[0], "");
+		}
 	}
 
 	return remainingContent;
@@ -315,8 +336,37 @@ function extractTags(
 		);
 	}
 
-	// Find all #tags in the potentially cleaned content
-	const tagMatches = remainingContent.match(EMOJI_TAG_REGEX) || [];
+	// Exclude wiki links from tag processing
+	const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+	const wikiLinks: { text: string; start: number; end: number }[] = [];
+	let wikiMatch;
+	let processedContent = remainingContent;
+
+	// Find all wiki links and their positions
+	while ((wikiMatch = wikiLinkRegex.exec(remainingContent)) !== null) {
+		wikiLinks.push({
+			text: wikiMatch[0],
+			start: wikiMatch.index,
+			end: wikiMatch.index + wikiMatch[0].length,
+		});
+	}
+
+	// Temporarily replace wiki links with placeholders
+	if (wikiLinks.length > 0) {
+		let offset = 0;
+		for (const link of wikiLinks) {
+			const adjustedStart = link.start - offset;
+			const placeholder = "".padStart(link.text.length, " ");
+			processedContent =
+				processedContent.substring(0, adjustedStart) +
+				placeholder +
+				processedContent.substring(adjustedStart + link.text.length);
+			offset += link.text.length - placeholder.length;
+		}
+	}
+
+	// Find all #tags in the potentially cleaned content, excluding wiki links
+	const tagMatches = processedContent.match(EMOJI_TAG_REGEX) || [];
 	task.tags = tagMatches.map((tag) => tag.trim());
 
 	// If using 'tasks' (emoji) format, derive project from tags if not set
@@ -349,8 +399,52 @@ function extractTags(
 			contentWithoutTags = contentWithoutTags.replace(tagRegex, "");
 		}
 	}
-	// Also remove any remaining @context tags (if multiple existed and not handled by extractContext)
-	contentWithoutTags = contentWithoutTags.replace(/@[\w-]+/g, "").trim();
+
+	// Also remove any remaining @context tags while preserving wiki links
+	if (wikiLinks.length > 0) {
+		// Create a temporary version for @context processing
+		let tempContent = contentWithoutTags;
+
+		// Replace wiki links with placeholders
+		let offset = 0;
+		wikiLinks.sort((a, b) => a.start - b.start); // Process in order
+
+		for (const link of wikiLinks) {
+			const adjustedStart = link.start - offset;
+			const placeholder = "".padStart(link.text.length, "█"); // Use a rare character
+			tempContent =
+				tempContent.substring(0, adjustedStart) +
+				placeholder +
+				tempContent.substring(adjustedStart + link.text.length);
+			offset += link.text.length - placeholder.length;
+		}
+
+		// Remove @context tags from temporary content
+		tempContent = tempContent.replace(/@[\w-]+/g, "");
+
+		// Restore wiki links
+		let resultContent = "";
+		let lastIndex = 0;
+
+		for (const link of wikiLinks) {
+			// Add processed content up to this wiki link position
+			const linkStart = contentWithoutTags.indexOf(link.text, lastIndex);
+			if (linkStart >= 0) {
+				resultContent += tempContent.substring(lastIndex, linkStart);
+				// Add the original wiki link
+				resultContent += link.text;
+				// Update lastIndex
+				lastIndex = linkStart + link.text.length;
+			}
+		}
+
+		// Add any remaining content after the last wiki link
+		resultContent += tempContent.substring(lastIndex);
+		contentWithoutTags = resultContent.trim();
+	} else {
+		// No wiki links, safe to remove @context directly
+		contentWithoutTags = contentWithoutTags.replace(/@[\w-]+/g, "").trim();
+	}
 
 	return contentWithoutTags.trim();
 }

@@ -9,6 +9,8 @@ import { tasksToTree } from "../../utils/treeViewUtil"; // Re-import needed util
 import { TaskTreeItemComponent } from "./treeItem"; // Re-import needed components
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
+
+// @ts-ignore
 import { filterTasks } from "../../utils/TaskFilterUtils";
 
 export class ContentComponent extends Component {

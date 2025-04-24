@@ -61,6 +61,7 @@ import "./styles/global.css";
 import "./styles/setting.css";
 import "./styles/view.css";
 import "./styles/view-config.css";
+import "./styles/task-status.css";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;

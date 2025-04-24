@@ -41,9 +41,10 @@ function getTaskStatusConfig(plugin: TaskProgressBarPlugin) {
 /**
  * Finds a task status change event in the transaction
  * @param tr The transaction to check
+ * @param tasksPluginLoaded Whether the Obsidian Tasks plugin is loaded
  * @returns Information about all changed task statuses or empty array if no status was changed
  */
-function findTaskStatusChanges(
+export function findTaskStatusChanges(
 	tr: Transaction,
 	tasksPluginLoaded: boolean
 ): {
@@ -118,6 +119,44 @@ function findTaskStatusChanges(
 	}
 
 	if (isMultiLineIndentationChange) {
+		return [];
+	}
+
+	// Check for deletion operations that might affect line content
+	// like deleting a dash character at the beginning of a task line
+	let isDeletingTaskMarker = false;
+	tr.changes.iterChanges(
+		(
+			fromA: number,
+			toA: number,
+			fromB: number,
+			toB: number,
+			inserted: Text
+		) => {
+			// Check for deletion operation (inserted text is empty)
+			if (inserted.toString() === "" && toA > fromA) {
+				// Get the deleted content
+				const deletedContent = tr.startState.doc.sliceString(
+					fromA,
+					toA
+				);
+				// Check if the deleted content is a dash character
+				if (deletedContent === "-") {
+					// Check if the dash is at the beginning of a line or after indentation
+					const line = tr.startState.doc.lineAt(fromA);
+					const textBeforeDash = line.text.substring(
+						0,
+						fromA - line.from
+					);
+					if (textBeforeDash.trim() === "") {
+						isDeletingTaskMarker = true;
+					}
+				}
+			}
+		}
+	);
+
+	if (isDeletingTaskMarker) {
 		return [];
 	}
 
@@ -240,16 +279,30 @@ function findTaskStatusChanges(
 					isTaskChange = true;
 				}
 
+				console.log(newLineText, insertedText);
+
 				if (
 					tasksPluginLoaded &&
 					newLineText === insertedText &&
 					(insertedText.includes("✅") ||
 						insertedText.includes("❌") ||
 						insertedText.includes("🛫") ||
-						insertedText.includes("📅"))
+						insertedText.includes("📅") ||
+						originalLineText.includes("✅") ||
+						originalLineText.includes("❌") ||
+						originalLineText.includes("🛫") ||
+						originalLineText.includes("📅"))
 				) {
 					triggerByTasks = true;
 				}
+
+				console.log({
+					triggerByTasks,
+					wasCompleteTask,
+					isTaskChange,
+					changedPosition,
+					currentMark,
+				});
 
 				if (
 					changedPosition !== null &&
@@ -312,6 +365,62 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
+	// Check for markdown link insertion (cmd+k)
+	if (tr.isUserEvent("input.autocomplete")) {
+		// Look for typical markdown link pattern [text]() in the changes
+		let isMarkdownLinkInsertion = false;
+		tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+			const insertedText = inserted.toString();
+			// Check if the insertedText matches a markdown link pattern
+			if (
+				insertedText.includes("](") &&
+				insertedText.startsWith("[") &&
+				insertedText.endsWith(")")
+			) {
+				isMarkdownLinkInsertion = true;
+			}
+		});
+
+		if (isMarkdownLinkInsertion) {
+			return tr;
+		}
+	}
+
+	// Check for suspicious transaction that might be a task deletion
+	// For example, when user presses backspace to delete a dash at the beginning of a task line
+	let hasInvalidTaskChange = false;
+	tr.changes.iterChanges(
+		(
+			fromA: number,
+			toA: number,
+			fromB: number,
+			toB: number,
+			inserted: Text
+		) => {
+			// Check if this removes a dash character and somehow modifies a task marker elsewhere
+			const insertedText = inserted.toString();
+			const deletedText = tr.startState.doc.sliceString(fromA, toA);
+			// Dash deletion but position change indicates task marker modification
+			if (
+				deletedText === "-" &&
+				insertedText === "" &&
+				(fromB !== fromA || toB !== toA) &&
+				tr.newDoc
+					.sliceString(
+						Math.max(0, fromB - 5),
+						Math.min(fromB + 5, tr.newDoc.length)
+					)
+					.includes("[")
+			) {
+				hasInvalidTaskChange = true;
+			}
+		}
+	);
+
+	if (hasInvalidTaskChange) {
+		return tr;
+	}
+
 	// Check if any task statuses were changed in this transaction
 	const taskStatusChanges = findTaskStatusChanges(tr, !!getTasksAPI(plugin));
 	if (taskStatusChanges.length === 0) {
@@ -329,13 +438,134 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
-	// Log for debugging
+	// Additional check: if the transaction changes a task's status while also deleting content elsewhere
+	// it might be an invalid operation caused by backspace key
+	let hasTaskAndDeletion = false;
+	if (tr.changes.length > 1) {
+		const changes: {
+			fromA: number;
+			toA: number;
+			fromB: number;
+			toB: number;
+			text: string;
+		}[] = [];
+		tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+			changes.push({
+				fromA,
+				toA,
+				fromB,
+				toB,
+				text: inserted.toString(),
+			});
+		});
+
+		// Check for deletions and task changes in the same transaction
+		const hasDeletion = changes.some(
+			(change) => change.text === "" && change.toA > change.fromA
+		);
+		const hasTaskMarkerChange = changes.some((change) => {
+			// Check if this change affects a task marker position [x]
+			const pos = change.fromB;
+			try {
+				const line = tr.newDoc.lineAt(pos);
+				return line.text.includes("[") && line.text.includes("]");
+			} catch (e) {
+				return false;
+			}
+		});
+
+		if (hasDeletion && hasTaskMarkerChange) {
+			hasTaskAndDeletion = true;
+		}
+	}
+
+	if (hasTaskAndDeletion) {
+		return tr;
+	}
+
+	// Check if the transaction is just indentation or unindentation
+	let isIndentationChange = false;
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		console.log(fromA, toA, fromB, toB, inserted.toString());
+		// Check if from the start of a line
+		const isLineStart =
+			fromA === 0 ||
+			tr.startState.doc.sliceString(fromA - 1, fromA) === "\n";
+
+		if (isLineStart) {
+			const originalLine = tr.startState.doc.lineAt(fromA).text;
+			const newLine = inserted.toString();
+
+			// Check for indentation (adding spaces/tabs at beginning)
+			if (
+				newLine.trim() === originalLine.trim() &&
+				newLine.length > originalLine.length
+			) {
+				isIndentationChange = true;
+			}
+
+			// Check for unindentation (removing spaces/tabs from beginning)
+			if (
+				originalLine.trim() === newLine.trim() &&
+				originalLine.length > newLine.length
+			) {
+				isIndentationChange = true;
+			}
+		}
+	});
+
+	if (isIndentationChange) {
+		return tr;
+	}
+
+	// Check if the transaction is just deleting a line after a task
+	// or replacing the entire content with the exact same line
+	let isLineDeleteOrReplace = false;
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		const deletedText = tr.startState.doc.sliceString(fromA, toA);
+		const insertedText = inserted.toString();
+		const taskMarkerPattern = /(?:-|\*|\+|\d+\.)\s\[.\]/;
+
+		// Check if deleting a line that contains a newline
+		if (deletedText.includes("\n") && !insertedText.includes("\n")) {
+			// If we're replacing with a task line (with any status marker), this is a line deletion
+
+			if (
+				taskMarkerPattern.test(insertedText) &&
+				taskMarkerPattern.test(deletedText)
+			) {
+				// Check if we're just keeping the task line but deleting what comes after
+				const taskLine = insertedText.trim();
+				if (deletedText.includes(taskLine)) {
+					isLineDeleteOrReplace = true;
+				}
+			}
+		}
+
+		// Check if we're replacing the entire content with a full line that includes task markers
+		if (
+			fromA === 0 &&
+			toA === tr.startState.doc.length &&
+			taskMarkerPattern.test(insertedText) &&
+			!insertedText.includes("\n")
+		) {
+			isLineDeleteOrReplace = true;
+		}
+	});
+
+	if (isLineDeleteOrReplace) {
+		return tr;
+	}
 
 	// Build a new list of changes to replace the original ones
 	const newChanges = [];
 
+	console.log(taskStatusChanges, taskStatusChanges.length);
+
 	// Process each task status change
-	for (const taskStatusInfo of taskStatusChanges) {
+	for (const taskStatusInfo of taskStatusChanges.filter(
+		(t) => !!t.tasksInfo?.isTaskChange
+	)) {
 		const { position, currentMark, wasCompleteTask, tasksInfo } =
 			taskStatusInfo;
 
@@ -490,7 +720,7 @@ export function handleCycleCompleteStatusTransaction(
 		}
 	}
 
-	console.log(newChanges);
+	console.log(newChanges, tr.changes, newChanges.length);
 
 	// If we found any changes to make, create a new transaction
 	if (newChanges.length > 0) {
@@ -504,3 +734,6 @@ export function handleCycleCompleteStatusTransaction(
 	// If no changes were made, return the original transaction
 	return tr;
 }
+
+export { taskStatusChangeAnnotation };
+export { priorityChangeAnnotation };
