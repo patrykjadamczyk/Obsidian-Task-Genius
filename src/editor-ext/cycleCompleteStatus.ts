@@ -560,12 +560,13 @@ export function handleCycleCompleteStatusTransaction(
 	// Build a new list of changes to replace the original ones
 	const newChanges = [];
 
-	console.log(taskStatusChanges, taskStatusChanges.length);
+	console.log(taskStatusChanges.map((t) => t.tasksInfo?.isTaskChange));
 
-	// Process each task status change
-	for (const taskStatusInfo of taskStatusChanges.filter(
+	const finalTaskStatusChanges = taskStatusChanges.filter(
 		(t) => !!t.tasksInfo?.isTaskChange
-	)) {
+	);
+	// Process each task status change
+	for (const taskStatusInfo of finalTaskStatusChanges) {
 		const { position, currentMark, wasCompleteTask, tasksInfo } =
 			taskStatusInfo;
 
@@ -720,7 +721,7 @@ export function handleCycleCompleteStatusTransaction(
 		}
 	}
 
-	console.log(newChanges, tr.changes, newChanges.length);
+	console.log(newChanges, newChanges.length);
 
 	// If we found any changes to make, create a new transaction
 	if (newChanges.length > 0) {
