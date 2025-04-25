@@ -7,6 +7,7 @@ import {
 	ExtraButtonComponent,
 	ButtonComponent,
 	Menu,
+	Scope,
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
@@ -153,6 +154,13 @@ export class TaskView extends ItemView {
 
 		this.register(() => {
 			this.tabActionButton.detach();
+		});
+
+		this.scope = new Scope(this.app.scope);
+
+		this.scope?.register(null, "escape", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
 		});
 
 		this.tasks = this.plugin.preloadedTasks;
