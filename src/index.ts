@@ -6,6 +6,7 @@ import {
 	Plugin,
 	Editor,
 	Menu,
+	addIcon,
 } from "obsidian";
 import {
 	taskProgressBarExtension,
@@ -64,6 +65,7 @@ import "./styles/view-config.css";
 import "./styles/task-status.css";
 import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
+import { getTaskGeniusIcon } from "./icon";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -162,6 +164,8 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Initialize task manager
 		if (this.settings.enableView) {
 			this.loadViews();
+
+			addIcon("task-genius", getTaskGeniusIcon());
 
 			this.taskManager = new TaskManager(
 				this.app,
@@ -303,7 +307,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 				// Add a ribbon icon for opening the TaskView
 				this.addRibbonIcon(
-					"list-check",
+					"task-genius",
 					t("Open Task Genius view"),
 					() => {
 						this.activateTaskView();
