@@ -174,8 +174,14 @@ export class SidebarComponent extends Component {
 						this.plugin.saveSettings();
 						this.updateActiveItem();
 					});
-				})
-				.addItem((item) => {
+				});
+
+			if (
+				this.plugin.settings.viewConfiguration.find(
+					(view) => view.id === viewId
+				)?.type === "custom"
+			) {
+				menu.addItem((item) => {
 					item.setTitle(t("Delete"))
 						.setWarning(true)
 						.onClick(() => {
@@ -188,6 +194,7 @@ export class SidebarComponent extends Component {
 							this.updateActiveItem();
 						});
 				});
+			}
 
 			menu.showAtMouseEvent(e);
 		});
