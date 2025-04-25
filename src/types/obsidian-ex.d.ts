@@ -329,6 +329,7 @@ declare module "obsidian" {
 	interface MenuItem {
 		setSubmenu(): Menu;
 		titleEl: HTMLElement;
+		setWarning(warning: boolean): this;
 	}
 
 	interface Setting {

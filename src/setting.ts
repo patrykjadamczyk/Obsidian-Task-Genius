@@ -137,6 +137,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		});
 	}
 
+	public openTab(tabId: string) {
+		this.currentTab = tabId;
+		this.display();
+	}
+
 	private createTabSection(tabId: string): HTMLElement {
 		// Get the sections container
 		const sectionsContainer = this.containerEl.querySelector(

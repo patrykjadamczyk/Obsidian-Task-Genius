@@ -1,11 +1,15 @@
-import { App, Component, setIcon } from "obsidian";
+import { App, Component, Menu, setIcon } from "obsidian";
 import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
 // Import necessary types from settings definition
 import {
+	ViewConfig,
+	ViewFilterRule,
 	ViewMode,
 	getViewSettingOrDefault,
 } from "../../common/setting-definition";
+import { TASK_SPECIFIC_VIEW_TYPE } from "src/pages/TaskSpecificView";
+import { ViewConfigModal } from "../ViewConfigModal";
 
 // Remove the enum if it exists, use ViewMode type directly
 // export type ViewMode = "inbox" | "forecast" | "projects" | "tags" | "review";
@@ -104,6 +108,85 @@ export class SidebarComponent extends Component {
 			if (this.onViewModeChanged) {
 				this.onViewModeChanged(viewId);
 			}
+		});
+
+		this.registerDomEvent(navItem, "contextmenu", (e) => {
+			const menu = new Menu();
+			menu.addItem((item) => {
+				item.setTitle(t("Open in new tab")).onClick(() => {
+					const leaf = this.app.workspace.getLeaf();
+					leaf.setViewState({
+						type: TASK_SPECIFIC_VIEW_TYPE,
+						state: {
+							viewId: viewId,
+						},
+					});
+				});
+			})
+				.addItem((item) => {
+					item.setTitle(t("Open settings")).onClick(async () => {
+						const view =
+							this.plugin.settings.viewConfiguration.find(
+								(v) => v.id === viewId
+							);
+						if (!view) {
+							return;
+						}
+						const currentRules = view?.filterRules || {};
+						new ViewConfigModal(
+							this.app,
+							this.plugin,
+							view,
+							currentRules,
+							(
+								updatedView: ViewConfig,
+								updatedRules: ViewFilterRule
+							) => {
+								const currentIndex =
+									this.plugin.settings.viewConfiguration.findIndex(
+										(v) => v.id === updatedView.id
+									);
+								if (currentIndex !== -1) {
+									// Update the view config in the array
+									this.plugin.settings.viewConfiguration[
+										currentIndex
+									] = {
+										...updatedView,
+										filterRules: updatedRules,
+									}; // Ensure rules are saved back to viewConfig
+									this.plugin.saveSettings();
+									this.updateActiveItem();
+								}
+							}
+						).open();
+					});
+				})
+				.addItem((item) => {
+					item.setTitle(t("Hide in sidebar")).onClick(() => {
+						const view =
+							this.plugin.settings.viewConfiguration.find(
+								(v) => v.id === viewId
+							);
+						if (!view) {
+							return;
+						}
+						view.visible = false;
+						this.plugin.saveSettings();
+						this.updateActiveItem();
+					});
+				})
+				.addItem((item) => {
+					item.setTitle(t("Delete"))
+						.setWarning(true)
+						.onClick(() => {
+							this.plugin.settings.viewConfiguration =
+								this.plugin.settings.viewConfiguration.filter(
+									(v) => v.id !== viewId
+								);
+						});
+				});
+
+			menu.showAtMouseEvent(e);
 		});
 
 		return navItem;

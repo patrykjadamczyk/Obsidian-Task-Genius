@@ -273,16 +273,15 @@ export class ReviewComponent extends Component {
 	};
 	private showAllTasks: boolean = false; // Default to filtered view
 
-	// Events (will be passed to the renderer)
-	public onTaskSelected: (task: Task) => void;
-	public onTaskCompleted: (task: Task) => void;
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
-		() => {};
-
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
-		private plugin: TaskProgressBarPlugin
+		private plugin: TaskProgressBarPlugin,
+		private params: {
+			onTaskSelected?: (task: Task | null) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
+		} = {}
 	) {
 		super();
 	}
@@ -314,14 +313,15 @@ export class ReviewComponent extends Component {
 
 		// Connect event handlers
 		this.taskRenderer.onTaskSelected = (task) => {
-			if (this.onTaskSelected) this.onTaskSelected(task);
+			if (this.params.onTaskSelected) this.params.onTaskSelected(task);
 		};
 		this.taskRenderer.onTaskCompleted = (task) => {
-			if (this.onTaskCompleted) this.onTaskCompleted(task);
+			if (this.params.onTaskCompleted) this.params.onTaskCompleted(task);
 			// Potentially add review completion logic here later
 		};
 		this.taskRenderer.onTaskContextMenu = (event, task) => {
-			if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);
+			if (this.params.onTaskContextMenu)
+				this.params.onTaskContextMenu(event, task);
 		};
 
 		// Load initial data

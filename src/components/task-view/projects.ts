@@ -42,16 +42,15 @@ export class ProjectsComponent extends Component {
 	private allProjectsMap: Map<string, Set<string>> = new Map();
 	private isTreeView: boolean = false;
 
-	// Events
-	public onTaskSelected: (task: Task) => void;
-	public onTaskCompleted: (task: Task) => void;
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
-		() => {};
-
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
-		private plugin: TaskProgressBarPlugin
+		private plugin: TaskProgressBarPlugin,
+		private params: {
+			onTaskSelected?: (task: Task | null) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
+		} = {}
 	) {
 		super();
 	}
@@ -83,13 +82,14 @@ export class ProjectsComponent extends Component {
 
 		// Connect event handlers
 		this.taskRenderer.onTaskSelected = (task) => {
-			if (this.onTaskSelected) this.onTaskSelected(task);
+			if (this.params.onTaskSelected) this.params.onTaskSelected(task);
 		};
 		this.taskRenderer.onTaskCompleted = (task) => {
-			if (this.onTaskCompleted) this.onTaskCompleted(task);
+			if (this.params.onTaskCompleted) this.params.onTaskCompleted(task);
 		};
 		this.taskRenderer.onTaskContextMenu = (event, task) => {
-			if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);
+			if (this.params.onTaskContextMenu)
+				this.params.onTaskContextMenu(event, task);
 		};
 	}
 

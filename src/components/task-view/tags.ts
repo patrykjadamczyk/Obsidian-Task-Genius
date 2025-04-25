@@ -53,18 +53,15 @@ export class TagsComponent extends Component {
 	private allTagsMap: Map<string, Set<string>> = new Map(); // tag -> taskIds
 	private isTreeView: boolean = false;
 
-	// Events
-	public onTaskSelected: (task: Task) => void;
-	public onTaskCompleted: (task: Task) => void;
-
-	// Context menu
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
-		() => {};
-
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
-		private plugin: TaskProgressBarPlugin
+		private plugin: TaskProgressBarPlugin,
+		private params: {
+			onTaskSelected?: (task: Task | null) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
+		} = {}
 	) {
 		super();
 	}
@@ -640,9 +637,15 @@ export class TagsComponent extends Component {
 				this.app,
 				"tags"
 			);
-			this.mainTaskRenderer.onTaskSelected = this.onTaskSelected;
-			this.mainTaskRenderer.onTaskCompleted = this.onTaskCompleted;
-			this.mainTaskRenderer.onTaskContextMenu = this.onTaskContextMenu;
+			this.params.onTaskSelected &&
+				(this.mainTaskRenderer.onTaskSelected =
+					this.params.onTaskSelected);
+			this.params.onTaskCompleted &&
+				(this.mainTaskRenderer.onTaskCompleted =
+					this.params.onTaskCompleted);
+			this.params.onTaskContextMenu &&
+				(this.mainTaskRenderer.onTaskContextMenu =
+					this.params.onTaskContextMenu);
 
 			this.mainTaskRenderer.renderTasks(
 				this.filteredTasks,
@@ -685,9 +688,14 @@ export class TagsComponent extends Component {
 				this.app,
 				"tags"
 			);
-			section.renderer.onTaskSelected = this.onTaskSelected;
-			section.renderer.onTaskCompleted = this.onTaskCompleted;
-			section.renderer.onTaskContextMenu = this.onTaskContextMenu;
+			this.params.onTaskSelected &&
+				(section.renderer.onTaskSelected = this.params.onTaskSelected);
+			this.params.onTaskCompleted &&
+				(section.renderer.onTaskCompleted =
+					this.params.onTaskCompleted);
+			this.params.onTaskContextMenu &&
+				(section.renderer.onTaskContextMenu =
+					this.params.onTaskContextMenu);
 
 			// Render tasks for this section (always list view within sections)
 			section.renderer.renderTasks(section.tasks, false);

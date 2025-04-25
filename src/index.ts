@@ -62,6 +62,8 @@ import "./styles/setting.css";
 import "./styles/view.css";
 import "./styles/view-config.css";
 import "./styles/task-status.css";
+import { TaskSpecificView } from "./pages/TaskSpecificView";
+import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -151,6 +153,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 	// Preloaded tasks:
 	preloadedTasks: Task[] = [];
 
+	// Setting tab
+	settingTab: TaskProgressBarSettingTab;
+
 	async onload() {
 		await this.loadSettings();
 
@@ -176,7 +181,8 @@ export default class TaskProgressBarPlugin extends Plugin {
 		this.registerCommands();
 		this.registerEditorExt();
 
-		this.addSettingTab(new TaskProgressBarSettingTab(this.app, this));
+		this.settingTab = new TaskProgressBarSettingTab(this.app, this);
+		this.addSettingTab(this.settingTab);
 
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor) => {
@@ -288,6 +294,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 				this.registerView(
 					TASK_VIEW_TYPE,
 					(leaf) => new TaskView(leaf, this)
+				);
+
+				this.registerView(
+					TASK_SPECIFIC_VIEW_TYPE,
+					(leaf) => new TaskSpecificView(leaf, this)
 				);
 
 				// Add a ribbon icon for opening the TaskView
