@@ -183,6 +183,9 @@ export class SidebarComponent extends Component {
 								this.plugin.settings.viewConfiguration.filter(
 									(v) => v.id !== viewId
 								);
+
+							this.plugin.saveSettings();
+							this.updateActiveItem();
 						});
 				});
 
