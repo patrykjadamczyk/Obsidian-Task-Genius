@@ -24,10 +24,7 @@ export class LocalStorageCache {
 	 * @param appId The application ID for the cache namespace
 	 * @param version Current plugin version for cache invalidation
 	 */
-	constructor(
-		public readonly appId: string,
-		public readonly version: string
-	) {
+	constructor(public readonly appId: string) {
 		this.persister = localforage.createInstance({
 			name: this.cachePrefix + this.appId,
 			driver: [localforage.INDEXEDDB],
@@ -112,8 +109,6 @@ export class LocalStorageCache {
 		try {
 			const key = this.fileKey(path);
 			await this.persister.setItem(key, {
-				version: this.version,
-				time: Date.now(),
 				data,
 			} as Cached<T>);
 		} catch (error) {
@@ -266,8 +261,6 @@ export class LocalStorageCache {
 		try {
 			const cacheKey = `${this.appId}:consolidated:${key}`;
 			await this.persister.setItem(cacheKey, {
-				version: this.version,
-				time: Date.now(),
 				data,
 			} as Cached<T>);
 		} catch (error) {

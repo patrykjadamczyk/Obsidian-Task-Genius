@@ -309,6 +309,8 @@ declare module "obsidian" {
 		commands: Commands;
 		setting: Setting;
 		embedRegistry: EmbedRegistry;
+
+		appId: string;
 	}
 
 	interface EmbedRegistry {

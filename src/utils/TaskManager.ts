@@ -78,7 +78,7 @@ export class TaskManager extends Component {
 			this.vault,
 			this.metadataCache
 		);
-		this.persister = new LocalStorageCache("primary", this.version);
+		this.persister = new LocalStorageCache(this.app.appId, this.version);
 
 		// Preload tasks from persister to improve initialization speed
 		this.preloadTasksFromCache();
