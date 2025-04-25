@@ -1,4 +1,6 @@
-# Task Genius
+<p align="center">
+    <img src="media/task-genius.svg" alt="Task Genius Logo" width="150">
+</p>
 
 Full documentation is available at [Docs](docs/general.md).
 
