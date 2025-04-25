@@ -76,6 +76,13 @@ export class TaskView extends ItemView {
 		super(leaf);
 
 		this.tasks = this.plugin.preloadedTasks;
+
+		this.scope = new Scope(this.app.scope);
+
+		this.scope?.register(null, "escape", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+		});
 	}
 
 	getViewType(): string {
@@ -154,13 +161,6 @@ export class TaskView extends ItemView {
 
 		this.register(() => {
 			this.tabActionButton.detach();
-		});
-
-		this.scope = new Scope(this.app.scope);
-
-		this.scope?.register(null, "escape", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
 		});
 
 		this.tasks = this.plugin.preloadedTasks;

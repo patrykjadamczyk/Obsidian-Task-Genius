@@ -7,6 +7,7 @@ import {
 	ExtraButtonComponent,
 	ButtonComponent,
 	Menu,
+	Scope,
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
@@ -78,6 +79,13 @@ export class TaskSpecificView extends ItemView {
 		super(leaf);
 
 		this.tasks = this.plugin.preloadedTasks;
+
+		this.scope = new Scope(this.app.scope);
+
+		this.scope?.register(null, "escape", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+		});
 	}
 
 	// New State Management Methods
