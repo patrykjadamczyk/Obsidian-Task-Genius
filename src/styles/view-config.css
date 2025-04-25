@@ -65,3 +65,75 @@
 .view-management-list .setting-item-control .checkbox-container {
 	margin: 0; /* Remove default margins if any */
 }
+
+/* Icon Picker Menu Styles (Scoped) */
+.tg-icon-menu {
+	position: absolute;
+	z-index: 100;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-l);
+	padding: 8px;
+	max-height: 300px; /* Limit overall menu height */
+	width: 250px;
+	display: flex; /* Use flexbox */
+	flex-direction: column;
+	/* Prevent padding from affecting max-height calculation for flex children */
+	box-sizing: border-box;
+}
+
+/* Remove styles for the intermediate container */
+/* .bm-plugin-icon-menu .bm-menu-content { 
+	flex-grow: 1; 
+	overflow-y: auto; 
+	display: flex;
+	flex-direction: column;
+	min-height: 0; 
+} */
+
+.tg-icon-menu .tg-menu-search {
+	width: 100%;
+	padding: 6px 8px;
+	margin-bottom: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	box-sizing: border-box;
+	flex-shrink: 0; /* Prevent search bar from shrinking */
+}
+
+.tg-icon-menu .tg-menu-icons {
+	flex-grow: 1; /* Icon list takes remaining vertical space */
+	overflow-y: auto; /* Make the icon list scrollable */
+	min-height: 0; /* Crucial for allowing flex child to shrink and scroll */
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+	gap: 4px;
+	/* Remove min-height previously needed for grid in flex */
+}
+
+/* Scope the clickable icon *within* the menu */
+.tg-icon-menu .clickable-icon {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 6px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	background-color: var(--background-primary);
+	border: 1px solid transparent;
+	transition: background-color 0.1s ease-in-out, border-color 0.1s ease-in-out;
+}
+
+.tg-icon-menu .clickable-icon:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.tg-icon-menu .clickable-icon svg {
+	width: 20px;
+	height: 20px;
+	color: var(--text-muted);
+}

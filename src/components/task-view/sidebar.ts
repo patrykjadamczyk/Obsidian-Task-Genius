@@ -172,7 +172,7 @@ export class SidebarComponent extends Component {
 						}
 						view.visible = false;
 						this.plugin.saveSettings();
-						this.updateActiveItem();
+						this.renderSidebarItems();
 					});
 				});
 
@@ -191,7 +191,7 @@ export class SidebarComponent extends Component {
 								);
 
 							this.plugin.saveSettings();
-							this.updateActiveItem();
+							this.renderSidebarItems();
 						});
 				});
 			}
