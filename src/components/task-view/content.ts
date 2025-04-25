@@ -43,16 +43,15 @@ export class ContentComponent extends Component {
 	private focusFilter: string | null = null; // Keep focus filter if needed
 	private isTreeView: boolean = false;
 
-	// Events (Passed to created components)
-	public onTaskSelected: (task: Task | null) => void = () => {};
-	public onTaskCompleted: (task: Task) => void = () => {};
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
-		() => {};
-
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
-		private plugin: TaskProgressBarPlugin
+		private plugin: TaskProgressBarPlugin,
+		private params: {
+			onTaskSelected?: (task: Task | null) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
+		} = {}
 	) {
 		super();
 	}
@@ -262,10 +261,11 @@ export class ContentComponent extends Component {
 			// Attach event handlers
 			taskComponent.onTaskSelected = this.selectTask.bind(this);
 			taskComponent.onTaskCompleted = (t) => {
-				if (this.onTaskCompleted) this.onTaskCompleted(t);
+				if (this.params.onTaskCompleted) this.params.onTaskCompleted(t);
 			};
 			taskComponent.onTaskContextMenu = (e, t) => {
-				if (this.onTaskContextMenu) this.onTaskContextMenu(e, t);
+				if (this.params.onTaskContextMenu)
+					this.params.onTaskContextMenu(e, t);
 			};
 
 			this.addChild(taskComponent); // Manage lifecycle
@@ -305,10 +305,11 @@ export class ContentComponent extends Component {
 			// Attach event handlers
 			treeComponent.onTaskSelected = this.selectTask.bind(this);
 			treeComponent.onTaskCompleted = (t) => {
-				if (this.onTaskCompleted) this.onTaskCompleted(t);
+				if (this.params.onTaskCompleted) this.params.onTaskCompleted(t);
 			};
 			treeComponent.onTaskContextMenu = (e, t) => {
-				if (this.onTaskContextMenu) this.onTaskContextMenu(e, t);
+				if (this.params.onTaskContextMenu)
+					this.params.onTaskContextMenu(e, t);
 			};
 
 			this.addChild(treeComponent); // Manage lifecycle
@@ -421,8 +422,8 @@ export class ContentComponent extends Component {
 			// newItemEl?.addClass('is-selected');
 		}
 
-		if (this.onTaskSelected) {
-			this.onTaskSelected(task);
+		if (this.params.onTaskSelected) {
+			this.params.onTaskSelected(task);
 		}
 	}
 

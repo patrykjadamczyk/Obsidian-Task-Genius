@@ -11,7 +11,7 @@ import {
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
-import { SidebarComponent } from "../components/task-view/sidebar";
+// Removed SidebarComponent import
 import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";
 import { TagsComponent } from "../components/task-view/tags";
@@ -37,14 +37,18 @@ import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
 
-export const TASK_VIEW_TYPE = "task-genius-view";
+export const TASK_SPECIFIC_VIEW_TYPE = "task-genius-specific-view";
 
-export class TaskView extends ItemView {
+interface TaskSpecificViewState {
+	viewId: ViewMode;
+	project?: string | null;
+}
+
+export class TaskSpecificView extends ItemView {
 	// Main container elements
 	private rootContainerEl: HTMLElement;
 
-	// Component references
-	private sidebarComponent: SidebarComponent;
+	// Component references (Sidebar removed)
 	private contentComponent: ContentComponent;
 	private forecastComponent: ForecastComponent;
 	private tagsComponent: TagsComponent;
@@ -57,12 +61,11 @@ export class TaskView extends ItemView {
 	// Custom view components by view ID
 	private twoColumnViewComponents: Map<string, TaskPropertyTwoColumnView> =
 		new Map();
-	// UI state management
-	private isSidebarCollapsed: boolean = false;
+	// UI state management (Sidebar state removed)
 	private isDetailsVisible: boolean = false;
-	private sidebarToggleBtn: HTMLElement;
 	private detailsToggleBtn: HTMLElement;
-	private currentViewId: ViewMode = "inbox";
+	private currentViewId: ViewMode = "inbox"; // Default or loaded from state
+	private currentProject?: string | null;
 	private currentSelectedTaskId: string | null = null;
 	private currentSelectedTaskDOM: HTMLElement | null = null;
 	private lastToggleTimestamp: number = 0;
@@ -85,8 +88,43 @@ export class TaskView extends ItemView {
 		});
 	}
 
+	// New State Management Methods
+	getState(): Record<string, unknown> {
+		const state = super.getState();
+		return {
+			...state,
+			viewId: this.currentViewId,
+			project: this.currentProject,
+		};
+	}
+
+	async setState(state: unknown, result: any) {
+		await super.setState(state, result);
+
+		if (state && typeof state === "object") {
+			const specificState = state as TaskSpecificViewState;
+
+			this.currentViewId = specificState?.viewId || "inbox";
+			this.currentProject = specificState?.project;
+			console.log("TaskSpecificView setState:", specificState);
+
+			if (!this.rootContainerEl) {
+				this.app.workspace.onLayoutReady(() => {
+					if (this.currentViewId) {
+						this.switchView(
+							this.currentViewId,
+							this.currentProject
+						);
+					}
+				});
+			} else if (this.currentViewId) {
+				this.switchView(this.currentViewId, this.currentProject);
+			}
+		}
+	}
+
 	getViewType(): string {
-		return TASK_VIEW_TYPE;
+		return TASK_SPECIFIC_VIEW_TYPE;
 	}
 
 	getDisplayText(): string {
@@ -94,6 +132,7 @@ export class TaskView extends ItemView {
 			this.plugin,
 			this.currentViewId
 		);
+		// Potentially add project name if relevant for 'projects' view?
 		return currentViewConfig.name;
 	}
 
@@ -107,38 +146,39 @@ export class TaskView extends ItemView {
 
 	async onOpen() {
 		this.contentEl.toggleClass("task-genius-view", true);
+		this.contentEl.toggleClass("task-genius-specific-view", true);
 		this.rootContainerEl = this.contentEl.createDiv({
-			cls: "task-genius-container",
+			cls: "task-genius-container no-sidebar",
 		});
+
+		// Load tasks first
+		this.tasks = this.plugin.preloadedTasks;
 
 		this.initializeComponents();
 
-		const savedViewId = this.app.loadLocalStorage(
-			"task-genius:view-mode"
-		) as ViewMode;
-		const initialViewId = this.plugin.settings.viewConfiguration.find(
-			(v) => v.id === savedViewId && v.visible
-		)
-			? savedViewId
-			: this.plugin.settings.viewConfiguration.find((v) => v.visible)
-					?.id || "inbox";
+		// Retrieve initial view state
+		const state = this.leaf.getViewState().state as any;
+		const specificState = state as unknown as TaskSpecificViewState;
+		console.log("TaskSpecificView initial state:", specificState);
+		this.currentViewId = specificState?.viewId || "inbox"; // Fallback if state is missing
+		this.currentProject = specificState?.project;
 
-		this.currentViewId = initialViewId;
-		this.sidebarComponent.setViewMode(this.currentViewId);
-		this.switchView(this.currentViewId);
+		// Initial view switch based on state
+		this.switchView(this.currentViewId, this.currentProject);
 
 		this.toggleDetailsVisibility(false);
 
-		this.createActionButtons();
+		this.createActionButtons(); // Keep details toggle and quick capture
 
-		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
-		(this.leaf.tabHeaderEl as HTMLElement).toggleClass(
+		// Header modifications (if needed, similar to TaskView)
+		(this.leaf.tabHeaderStatusContainerEl as HTMLElement)?.empty();
+		(this.leaf.tabHeaderEl as HTMLElement)?.toggleClass(
 			"task-genius-tab-header",
 			true
 		);
 		this.tabActionButton = (
 			this.leaf.tabHeaderStatusContainerEl as HTMLElement
-		).createEl(
+		)?.createEl(
 			"span",
 			{
 				cls: "task-genius-action-btn",
@@ -159,14 +199,16 @@ export class TaskView extends ItemView {
 			}
 		);
 
-		this.register(() => {
-			this.tabActionButton.detach();
-		});
+		if (this.tabActionButton) {
+			this.register(() => {
+				this.tabActionButton.detach();
+			});
+		}
 
-		this.tasks = this.plugin.preloadedTasks;
-		this.triggerViewUpdate();
+		this.triggerViewUpdate(); // Load tasks into the active view
 
-		this.checkAndCollapseSidebar();
+		// No sidebar check needed
+		// this.checkAndCollapseSidebar();
 
 		this.app.workspace.onLayoutReady(() => {
 			this.registerEvent(
@@ -179,70 +221,14 @@ export class TaskView extends ItemView {
 			);
 		});
 
-		// Load initial tasks into components that need them immediately
-		if (this.tasks && this.tasks.length > 0) {
-			this.calendarComponent?.updateTasks(this.tasks);
-			this.ganttComponent?.setTasks(this.tasks);
-			// KanbanComponent will receive tasks via switchView initially
-		}
-
-		this.plugin.settings.viewConfiguration.forEach((view) => {
-			this.plugin.addCommand({
-				id: `switch-view-${view.id}`,
-				name: view.name,
-				checkCallback: (checking) => {
-					if (checking) {
-						return true;
-					}
-
-					const currentView =
-						this.plugin.app.workspace.getActiveViewOfType(TaskView);
-					if (currentView) {
-						currentView.switchView(view.id);
-					} else {
-						// If no view is active, activate one and then switch
-						this.plugin.activateTaskView().then(() => {
-							const newView =
-								this.plugin.app.workspace.getActiveViewOfType(
-									TaskView
-								);
-							if (newView) {
-								newView.switchView(view.id);
-							}
-						});
-					}
-
-					return true;
-				},
-			});
-		});
+		// No command registration needed as this view is opened programmatically
 	}
 
-	onResize(): void {
-		this.checkAndCollapseSidebar();
-	}
-
-	checkAndCollapseSidebar() {
-		if (this.leaf.width === 0 || this.leaf.height === 0) {
-			return;
-		}
-
-		if (this.leaf.width < 768) {
-			this.isSidebarCollapsed = true;
-			this.sidebarComponent.setCollapsed(true);
-		} else {
-		}
-	}
+	// Removed onResize and checkAndCollapseSidebar methods
 
 	private initializeComponents() {
-		this.sidebarComponent = new SidebarComponent(
-			this.rootContainerEl,
-			this.plugin
-		);
-		this.addChild(this.sidebarComponent);
-		this.sidebarComponent.load();
-
-		this.createSidebarToggle();
+		// No SidebarComponent initialization
+		// No createSidebarToggle call
 
 		this.contentComponent = new ContentComponent(
 			this.rootContainerEl,
@@ -404,31 +390,7 @@ export class TaskView extends ItemView {
 		this.setupComponentEvents();
 	}
 
-	private createSidebarToggle() {
-		const toggleContainer = (
-			this.headerEl.find(".view-header-nav-buttons") as HTMLElement
-		)?.createDiv({
-			cls: "panel-toggle-container",
-		});
-
-		if (!toggleContainer) {
-			console.error(
-				"Could not find .view-header-nav-buttons to add sidebar toggle."
-			);
-			return;
-		}
-
-		this.sidebarToggleBtn = toggleContainer.createDiv({
-			cls: "panel-toggle-btn",
-		});
-		new ButtonComponent(this.sidebarToggleBtn)
-			.setIcon("panel-left-dashed")
-			.setTooltip(t("Toggle Sidebar"))
-			.setClass("clickable-icon")
-			.onClick(() => {
-				this.toggleSidebar();
-			});
-	}
+	// Removed createSidebarToggle
 
 	private createActionButtons() {
 		this.detailsToggleBtn = this.addAction(
@@ -442,6 +404,7 @@ export class TaskView extends ItemView {
 		this.detailsToggleBtn.toggleClass("panel-toggle-btn", true);
 		this.detailsToggleBtn.toggleClass("is-active", this.isDetailsVisible);
 
+		// Keep quick capture button
 		this.addAction("check-square", t("Capture"), () => {
 			const modal = new QuickCaptureModal(
 				this.plugin.app,
@@ -454,6 +417,7 @@ export class TaskView extends ItemView {
 	}
 
 	onPaneMenu(menu: Menu) {
+		// Keep settings item
 		menu.addItem((item) => {
 			item.setTitle("Settings");
 			item.setIcon("gear");
@@ -462,19 +426,11 @@ export class TaskView extends ItemView {
 				this.app.setting.openTabById(this.plugin.manifest.id);
 			});
 		});
-
+		// Add specific view actions if needed in the future
 		return menu;
 	}
 
-	private toggleSidebar() {
-		this.isSidebarCollapsed = !this.isSidebarCollapsed;
-		this.rootContainerEl.toggleClass(
-			"sidebar-collapsed",
-			this.isSidebarCollapsed
-		);
-
-		this.sidebarComponent.setCollapsed(this.isSidebarCollapsed);
-	}
+	// Removed toggleSidebar
 
 	private toggleDetailsVisibility(visible: boolean) {
 		this.isDetailsVisible = visible;
@@ -496,6 +452,7 @@ export class TaskView extends ItemView {
 	}
 
 	private setupComponentEvents() {
+		// No sidebar event handlers
 		this.detailsComponent.onTaskToggleComplete = (task: Task) =>
 			this.toggleTaskCompletion(task);
 
@@ -511,19 +468,10 @@ export class TaskView extends ItemView {
 			this.toggleDetailsVisibility(visible);
 		};
 
-		// Sidebar component handlers
-		this.sidebarComponent.onProjectSelected = (project: string) => {
-			this.switchView("projects", project);
-		};
-		this.sidebarComponent.onViewModeChanged = (viewId: ViewMode) => {
-			this.switchView(viewId);
-		};
+		// No sidebar component handlers needed
 	}
 
 	private switchView(viewId: ViewMode, project?: string | null) {
-		this.currentViewId = viewId;
-		console.log("Switching view to:", viewId, "Project:", project);
-
 		// Hide all components first
 		this.contentComponent.containerEl.hide();
 		this.forecastComponent.containerEl.hide();
@@ -613,28 +561,30 @@ export class TaskView extends ItemView {
 
 		if (targetComponent) {
 			console.log(
-				`Activating component for view ${viewId}`,
+				`TaskSpecificView activating component for view ${viewId}`,
 				targetComponent.constructor.name
 			);
 			targetComponent.containerEl.show();
+
+			// Ensure tasks are loaded/filtered for the specific view
+			const filteredTasks = filterTasks(this.tasks, viewId, this.plugin);
 			if (typeof targetComponent.setTasks === "function") {
-				targetComponent.setTasks(
-					filterTasks(this.tasks, viewId, this.plugin)
-				);
+				targetComponent.setTasks(filteredTasks);
 			}
 
 			if (typeof targetComponent.setViewMode === "function") {
 				console.log(
-					`Setting view mode for ${viewId} to ${modeForComponent} with project ${project}`
+					`TaskSpecificView setting view mode for ${viewId} to ${modeForComponent} with project ${project}`
 				);
 				targetComponent.setViewMode(modeForComponent, project);
 			}
 
-			this.twoColumnViewComponents.forEach((component) => {
+			// Handle TwoColumnView task update specifically
+			this.twoColumnViewComponents.forEach((component, id) => {
 				if (
+					id === viewId && // Only update the *current* two-column view
 					component &&
-					typeof component.setTasks === "function" &&
-					component.getViewId() === viewId
+					typeof component.setTasks === "function"
 				) {
 					component.setTasks(
 						filterTasks(
@@ -645,6 +595,7 @@ export class TaskView extends ItemView {
 					);
 				}
 			});
+
 			if (
 				viewId === "review" &&
 				typeof targetComponent.refreshReviewSettings === "function"
@@ -652,22 +603,33 @@ export class TaskView extends ItemView {
 				targetComponent.refreshReviewSettings();
 			}
 		} else {
-			console.warn(`No target component found for viewId: ${viewId}`);
+			console.warn(
+				`TaskSpecificView: No target component found for viewId: ${viewId}`
+			);
 		}
 
-		this.app.saveLocalStorage("task-genius:view-mode", viewId);
-		this.updateHeaderDisplay();
-		this.handleTaskSelection(null);
+		// Don't save to local storage as state is managed by the leaf
+		// this.app.saveLocalStorage("task-genius:view-mode", viewId);
 
+		this.updateHeaderDisplay();
+		this.handleTaskSelection(null); // Deselect task on view switch
+
+		// Update tab icon/title
 		if (this.leaf.tabHeaderInnerIconEl) {
 			setIcon(this.leaf.tabHeaderInnerIconEl, this.getIcon());
+		}
+		if (this.leaf.tabHeaderInnerTitleEl) {
 			this.leaf.tabHeaderInnerTitleEl.setText(this.getDisplayText());
+		}
+		if (this.titleEl) {
+			// Also update the view title element itself
 			this.titleEl.setText(this.getDisplayText());
 		}
 	}
 
 	private updateHeaderDisplay() {
 		const config = getViewSettingOrDefault(this.plugin, this.currentViewId);
+		// Use the actual currentViewId for the header
 		this.leaf.setEphemeralState({ title: config.name, icon: config.icon });
 	}
 
@@ -729,12 +691,12 @@ export class TaskView extends ItemView {
 				item.setTitle(t("Edit"));
 				item.setIcon("pencil");
 				item.onClick(() => {
-					this.handleTaskSelection(task);
+					this.handleTaskSelection(task); // Open details view for editing
 				});
 			})
 			.addItem((item) => {
 				item.setTitle(t("Edit in File"));
-				item.setIcon("pencil");
+				item.setIcon("file-edit"); // Changed icon slightly
 				item.onClick(() => {
 					this.editTask(task);
 				});
@@ -758,11 +720,14 @@ export class TaskView extends ItemView {
 				return;
 			}
 
+			// Toggle details visibility on double-click/re-click
 			if (timeSinceLastToggle > 150) {
+				// Debounce slightly
 				this.toggleDetailsVisibility(!this.isDetailsVisible);
 				this.lastToggleTimestamp = now;
 			}
 		} else {
+			// Deselecting task explicitly
 			this.toggleDetailsVisibility(false);
 			this.currentSelectedTaskId = null;
 		}
@@ -773,14 +738,19 @@ export class TaskView extends ItemView {
 		if (!taskManager) return;
 
 		this.tasks = taskManager.getAllTasks();
-		console.log(`TaskView loaded ${this.tasks.length} tasks`);
+		console.log(`TaskSpecificView loaded ${this.tasks.length} tasks`);
 		await this.triggerViewUpdate();
 	}
 
 	public async triggerViewUpdate() {
-		// Update tasks in all TwoColumnView components
-
-		this.switchView(this.currentViewId);
+		// Simplified: just switch to the current view again to refresh tasks
+		if (this.currentViewId) {
+			this.switchView(this.currentViewId, this.currentProject);
+		} else {
+			console.warn(
+				"TaskSpecificView: Cannot trigger update, currentViewId is not set."
+			);
+		}
 	}
 
 	private async toggleTaskCompletion(task: Task) {
@@ -799,6 +769,7 @@ export class TaskView extends ItemView {
 			const notStartedMark =
 				this.plugin.settings.taskStatuses.notStarted || " ";
 			if (updatedTask.status.toLowerCase() === "x") {
+				// Only revert if it was the completed mark
 				updatedTask.status = notStartedMark;
 			}
 		}
@@ -807,6 +778,7 @@ export class TaskView extends ItemView {
 		if (!taskManager) return;
 
 		await taskManager.updateTask(updatedTask);
+		// Task cache listener will trigger loadTasks -> triggerViewUpdate
 	}
 
 	private async updateTask(
@@ -822,22 +794,31 @@ export class TaskView extends ItemView {
 			await taskManager.updateTask(updatedTask);
 			console.log(`Task ${updatedTask.id} updated successfully.`);
 
+			// Update task in local list immediately for responsiveness
 			const index = this.tasks.findIndex((t) => t.id === originalTask.id);
 			if (index !== -1) {
 				this.tasks[index] = updatedTask;
 			} else {
 				console.warn(
-					"Updated task not found in local list, might reload."
+					"Updated task not found in local list, might reload fully later."
 				);
+				// Optionally force a full reload if this happens often
+				// await this.loadTasks();
+				// return updatedTask; // Return early if we reloaded
 			}
 
+			// If the updated task is the currently selected one, refresh details view
 			if (this.currentSelectedTaskId === updatedTask.id) {
 				this.detailsComponent.showTaskDetails(updatedTask);
 			}
 
+			// Re-filter and update the current view component
+			this.triggerViewUpdate();
+
 			return updatedTask;
 		} catch (error) {
 			console.error(`Failed to update task ${originalTask.id}:`, error);
+			// Potentially add user notification here
 			throw error;
 		}
 	}
@@ -846,12 +827,23 @@ export class TaskView extends ItemView {
 		const file = this.app.vault.getAbstractFileByPath(task.filePath);
 		if (!(file instanceof TFile)) return;
 
-		const leaf = this.app.workspace.getLeaf(false);
-		await leaf.openFile(file, {
+		// Prefer activating existing leaf if file is open
+		const existingLeaf = this.app.workspace
+			.getLeavesOfType("markdown")
+			.find(
+				(leaf) => (leaf.view as any).file === file // Type assertion needed here
+			);
+
+		const leafToUse = existingLeaf || this.app.workspace.getLeaf("tab"); // Open in new tab if not open
+
+		await leafToUse.openFile(file, {
+			active: true, // Ensure the leaf becomes active
 			eState: {
 				line: task.line,
 			},
 		});
+		// Focus the editor after opening
+		this.app.workspace.setActiveLeaf(leafToUse, { focus: true });
 	}
 
 	async onClose() {
@@ -861,22 +853,20 @@ export class TaskView extends ItemView {
 		});
 		this.twoColumnViewComponents.clear();
 
-		this.unload();
-		this.rootContainerEl.empty();
-		this.rootContainerEl.detach();
+		this.unload(); // This callsremoveChild on all direct children automatically
+		if (this.rootContainerEl) {
+			this.rootContainerEl.empty();
+			this.rootContainerEl.detach();
+		}
+		console.log("TaskSpecificView closed");
 	}
 
 	onSettingsUpdate() {
-		console.log("TaskView received settings update notification.");
-		if (typeof this.sidebarComponent.renderSidebarItems === "function") {
-			this.sidebarComponent.renderSidebarItems();
-		} else {
-			console.warn(
-				"TaskView: SidebarComponent does not have renderSidebarItems method."
-			);
-		}
-		this.switchView(this.currentViewId);
-		this.updateHeaderDisplay();
+		console.log("TaskSpecificView received settings update notification.");
+		// No sidebar to update
+		// Re-trigger view update to reflect potential setting changes (e.g., filters, status marks)
+		this.triggerViewUpdate();
+		this.updateHeaderDisplay(); // Update icon/title if changed
 	}
 
 	// Method to handle status updates originating from Kanban drag-and-drop
@@ -885,7 +875,7 @@ export class TaskView extends ItemView {
 		newStatusMark: string
 	) => {
 		console.log(
-			`TaskView handling Kanban status update request for ${taskId} to mark ${newStatusMark}`
+			`TaskSpecificView handling Kanban status update request for ${taskId} to mark ${newStatusMark}`
 		);
 		const taskToUpdate = this.tasks.find((t) => t.id === taskId);
 
@@ -902,6 +892,7 @@ export class TaskView extends ItemView {
 				taskToUpdate.completed !== isCompleted
 			) {
 				try {
+					// Use updateTask to ensure consistency and UI updates
 					await this.updateTask(taskToUpdate, {
 						...taskToUpdate,
 						status: newStatusMark,
@@ -909,11 +900,11 @@ export class TaskView extends ItemView {
 						completedDate: completedDate,
 					});
 					console.log(
-						`Task ${taskId} status update processed by TaskView.`
+						`Task ${taskId} status update processed by TaskSpecificView.`
 					);
 				} catch (error) {
 					console.error(
-						`TaskView failed to update task status from Kanban callback for task ${taskId}:`,
+						`TaskSpecificView failed to update task status from Kanban callback for task ${taskId}:`,
 						error
 					);
 				}
@@ -924,7 +915,7 @@ export class TaskView extends ItemView {
 			}
 		} else {
 			console.warn(
-				`TaskView could not find task with ID ${taskId} for Kanban status update.`
+				`TaskSpecificView could not find task with ID ${taskId} for Kanban status update.`
 			);
 		}
 	};

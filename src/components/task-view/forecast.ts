@@ -57,18 +57,15 @@ export class ForecastComponent extends Component {
 	private treeComponents: TaskTreeItemComponent[] = [];
 	private allTasksMap: Map<string, Task> = new Map();
 
-	// Events
-	public onTaskSelected: (task: Task) => void;
-	public onTaskCompleted: (task: Task) => void;
-
-	// Context menu
-	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
-		() => {};
-
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
-		private plugin: TaskProgressBarPlugin
+		private plugin: TaskProgressBarPlugin,
+		private params: {
+			onTaskSelected?: (task: Task | null) => void;
+			onTaskCompleted?: (task: Task) => void;
+			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
+		} = {}
 	) {
 		super();
 		// Initialize dates
@@ -748,9 +745,14 @@ export class ForecastComponent extends Component {
 				this.app,
 				"forecast"
 			);
-			section.renderer.onTaskSelected = this.onTaskSelected;
-			section.renderer.onTaskCompleted = this.onTaskCompleted;
-			section.renderer.onTaskContextMenu = this.onTaskContextMenu;
+			this.params.onTaskSelected &&
+				(section.renderer.onTaskSelected = this.params.onTaskSelected);
+			this.params.onTaskCompleted &&
+				(section.renderer.onTaskCompleted =
+					this.params.onTaskCompleted);
+			this.params.onTaskContextMenu &&
+				(section.renderer.onTaskContextMenu =
+					this.params.onTaskContextMenu);
 
 			// Render tasks using the section's renderer
 			section.renderer.renderTasks(

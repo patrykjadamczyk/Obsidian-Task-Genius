@@ -6,6 +6,7 @@ import {
 	ButtonComponent,
 	Notice,
 	moment,
+	setIcon,
 } from "obsidian";
 import { t } from "../translations/helper";
 import {
@@ -20,6 +21,7 @@ import {
 } from "../common/setting-definition";
 import TaskProgressBarPlugin from "../index";
 import { FolderSuggest } from "./AutoComplete";
+import { attachIconMenu } from "./IconMenu";
 
 export class ViewConfigModal extends Modal {
 	private viewConfig: ViewConfig;
@@ -120,9 +122,31 @@ export class ViewConfigModal extends Modal {
 				)
 			)
 			.addText((text) => {
+				text.inputEl.hide();
 				this.iconInput = text;
 				text.setValue(this.viewConfig.icon).setPlaceholder("list-plus");
 				text.onChange(() => this.checkForChanges());
+			})
+			.addButton((btn) => {
+				try {
+					btn.setIcon(this.viewConfig.icon);
+				} catch (e) {
+					console.error("Error setting icon:", e);
+				}
+				attachIconMenu(btn, {
+					containerEl: this.modalEl,
+					plugin: this.plugin,
+					onIconSelected: (iconId) => {
+						this.viewConfig.icon = iconId;
+						this.checkForChanges();
+						try {
+							setIcon(btn.buttonEl, iconId);
+						} catch (e) {
+							console.error("Error setting icon:", e);
+						}
+						this.iconInput.setValue(iconId);
+					},
+				});
 			});
 
 		if (this.viewConfig.id === "calendar") {

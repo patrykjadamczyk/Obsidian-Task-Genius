@@ -60,8 +60,6 @@ function handleParentTaskUpdateTransaction(
 	const { doc, lineNumber } = taskStatusChangeInfo;
 	const parentInfo = findParentTask(doc, lineNumber);
 
-	console.log(parentInfo, lineNumber, tr.changes.length);
-
 	if (!parentInfo) {
 		return tr;
 	}
@@ -100,7 +98,6 @@ function handleParentTaskUpdateTransaction(
 		!allSiblingsCompleted &&
 		plugin.settings.markParentInProgressWhenPartiallyComplete
 	) {
-		console.log(isAutoCompleteAnnotation);
 		// Prevent reverting parent if the trigger was an auto-complete itself
 		if (!isAutoCompleteAnnotation) {
 			return markParentAsInProgress(
