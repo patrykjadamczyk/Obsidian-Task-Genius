@@ -560,15 +560,15 @@ export function handleCycleCompleteStatusTransaction(
 	// Build a new list of changes to replace the original ones
 	const newChanges = [];
 
-	console.log(taskStatusChanges.map((t) => t.tasksInfo?.isTaskChange));
-
-	const finalTaskStatusChanges = taskStatusChanges.filter(
-		(t) => !!t.tasksInfo?.isTaskChange
-	);
 	// Process each task status change
-	for (const taskStatusInfo of finalTaskStatusChanges) {
+	for (const taskStatusInfo of taskStatusChanges) {
 		const { position, currentMark, wasCompleteTask, tasksInfo } =
 			taskStatusInfo;
+
+		if (tasksInfo?.isTaskChange) {
+			console.log(tasksInfo);
+			continue;
+		}
 
 		// Find the current status in the cycle
 		let currentStatusIndex = -1;
@@ -720,8 +720,6 @@ export function handleCycleCompleteStatusTransaction(
 			});
 		}
 	}
-
-	console.log(newChanges, newChanges.length);
 
 	// If we found any changes to make, create a new transaction
 	if (newChanges.length > 0) {
