@@ -20,6 +20,7 @@ import TaskProgressBarPlugin from "..";
 import { Annotation, EditorSelection, SelectionRange } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { foldable, syntaxTree, tokenClassNodeProp } from "@codemirror/language";
+import { getTasksAPI } from "src/utils";
 
 export type TaskState = string;
 export const taskStatusChangeAnnotation = Annotation.define();
@@ -125,10 +126,26 @@ class TaskStatusWidget extends WidgetType {
 
 		statusText.textContent = this.currentState;
 
+		// Create invisible checkbox for compatibility with existing behaviors
+		const invisibleCheckbox = createEl("input", {
+			attr: {
+				type: "checkbox",
+			},
+		});
+		invisibleCheckbox.hide();
+		wrapper.appendChild(invisibleCheckbox);
+
 		// Click to cycle through states
 		statusText.addEventListener("click", (e) => {
 			e.preventDefault();
 			e.stopPropagation();
+
+			// Trigger the invisible checkbox click to maintain compatibility
+			if (getTasksAPI(this.plugin)) {
+				invisibleCheckbox.click();
+				return;
+			}
+
 			if (Keymap.isModEvent(e)) {
 				// When modifier key is pressed, jump to the first or last state
 				const { cycle } = this.getStatusConfig();
