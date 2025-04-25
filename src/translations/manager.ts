@@ -22,7 +22,7 @@ import pt from "./locale/pt";
 import ptBR from "./locale/pt-br";
 import ro from "./locale/ro";
 import ru from "./locale/ru";
-import ua from "./locale/ua";
+import uk from "./locale/uk";
 import tr from "./locale/tr";
 import zhCN from "./locale/zh-cn";
 import zhTW from "./locale/zh-tw";
@@ -50,6 +50,7 @@ const SUPPORTED_LOCALES = {
 	ro,
 	ru,
 	tr,
+	uk,
 	"zh-cn": zhCN,
 	"zh-tw": zhTW,
 } as const;
