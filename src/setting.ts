@@ -749,14 +749,20 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Display existing ranges
 		this.plugin.settings.progressRanges.forEach((range, index) => {
 			new Setting(containerEl)
-				.setName(`Range ${index + 1}: ${range.min}%-${range.max}%`)
+				.setName(
+					`${t("Range")} ${index + 1}: ${range.min}%-${range.max}%`
+				)
 				.setDesc(
-					`Use {{PROGRESS}} as a placeholder for the percentage value`
+					`${t("Use")} {{PROGRESS}} ${t(
+						"as a placeholder for the percentage value"
+					)}`
 				)
 				.addText((text) =>
 					text
 						.setPlaceholder(
-							"Template text with {{PROGRESS}} placeholder"
+							`${t("Template text with")} {{PROGRESS}} ${t(
+								"placeholder"
+							)}`
 						)
 						.setValue(range.text)
 						.onChange(async (value) => {

@@ -671,6 +671,59 @@ const translations = {
 	"Prefer metadata format of task": "優先使用任務的元數據格式",
 	"You can choose dataview format or tasks format, that will influence both index and save format.":
 		"你可以選擇 dataview 格式或 tasks 格式，這將影響索引和保存格式。",
+	"Open in new tab": "在新標籤頁中開啟",
+	"Open settings": "開啟設定",
+	"Hide in sidebar": "在側邊欄中隱藏",
+	"No items found": "未找到項目",
+	"High Priority": "高優先級",
+	"Medium Priority": "中優先級",
+	"Low Priority": "低優先級",
+	"No tasks in the selected items": "所選項目中沒有任務",
+	"View Type": "視圖類型",
+	"Select the type of view to create": "選擇要創建的視圖類型",
+	"Standard View": "標準視圖",
+	"Two Column View": "雙列視圖",
+	Items: "項目",
+	"selected items": "已選項目",
+	"No items selected": "未選擇項目",
+	"Two Column View Settings": "雙列視圖設定",
+	"Group by Task Property": "按任務屬性分組",
+	"Select which task property to use for left column grouping":
+		"選擇用於左列分組的任務屬性",
+	Priorities: "優先級",
+	Contexts: "上下文",
+	"Due Dates": "截止日期",
+	"Scheduled Dates": "計劃日期",
+	"Start Dates": "開始日期",
+	Files: "文件",
+	"Left Column Title": "左列標題",
+	"Title for the left column (items list)": "左列標題（項目列表）",
+	"Right Column Title": "右列標題",
+	"Default title for the right column (tasks list)":
+		"右列預設標題（任務列表）",
+	"Multi-select Text": "多選文本",
+	"Text to show when multiple items are selected": "選擇多個項目時顯示的文本",
+	"Empty State Text": "空狀態文本",
+	"Text to show when no items are selected": "未選擇項目時顯示的文本",
+	"Filter Blanks": "過濾空白任務",
+	"Filter out blank tasks in this view.": "在此視圖中過濾掉空白任務。",
+	"Task must contain this path (case-insensitive). Separate multiple paths with commas.":
+		"任務必須包含此路徑（不區分大小寫）。多個路徑用逗號分隔。",
+	"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas.":
+		"任務不得包含此路徑（不區分大小寫）。多個路徑用逗號分隔。",
+	"You have unsaved changes. Save before closing?":
+		"您有未保存的更改。關閉前保存嗎？",
+	Rotate: "旋轉",
+	"Are you sure you want to force reindex all tasks?":
+		"您確定要強制重新索引所有任務嗎？",
+	"Enable progress bar in reading mode": "在閱讀模式中啟用進度條",
+	"Toggle this to allow this plugin to show progress bars in reading mode.":
+		"切換此選項以允許插件在閱讀模式中顯示進度條。",
+	Range: "範圍",
+	"as a placeholder for the percentage value": "作為百分比值的佔位符",
+	"Template text with": "帶有佔位符的模板文本",
+	placeholder: "佔位符",
+	Reindex: "重建索引",
 };
 
 export default translations;

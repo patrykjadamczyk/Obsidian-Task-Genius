@@ -698,6 +698,64 @@ const translations = {
 	"Prefer metadata format of task": "タスクのメタデータ形式を優先",
 	"You can choose dataview format or tasks format, that will influence both index and save format.":
 		"dataview形式またはtasks形式を選択できます。これはインデックスと保存形式の両方に影響します。",
+	"Open in new tab": "新しいタブで開く",
+	"Open settings": "設定を開く",
+	"Hide in sidebar": "サイドバーに非表示",
+	"No items found": "項目が見つかりません",
+	"High Priority": "高優先度",
+	"Medium Priority": "中優先度",
+	"Low Priority": "低優先度",
+	"No tasks in the selected items": "選択した項目にタスクがありません",
+	"View Type": "ビュータイプ",
+	"Select the type of view to create": "作成するビューのタイプを選択",
+	"Standard View": "標準ビュー",
+	"Two Column View": "2列ビュー",
+	Items: "項目",
+	"selected items": "選択された項目",
+	"No items selected": "項目が選択されていません",
+	"Two Column View Settings": "2列ビュー設定",
+	"Group by Task Property": "タスクプロパティでグループ化",
+	"Select which task property to use for left column grouping":
+		"左列のグループ化に使用するタスクプロパティを選択",
+	Priorities: "優先度",
+	Contexts: "コンテキスト",
+	"Due Dates": "期限日",
+	"Scheduled Dates": "予定日",
+	"Start Dates": "開始日",
+	Files: "ファイル",
+	"Left Column Title": "左列のタイトル",
+	"Title for the left column (items list)": "左列のタイトル（項目リスト）",
+	"Right Column Title": "右列のタイトル",
+	"Default title for the right column (tasks list)":
+		"右列のデフォルトタイトル（タスクリスト）",
+	"Multi-select Text": "複数選択テキスト",
+	"Text to show when multiple items are selected":
+		"複数の項目が選択されたときに表示するテキスト",
+	"Empty State Text": "空の状態テキスト",
+	"Text to show when no items are selected":
+		"項目が選択されていないときに表示するテキスト",
+	"Filter Blanks": "空白をフィルター",
+	"Filter out blank tasks in this view.":
+		"このビューで空白のタスクを除外します。",
+	"Task must contain this path (case-insensitive). Separate multiple paths with commas.":
+		"タスクはこのパスを含む必要があります（大文字小文字を区別しません）。複数のパスはカンマで区切ってください。",
+	"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas.":
+		"タスクはこのパスを含んではいけません（大文字小文字を区別しません）。複数のパスはカンマで区切ってください。",
+	"You have unsaved changes. Save before closing?":
+		"保存されていない変更があります。閉じる前に保存しますか？",
+	Rotate: "回転",
+	"Are you sure you want to force reindex all tasks?":
+		"すべてのタスクを強制的に再インデックス化してもよろしいですか？",
+	"Enable progress bar in reading mode":
+		"読み取りモードでプログレスバーを有効にする",
+	"Toggle this to allow this plugin to show progress bars in reading mode.":
+		"このプラグインが読み取りモードでプログレスバーを表示できるようにするにはこれを切り替えてください。",
+	Range: "範囲",
+	"as a placeholder for the percentage value":
+		"パーセント値のプレースホルダーとして",
+	"Template text with": "プレースホルダー付きのテンプレートテキスト",
+	placeholder: "プレースホルダー",
+	Reindex: "再インデックス化",
 };
 
 export default translations;

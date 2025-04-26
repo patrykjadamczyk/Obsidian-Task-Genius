@@ -1,4 +1,4 @@
-// Переводы на русский язык
+// Russian translations
 const translations = {
 	"Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features.":
 		"Многофункциональный плагин для управления задачами в Obsidian с индикаторами прогресса, циклическим изменением статуса задач и расширенными функциями отслеживания задач.",
@@ -714,6 +714,65 @@ const translations = {
 	"Prefer metadata format of task": "Предпочитать формат метаданных задачи",
 	"You can choose dataview format or tasks format, that will influence both index and save format.":
 		"Вы можете выбрать формат dataview или tasks, что повлияет на формат индекса и сохранения.",
+	"Open in new tab": "Открыть в новой вкладке",
+	"Open settings": "Открыть настройки",
+	"Hide in sidebar": "Скрыть в боковой панели",
+	"No items found": "Элементы не найдены",
+	"High Priority": "Высокий приоритет",
+	"Medium Priority": "Средний приоритет",
+	"Low Priority": "Низкий приоритет",
+	"No tasks in the selected items": "Нет задач в выбранных элементах",
+	"View Type": "Тип вида",
+	"Select the type of view to create": "Выберите тип вида для создания",
+	"Standard View": "Стандартный вид",
+	"Two Column View": "Двухколоночный вид",
+	Items: "Элементы",
+	"selected items": "выбранные элементы",
+	"No items selected": "Нет выбранных элементов",
+	"Two Column View Settings": "Настройки двухколоночного вида",
+	"Group by Task Property": "Группировать по свойству задачи",
+	"Select which task property to use for left column grouping":
+		"Выберите свойство задачи для группировки в левой колонке",
+	Priorities: "Приоритеты",
+	Contexts: "Контексты",
+	"Due Dates": "Сроки выполнения",
+	"Scheduled Dates": "Запланированные даты",
+	"Start Dates": "Даты начала",
+	Files: "Файлы",
+	"Left Column Title": "Заголовок левой колонки",
+	"Title for the left column (items list)":
+		"Заголовок для левой колонки (список элементов)",
+	"Right Column Title": "Заголовок правой колонки",
+	"Default title for the right column (tasks list)":
+		"Заголовок по умолчанию для правой колонки (список задач)",
+	"Multi-select Text": "Текст при множественном выборе",
+	"Text to show when multiple items are selected":
+		"Текст, отображаемый при выборе нескольких элементов",
+	"Empty State Text": "Текст пустого состояния",
+	"Text to show when no items are selected":
+		"Текст, отображаемый когда ничего не выбрано",
+	"Filter Blanks": "Фильтровать пустые",
+	"Filter out blank tasks in this view.":
+		"Отфильтровать пустые задачи в этом виде.",
+	"Task must contain this path (case-insensitive). Separate multiple paths with commas.":
+		"Задача должна содержать этот путь (без учета регистра). Разделяйте несколько путей запятыми.",
+	"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas.":
+		"Задача НЕ должна содержать этот путь (без учета регистра). Разделяйте несколько путей запятыми.",
+	"You have unsaved changes. Save before closing?":
+		"У вас есть несохраненные изменения. Сохранить перед закрытием?",
+	Rotate: "Повернуть",
+	"Are you sure you want to force reindex all tasks?":
+		"Вы уверены, что хотите принудительно переиндексировать все задачи?",
+	"Enable progress bar in reading mode":
+		"Включить индикатор прогресса в режиме чтения",
+	"Toggle this to allow this plugin to show progress bars in reading mode.":
+		"Включите, чтобы плагин отображал индикаторы прогресса в режиме чтения.",
+	Range: "Диапазон",
+	"as a placeholder for the percentage value":
+		"как заполнитель для значения процента",
+	"Template text with": "Шаблон текста с",
+	placeholder: "заполнителем",
+	Reindex: "Переиндексировать",
 };
 
 export default translations;

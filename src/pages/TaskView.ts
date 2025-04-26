@@ -453,7 +453,7 @@ export class TaskView extends ItemView {
 			modal.open();
 		});
 
-		this.addAction("rotate-ccw", t("Rotate"), async () => {
+		this.addAction("rotate-ccw", t("Reindex"), async () => {
 			const confirmed = window.confirm(
 				t("Are you sure you want to force reindex all tasks?")
 			);
