@@ -171,7 +171,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 				this.app,
 				this.app.vault,
 				this.app.metadataCache,
-				this.manifest.version,
 				this,
 				{
 					useWorkers: true,

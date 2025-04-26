@@ -336,36 +336,61 @@ function extractTags(
 		);
 	}
 
-	// Exclude wiki links from tag processing
-	const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
-	const wikiLinks: { text: string; start: number; end: number }[] = [];
-	let wikiMatch;
+	// Exclude links (both wiki and markdown) from tag processing
+	const wikiLinkRegex = /\[\[(?!.+?:)([^\]\[]+)\|([^\]\[]+)\]\]/g;
+	const markdownLinkRegex = /\[([^\[\]]*)\]\((.*?)\)/g; // Final attempt at correctly escaped regex for [text](link)
+	const links: { text: string; start: number; end: number }[] = [];
+	let linkMatch: RegExpExecArray | null; // Explicit type for linkMatch
 	let processedContent = remainingContent;
 
 	// Find all wiki links and their positions
-	while ((wikiMatch = wikiLinkRegex.exec(remainingContent)) !== null) {
-		wikiLinks.push({
-			text: wikiMatch[0],
-			start: wikiMatch.index,
-			end: wikiMatch.index + wikiMatch[0].length,
+	wikiLinkRegex.lastIndex = 0; // Reset regex state
+	while ((linkMatch = wikiLinkRegex.exec(remainingContent)) !== null) {
+		links.push({
+			text: linkMatch[0],
+			start: linkMatch.index,
+			end: linkMatch.index + linkMatch[0].length,
 		});
 	}
 
-	// Temporarily replace wiki links with placeholders
-	if (wikiLinks.length > 0) {
+	// Find all markdown links and their positions
+	markdownLinkRegex.lastIndex = 0; // Reset regex state
+	while ((linkMatch = markdownLinkRegex.exec(remainingContent)) !== null) {
+		// Avoid adding if it overlaps with an existing wiki link (though unlikely)
+		const overlaps = links.some(
+			(l) =>
+				Math.max(l.start, linkMatch!.index) < // Use non-null assertion
+				Math.min(l.end, linkMatch!.index + linkMatch![0].length) // Use non-null assertion
+		);
+		if (!overlaps) {
+			links.push({
+				text: linkMatch![0], // Use non-null assertion
+				start: linkMatch!.index, // Use non-null assertion
+				end: linkMatch!.index + linkMatch![0].length, // Use non-null assertion
+			});
+		}
+	}
+
+	// Sort links by start position to process them correctly
+	links.sort((a, b) => a.start - b.start);
+
+	// Temporarily replace links with placeholders
+	if (links.length > 0) {
 		let offset = 0;
-		for (const link of wikiLinks) {
+		for (const link of links) {
 			const adjustedStart = link.start - offset;
-			const placeholder = "".padStart(link.text.length, " ");
+			// Ensure adjustedStart is not negative (can happen with overlapping regex logic, though we try to avoid it)
+			if (adjustedStart < 0) continue;
+			const placeholder = "".padStart(link.text.length, " "); // Replace with spaces
 			processedContent =
 				processedContent.substring(0, adjustedStart) +
 				placeholder +
 				processedContent.substring(adjustedStart + link.text.length);
-			offset += link.text.length - placeholder.length;
+			// Offset doesn't change because placeholder length matches link text length
 		}
 	}
 
-	// Find all #tags in the potentially cleaned content, excluding wiki links
+	// Find all #tags in the content with links replaced by placeholders
 	const tagMatches = processedContent.match(EMOJI_TAG_REGEX) || [];
 	task.tags = tagMatches.map((tag) => tag.trim());
 
@@ -387,66 +412,69 @@ function extractTags(
 		);
 	}
 
-	// Remove found tags (including potentially #project/ tags if format is 'tasks') from the remaining content
-	let contentWithoutTags = remainingContent;
+	// Remove found tags (including potentially #project/ tags if format is 'tasks') from the original remaining content
+	let contentWithoutTagsOrContext = remainingContent;
 	for (const tag of task.tags) {
 		// Ensure the tag is not empty or just '#' before creating regex
 		if (tag && tag !== "#") {
+			// Use word boundaries (or start/end of string/space) to avoid partial matches within links if tags are not fully removed initially
+			// Regex: (?:^|\s)TAG(?=\s|$)
+			// Need to escape the tag content properly.
+			const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			// Match tag optionally preceded by whitespace, followed by whitespace or end of line.
+			// The negative lookbehind (?<!...) might be useful but JS support varies. Using simpler approach.
+			// Simpler approach: Replace ` TAG` or `TAG ` or `TAG` (at end). This is tricky.
+			// Let's try replacing ` TAG` and `TAG ` first, then handle start/end cases.
+			// Even simpler: replace the tag if surrounded by whitespace or at start/end.
+			// Use a regex that captures the tag with potential surrounding whitespace/boundaries
 			const tagRegex = new RegExp(
-				`\s?${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=\s|$)`,
+				// `(^|\\s)` // Start of string or whitespace
+				`\\s?` + // Optional preceding space (handles beginning of line implicitly sometimes)
+					escapedTag +
+					// `(?=\\s|$)` // Followed by whitespace or end of string
+					`(?=\\s|$)`, // Lookahead for space or end of string
 				"g"
 			);
-			contentWithoutTags = contentWithoutTags.replace(tagRegex, "");
+			// Replace the match (space + tag) with an empty string or just a space if needed?
+			// Replacing with empty string might collapse words. Let's try replacing with space if preceded by space.
+			// This is getting complex. Let's stick to removing the tag and potentially adjacent space carefully.
+			contentWithoutTagsOrContext = contentWithoutTagsOrContext.replace(
+				tagRegex,
+				""
+			);
 		}
 	}
 
-	// Also remove any remaining @context tags while preserving wiki links
-	if (wikiLinks.length > 0) {
-		// Create a temporary version for @context processing
-		let tempContent = contentWithoutTags;
+	// Also remove any remaining @context tags, making sure not to remove them from within links
+	let finalContent = "";
+	let lastIndex = 0;
+	processedContent = contentWithoutTagsOrContext; // Start with content that had tags removed
 
-		// Replace wiki links with placeholders
-		let offset = 0;
-		wikiLinks.sort((a, b) => a.start - b.start); // Process in order
+	// Sort links again just in case order matters for reconstruction
+	links.sort((a, b) => a.start - b.start);
 
-		for (const link of wikiLinks) {
-			const adjustedStart = link.start - offset;
-			const placeholder = "".padStart(link.text.length, "█"); // Use a rare character
-			tempContent =
-				tempContent.substring(0, adjustedStart) +
-				placeholder +
-				tempContent.substring(adjustedStart + link.text.length);
-			offset += link.text.length - placeholder.length;
+	if (links.length > 0) {
+		// Process content segments between links
+		for (const link of links) {
+			const segment = processedContent.substring(lastIndex, link.start);
+			// Remove @context from the segment
+			finalContent += segment.replace(/@[\w-]+/g, "").trim();
+			// Add the original link back
+			finalContent += link.text;
+			lastIndex = link.end;
 		}
-
-		// Remove @context tags from temporary content
-		tempContent = tempContent.replace(/@[\w-]+/g, "");
-
-		// Restore wiki links
-		let resultContent = "";
-		let lastIndex = 0;
-
-		for (const link of wikiLinks) {
-			// Add processed content up to this wiki link position
-			const linkStart = contentWithoutTags.indexOf(link.text, lastIndex);
-			if (linkStart >= 0) {
-				resultContent += tempContent.substring(lastIndex, linkStart);
-				// Add the original wiki link
-				resultContent += link.text;
-				// Update lastIndex
-				lastIndex = linkStart + link.text.length;
-			}
-		}
-
-		// Add any remaining content after the last wiki link
-		resultContent += tempContent.substring(lastIndex);
-		contentWithoutTags = resultContent.trim();
+		// Process the remaining segment after the last link
+		const lastSegment = processedContent.substring(lastIndex);
+		finalContent += lastSegment.replace(/@[\w-]+/g, "").trim();
 	} else {
-		// No wiki links, safe to remove @context directly
-		contentWithoutTags = contentWithoutTags.replace(/@[\w-]+/g, "").trim();
+		// No links, safe to remove @context directly from the whole content
+		finalContent = processedContent.replace(/@[\w-]+/g, "").trim();
 	}
 
-	return contentWithoutTags.trim();
+	// Clean up extra spaces that might result from replacements
+	finalContent = finalContent.replace(/\s{2,}/g, " ").trim();
+
+	return finalContent;
 }
 
 /**

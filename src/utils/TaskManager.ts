@@ -65,7 +65,6 @@ export class TaskManager extends Component {
 		private app: App,
 		private vault: Vault,
 		private metadataCache: MetadataCache,
-		private version: string,
 		private plugin: TaskProgressBarPlugin,
 		options: Partial<TaskManagerOptions> = {}
 	) {
@@ -78,7 +77,7 @@ export class TaskManager extends Component {
 			this.vault,
 			this.metadataCache
 		);
-		this.persister = new LocalStorageCache(this.app.appId, this.version);
+		this.persister = new LocalStorageCache(this.app.appId);
 
 		// Preload tasks from persister to improve initialization speed
 		this.preloadTasksFromCache();
@@ -169,10 +168,7 @@ export class TaskManager extends Component {
 					"taskCache"
 				);
 
-			if (
-				consolidatedCache &&
-				consolidatedCache.version === this.version
-			) {
+			if (consolidatedCache) {
 				// We have a valid consolidated cache - use it directly
 				this.log(
 					`Loading consolidated task cache from version ${consolidatedCache.version}`
@@ -217,11 +213,7 @@ export class TaskManager extends Component {
 				for (const [filePath, cacheItem] of Object.entries(
 					cachedTasks
 				)) {
-					if (
-						cacheItem &&
-						cacheItem.data &&
-						cacheItem.version === this.version
-					) {
+					if (cacheItem && cacheItem.data) {
 						this.indexer.updateIndexWithTasks(
 							filePath,
 							cacheItem.data
@@ -344,11 +336,7 @@ export class TaskManager extends Component {
 								const cached = await this.persister.loadFile<
 									Task[]
 								>(file.path);
-								if (
-									cached &&
-									cached.time >= file.stat.mtime &&
-									cached.version === this.version
-								) {
+								if (cached && cached.time >= file.stat.mtime) {
 									// Update index with cached data
 									this.indexer.updateIndexWithTasks(
 										file.path,
@@ -559,11 +547,7 @@ export class TaskManager extends Component {
 					const cached = await this.persister.loadFile<Task[]>(
 						file.path
 					);
-					if (
-						cached &&
-						cached.time >= file.stat.mtime &&
-						cached.version === this.version
-					) {
+					if (cached && cached.time >= file.stat.mtime) {
 						// Update index with cached data
 						this.indexer.updateIndexWithTasks(
 							file.path,

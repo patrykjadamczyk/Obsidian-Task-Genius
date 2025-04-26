@@ -8,6 +8,7 @@ import {
 	ButtonComponent,
 	Menu,
 	Scope,
+	Notice,
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
@@ -450,6 +451,21 @@ export class TaskView extends ItemView {
 				true
 			);
 			modal.open();
+		});
+
+		this.addAction("rotate-ccw", t("Rotate"), async () => {
+			const confirmed = window.confirm(
+				t("Are you sure you want to force reindex all tasks?")
+			);
+			if (!confirmed) return;
+			try {
+				new Notice(t("Clearing task cache and rebuilding index..."));
+				await this.plugin.taskManager.forceReindex();
+				new Notice(t("Task index completely rebuilt"));
+			} catch (error) {
+				console.error("Failed to force reindex tasks:", error);
+				new Notice(t("Failed to force reindex tasks"));
+			}
 		});
 	}
 
