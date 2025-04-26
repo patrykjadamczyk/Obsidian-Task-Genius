@@ -68,63 +68,94 @@ export function clearAllMarks(markdown: string): string {
 	);
 
 	// --- General Cleaning ---
-	// Process tags and context tags while preserving wiki links
+	// Process tags and context tags while preserving links (both wiki and markdown)
 
-	// Extract and preserve wiki links
-	const wikiLinks: { text: string; index: number }[] = [];
+	interface LinkInfo {
+		text: string;
+		index: number; // Use index instead of start for clarity matching original logic
+		length: number;
+	}
+
+	const links: LinkInfo[] = [];
 	const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
-	let wikiMatch;
-	while ((wikiMatch = wikiLinkRegex.exec(cleanedMarkdown)) !== null) {
-		wikiLinks.push({
-			text: wikiMatch[0],
-			index: wikiMatch.index,
+	const markdownLinkRegex = /\[([^\[\]]*)\]\((.*?)\)/g; // Regex for [text](link)
+	let linkMatch: RegExpExecArray | null;
+
+	// Find all wiki links
+	wikiLinkRegex.lastIndex = 0;
+	while ((linkMatch = wikiLinkRegex.exec(cleanedMarkdown)) !== null) {
+		links.push({
+			text: linkMatch[0],
+			index: linkMatch.index,
+			length: linkMatch[0].length,
 		});
 	}
 
-	// Create a temporary version of markdown with wiki links replaced by placeholders
-	let tempMarkdown = cleanedMarkdown;
-	if (wikiLinks.length > 0) {
-		// Sort wiki links by index in descending order to process from end to beginning
-		// This prevents indices from shifting when replacing
-		wikiLinks.sort((a, b) => b.index - a.index);
-
-		for (const link of wikiLinks) {
-			const placeholder = "".padStart(link.text.length, "█"); // Use a rare character as placeholder
-			tempMarkdown =
-				tempMarkdown.substring(0, link.index) +
-				placeholder +
-				tempMarkdown.substring(link.index + link.text.length);
+	// Find all markdown links (avoid overlaps)
+	markdownLinkRegex.lastIndex = 0;
+	while ((linkMatch = markdownLinkRegex.exec(cleanedMarkdown)) !== null) {
+		const currentStart = linkMatch.index;
+		const currentEnd = currentStart + linkMatch[0].length;
+		const overlaps = links.some(
+			(l) =>
+				Math.max(l.index, currentStart) <
+				Math.min(l.index + l.length, currentEnd)
+		);
+		if (!overlaps) {
+			links.push({
+				text: linkMatch[0],
+				index: currentStart,
+				length: linkMatch[0].length,
+			});
 		}
 	}
 
-	// Remove tags from temporary markdown
+	// Create a temporary version of markdown with all links replaced by placeholders
+	let tempMarkdown = cleanedMarkdown;
+	if (links.length > 0) {
+		// Sort links by index in descending order to process from end to beginning
+		// This prevents indices from shifting when replacing
+		links.sort((a, b) => b.index - a.index);
+
+		for (const link of links) {
+			// Use a non-space placeholder to avoid tag merging issues
+			const placeholder = "█".repeat(link.length);
+			tempMarkdown =
+				tempMarkdown.substring(0, link.index) +
+				placeholder +
+				tempMarkdown.substring(link.index + link.length);
+		}
+	}
+
+	// Remove tags from temporary markdown (where links are placeholders)
 	tempMarkdown = tempMarkdown.replace(TAG_REGEX, "");
 	// Remove context tags from temporary markdown
-	tempMarkdown = tempMarkdown.replace(/@[\w-]+/g, "");
+	tempMarkdown = tempMarkdown.replace(/@([\w-]+)/g, ""); // Use non-capturing group for potentially better performance if needed
 
-	// Now restore the wiki links in the cleaned version
-	if (wikiLinks.length > 0) {
-		// Process wiki links in original order (ascending by index)
-		wikiLinks.sort((a, b) => a.index - b.index);
+	// Now restore the links in the cleaned version
+	if (links.length > 0) {
+		// Process links in original order (ascending by index) for reconstruction
+		links.sort((a, b) => a.index - b.index);
 
 		let resultMarkdown = "";
 		let lastIndex = 0;
 
-		for (const link of wikiLinks) {
-			// Add cleaned content up to this wiki link
+		for (const link of links) {
+			// Add cleaned content (from tempMarkdown) up to this link
 			resultMarkdown += tempMarkdown.substring(lastIndex, link.index);
-			// Add the original wiki link
+			// Add the original link text
 			resultMarkdown += link.text;
-			// Update lastIndex
-			lastIndex = link.index + link.text.length;
+			// Update lastIndex (using link.length now)
+			lastIndex = link.index + link.length;
 		}
 
-		// Add any remaining content after the last wiki link
+		// Add any remaining content after the last link
 		resultMarkdown += tempMarkdown.substring(lastIndex);
+		// Assign the reconstructed string back to tempMarkdown for final processing
 		tempMarkdown = resultMarkdown;
 	}
 
-	// Task marker and final cleaning
+	// Task marker and final cleaning (applied to the string with links restored)
 	tempMarkdown = tempMarkdown.replace(
 		/^([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\]\s*/,
 		""
