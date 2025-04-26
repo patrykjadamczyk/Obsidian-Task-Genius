@@ -452,32 +452,40 @@ export class TaskView extends ItemView {
 			);
 			modal.open();
 		});
-
-		this.addAction("rotate-ccw", t("Reindex"), async () => {
-			const confirmed = window.confirm(
-				t("Are you sure you want to force reindex all tasks?")
-			);
-			if (!confirmed) return;
-			try {
-				new Notice(t("Clearing task cache and rebuilding index..."));
-				await this.plugin.taskManager.forceReindex();
-				new Notice(t("Task index completely rebuilt"));
-			} catch (error) {
-				console.error("Failed to force reindex tasks:", error);
-				new Notice(t("Failed to force reindex tasks"));
-			}
-		});
 	}
 
 	onPaneMenu(menu: Menu) {
 		menu.addItem((item) => {
-			item.setTitle("Settings");
+			item.setTitle(t("Settings"));
 			item.setIcon("gear");
 			item.onClick(() => {
 				this.app.setting.open();
 				this.app.setting.openTabById(this.plugin.manifest.id);
+
+				this.plugin.settingTab.openTab("view-settings");
 			});
-		});
+		})
+			.addSeparator()
+			.addItem((item) => {
+				item.setTitle(t("Reindex"));
+				item.setIcon("rotate-ccw");
+				item.onClick(async () => {
+					const confirmed = window.confirm(
+						t("Are you sure you want to force reindex all tasks?")
+					);
+					if (!confirmed) return;
+					try {
+						new Notice(
+							t("Clearing task cache and rebuilding index...")
+						);
+						await this.plugin.taskManager.forceReindex();
+						new Notice(t("Task index completely rebuilt"));
+					} catch (error) {
+						console.error("Failed to force reindex tasks:", error);
+						new Notice(t("Failed to force reindex tasks"));
+					}
+				});
+			});
 
 		return menu;
 	}

@@ -603,7 +603,11 @@ const translations = {
   "as a placeholder for the percentage value": "as a placeholder for the percentage value",
   "Template text with": "Template text with",
   "placeholder": "placeholder",
-  "Reindex": "Reindex"
+  "Reindex": "Reindex",
+  "From now": "From now",
+  "Complete workflow": "Complete workflow",
+  "Move to": "Move to",
+  "Settings": "Settings"
 };
 
 export default translations;

@@ -723,6 +723,10 @@ const translations = {
 	"Template text with": "带有占位符的模板文本",
 	placeholder: "占位符",
 	Reindex: "重建索引",
+	"From now": "从现在",
+	"Complete workflow": "完成工作流",
+	"Move to": "移动到",
+	Settings: "设置",
 };
 
 export default translations;

@@ -113,7 +113,7 @@ export const actionButtonState = StateField.define<boolean>({
 								checkFilterChanges(editor, plugin)
 							) {
 								menu.addItem((item) => {
-									item.setTitle("Reset").onClick(() => {
+									item.setTitle(t("Reset")).onClick(() => {
 										editor?.dispatch({
 											effects: updateActiveFilters.of(
 												DEFAULT_FILTER_OPTIONS

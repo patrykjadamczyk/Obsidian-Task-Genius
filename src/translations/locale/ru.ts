@@ -773,6 +773,10 @@ const translations = {
 	"Template text with": "Шаблон текста с",
 	placeholder: "заполнителем",
 	Reindex: "Переиндексировать",
+	"From now": "Сейчас",
+	"Complete workflow": "Завершить рабочий процесс",
+	"Move to": "Переместить в",
+	Settings: "Настройки",
 };
 
 export default translations;

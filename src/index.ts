@@ -200,7 +200,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 							([key, priority]) => {
 								if (key !== "none") {
 									submenu.addItem((item) => {
-										item.setTitle(`Set ${priority.text}`);
+										item.setTitle(
+											`${t("Set priority")}: ${
+												priority.text
+											}`
+										);
 										item.setIcon("arrow-big-up-dash");
 										item.onClick(() => {
 											setPriorityAtCursor(
@@ -219,7 +223,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 						Object.entries(LETTER_PRIORITIES).forEach(
 							([key, priority]) => {
 								submenu.addItem((item) => {
-									item.setTitle(`Set priority ${key}`);
+									item.setTitle(
+										`${t("Set priority")}: ${key}`
+									);
 									item.setIcon("a-arrow-up");
 									item.onClick(() => {
 										setPriorityAtCursor(

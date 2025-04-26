@@ -756,6 +756,10 @@ const translations = {
 	"Template text with": "プレースホルダー付きのテンプレートテキスト",
 	placeholder: "プレースホルダー",
 	Reindex: "再インデックス化",
+	"From now": "現在から",
+	"Complete workflow": "作業を完了する",
+	"Move to": "移動する",
+	Settings: "設定",
 };
 
 export default translations;

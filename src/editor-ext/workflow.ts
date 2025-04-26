@@ -748,7 +748,7 @@ export function updateWorkflowContextMenu(
 			});
 		} else if (currentStage.type === "terminal") {
 			submenu.addItem((nextItem: any) => {
-				nextItem.setTitle(`Complete workflow`);
+				nextItem.setTitle(t("Complete workflow"));
 				nextItem.onClick(() => {
 					const changes = createWorkflowStageTransition(
 						plugin,
@@ -783,7 +783,7 @@ export function updateWorkflowContextMenu(
 				);
 				if (nextStage) {
 					submenu.addItem((nextItem: any) => {
-						nextItem.setTitle(`Move to ${nextStage.name}`);
+						nextItem.setTitle(`${t("Move to")} ${nextStage.name}`);
 						nextItem.onClick(() => {
 							const changes = createWorkflowStageTransition(
 								plugin,

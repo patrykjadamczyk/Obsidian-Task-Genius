@@ -171,7 +171,7 @@ class PriorityWidget extends WidgetType {
 
 			// Add option to remove priority
 			menu.addItem((item) => {
-				item.setTitle("Remove Priority");
+				item.setTitle(t("Remove Priority"));
 				item.onClick(() => {
 					this.removePriority();
 				});

@@ -419,11 +419,13 @@ export class TaskSpecificView extends ItemView {
 	onPaneMenu(menu: Menu) {
 		// Keep settings item
 		menu.addItem((item) => {
-			item.setTitle("Settings");
+			item.setTitle(t("Settings"));
 			item.setIcon("gear");
 			item.onClick(() => {
 				this.app.setting.open();
 				this.app.setting.openTabById(this.plugin.manifest.id);
+
+				this.plugin.settingTab.openTab("view-settings");
 			});
 		});
 		// Add specific view actions if needed in the future

@@ -83,7 +83,7 @@ class DatePickerWidget extends WidgetType {
 		};
 
 		menu.addItem((item: MenuItem) => {
-			item.setTitle("From now");
+			item.setTitle(t("From now"));
 			item.setDisabled(true);
 		});
 		// Add all date options

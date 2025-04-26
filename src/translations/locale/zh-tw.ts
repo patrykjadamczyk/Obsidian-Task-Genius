@@ -724,6 +724,10 @@ const translations = {
 	"Template text with": "帶有佔位符的模板文本",
 	placeholder: "佔位符",
 	Reindex: "重建索引",
+	"From now": "從現在",
+	"Complete workflow": "完成工作流程",
+	"Move to": "移動到",
+	Settings: "設定",
 };
 
 export default translations;
