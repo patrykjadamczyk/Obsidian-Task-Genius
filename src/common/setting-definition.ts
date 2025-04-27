@@ -191,6 +191,27 @@ export interface WorkflowSettings {
 	definitions: WorkflowDefinition[]; // Uses the local WorkflowDefinition
 }
 
+export interface RewardItem {
+	id: string; // Unique identifier for the reward item
+	name: string; // The reward text
+	occurrence: string; // Name of the occurrence level (e.g., "common", "rare")
+	inventory: number; // Remaining count (-1 for unlimited)
+	imageUrl?: string; // Optional image URL
+	condition?: string; // Optional condition string for triggering (e.g., "#project AND #milestone")
+}
+
+export interface OccurrenceLevel {
+	name: string;
+	chance: number; // Probability percentage (e.g., 70 for 70%)
+}
+
+export interface RewardSettings {
+	enableRewards: boolean;
+	rewardItems: RewardItem[];
+	occurrenceLevels: OccurrenceLevel[];
+	// We might add more settings later, e.g., conditionSyntax
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -257,6 +278,9 @@ export interface TaskProgressBarSettings {
 
 	// Review Settings
 	reviewSettings: Record<string, ProjectReviewSetting>;
+
+	// Reward Settings (NEW)
+	rewards: RewardSettings;
 }
 
 /** Define the default settings */
@@ -534,6 +558,45 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Review Settings
 	reviewSettings: {},
+
+	// Reward Settings Defaults (NEW)
+	rewards: {
+		enableRewards: false,
+		rewardItems: [
+			{
+				id: "reward-tea",
+				name: t("Drink a cup of good tea"),
+				occurrence: "common",
+				inventory: -1,
+			}, // -1 for infinite
+			{
+				id: "reward-series-episode",
+				name: t("Watch an episode of a favorite series"),
+				occurrence: "rare",
+				inventory: 20,
+			},
+			{
+				id: "reward-champagne-project",
+				name: t("Play a game"),
+				occurrence: "legendary",
+				inventory: 1,
+				condition: "#project AND #milestone",
+			},
+			{
+				id: "reward-chocolate-quick",
+				name: t("Eat a piece of chocolate"),
+				occurrence: "common",
+				inventory: 10,
+				condition: "#quickwin",
+				imageUrl: "",
+			}, // Add imageUrl example if needed
+		],
+		occurrenceLevels: [
+			{ name: t("common"), chance: 70 },
+			{ name: t("rare"), chance: 25 },
+			{ name: t("legendary"), chance: 5 },
+		],
+	},
 };
 
 // Helper function to get view settings safely

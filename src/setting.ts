@@ -9,7 +9,7 @@ import {
 	Notice,
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
-import { allStatusCollections } from "./task-status";
+import { allStatusCollections } from "./common/task-status";
 import { migrateOldFilterOptions } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
 import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
@@ -976,7 +976,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							const functionName =
 								value.toLowerCase() + "SupportedStatuses";
 							const statusesModule = await import(
-								"./task-status"
+								"./common/task-status"
 							);
 
 							// Use type assertion for the dynamic function access
@@ -1374,7 +1374,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							const functionName =
 								value.toLowerCase() + "SupportedStatuses";
 							const statusesModule = await import(
-								"./task-status"
+								"./common/task-status"
 							);
 
 							// Use type assertion for the dynamic function access
