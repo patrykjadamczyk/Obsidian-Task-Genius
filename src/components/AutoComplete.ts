@@ -195,3 +195,29 @@ export class FolderSuggest extends CustomSuggest {
 		return `${parts.join(",")},`;
 	}
 }
+
+/**
+ * ImageSuggest - Provides autocomplete for image paths
+ */
+export class ImageSuggest extends CustomSuggest {
+	constructor(
+		app: App,
+		inputEl: HTMLInputElement,
+		plugin: TaskProgressBarPlugin
+	) {
+		// Get all images in the vault
+		const images = app.vault
+			.getFiles()
+			.filter(
+				(file) =>
+					file.extension === "png" ||
+					file.extension === "jpg" ||
+					file.extension === "jpeg" ||
+					file.extension === "gif" ||
+					file.extension === "svg" ||
+					file.extension === "webp"
+			);
+		const paths = images.map((file) => file.path);
+		super(app, inputEl, paths);
+	}
+}

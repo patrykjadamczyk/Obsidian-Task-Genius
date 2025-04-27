@@ -1,6 +1,7 @@
 import { App, Modal, Setting } from "obsidian";
 import { RewardItem } from "../common/setting-definition";
 import { t } from "src/translations/helper";
+import "../styles/reward.css";
 
 export class RewardModal extends Modal {
 	private reward: RewardItem;
@@ -20,7 +21,9 @@ export class RewardModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty(); // Clear previous content
 
-		contentEl.addClass("task-progress-bar-reward-modal"); // Add a class for styling
+		this.modalEl.toggleClass("reward-modal", true);
+
+		contentEl.addClass("reward-modal-content");
 
 		// Add a title
 		this.setTitle("🎉 " + t("You've Earned a Reward!") + " 🎉");
@@ -37,10 +40,7 @@ export class RewardModal extends Modal {
 				cls: "reward-image-container",
 			});
 			// Basic check for local vs web URL (can be improved)
-			if (
-				this.reward.imageUrl.startsWith("http") ||
-				this.reward.imageUrl.startsWith("app://local/")
-			) {
+			if (this.reward.imageUrl.startsWith("http")) {
 				imgContainer.createEl("img", {
 					attr: { src: this.reward.imageUrl }, // Use attr for attributes like src
 					cls: "reward-image",

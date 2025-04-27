@@ -27,6 +27,7 @@ import {
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
 import { ViewConfigModal } from "./components/ViewConfigModal";
+import { ImageSuggest } from "./components/AutoComplete";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -3044,17 +3045,18 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							this.applySettingsUpdate();
 						})
 				)
-				.addText((text) =>
-					text // For Image URL
-						.setPlaceholder(t("Image URL (optional)"))
+				.addText((text) => {
+					text.setPlaceholder(t("Image URL (optional)")) // For Image URL
 						.setValue(item.imageUrl || "")
 						.onChange((value) => {
 							this.plugin.settings.rewards.rewardItems[
 								index
 							].imageUrl = value.trim() || undefined; // Store as undefined if empty
 							this.applySettingsUpdate();
-						})
-				)
+						});
+
+					new ImageSuggest(this.app, text.inputEl, this.plugin);
+				})
 				.addButton((button) =>
 					button
 						.setIcon("trash")

@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, editorInfoField } from "obsidian";
 import {
 	EditorState,
 	Text,
@@ -9,7 +9,7 @@ import TaskProgressBarPlugin from "..";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import { getTasksAPI } from "../utils";
 import { priorityChangeAnnotation } from "./priorityPicker";
-
+import { parseTaskLine } from "src/utils/taskUtil";
 /**
  * Creates an editor extension that cycles through task statuses when a user clicks on a task marker
  * @param app The Obsidian app instance
@@ -486,7 +486,6 @@ export function handleCycleCompleteStatusTransaction(
 	// Check if the transaction is just indentation or unindentation
 	let isIndentationChange = false;
 	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
-		console.log(fromA, toA, fromB, toB, inserted.toString());
 		// Check if from the start of a line
 		const isLineStart =
 			fromA === 0 ||
@@ -559,6 +558,7 @@ export function handleCycleCompleteStatusTransaction(
 
 	// Build a new list of changes to replace the original ones
 	const newChanges = [];
+	let completingTask = false;
 
 	// Process each task status change
 	for (const taskStatusInfo of taskStatusChanges) {
@@ -680,6 +680,10 @@ export function handleCycleCompleteStatusTransaction(
 			continue;
 		}
 
+		if (nextMark === "x" || nextMark === "X") {
+			completingTask = true;
+		}
+
 		// If nextMark is 'x', 'X', or space and we have Tasks plugin info, use the original insertion
 		if (
 			(nextMark === "x" || nextMark === "X" || nextMark === " ") &&
@@ -723,6 +727,18 @@ export function handleCycleCompleteStatusTransaction(
 
 	// If we found any changes to make, create a new transaction
 	if (newChanges.length > 0) {
+		const editorInfo = tr.startState.field(editorInfoField);
+		const change = newChanges[0];
+		const line = tr.newDoc.lineAt(change.from);
+		const task = parseTaskLine(
+			editorInfo?.file?.path || "",
+			line.text,
+			line.number,
+			plugin.settings.preferMetadataFormat
+		);
+		if (completingTask && task) {
+			app.workspace.trigger("task-genius:task-completed", task);
+		}
 		return {
 			changes: newChanges,
 			selection: tr.selection,

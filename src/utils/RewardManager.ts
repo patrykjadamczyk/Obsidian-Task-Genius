@@ -25,9 +25,6 @@ export class RewardManager extends Component {
 				"task-genius:task-completed",
 				(task: Task) => {
 					this.triggerReward(task);
-					console.log(
-						"RewardManager: task-completed event triggered"
-					);
 				}
 			)
 		);
