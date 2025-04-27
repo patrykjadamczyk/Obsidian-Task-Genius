@@ -366,7 +366,12 @@ declare module "obsidian" {
 			event: "task-genius:task-cache-updated",
 			callback: (cache: TaskCache) => void
 		): EventRef;
+		on(
+			event: "task-genius:task-completed",
+			callback: (task: Task) => void
+		): EventRef;
 
+		trigger(event: "task-genius:task-completed", task: Task): void;
 		trigger(event: "task-genius:task-added", task: Task): void;
 		trigger(event: "task-genius:task-updated", task: Task): void;
 		trigger(event: "task-genius:task-deleted", taskId: string): void;

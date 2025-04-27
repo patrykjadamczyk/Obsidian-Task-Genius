@@ -28,9 +28,12 @@ import TaskProgressBarPlugin from "../index";
 import {
 	parseAdvancedFilterQuery,
 	evaluateFilterNode,
+	parsePriorityFilterValue,
 } from "../utils/filterUtils";
 import { t } from "../translations/helper";
+import { Task as TaskIndexTask } from "../utils/types/TaskIndex";
 import "../styles/task-filter.css";
+
 // Effect to toggle the filter panel
 export const toggleTaskFilter = StateEffect.define<boolean>();
 
@@ -318,6 +321,43 @@ export interface Task {
 	tags: string[]; // All tags found in the task
 }
 
+// Helper function to map local Task to the format expected by evaluateFilterNode
+// Only includes fields actually used by evaluateFilterNode in filterUtils.ts
+function mapTaskForFiltering(
+	task: Task
+): Pick<TaskIndexTask, "content" | "tags" | "priority" | "dueDate"> {
+	let priorityValue: number | undefined = undefined;
+	if (task.priority) {
+		const parsedPriority = parsePriorityFilterValue(task.priority);
+		if (parsedPriority !== null) {
+			priorityValue = parsedPriority;
+		}
+	}
+
+	let dueDateTimestamp: number | undefined = undefined;
+	if (task.date) {
+		// Try parsing various common formats, strict parsing
+		const parsedDate = moment(
+			task.date,
+			[moment.ISO_8601, "YYYY-MM-DD", "DD.MM.YYYY", "MM/DD/YYYY"],
+			true
+		);
+		if (parsedDate.isValid()) {
+			dueDateTimestamp = parsedDate.valueOf(); // Get timestamp in ms
+		} else {
+			// Optional: Log parsing errors if needed
+			// console.warn(`Could not parse date: ${task.date} for task: ${task.text}`);
+		}
+	}
+
+	return {
+		content: task.text,
+		tags: task.tags,
+		priority: priorityValue,
+		dueDate: dueDateTimestamp,
+	};
+}
+
 function checkFilterChanges(view: EditorView, plugin: TaskProgressBarPlugin) {
 	// Get active filters from the state instead of the facet
 	const options = getActiveFiltersForView(view);
@@ -333,6 +373,7 @@ function checkFilterChanges(view: EditorView, plugin: TaskProgressBarPlugin) {
 	// Return whether there are any changes from default
 	return !isDefault;
 }
+
 function filterPanelDisplay(
 	view: EditorView,
 	dom: HTMLElement,
@@ -780,7 +821,10 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 				const parseResult = parseAdvancedFilterQuery(
 					activeFilters.advancedFilterQuery
 				);
-				const result = evaluateFilterNode(parseResult, task);
+				const result = evaluateFilterNode(
+					parseResult,
+					mapTaskForFiltering(task) as TaskIndexTask
+				);
 				// Use the direct result, filter mode will be handled later
 				matchesQuery = result;
 			} catch (error) {
@@ -951,7 +995,10 @@ function shouldHideTask(task: Task, filters: TaskFilterOptions): boolean {
 			const parseResult = parseAdvancedFilterQuery(
 				filters.advancedFilterQuery
 			);
-			const result = evaluateFilterNode(parseResult, task);
+			const result = evaluateFilterNode(
+				parseResult,
+				mapTaskForFiltering(task) as TaskIndexTask
+			);
 			// Determine visibility based on filter mode
 			const shouldShow =
 				(filters.filterMode === "INCLUDE" && result) ||
@@ -1009,7 +1056,7 @@ function shouldShowDueToRelationships(
 					);
 					const result = evaluateFilterNode(
 						parseResult,
-						task.parentTask
+						mapTaskForFiltering(task.parentTask) as TaskIndexTask
 					);
 					// Determine visibility based on filter mode
 					parentPassesQueryFilter =
@@ -1049,7 +1096,10 @@ function shouldShowDueToRelationships(
 						const parseResult = parseAdvancedFilterQuery(
 							filters.advancedFilterQuery
 						);
-						const result = evaluateFilterNode(parseResult, sibling);
+						const result = evaluateFilterNode(
+							parseResult,
+							mapTaskForFiltering(sibling) as TaskIndexTask
+						);
 						// Determine visibility based on filter mode
 						siblingPassesQueryFilter =
 							(filters.filterMode === "INCLUDE" && result) ||
@@ -1100,7 +1150,10 @@ function hasMatchingDescendant(
 					const parseResult = parseAdvancedFilterQuery(
 						filters.advancedFilterQuery
 					);
-					const result = evaluateFilterNode(parseResult, child);
+					const result = evaluateFilterNode(
+						parseResult,
+						mapTaskForFiltering(child) as TaskIndexTask
+					);
 					// Determine visibility based on filter mode
 					childPassesQueryFilter =
 						(filters.filterMode === "INCLUDE" && result) ||
@@ -1238,6 +1291,14 @@ function resetTaskFilters(view: EditorView) {
 			updateHiddenTaskRanges.of([]),
 		],
 	});
+
+	view.state
+		.field(editorInfoField)
+		// @ts-ignore
+		?.filterAction?.toggleClass(
+			"task-filter-active",
+			false // Always false on reset
+		);
 
 	// Apply decorations to hide filtered tasks
 	applyHiddenTaskDecorations(view, []);

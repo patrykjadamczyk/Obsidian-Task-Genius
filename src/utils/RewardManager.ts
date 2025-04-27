@@ -19,6 +19,18 @@ export class RewardManager extends Component {
 		this.plugin = plugin;
 		this.app = plugin.app;
 		this.settings = plugin.settings.rewards;
+
+		this.registerEvent(
+			this.app.workspace.on(
+				"task-genius:task-completed",
+				(task: Task) => {
+					this.triggerReward(task);
+					console.log(
+						"RewardManager: task-completed event triggered"
+					);
+				}
+			)
+		);
 	}
 
 	/**

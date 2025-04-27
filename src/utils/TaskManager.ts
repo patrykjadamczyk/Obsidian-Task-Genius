@@ -1245,6 +1245,14 @@ export class TaskManager extends Component {
 				updatedLine = `${indentation}${updatedLine.trimStart()}`;
 			}
 
+			if (updatedTask.completed) {
+				updatedTask &&
+					this.app.workspace.trigger(
+						"task-genius:task-completed",
+						updatedTask
+					);
+			}
+
 			// Update the line in the file content
 			if (updatedLine !== taskLine) {
 				lines[updatedTask.line] = updatedLine;

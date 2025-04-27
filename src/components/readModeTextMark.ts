@@ -7,6 +7,7 @@ import {
 	TFile,
 } from "obsidian";
 import { getTasksAPI } from "../utils";
+import { parseTaskLine } from "src/utils/taskUtil";
 
 // This component replaces standard checkboxes with custom text marks in reading view
 export function applyTaskTextMarks({
@@ -310,6 +311,20 @@ class TaskTextMark extends Component {
 					this.originalCheckbox.checked =
 						completedMarks.includes(nextMark);
 				}
+			}
+
+			if (nextMark === "x" || nextMark === "X") {
+				const task = parseTaskLine(
+					file.path,
+					taskLine,
+					actualLineIndex,
+					this.plugin.settings.preferMetadataFormat
+				);
+				task &&
+					this.plugin.app.workspace.trigger(
+						"task-genius:task-completed",
+						task
+					);
 			}
 
 			return lines.join("\n");

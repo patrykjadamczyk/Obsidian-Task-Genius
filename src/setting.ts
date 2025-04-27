@@ -7,6 +7,9 @@ import {
 	ButtonComponent,
 	TextAreaComponent,
 	Notice,
+	TextComponent, // Added TextComponent for input fields
+	DropdownComponent,
+	debounce, // Added DropdownComponent for occurrence selection
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./common/task-status";
@@ -18,6 +21,8 @@ import {
 	ViewConfig,
 	ViewFilterRule,
 	ViewMode,
+	RewardItem,
+	OccurrenceLevel,
 } from "./common/setting-definition";
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
@@ -42,6 +47,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		},
 		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
 		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
+		{ id: "reward", name: t("Reward"), icon: "medal" },
 		{ id: "view-settings", name: t("View Config"), icon: "layout" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
@@ -231,6 +237,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// View Settings Tab
 		const viewSettingsSection = this.createTabSection("view-settings");
 		this.displayViewSettings(viewSettingsSection);
+
+		// Reward Tab (NEW)
+		const rewardSection = this.createTabSection("reward");
+		this.displayRewardSettings(rewardSection);
 
 		// About Tab
 		const aboutSection = this.createTabSection("about");
@@ -2833,6 +2843,265 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					);
 				});
 			});
+	}
+
+	// START: New Reward Settings Section
+	private displayRewardSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Rewards"))
+			.setDesc(
+				t(
+					"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions."
+				)
+			)
+			.setHeading();
+
+		// --- Enable Rewards ---
+		new Setting(containerEl)
+			.setName(t("Enable Rewards"))
+			.setDesc(t("Toggle to enable or disable the reward system."))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.rewards.enableRewards)
+					.onChange(async (value) => {
+						this.plugin.settings.rewards.enableRewards = value;
+						this.applySettingsUpdate();
+						this.displayRewardSettings(containerEl); // Re-render to show/hide sections
+					})
+			);
+
+		if (!this.plugin.settings.rewards.enableRewards) {
+			return; // Don't render the rest if rewards are disabled
+		}
+
+		// --- Occurrence Levels ---
+		new Setting(containerEl)
+			.setName(t("Occurrence Levels"))
+			.setDesc(
+				t(
+					"Define different levels of reward rarity and their probability."
+				)
+			)
+			.setHeading();
+
+		const occurrenceLevelsContainer = containerEl.createDiv({
+			cls: "rewards-levels-container",
+		});
+
+		const debounceChanceUpdate = debounce(
+			(
+				text: TextComponent,
+				level: OccurrenceLevel,
+				value: string,
+				index: number
+			) => {
+				const chance = parseInt(value, 10);
+				if (!isNaN(chance) && chance >= 0 && chance <= 100) {
+					this.plugin.settings.rewards.occurrenceLevels[
+						index
+					].chance = chance;
+					this.applySettingsUpdate();
+				} else {
+					// Optional: Provide feedback for invalid input
+					new Notice(t("Chance must be between 0 and 100."));
+					text.setValue(level.chance.toString()); // Revert
+				}
+			},
+			1000
+		);
+
+		const debounceNameUpdate = debounce((value: string, index: number) => {
+			this.plugin.settings.rewards.occurrenceLevels[index].name =
+				value.trim();
+			this.applySettingsUpdate();
+		}, 1000);
+
+		this.plugin.settings.rewards.occurrenceLevels.forEach(
+			(level, index) => {
+				const levelSetting = new Setting(occurrenceLevelsContainer)
+					.setClass("rewards-level-row")
+					.addText((text) =>
+						text
+							.setPlaceholder(t("Level Name (e.g., common)"))
+							.setValue(level.name)
+							.onChange((value) => {
+								debounceNameUpdate(value, index);
+							})
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder(t("Chance (%)"))
+							.setValue(level.chance.toString())
+							.onChange((value) => {
+								debounceChanceUpdate(text, level, value, index);
+							})
+					)
+					.addButton((button) =>
+						button
+							.setIcon("trash")
+							.setTooltip(t("Delete Level"))
+							.setClass("mod-warning")
+							.onClick(() => {
+								this.plugin.settings.rewards.occurrenceLevels.splice(
+									index,
+									1
+								);
+								this.applySettingsUpdate();
+
+								setTimeout(() => {
+									this.display();
+								}, 200);
+							})
+					);
+			}
+		);
+
+		new Setting(occurrenceLevelsContainer).addButton((button) =>
+			button
+				.setButtonText(t("Add Occurrence Level"))
+				.setCta()
+				.onClick(() => {
+					const newLevel: OccurrenceLevel = {
+						name: t("New Level"),
+						chance: 0,
+					};
+					this.plugin.settings.rewards.occurrenceLevels.push(
+						newLevel
+					);
+					this.applySettingsUpdate();
+					this.displayRewardSettings(containerEl);
+				})
+		);
+
+		// --- Reward Items ---
+		new Setting(containerEl)
+			.setName(t("Reward Items"))
+			.setDesc(t("Manage the specific rewards that can be obtained."))
+			.setHeading();
+
+		const rewardItemsContainer = containerEl.createDiv({
+			cls: "rewards-items-container",
+		});
+
+		// Get available occurrence level names for dropdown
+		const levelNames = this.plugin.settings.rewards.occurrenceLevels.map(
+			(l) => l.name
+		);
+		if (levelNames.length === 0) levelNames.push(t("No levels defined"));
+
+		this.plugin.settings.rewards.rewardItems.forEach((item, index) => {
+			const itemSetting = new Setting(rewardItemsContainer)
+				.setClass("rewards-item-row")
+				.addTextArea((text) =>
+					text // Use TextArea for potentially longer names
+						.setPlaceholder(t("Reward Name/Text"))
+						.setValue(item.name)
+						.onChange((value) => {
+							this.plugin.settings.rewards.rewardItems[
+								index
+							].name = value;
+							this.applySettingsUpdate();
+						})
+				)
+				.addDropdown((dropdown) => {
+					levelNames.forEach((levelName) => {
+						dropdown.addOption(levelName, levelName);
+					});
+					dropdown
+						.setValue(item.occurrence || levelNames[0]) // Handle missing/default
+						.onChange((value) => {
+							this.plugin.settings.rewards.rewardItems[
+								index
+							].occurrence = value;
+							this.applySettingsUpdate();
+						});
+				})
+				.addText((text) => {
+					text.inputEl.ariaLabel = t("Inventory (-1 for ∞)");
+					text.setPlaceholder(t("Inventory (-1 for ∞)")) // For Inventory
+						.setValue(item.inventory.toString())
+						.onChange((value) => {
+							const inventory = parseInt(value, 10);
+							if (!isNaN(inventory)) {
+								this.plugin.settings.rewards.rewardItems[
+									index
+								].inventory = inventory;
+								this.applySettingsUpdate();
+							} else {
+								new Notice(t("Invalid inventory number."));
+								text.setValue(item.inventory.toString()); // Revert
+							}
+						});
+				})
+				.addText((text) =>
+					text // For Condition
+						.setPlaceholder(t("Condition (e.g., #tag AND project)"))
+						.setValue(item.condition || "")
+						.onChange((value) => {
+							this.plugin.settings.rewards.rewardItems[
+								index
+							].condition = value.trim() || undefined; // Store as undefined if empty
+							this.applySettingsUpdate();
+						})
+				)
+				.addText((text) =>
+					text // For Image URL
+						.setPlaceholder(t("Image URL (optional)"))
+						.setValue(item.imageUrl || "")
+						.onChange((value) => {
+							this.plugin.settings.rewards.rewardItems[
+								index
+							].imageUrl = value.trim() || undefined; // Store as undefined if empty
+							this.applySettingsUpdate();
+						})
+				)
+				.addButton((button) =>
+					button
+						.setIcon("trash")
+						.setTooltip(t("Delete Reward Item"))
+						.setClass("mod-warning")
+						.onClick(() => {
+							this.plugin.settings.rewards.rewardItems.splice(
+								index,
+								1
+							);
+							this.applySettingsUpdate();
+							this.displayRewardSettings(containerEl); // Re-render
+						})
+				);
+			// Add some spacing or dividers if needed visually
+			rewardItemsContainer.createEl("hr", {
+				cls: "rewards-item-divider",
+			});
+		});
+
+		if (this.plugin.settings.rewards.rewardItems.length === 0) {
+			rewardItemsContainer.createEl("p", {
+				text: t("No reward items defined yet."),
+				cls: "setting-item-description",
+			});
+		}
+
+		new Setting(rewardItemsContainer).addButton((button) =>
+			button
+				.setButtonText(t("Add Reward Item"))
+				.setCta()
+				.onClick(() => {
+					const newItem: RewardItem = {
+						id: `reward-${Date.now()}-${Math.random()
+							.toString(36)
+							.substring(2, 7)}`, // Simple unique ID
+						name: t("New Reward"),
+						occurrence:
+							this.plugin.settings.rewards.occurrenceLevels[0]
+								?.name || "default", // Use first level or default
+						inventory: -1, // Default to infinite
+					};
+					this.plugin.settings.rewards.rewardItems.push(newItem);
+					this.applySettingsUpdate();
+					this.displayRewardSettings(containerEl); // Re-render
+				})
+		);
 	}
 
 	// Helper methods for task filters and workflows

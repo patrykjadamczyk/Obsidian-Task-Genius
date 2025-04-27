@@ -1,19 +1,4 @@
-/**
- * Web worker for background processing of task indexing
- */
-
-import { FileStats } from "obsidian"; // Assuming ListItemCache is not directly available/serializable to worker, rely on regex
-import { Task } from "../types/TaskIndex"; // Task type definition needed
-import {
-	// Assume these types are defined and exported from TaskIndexWorkerMessage.ts
-	// Need to add preferMetadataFormat to IndexerCommand payloads where relevant
-	IndexerCommand,
-	TaskParseResult,
-	ErrorResult,
-	BatchIndexResult, // Keep if batch processing is still used
-} from "./TaskIndexWorkerMessage";
-
-// --- Define Regexes similar to TaskParser ---
+import { Task } from "./types/TaskIndex";
 
 // Task identification
 const TASK_REGEX = /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/m;
@@ -480,239 +465,55 @@ function extractTags(
 }
 
 /**
- * Parse tasks from file content using regex and metadata format preference
+ * Parse a single task line using regex and metadata format preference
  */
-function parseTasksFromContent(
+export function parseTaskLine(
 	filePath: string,
-	content: string,
+	line: string,
+	lineNumber: number,
 	format: MetadataFormat
-): Task[] {
-	const lines = content.split(/\r?\n/);
-	const tasks: Task[] = [];
+): Task | null {
+	const taskMatch = line.match(TASK_REGEX);
 
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		const taskMatch = line.match(TASK_REGEX);
+	if (!taskMatch) return null;
 
-		if (taskMatch) {
-			const [fullMatch, , , , status, contentWithMetadata] = taskMatch;
-			if (status === undefined || contentWithMetadata === undefined)
-				continue;
+	const [fullMatch, , , , status, contentWithMetadata] = taskMatch;
+	if (status === undefined || contentWithMetadata === undefined) return null;
 
-			const completed = status.toLowerCase() === "x";
-			const id = `${filePath}-L${i}`;
+	const completed = status.toLowerCase() === "x";
+	const id = `${filePath}-L${lineNumber}`;
 
-			const task: Task = {
-				id,
-				content: contentWithMetadata.trim(), // Will be set after extraction
-				filePath,
-				line: i,
-				completed,
-				status: status,
-				originalMarkdown: line,
-				tags: [],
-				children: [],
-				priority: undefined,
-				startDate: undefined,
-				dueDate: undefined,
-				scheduledDate: undefined,
-				completedDate: undefined,
-				createdDate: undefined,
-				recurrence: undefined,
-				project: undefined,
-				context: undefined,
-			};
-
-			// Extract metadata in order
-			let remainingContent = contentWithMetadata;
-			remainingContent = extractDates(task, remainingContent, format);
-			remainingContent = extractRecurrence(
-				task,
-				remainingContent,
-				format
-			);
-			remainingContent = extractPriority(task, remainingContent, format);
-			remainingContent = extractProject(task, remainingContent, format); // Extract project before context/tags
-			remainingContent = extractContext(task, remainingContent, format);
-			remainingContent = extractTags(task, remainingContent, format); // Tags last
-
-			task.content = remainingContent.replace(/\s{2,}/g, " ").trim();
-
-			tasks.push(task);
-		}
-	}
-	buildTaskHierarchy(tasks); // Call hierarchy builder if needed
-	return tasks;
-}
-
-/**
- * Process a single file - NOW ACCEPTS METADATA FORMAT
- */
-function processFile(
-	filePath: string,
-	content: string,
-	stats: FileStats,
-	preferMetadataFormat: MetadataFormat = "tasks"
-): TaskParseResult {
-	const startTime = performance.now();
-	try {
-		const tasks = parseTasksFromContent(
-			filePath,
-			content,
-			preferMetadataFormat
-		);
-		const completedTasks = tasks.filter((t) => t.completed).length;
-		return {
-			type: "parseResult",
-			filePath,
-			tasks,
-			stats: {
-				totalTasks: tasks.length,
-				completedTasks,
-				processingTimeMs: Math.round(performance.now() - startTime),
-			},
-		};
-	} catch (error) {
-		console.error(`Worker: Error processing file ${filePath}:`, error);
-		throw error;
-	}
-}
-
-// --- Batch processing function remains largely the same, but calls updated processFile ---
-function processBatch(
-	files: { path: string; content: string; stats: FileStats }[],
-	preferMetadataFormat: MetadataFormat
-): BatchIndexResult {
-	// Ensure return type matches definition
-	const startTime = performance.now();
-	const results: { filePath: string; taskCount: number }[] = [];
-	let totalTasks = 0;
-	let failedFiles = 0; // Keep track for potential logging, but not returned in stats
-
-	for (const file of files) {
-		try {
-			const parseResult = processFile(
-				file.path,
-				file.content,
-				file.stats,
-				preferMetadataFormat
-			);
-			totalTasks += parseResult.stats.totalTasks;
-			results.push({
-				filePath: parseResult.filePath,
-				taskCount: parseResult.stats.totalTasks,
-			});
-		} catch (error) {
-			console.error(
-				`Worker: Error in batch processing for file ${file.path}:`,
-				error
-			);
-			failedFiles++;
-		}
-	}
-
-	return {
-		type: "batchResult",
-		results, // Now matches expected type
-		stats: {
-			// Only include fields defined in the type
-			totalFiles: files.length,
-			totalTasks,
-			processingTimeMs: Math.round(performance.now() - startTime),
-		},
+	const task: Task = {
+		id,
+		content: contentWithMetadata.trim(), // Will be set after extraction
+		filePath,
+		line: lineNumber,
+		completed,
+		status: status,
+		originalMarkdown: line,
+		tags: [],
+		children: [],
+		priority: undefined,
+		startDate: undefined,
+		dueDate: undefined,
+		scheduledDate: undefined,
+		completedDate: undefined,
+		createdDate: undefined,
+		recurrence: undefined,
+		project: undefined,
+		context: undefined,
 	};
-}
 
-// --- Update message handler to access properties directly ---
-self.onmessage = async (event) => {
-	try {
-		const message = event.data as IndexerCommand; // Keep using IndexerCommand union type
+	// Extract metadata in order
+	let remainingContent = contentWithMetadata;
+	remainingContent = extractDates(task, remainingContent, format);
+	remainingContent = extractRecurrence(task, remainingContent, format);
+	remainingContent = extractPriority(task, remainingContent, format);
+	remainingContent = extractProject(task, remainingContent, format); // Extract project before context/tags
+	remainingContent = extractContext(task, remainingContent, format);
+	remainingContent = extractTags(task, remainingContent, format); // Tags last
 
-		// Access preferMetadataFormat directly FROM message, NOT message.payload
-		// Provide default 'tasks' if missing
-		const format =
-			(message as any).preferMetadataFormat === "dataview"
-				? "dataview"
-				: "tasks";
+	task.content = remainingContent.replace(/\s{2,}/g, " ").trim();
 
-		// Using 'as any' here because I cannot modify IndexerCommand type directly,
-		// but the sending code MUST add this property to the message object.
-
-		if (message.type === "parseTasks") {
-			// Type guard for ParseTasksCommand
-			try {
-				// Access properties directly from message
-				const result = processFile(
-					message.filePath,
-					message.content,
-					message.stats,
-					format
-				);
-				self.postMessage(result);
-			} catch (error) {
-				self.postMessage({
-					type: "error",
-					error:
-						error instanceof Error ? error.message : String(error),
-					filePath: message.filePath, // Access directly
-				} as ErrorResult);
-			}
-		} else if (message.type === "batchIndex") {
-			// Type guard for BatchIndexCommand
-			// Access properties directly from message
-			const result = processBatch(message.files, format);
-			self.postMessage(result);
-		} else {
-			console.error(
-				"Worker: Unknown or invalid command message:",
-				message
-			);
-			self.postMessage({
-				type: "error",
-				error: `Unknown command type: ${(message as any).type}`,
-			} as ErrorResult);
-		}
-	} catch (error) {
-		console.error("Worker: General error in onmessage handler:", error);
-		self.postMessage({
-			type: "error",
-			error: error instanceof Error ? error.message : String(error),
-		} as ErrorResult);
-	}
-};
-
-// Remove buildTaskHierarchy and getIndentLevel if not used by parseTasksFromContent
-// Or keep them if you plan to add indentation-based hierarchy later.
-/**
- * Build parent-child relationships based on indentation
- */
-function buildTaskHierarchy(tasks: Task[]): void {
-	tasks.sort((a, b) => a.line - b.line);
-	const taskStack: { task: Task; indent: number }[] = [];
-	for (const currentTask of tasks) {
-		const currentIndent = getIndentLevel(currentTask.originalMarkdown);
-		while (
-			taskStack.length > 0 &&
-			taskStack[taskStack.length - 1].indent >= currentIndent
-		) {
-			taskStack.pop();
-		}
-		if (taskStack.length > 0) {
-			const parentTask = taskStack[taskStack.length - 1].task;
-			currentTask.parent = parentTask.id;
-			if (!parentTask.children) {
-				parentTask.children = [];
-			}
-			parentTask.children.push(currentTask.id);
-		}
-		taskStack.push({ task: currentTask, indent: currentIndent });
-	}
-}
-
-/**
- * Get indentation level of a line
- */
-function getIndentLevel(line: string): number {
-	const match = line.match(/^(\s*)/);
-	return match ? match[1].length : 0;
+	return task;
 }

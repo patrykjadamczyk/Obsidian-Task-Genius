@@ -43,30 +43,21 @@ export const DEFAULT_TASK_PARSER_CONFIG: TaskParserConfig = {
 };
 
 export class TaskParser extends Component {
-	// Regular expressions for parsing task components
-	private readonly startDateRegex = /🛫\s*(\d{4}-\d{2}-\d{2})/;
-	private readonly completedDateRegex = /✅\s*(\d{4}-\d{2}-\d{2})/;
-	private readonly dueDateRegex = /📅\s(\d{4}-\d{2}-\d{2})/;
-	private readonly scheduledDateRegex = /⏳\s*(\d{4}-\d{2}-\d{2})/;
-	private readonly recurrenceRegex = /🔁 (.*?)(?=\s|$)/;
-	private readonly tagRegex = /#[\w\/-]+/g;
-	private readonly contextRegex = /@[\w-]+/g;
-	private readonly priorityRegex = /🔼|⏫|🔽|⏬️|🔺|\[#[A-C]\]/;
-	private readonly estimatedTimeRegex = /estimated:\s*(\d+)([hm])/i;
-
-	// Emoji-based regexes
+	// --- Emoji/Tasks Style Regexes ---
 	private readonly emojiStartDateRegex = /🛫\s*(\d{4}-\d{2}-\d{2})/;
 	private readonly emojiCompletedDateRegex = /✅\s*(\d{4}-\d{2}-\d{2})/;
 	private readonly emojiDueDateRegex = /📅\s*(\d{4}-\d{2}-\d{2})/;
 	private readonly emojiScheduledDateRegex = /⏳\s*(\d{4}-\d{2}-\d{2})/;
 	private readonly emojiCreatedDateRegex = /➕\s*(\d{4}-\d{2}-\d{2})/;
 	private readonly emojiRecurrenceRegex =
-		/🔁\s*(.*?)(?=\s(?:📅|🛫|⏳|✅|➕|🔁|@|#)|$)/u;
-	private readonly emojiPriorityRegex = /(([🔺⏫🔼🔽⏬️⏬])|([#A-C]))/u;
+		/🔁\s*(.*?)(?=\s(?:🗓️|🛫|⏳|✅|➕|🔁|@|#)|$)/u;
+	private readonly emojiPriorityRegex = /(([🔺⏫🔼🔽⏬️⏬])|(\[#[A-E]\]))/u;
 	private readonly emojiContextRegex = /@([\w-]+)/g;
-	private readonly emojiTagRegex = /#([\w/-]+)/g;
+	private readonly emojiTagRegex =
+		/#[^\u2000-\u206F\u2E00-\u2E7F'!"#$%&()*+,.:;<=>?@^`{|}~\[\]\\\s]+/g;
+	private readonly emojiProjectPrefix = "#project/";
 
-	// Dataview-based regexes
+	// --- Dataview Style Regexes ---
 	private readonly dvStartDateRegex =
 		/\[(?:start|🛫)::\s*(\d{4}-\d{2}-\d{2})\]/i;
 	private readonly dvCompletedDateRegex =
@@ -81,9 +72,8 @@ export class TaskParser extends Component {
 	private readonly dvPriorityRegex = /\[priority::\s*([^\]]+)\]/i;
 	private readonly dvProjectRegex = /\[project::\s*([^\]]+)\]/i;
 	private readonly dvContextRegex = /\[context::\s*([^\]]+)\]/i;
-	private readonly dvTagRegex = /#([\w/-]+)/g;
 
-	// General fallback regexes
+	// General regex
 	private readonly anyDataviewFieldRegex =
 		/\[\w+(?:|🗓️|✅|➕|🛫|⏳|🔁)::\s*[^\]]+\]/gi;
 

@@ -17,22 +17,10 @@ import TaskProgressBarPlugin from "src";
 import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
 import { ActiveFilter, FilterCategory } from "../filter/filter-type";
 import { ScrollToDateButton } from "../filter/custom/scroll-to-date-button";
+import { PRIORITY_MAP } from "src/common/default-symbol";
 
 // Define the PRIORITY_MAP here as well, or import it if moved to a shared location
 // This is needed to convert filter value (icon/text) back to number for comparison
-const PRIORITY_MAP: Record<string, number> = {
-	"🔺": 5,
-	"⏫": 4,
-	"🔼": 3,
-	"🔽": 2,
-	"⏬️": 1,
-	"⏬": 1,
-	highest: 5,
-	high: 4,
-	medium: 3,
-	low: 2,
-	lowest: 1,
-};
 
 // Constants for layout and styling
 const ROW_HEIGHT = 24;

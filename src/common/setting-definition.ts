@@ -209,7 +209,6 @@ export interface RewardSettings {
 	enableRewards: boolean;
 	rewardItems: RewardItem[];
 	occurrenceLevels: OccurrenceLevel[];
-	// We might add more settings later, e.g., conditionSyntax
 }
 
 /** Define the main settings structure */

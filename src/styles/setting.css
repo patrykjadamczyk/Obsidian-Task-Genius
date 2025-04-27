@@ -954,3 +954,66 @@
 	border-radius: 5px;
 	margin: 10px 0;
 }
+
+/* START: Reward Settings Styles */
+.rewards-levels-container,
+.rewards-items-container {
+	margin-top: 10px;
+	padding: 15px;
+	border-radius: 5px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
+}
+
+.rewards-level-row .setting-item-info,
+.rewards-item-row .setting-item-info {
+	display: none;
+}
+
+.rewards-item-row.setting-item {
+	border-top: 0;
+}
+
+.rewards-level-row .setting-item-control,
+.rewards-item-row .setting-item-control {
+	display: flex;
+	flex-wrap: wrap; /* Allow wrapping on smaller screens */
+	gap: 10px;
+	align-items: center;
+}
+
+.rewards-level-row .setting-item-control input[type="text"] {
+	flex: 1;
+	min-width: 100px; /* Ensure reasonable minimum width */
+}
+
+.rewards-item-row .setting-item-control .input-container {
+	/* Obsidian uses this class for text/textarea */
+	flex: 1;
+	min-width: 150px;
+}
+
+.rewards-item-row .setting-item-control textarea {
+	width: 100%; /* Make textarea take full width within its container */
+	min-height: 40px; /* Ensure it's tall enough for a couple lines */
+	resize: vertical;
+}
+
+.rewards-item-row .setting-item-control .dropdown {
+	min-width: 120px;
+}
+
+.rewards-level-row .setting-item-control button,
+.rewards-item-row .setting-item-control button {
+	margin-left: auto; /* Push delete button to the right */
+}
+
+.rewards-item-divider {
+	border: none;
+	height: 1px;
+	background-color: var(--background-modifier-border);
+	margin-top: 15px;
+	margin-bottom: 15px;
+}
+
+/* END: Reward Settings Styles */

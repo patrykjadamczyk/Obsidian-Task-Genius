@@ -59,6 +59,11 @@ export function buildFilterOptionsFromTasks(tasks: Task[]): FilterCategory[] {
 		medium: 3,
 		low: 2,
 		lowest: 1,
+		"[#A]": 5,
+		"[#B]": 4,
+		"[#C]": 3,
+		"[#D]": 2,
+		"[#E]": 1,
 	};
 
 	// Create a reverse map (Number -> Icon/Preferred String)

@@ -21,6 +21,7 @@ import { Annotation, EditorSelection, SelectionRange } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { foldable, syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import { getTasksAPI } from "src/utils";
+import { parseTaskLine } from "src/utils/taskUtil";
 
 export type TaskState = string;
 export const taskStatusChangeAnnotation = Annotation.define();
@@ -277,6 +278,20 @@ class TaskStatusWidget extends WidgetType {
 
 		// Replace text
 		const newText = currentText.replace(/\[(.)]/, `[${nextMark}]`);
+
+		if (nextMark === "x" || nextMark === "X") {
+			const line = this.view.state.doc.lineAt(this.from);
+			const path =
+				this.view.state.field(editorInfoField)?.file?.path || "";
+			const task = parseTaskLine(
+				path,
+				line.text,
+				line.number,
+				this.plugin.settings.preferMetadataFormat
+			);
+			task &&
+				this.app.workspace.trigger("task-genius:task-completed", task);
+		}
 
 		this.view.dispatch({
 			changes: {

@@ -1,4 +1,4 @@
-import { Task } from "../editor-ext/filterTasks";
+import { Task } from "./types/TaskIndex";
 import { moment } from "obsidian";
 
 // Types for parsing expression trees in advanced filtering
@@ -266,7 +266,9 @@ export function evaluateFilterNode(node: FilterNode, task: Task): boolean {
 			return !evaluateFilterNode(node.child, task);
 
 		case "TEXT":
-			return task.text.toLowerCase().includes(node.value.toLowerCase());
+			return task.content
+				.toLowerCase()
+				.includes(node.value.toLowerCase());
 
 		case "TAG":
 			return task.tags.some(
@@ -274,62 +276,61 @@ export function evaluateFilterNode(node: FilterNode, task: Task): boolean {
 			);
 
 		case "PRIORITY":
-			if (!task.priority) return false;
+			// Task priority is already a number (1-3, or potentially others if customized)
+			const taskPriority = task.priority;
 
-			// Extract the priority level for comparison
-			const taskPriority = task.priority.includes("#")
-				? task.priority.replace(/[^\w]/g, "") // Extract letter from #A format
-				: getPriorityValueFromEmoji(task.priority); // Convert emoji to value
+			// If task has no priority, it cannot match a priority filter
+			if (taskPriority === undefined) return false;
 
-			const filterPriority = node.value.includes("#")
-				? node.value.replace(/[^\w]/g, "") // Extract letter from #A format
-				: getPriorityValueFromEmoji(node.value); // Convert emoji to value
+			// Parse the filter priority value (emoji or #N format) into a number
+			const filterPriorityValue = parsePriorityFilterValue(node.value);
 
-			if (!taskPriority || !filterPriority) return false;
+			// If filter value is invalid, no match
+			if (filterPriorityValue === null) return false;
 
+			// Perform numerical comparison
 			switch (node.op) {
 				case ">":
-					return taskPriority < filterPriority; // Reversed because A > B in priority
+					return taskPriority > filterPriorityValue;
 				case "<":
-					return taskPriority > filterPriority; // Reversed because A < B in priority
+					return taskPriority < filterPriorityValue;
 				case "=":
-					return taskPriority === filterPriority;
+					return taskPriority === filterPriorityValue;
 				case ">=":
-					return taskPriority <= filterPriority; // Reversed for the same reason
+					return taskPriority >= filterPriorityValue;
 				case "<=":
-					return taskPriority >= filterPriority; // Reversed for the same reason
+					return taskPriority <= filterPriorityValue;
 				case "!=":
-					return taskPriority !== filterPriority;
+					return taskPriority !== filterPriorityValue;
 				default:
 					return false;
 			}
 
 		case "DATE":
-			if (!task.date) return false;
+			// Use dueDate (assuming it's the target, and a number/timestamp in ms)
+			const taskDueDateTimestamp = task.dueDate;
+			if (taskDueDateTimestamp === undefined) return false;
 
 			try {
-				const taskDate = moment(task.date);
-				const filterDate = moment(node.value);
+				// Compare using moment, assuming taskDueDate is a Unix timestamp (ms)
+				const taskDate = moment(taskDueDateTimestamp);
+				const filterDate = moment(node.value); // Assumes filter value is a parseable date string
 
 				if (!taskDate.isValid() || !filterDate.isValid()) return false;
 
 				switch (node.op) {
 					case ">":
-						return taskDate.isAfter(filterDate);
+						return taskDate.isAfter(filterDate, "day"); // Compare day granularity
 					case "<":
-						return taskDate.isBefore(filterDate);
+						return taskDate.isBefore(filterDate, "day");
 					case "=":
 						return taskDate.isSame(filterDate, "day");
 					case ">=":
-						return (
-							taskDate.isAfter(filterDate) ||
-							taskDate.isSame(filterDate, "day")
-						);
+						// isSameOrAfter includes the start of the day
+						return taskDate.isSameOrAfter(filterDate, "day");
 					case "<=":
-						return (
-							taskDate.isBefore(filterDate) ||
-							taskDate.isSame(filterDate, "day")
-						);
+						// isSameOrBefore includes the end of the day
+						return taskDate.isSameOrBefore(filterDate, "day");
 					case "!=":
 						return !taskDate.isSame(filterDate, "day");
 					default:
@@ -342,37 +343,61 @@ export function evaluateFilterNode(node: FilterNode, task: Task): boolean {
 	}
 }
 
-// Helper function to convert emoji priorities to letter values with correct ordering
-function getPriorityValueFromEmoji(emoji: string): string {
-	switch (emoji) {
-		// TASK_PRIORITIES from priorityPicker.ts (highest to lowest)
-		case "🔺":
-			return "A+"; // Highest
-		case "⏫":
-			return "A"; // High
-		case "🔼":
-			return "B"; // Medium
-		case "🔽":
-			return "D"; // Low
-		case "⏬️":
-			return "E"; // Lowest
+// Helper function to convert emoji/text priorities to numerical values
+// Returns null if the input is not a recognized priority format.
+// Adjust the returned numbers based on your desired priority scale (higher number = higher priority assumed here).
+export function parsePriorityFilterValue(value: string): number | null {
+	const priorityMap: Record<string, number> = {
+		// Emoji mapping (adjust numbers as needed)
+		"🔺": 5, // Highest
+		"⏫": 4, // High
+		"🔼": 3, // Medium
+		"🔽": 2, // Low
+		"⏬️": 1, // Lowest
+		"🔴": 4, // High
+		"🟠": 3, // Medium
+		"🟡": 2.5, // Medium-low (example)
+		"🟢": 2, // Low
+		"🔵": 1.5, // Low-lowest (example)
+		"⚪️": 1, // Lowest
+		"⚫️": 0, // Below lowest (example)
+		highest: 5,
+		high: 4,
+		medium: 3,
+		low: 2,
+		lowest: 1,
+		"[#A]": 5,
+		"[#B]": 4,
+		"[#C]": 3,
+		"[#D]": 2,
+		"[#E]": 1,
+		// Text/Number mapping (e.g., #1, #2, #A)
+		// Assuming higher number means higher priority if using digits directly
+	};
 
-		// Color-based priorities (additional commonly used emojis)
-		case "🔴":
-			return "A"; // High (same as ⏫)
-		case "🟠":
-			return "B"; // Medium (same as 🔼)
-		case "🟡":
-			return "C"; // Medium-low
-		case "🟢":
-			return "D"; // Low (same as 🔽)
-		case "🔵":
-			return "D-"; // Low-lowest
-		case "⚪️":
-			return "E"; // Lowest (same as ⏬️)
-		case "⚫️":
-			return "F"; // Below lowest
-		default:
-			return "";
+	// Check direct emoji/text mapping first
+	if (priorityMap.hasOwnProperty(value)) {
+		return priorityMap[value];
 	}
+
+	// Check for #N format (e.g., #1, #2, #3)
+	if (value.startsWith("#")) {
+		const numStr = value.substring(1);
+		const num = parseInt(numStr, 10);
+		if (!isNaN(num)) {
+			// You might want to invert this if lower number means higher priority in #N format
+			return num;
+		}
+		// Handle potential #A, #B etc. if needed, map them to numbers
+		// Example: if (numStr === 'A') return 5;
+	}
+
+	// Try parsing as a plain number
+	const num = parseInt(value, 10);
+	if (!isNaN(num)) {
+		return num;
+	}
+
+	console.warn(`Unrecognized priority filter value: ${value}`);
+	return null; // Not a recognized format
 }
