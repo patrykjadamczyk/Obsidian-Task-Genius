@@ -32,6 +32,7 @@ import {
 	ImageSuggest,
 	SingleFolderSuggest,
 } from "./components/AutoComplete";
+import { HabitList } from "./components/HabitSettingList";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -53,6 +54,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
 		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
 		{ id: "reward", name: t("Reward"), icon: "medal" },
+		{ id: "habit", name: t("Habit"), icon: "calendar-check" },
 		{ id: "view-settings", name: t("View Config"), icon: "layout" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
@@ -243,9 +245,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const viewSettingsSection = this.createTabSection("view-settings");
 		this.displayViewSettings(viewSettingsSection);
 
-		// Reward Tab (NEW)
+		// Reward Tab
 		const rewardSection = this.createTabSection("reward");
 		this.displayRewardSettings(rewardSection);
+
+		// Habit Tab
+		const habitSection = this.createTabSection("habit");
+		this.displayHabitSettings(habitSection);
 
 		// About Tab
 		const aboutSection = this.createTabSection("about");
@@ -3197,6 +3203,35 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		);
 	}
 
+	private displayHabitSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Habit"))
+			.setDesc(
+				t(
+					"Configure habit settings, including adding new habits, editing existing habits, and managing habit completion."
+				)
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable habits"))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.habit.enableHabits)
+					.onChange(async (value) => {
+						this.plugin.settings.habit.enableHabits = value;
+						this.applySettingsUpdate();
+					});
+			});
+
+		const habitContainer = containerEl.createDiv({
+			cls: "habit-settings-container",
+		});
+
+		// Habit List
+		this.displayHabitList(habitContainer);
+	}
+
 	// Helper methods for task filters and workflows
 	private generateUniqueId(): string {
 		return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -3339,6 +3374,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			previewContainer.setText("Error rendering format");
 			previewContainer.addClass("custom-format-preview-error");
 		}
+	}
+
+	private displayHabitList(containerEl: HTMLElement): void {
+		// 创建习惯列表组件
+		new HabitList(this.plugin, containerEl);
 	}
 }
 

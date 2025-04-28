@@ -1,55 +1,79 @@
-// 基础习惯类型
-interface BaseHabitProps {
+// 基础习惯类型（不含completions字段，用于存储基础配置）
+export interface BaseHabitProps {
 	id: string;
 	name: string;
 	description?: string;
 	icon: string; // Lucide icon id
-
-	properties?: string[];
 }
 
-// 日常习惯类型
-export interface DailyHabitProps extends BaseHabitProps {
+// BaseDailyHabitData
+export interface BaseDailyHabitData extends BaseHabitProps {
 	type: "daily";
-	completions: Record<string, string | number>; // String is date, string or number is completion value
 	completionText?: string; // Custom text that represents completion (default is any non-empty value)
+	property: string;
 }
 
-// 计数习惯类型
-export interface CountHabitProps extends BaseHabitProps {
+// BaseCountHabitData
+export interface BaseCountHabitData extends BaseHabitProps {
 	type: "count";
 	min?: number; // Minimum completion value
 	max?: number; // Maximum completion value
 	notice?: string; // Trigger notice when completion value is reached
-	completions: Record<string, number>; // String is date, number is completion value
 	countUnit?: string; // Optional unit for the count (e.g., "cups", "times")
+	property: string;
 }
 
+// BaseScheduledHabitData
 export interface ScheduledEvent {
 	name: string;
 	details: string;
 }
 
-export interface ScheduledHabitProps extends BaseHabitProps {
+export interface BaseScheduledHabitData extends BaseHabitProps {
 	type: "scheduled";
 	events: ScheduledEvent[];
-	completions: Record<string, Record<string, string>>; // String is date, Record<string, string> is event name and completion value
+	propertiesMap: Record<string, string>;
 }
 
-export interface MappingHabitProps extends BaseHabitProps {
+export interface BaseMappingHabitData extends BaseHabitProps {
 	type: "mapping";
 	mapping: Record<number, string>;
+	property: string;
+}
+
+// BaseHabitData
+export type BaseHabitData =
+	| BaseDailyHabitData
+	| BaseCountHabitData
+	| BaseScheduledHabitData
+	| BaseMappingHabitData;
+
+// DailyHabitProps
+export interface DailyHabitProps extends BaseDailyHabitData {
+	completions: Record<string, string | number>; // String is date, string or number is completion value
+}
+
+// CountHabitProps
+export interface CountHabitProps extends BaseCountHabitData {
 	completions: Record<string, number>; // String is date, number is completion value
 }
 
-// 所有习惯类型的联合
+export interface ScheduledHabitProps extends BaseScheduledHabitData {
+	completions: Record<string, Record<string, string>>; // String is date, Record<string, string> is event name and completion value
+}
+
+export interface MappingHabitProps extends BaseMappingHabitData {
+	completions: Record<string, number>; // String is date, number is completion value
+}
+
+// HabitProps
 export type HabitProps =
 	| DailyHabitProps
 	| CountHabitProps
 	| ScheduledHabitProps
 	| MappingHabitProps;
 
-// 习惯卡片属性
+// HabitCardProps
 export interface HabitCardProps {
 	habit: HabitProps;
 	toggleCompletion: (habitId: string, ...args: any[]) => void;
@@ -61,6 +85,7 @@ export interface HabitCardProps {
 	}) => void;
 }
 
+// MappingHabitCardProps
 interface MappingHabitCardProps extends HabitCardProps {
 	toggleCompletion: (habitId: string, value: number) => void;
 }

@@ -14,6 +14,11 @@ import {
 	CountHabitProps,
 	MappingHabitProps,
 	BaseHabitProps,
+	BaseHabitData,
+	BaseDailyHabitData,
+	BaseCountHabitData,
+	BaseScheduledHabitData,
+	BaseMappingHabitData,
 } from "../types/habit-card";
 import TaskProgressBarPlugin from "../index"; // Assuming HabitTracker is the main plugin class
 import {
@@ -32,11 +37,8 @@ export class HabitManager extends Component {
 		this.plugin = plugin;
 	}
 
-	async initializeHabits(): Promise<void> {
-		const dailyNotes = await this.getDailyNotes();
-		const initialHabits = await this.processHabits(dailyNotes);
-		this.habits = initialHabits;
-
+	async onload() {
+		await this.initializeHabits();
 		this.registerEvent(
 			this.plugin.app.metadataCache.on(
 				"changed",
@@ -47,6 +49,86 @@ export class HabitManager extends Component {
 				}
 			)
 		);
+	}
+
+	async initializeHabits(): Promise<void> {
+		const dailyNotes = await this.getDailyNotes();
+		const processedHabits = await this.processHabits(dailyNotes);
+
+		console.log("processedHabits", processedHabits);
+		this.habits = processedHabits;
+
+		this.plugin.app.workspace.trigger(
+			"task-genius:habit-index-updated",
+			this.habits
+		);
+	}
+
+	private convertBaseHabitsToHabitProps(
+		baseHabits: BaseHabitData[]
+	): HabitProps[] {
+		return baseHabits.map((baseHabit) => {
+			switch (baseHabit.type) {
+				case "daily": {
+					const dailyHabit = baseHabit as BaseDailyHabitData;
+					return {
+						id: dailyHabit.id,
+						name: dailyHabit.name,
+						description: dailyHabit.description,
+						icon: dailyHabit.icon,
+						property: dailyHabit.property,
+						type: dailyHabit.type,
+						completionText: dailyHabit.completionText,
+						completions: {},
+					} as DailyHabitProps;
+				}
+
+				case "count": {
+					const countHabit = baseHabit as BaseCountHabitData;
+					return {
+						id: countHabit.id,
+						name: countHabit.name,
+						description: countHabit.description,
+						icon: countHabit.icon,
+						property: countHabit.property,
+						type: countHabit.type,
+						min: countHabit.min,
+						max: countHabit.max,
+						notice: countHabit.notice,
+						countUnit: countHabit.countUnit,
+						completions: {},
+					} as CountHabitProps;
+				}
+
+				case "scheduled": {
+					const scheduledHabit = baseHabit as BaseScheduledHabitData;
+					return {
+						id: scheduledHabit.id,
+						name: scheduledHabit.name,
+						description: scheduledHabit.description,
+						icon: scheduledHabit.icon,
+						type: scheduledHabit.type,
+						events: scheduledHabit.events,
+						propertiesMap: scheduledHabit.propertiesMap,
+						completions: {},
+					} as ScheduledHabitProps;
+				}
+
+				case "mapping": {
+					const mappingHabit = baseHabit as BaseMappingHabitData;
+					return {
+						id: mappingHabit.id,
+						name: mappingHabit.name,
+						description: mappingHabit.description,
+						icon: mappingHabit.icon,
+						property: mappingHabit.property,
+						type: mappingHabit.type,
+						mapping: mappingHabit.mapping,
+						completions: {},
+					} as MappingHabitProps;
+				}
+			}
+		});
 	}
 
 	private async getDailyNotes(): Promise<TFile[]> {
@@ -66,10 +148,11 @@ export class HabitManager extends Component {
 	}
 
 	private async processHabits(dailyNotes: TFile[]): Promise<HabitProps[]> {
-		// Use a deep copy of settings habits to avoid modifying the source directly
-		const initialHabits: HabitProps[] = [];
-		const { habitKeyMap = {}, scheduledEventMap = {} } =
-			this.plugin.settings.habit || {};
+		const habitsWithoutCompletions = this.plugin.settings.habit.habits;
+
+		const convertedHabits = this.convertBaseHabitsToHabitProps(
+			habitsWithoutCompletions
+		);
 
 		for (const note of dailyNotes) {
 			if (!this.isDailyNote(note)) continue; // Skip non-daily notes
@@ -82,15 +165,14 @@ export class HabitManager extends Component {
 				if (!dateMoment) continue; // Should not happen due to isDailyNote check, but belts and suspenders
 				const date = dateMoment.format("YYYY-MM-DD");
 
-				for (const habit of initialHabits) {
+				for (const habit of convertedHabits) {
 					if (!habit.completions) habit.completions = {}; // Ensure completions object exists
-					const properties = habitKeyMap[habit.id] || [];
 
 					switch (habit.type) {
 						case "scheduled":
 							// Handle scheduled habits (journey habits)
 							const scheduledHabit = habit as ScheduledHabitProps;
-							const eventMap = scheduledEventMap[habit.id] || {};
+							const eventMap = habit.propertiesMap || {};
 							if (!scheduledHabit.completions[date])
 								scheduledHabit.completions[date] = {};
 
@@ -101,14 +183,18 @@ export class HabitManager extends Component {
 								if (
 									propertyKey &&
 									frontmatter[propertyKey as string] !==
-										undefined
+										undefined &&
+									frontmatter[propertyKey as string] !== ""
 								) {
 									const value =
 										frontmatter[propertyKey as string];
-									// Store the raw value or format it as needed
-									scheduledHabit.completions[date][
-										eventName
-									] = value ?? "";
+									// 只有当值不为空字符串时才添加到completions
+									if (value && value !== "") {
+										// Store the raw value or format it as needed
+										scheduledHabit.completions[date][
+											eventName
+										] = value;
+									}
 								}
 							}
 							break;
@@ -116,50 +202,48 @@ export class HabitManager extends Component {
 						case "daily":
 							// Handle daily habits with custom completion text
 							const dailyHabit = habit as DailyHabitProps;
-							for (const property of properties) {
-								if (
-									property &&
-									frontmatter[property] !== undefined
-								) {
-									const value = frontmatter[property];
-									// If completionText is defined, check if value matches it
-									if (dailyHabit.completionText) {
-										// If value matches completionText, mark as completed (1)
-										// Otherwise, store the actual text value
-										if (
-											value === dailyHabit.completionText
-										) {
-											dailyHabit.completions[date] = 1;
-										} else {
-											dailyHabit.completions[date] =
-												value as string;
-										}
+
+							if (
+								habit.property &&
+								frontmatter[habit.property] !== undefined &&
+								frontmatter[habit.property] !== ""
+							) {
+								const value = frontmatter[habit.property];
+								// If completionText is defined, check if value matches it
+								if (dailyHabit.completionText) {
+									// If value matches completionText, mark as completed (1)
+									// Otherwise, store the actual text value
+									if (value === dailyHabit.completionText) {
+										dailyHabit.completions[date] = 1;
 									} else {
-										// Default behavior: any non-empty value means completed
-										dailyHabit.completions[date] = value
-											? 1
-											: 0;
+										dailyHabit.completions[date] =
+											value as string;
 									}
-									break; // Use the first found property
+								} else {
+									// Default behavior: any non-empty value means completed
+									dailyHabit.completions[date] = value
+										? 1
+										: 0;
 								}
+								break; // Use the first found property
 							}
+
 							break;
 
 						case "count":
 							// Handle count habits
 							const countHabit = habit as CountHabitProps;
-							for (const property of properties) {
-								if (
-									property &&
-									frontmatter[property] !== undefined
-								) {
-									const value = frontmatter[property];
-									// For count habits, try to parse as number
-									const numValue = Number(value);
-									if (!isNaN(numValue)) {
-										countHabit.completions[date] = numValue;
-									}
-									break; // Use the first found property
+							if (
+								countHabit.property &&
+								frontmatter[countHabit.property] !==
+									undefined &&
+								frontmatter[countHabit.property] !== ""
+							) {
+								const value = frontmatter[countHabit.property];
+								// For count habits, try to parse as number
+								const numValue = Number(value);
+								if (!isNaN(numValue)) {
+									countHabit.completions[date] = numValue;
 								}
 							}
 							break;
@@ -167,51 +251,29 @@ export class HabitManager extends Component {
 						case "mapping":
 							// Handle mapping habits
 							const mappingHabit = habit as MappingHabitProps;
-							for (const property of properties) {
+							if (
+								mappingHabit.property &&
+								frontmatter[mappingHabit.property] !==
+									undefined &&
+								frontmatter[mappingHabit.property] !== ""
+							) {
+								const value =
+									frontmatter[mappingHabit.property];
+								// For mapping habits, try to parse as number
+								const numValue = Number(value);
 								if (
-									property &&
-									frontmatter[property] !== undefined
+									!isNaN(numValue) &&
+									mappingHabit.mapping[numValue]
 								) {
-									const value = frontmatter[property];
-									// For mapping habits, try to parse as number
-									const numValue = Number(value);
-									if (
-										!isNaN(numValue) &&
-										mappingHabit.mapping[numValue]
-									) {
-										mappingHabit.completions[date] =
-											numValue;
-									}
-									break; // Use the first found property
+									mappingHabit.completions[date] = numValue;
 								}
-							}
-							break;
-
-						default:
-							// Fallback for any other habit types
-							let completionValue: number | undefined = undefined;
-							for (const property of properties) {
-								if (
-									property &&
-									frontmatter[property] !== undefined
-								) {
-									const value = frontmatter[property];
-									// Simple habit: expect boolean or number-like
-									completionValue =
-										Number(value) || (!!value ? 1 : 0);
-									break; // Use the first found property
-								}
-							}
-							if (completionValue !== undefined) {
-								(habit as DailyHabitProps).completions[date] =
-									completionValue;
 							}
 							break;
 					}
 				}
 			}
 		}
-		return initialHabits;
+		return convertedHabits;
 	}
 
 	private updateHabitCompletions(file: TFile, cache: CachedMetadata): void {
@@ -226,14 +288,12 @@ export class HabitManager extends Component {
 		const updatedHabits = this.habits.map((habit) => {
 			const habitClone = JSON.parse(JSON.stringify(habit)) as HabitProps; // Work on a clone
 			if (!habitClone.completions) habitClone.completions = {};
-			const { habitKeyMap = {}, scheduledEventMap = {} } =
-				this.plugin.settings.habit || {};
 
 			switch (habitClone.type) {
 				case "scheduled":
 					// Handle scheduled habits (journey habits)
 					const scheduledHabit = habitClone as ScheduledHabitProps;
-					const eventMap = scheduledEventMap[habit.id] || {};
+					const eventMap = habitClone.propertiesMap || {};
 					if (!scheduledHabit.completions[dateStr])
 						scheduledHabit.completions[dateStr] = {};
 					let eventChanged = false;
@@ -244,11 +304,13 @@ export class HabitManager extends Component {
 						if (
 							propertyKey &&
 							cache.frontmatter?.[propertyKey as string] !==
-								undefined
+								undefined &&
+							cache.frontmatter?.[propertyKey as string] !== ""
 						) {
 							const newValue =
 								cache.frontmatter[propertyKey as string] ?? "";
 							if (
+								newValue !== "" &&
 								scheduledHabit.completions[dateStr][
 									eventName
 								] !== newValue
@@ -256,12 +318,21 @@ export class HabitManager extends Component {
 								scheduledHabit.completions[dateStr][eventName] =
 									newValue;
 								eventChanged = true;
+							} else if (
+								newValue === "" &&
+								scheduledHabit.completions[dateStr]?.[
+									eventName
+								] !== undefined
+							) {
+								delete scheduledHabit.completions[dateStr][
+									eventName
+								];
+								eventChanged = true;
 							}
 						} else if (
 							scheduledHabit.completions[dateStr]?.[eventName] !==
 							undefined
 						) {
-							// Handle case where property might have been removed from frontmatter
 							delete scheduledHabit.completions[dateStr][
 								eventName
 							];
@@ -274,41 +345,36 @@ export class HabitManager extends Component {
 				case "daily":
 					// Handle daily habits with custom completion text
 					const dailyHabit = habitClone as DailyHabitProps;
-					const dailyProperties = habitKeyMap[habit.id] || [];
 					let foundDailyProperty = false;
 
-					for (const property of dailyProperties) {
-						if (
-							property &&
-							cache.frontmatter?.[property] !== undefined
-						) {
-							foundDailyProperty = true;
-							const value = cache.frontmatter[property];
+					if (
+						dailyHabit.property &&
+						cache.frontmatter?.[dailyHabit.property] !==
+							undefined &&
+						cache.frontmatter?.[dailyHabit.property] !== ""
+					) {
+						foundDailyProperty = true;
+						const value = cache.frontmatter[dailyHabit.property];
 
-							// If completionText is defined, check if value matches it
-							if (dailyHabit.completionText) {
-								const newValue =
-									value === dailyHabit.completionText
-										? 1
-										: (value as string);
-								if (
-									dailyHabit.completions[dateStr] !== newValue
-								) {
-									dailyHabit.completions[dateStr] = newValue;
-									habitsChanged = true;
-								}
-							} else {
-								// Default behavior: any non-empty value means completed
-								const newValue = value ? 1 : 0;
-								if (
-									dailyHabit.completions[dateStr] !== newValue
-								) {
-									dailyHabit.completions[dateStr] = newValue;
-									habitsChanged = true;
-								}
+						// If completionText is defined, check if value matches it
+						if (dailyHabit.completionText) {
+							const newValue =
+								value === dailyHabit.completionText
+									? 1
+									: (value as string);
+							if (dailyHabit.completions[dateStr] !== newValue) {
+								dailyHabit.completions[dateStr] = newValue;
+								habitsChanged = true;
 							}
-							break; // Use the first found property
+						} else {
+							// Default behavior: any non-empty value means completed
+							const newValue = value ? 1 : 0;
+							if (dailyHabit.completions[dateStr] !== newValue) {
+								dailyHabit.completions[dateStr] = newValue;
+								habitsChanged = true;
+							}
 						}
+						break; // Use the first found property
 					}
 
 					if (
@@ -323,27 +389,26 @@ export class HabitManager extends Component {
 				case "count":
 					// Handle count habits
 					const countHabit = habitClone as CountHabitProps;
-					const countProperties = habitKeyMap[habit.id] || [];
 					let foundCountProperty = false;
 
-					for (const property of countProperties) {
-						if (
-							property &&
-							cache.frontmatter?.[property] !== undefined
-						) {
-							foundCountProperty = true;
-							const value = cache.frontmatter[property];
-							const numValue = Number(value);
+					if (
+						countHabit.property &&
+						cache.frontmatter?.[countHabit.property] !==
+							undefined &&
+						cache.frontmatter?.[countHabit.property] !== ""
+					) {
+						foundCountProperty = true;
+						const value = cache.frontmatter[countHabit.property];
+						const numValue = Number(value);
 
-							if (
-								!isNaN(numValue) &&
-								countHabit.completions[dateStr] !== numValue
-							) {
-								countHabit.completions[dateStr] = numValue;
-								habitsChanged = true;
-							}
-							break; // Use the first found property
+						if (
+							!isNaN(numValue) &&
+							countHabit.completions[dateStr] !== numValue
+						) {
+							countHabit.completions[dateStr] = numValue;
+							habitsChanged = true;
 						}
+						break; // Use the first found property
 					}
 
 					if (
@@ -358,28 +423,27 @@ export class HabitManager extends Component {
 				case "mapping":
 					// Handle mapping habits
 					const mappingHabit = habitClone as MappingHabitProps;
-					const mappingProperties = habitKeyMap[habit.id] || [];
 					let foundMappingProperty = false;
 
-					for (const property of mappingProperties) {
-						if (
-							property &&
-							cache.frontmatter?.[property] !== undefined
-						) {
-							foundMappingProperty = true;
-							const value = cache.frontmatter[property];
-							const numValue = Number(value);
+					if (
+						mappingHabit.property &&
+						cache.frontmatter?.[mappingHabit.property] !==
+							undefined &&
+						cache.frontmatter?.[mappingHabit.property] !== ""
+					) {
+						foundMappingProperty = true;
+						const value = cache.frontmatter[mappingHabit.property];
+						const numValue = Number(value);
 
-							if (
-								!isNaN(numValue) &&
-								mappingHabit.mapping[numValue] &&
-								mappingHabit.completions[dateStr] !== numValue
-							) {
-								mappingHabit.completions[dateStr] = numValue;
-								habitsChanged = true;
-							}
-							break; // Use the first found property
+						if (
+							!isNaN(numValue) &&
+							mappingHabit.mapping[numValue] &&
+							mappingHabit.completions[dateStr] !== numValue
+						) {
+							mappingHabit.completions[dateStr] = numValue;
+							habitsChanged = true;
 						}
+						break; // Use the first found property
 					}
 
 					if (
@@ -387,40 +451,6 @@ export class HabitManager extends Component {
 						mappingHabit.completions[dateStr] !== undefined
 					) {
 						delete mappingHabit.completions[dateStr];
-						habitsChanged = true;
-					}
-					break;
-
-				default:
-					// Fallback for any other habit types
-					const properties = habitKeyMap[habit.id] || [];
-					let completionValue: number | undefined = undefined;
-					let foundProperty = false;
-
-					for (const property of properties) {
-						if (
-							property &&
-							cache.frontmatter?.[property] !== undefined
-						) {
-							foundProperty = true;
-							const value = cache.frontmatter[property];
-							completionValue =
-								Number(value) || (!!value ? 1 : 0);
-							break;
-						}
-					}
-
-					const currentValue = (habitClone as DailyHabitProps)
-						.completions[dateStr];
-					if (foundProperty && currentValue !== completionValue) {
-						((habitClone as DailyHabitProps).completions as any)[
-							dateStr
-						] = completionValue as number;
-						habitsChanged = true;
-					} else if (!foundProperty && currentValue !== undefined) {
-						delete (habitClone as DailyHabitProps).completions[
-							dateStr
-						];
 						habitsChanged = true;
 					}
 					break;
@@ -469,15 +499,13 @@ export class HabitManager extends Component {
 				await app.fileManager.processFrontMatter(
 					dailyNote,
 					(frontmatter) => {
-						const { habitKeyMap = {}, scheduledEventMap = {} } =
-							this.plugin.settings.habit || {};
 						const completion = updatedHabit.completions[date];
 
 						switch (updatedHabit.type) {
 							case "scheduled":
 								// Handle scheduled habits (journey habits)
 								const eventMap =
-									scheduledEventMap[updatedHabit.id] || {};
+									updatedHabit.propertiesMap || {};
 								for (const [
 									eventName,
 									propertyKey,
@@ -487,14 +515,16 @@ export class HabitManager extends Component {
 										if (
 											typeof completion === "object" &&
 											completion?.[eventName] !==
-												undefined
+												undefined &&
+											completion?.[eventName] !== ""
 										) {
 											frontmatter[propertyKey as string] =
 												completion[eventName];
 										} else {
-											// If completion doesn't exist or eventName is missing, maybe remove property or set to default?
-											// For now, we only update if value exists. Decide if removal is needed.
-											// delete frontmatter[propertyKey]; // Example: remove if not in completion
+											// 如果completion不存在，事件名缺失或值为空字符串，删除该属性
+											delete frontmatter[
+												propertyKey as string
+											];
 										}
 									}
 								}
@@ -504,11 +534,9 @@ export class HabitManager extends Component {
 								// Handle daily habits with custom completion text
 								const dailyHabit =
 									updatedHabit as DailyHabitProps;
-								const dailyProperties =
-									habitKeyMap[updatedHabit.id] || [];
 
-								if (dailyProperties.length > 0) {
-									const keyToUpdate = dailyProperties[0]; // Update the primary property
+								if (dailyHabit.property) {
+									const keyToUpdate = dailyHabit.property; // Update the primary property
 
 									if (completion !== undefined) {
 										// If completionText is defined and completion is 1, use the completionText
@@ -535,12 +563,11 @@ export class HabitManager extends Component {
 								break;
 
 							case "count":
+								const countHabit =
+									updatedHabit as CountHabitProps;
 								// Handle count habits
-								const countProperties =
-									habitKeyMap[updatedHabit.id] || [];
-
-								if (countProperties.length > 0) {
-									const keyToUpdate = countProperties[0]; // Update the primary property
+								if (countHabit.property) {
+									const keyToUpdate = countHabit.property; // Update the primary property
 
 									if (completion !== undefined) {
 										frontmatter[keyToUpdate] = completion;
@@ -559,11 +586,8 @@ export class HabitManager extends Component {
 								// Handle mapping habits
 								const mappingHabit =
 									updatedHabit as MappingHabitProps;
-								const mappingProperties =
-									habitKeyMap[updatedHabit.id] || [];
-
-								if (mappingProperties.length > 0) {
-									const keyToUpdate = mappingProperties[0]; // Update the primary property
+								if (mappingHabit.property) {
+									const keyToUpdate = mappingHabit.property; // Update the primary property
 
 									if (
 										completion !== undefined &&
@@ -578,31 +602,6 @@ export class HabitManager extends Component {
 								} else {
 									console.warn(
 										`Habit ${updatedHabit.id} has no properties defined in habitKeyMap.`
-									);
-								}
-								break;
-
-							default:
-								// Simple habit (fallback)
-								const properties =
-									habitKeyMap[
-										(updatedHabit as BaseHabitProps).id
-									] || [];
-
-								if (properties.length > 0) {
-									const keyToUpdate = properties[0]; // Update the primary property
-
-									if (completion !== undefined) {
-										frontmatter[keyToUpdate] = completion;
-									} else {
-										// If completion is undefined, remove the property
-										delete frontmatter[keyToUpdate];
-									}
-								} else {
-									console.warn(
-										`Habit ${
-											(updatedHabit as BaseHabitProps).id
-										} has no properties defined in habitKeyMap.`
 									);
 								}
 								break;

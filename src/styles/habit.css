@@ -19,13 +19,22 @@
 /* Medium breakpoint (md:) equivalent ~768px */
 @media (min-width: 768px) {
 	.habit-list-container {
-		/* Example: Switch to 2 columns on wider screens */
-		/* grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); */
-		/* Or fixed 2 columns */
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		margin-left: auto;
+		margin-right: auto;
+		max-width: 400px;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
 	}
 }
 /* Adjust max-width/columns based on desired layout */
+
+.habit-card-wrapper {
+	width: 100%;
+	height: 8rem;
+	min-height: fit-content;
+}
 
 /* === Base Card Styles === */
 .habit-card {
@@ -36,15 +45,17 @@
 	overflow: hidden;
 	display: flex;
 	flex-direction: column; /* Stack header and content */
+	width: 100%;
+	height: 100%;
 }
 
 .card-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0.75rem 1rem; /* Smaller padding than p-4 px-6 */
-	gap: 0.5rem; /* gap-2 */
-	border-bottom: 1px solid var(--background-modifier-border); /* Separator */
+	padding: 0.5rem 1rem;
+	gap: 0.5rem;
+	/* border-bottom: 1px solid var(--background-modifier-border); */
 }
 
 .card-title {
@@ -80,14 +91,13 @@
 	/* Style container if needed */
 }
 .daily-habit-card .habit-checkbox {
-	width: 1.25rem; /* w-5 */
-	height: 1.25rem; /* h-5 */
+	--checkbox-size: 1.25rem;
 	cursor: pointer;
 	accent-color: var(--interactive-accent); /* Style checkbox color */
 }
 .daily-habit-card .card-content-wrapper {
 	/* Contains heatmap */
-	padding: 0.5rem 1rem 0.75rem; /* Adjust padding around heatmap */
+	padding: 0rem 1rem 0.75rem; /* Adjust padding around heatmap */
 }
 
 /* === Count Habit Card === */
@@ -99,12 +109,11 @@
 }
 
 .count-habit-card .habit-icon-button {
-	height: 3.5rem; /* Slightly smaller than h-16 */
-	width: 3.5rem;
+	--icon-size: 2rem;
+	height: 4rem; /* Slightly smaller than h-16 */
+	width: 4rem;
+	aspect-ratio: 1;
 	padding: 0;
-	border: 1px solid var(--button-secondary-border-color);
-	background-color: var(--button-secondary-bg);
-	color: var(--button-secondary-color);
 	cursor: pointer;
 	border-radius: var(--radius-s); /* Smaller radius */
 	display: flex;
@@ -112,8 +121,24 @@
 	align-items: center;
 	font-size: 1.5rem; /* For icon */
 }
+
+.count-habit-card .habit-icon-button {
+	color: var(--icon-color);
+}
+
 .count-habit-card .habit-icon-button:hover {
-	background-color: var(--button-secondary-hover-bg);
+	background-color: var(--background-secondary);
+}
+
+.count-habit-card .habit-card-name {
+	font-size: var(--font-ui-large);
+	font-weight: 600;
+}
+
+.count-habit-card .habit-active-day {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	font-weight: 400;
 }
 
 .count-habit-card .habit-info {
@@ -144,17 +169,13 @@
 		align-items: center; /* Align items vertically */
 		gap: 1rem;
 	}
-	.count-habit-card .habit-info {
-		align-items: flex-start; /* Left-align text */
-		text-align: left;
-	}
 	.count-habit-card .habit-progress-area {
 		width: auto; /* Allow it to shrink */
 		min-width: 150px; /* Ensure minimum width for heatmap/progress */
 		align-items: flex-end; /* Align progress to the right */
 	}
 	.count-habit-card .habit-heatmap-small {
-		/* Allow heatmap to define its own width */
+		width: 100%; /* Allow heatmap to define its own width */
 	}
 }
 
@@ -181,19 +202,10 @@
 	align-items: center; /* Center controls on mobile */
 }
 
-.scheduled-habit-card .habit-event-dropdown .setting-item-control select {
-	width: 100%; /* Full width dropdown */
-	max-width: 200px; /* Limit max width */
-	/* Use Obsidian's dropdown styles */
-}
-/* Hide the setting name/description by default */
-.scheduled-habit-card .habit-event-dropdown .setting-item-info {
-	display: none;
-}
-.scheduled-habit-card .habit-event-dropdown .setting-item {
-	width: 100%; /* Make setting take full width of controls */
-	padding: 0; /* Remove default setting padding */
-	border: none; /* Remove default setting border */
+.scheduled-habit-card .habit-event-dropdown {
+	width: auto; /* Auto width dropdown */
+	margin-bottom: 0.5rem;
+	width: 100%;
 }
 
 /* Tablet/Desktop layout for Scheduled Card */
@@ -213,9 +225,6 @@
 		min-width: 150px; /* Minimum width */
 		align-items: flex-start; /* Align controls left */
 	}
-	.scheduled-habit-card .habit-event-dropdown .setting-item-control select {
-		width: auto; /* Auto width dropdown */
-	}
 }
 
 /* === Mapping Habit Card === */
@@ -227,6 +236,8 @@
 	flex-direction: column; /* Mobile default */
 	gap: 0.75rem;
 	align-items: center;
+	padding-top: 0;
+	padding-bottom: 1.2rem;
 }
 .mapping-habit-card .habit-heatmap-medium {
 	width: 100%; /* Full width heatmap on mobile */
@@ -239,7 +250,7 @@
 	gap: 0.5rem;
 }
 
-.mapping-habit-card .habit-mood-button {
+.mapping-habit-card .habit-mapping-button {
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -254,7 +265,7 @@
 	cursor: pointer;
 	border-radius: var(--radius-s);
 }
-.mapping-habit-card .habit-mood-button:hover {
+.mapping-habit-card .habit-mapping-button:hover {
 	background-color: var(--button-secondary-hover-bg);
 }
 
@@ -272,6 +283,10 @@
 }
 .mapping-habit-card .habit-slider-setting .setting-item-control {
 	width: 100%; /* Make slider control take full width */
+}
+
+.mapping-habit-card .heatmap-md .heatmap-container-simple {
+	gap: 0.5rem;
 }
 
 /* Tablet/Desktop layout for Mapping Card */
@@ -293,7 +308,7 @@
 		align-items: center;
 		gap: 0.75rem;
 	}
-	.mapping-habit-card .habit-mood-button {
+	.mapping-habit-card .habit-mapping-button {
 		width: 4rem; /* Fixed width button */
 		height: 4rem;
 	}
@@ -318,6 +333,9 @@
 	border-radius: var(--radius-l);
 	transition: width 0.3s ease-in-out;
 }
+.habit-progress-container.filled .habit-progress-text {
+	mix-blend-mode: unset;
+}
 .habit-progress-text {
 	position: absolute;
 	top: 0;
@@ -335,24 +353,37 @@
 }
 
 /* === Heatmap Styles === */
-.heatmap-root {
+.tg-heatmap-root {
 	width: 100%; /* Take available width */
 }
-.heatmap-container-simple {
-	display: flex;
+.heatmap-sm .heatmap-container-simple {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
 	gap: 3px; /* Small gap between cells */
-	justify-content: flex-end; /* Align cells to the right by default */
 	overflow-x: auto; /* Allow horizontal scroll if too many cells */
 	padding-bottom: 2px; /* Space for scrollbar */
 }
-/* Specific adjustments for heatmap size classes */
-.heatmap-sm .heatmap-container-simple {
-	/* For Count Card */
-	justify-content: center; /* Center the dots */
+
+.heatmap-md .heatmap-container-simple {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 3px; /* Small gap between cells */
+	overflow-x: auto; /* Allow horizontal scroll if too many cells */
+	padding-bottom: 2px; /* Space for scrollbar */
+	justify-items: center;
+}
+
+.heatmap-lg .heatmap-container-simple {
+	display: grid;
+	grid-template-columns: repeat(10, 1fr);
+	gap: var(--size-4-2); /* Small gap between cells */
+	overflow-x: auto; /* Allow horizontal scroll if too many cells */
+	padding-bottom: 2px; /* Space for scrollbar */
+	justify-items: center;
 }
 
 .heatmap-cell {
-	border-radius: var(--radius-xs); /* Small radius */
+	border-radius: var(--radius-s); /* Small radius */
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -377,6 +408,12 @@
 	width: 0.75rem;
 	height: 0.75rem;
 }
+.habit-heatmap-medium .heatmap-md .heatmap-cell {
+	width: 1.4rem;
+	height: 1.4rem;
+	font-size: 0.7rem;
+}
+
 .heatmap-md .heatmap-cell {
 	width: 1.1rem;
 	height: 1.1rem;
@@ -396,6 +433,12 @@
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent); /* Text on filled (e.g., emoji) */
 }
+
+.heatmap-cell.has-custom-content:has(.pie-dot-container) {
+	background: transparent;
+	border: unset;
+}
+
 /* Style for cells with custom content like PieDot or Emoji */
 .heatmap-cell.has-custom-content,
 .heatmap-cell.has-text-content {
@@ -437,14 +480,13 @@
 
 /* === Icons Placeholder === */
 .habit-icon {
-	/* Basic icon placeholder style */
 	display: inline-block;
-	width: 1em; /* Match font size */
+	/* width: 1em; */
 	height: 1em;
 	line-height: 1;
 	text-align: center;
-	/* Replace with actual Obsidian icon styles later */
 	color: var(--text-muted);
 	font-style: italic;
-	margin-right: 0.25em; /* Space after icon */
+	margin-right: 0.25em;
+	--icon-size: 1.5rem;
 }

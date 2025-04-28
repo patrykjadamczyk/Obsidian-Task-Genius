@@ -619,11 +619,6 @@ function processFile(
 		);
 		const completedTasks = tasks.filter((t) => t.completed).length;
 		try {
-			console.log(
-				filePath.startsWith(settings.dailyNotePath),
-				settings.dailyNotePath,
-				settings.useDailyNotePathAsDate
-			);
 			if (
 				(filePath.startsWith(settings.dailyNotePath) ||
 					("/" + filePath).startsWith(settings.dailyNotePath)) &&

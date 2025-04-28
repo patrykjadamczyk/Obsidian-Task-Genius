@@ -69,6 +69,12 @@ export class HabitCard extends Component {
 			"aria-label",
 			`Progress: ${value} out of ${max}`
 		);
+
+		if (value === max) {
+			progressContainer.toggleClass("filled", true);
+		} else {
+			progressContainer.toggleClass("filled", false);
+		}
 	}
 
 	// Basic heatmap renderer (shows last N days)
@@ -79,8 +85,13 @@ export class HabitCard extends Component {
 		getVariantCondition: (value: any) => boolean, // Function to determine if cell is "filled"
 		getCellValue?: (value: any) => string | HTMLElement | null // Optional function to get custom cell content
 	) {
+		const countsMap = {
+			sm: 18,
+			md: 18,
+			lg: 30,
+		};
 		const heatmapRoot = container.createDiv({
-			cls: `heatmap-root heatmap-${size}`,
+			cls: `tg-heatmap-root heatmap-${size}`,
 		});
 		const heatmapContainer = heatmapRoot.createDiv({
 			cls: `heatmap-container-simple`,
@@ -88,8 +99,7 @@ export class HabitCard extends Component {
 
 		const endDate = new Date();
 		const startDate = new Date(
-			endDate.getTime() -
-				(this.heatmapDateRange - 1) * 24 * 60 * 60 * 1000
+			endDate.getTime() - (countsMap[size] - 1) * 24 * 60 * 60 * 1000
 		);
 		const dates = getDatesInRange(
 			startDate.toISOString().split("T")[0],
@@ -178,8 +188,6 @@ export class HabitCard extends Component {
 			case "daily":
 				const dailyHabit = habitToUpdate as DailyHabitProps;
 				if (dailyHabit.completionText) {
-					// If completionText is defined, toggle between 1 (completed) and 0 (not completed)
-					// 1 means the value matched completionText
 					newCompletionValue = currentCompletionToday === 1 ? 0 : 1;
 				} else {
 					// Default behavior: toggle between 0 and 1

@@ -188,11 +188,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.addChild(this.rewardManager);
 		}
 
-		if (this.settings.habit.enableHabits) {
-			this.habitManager = new HabitManager(this);
-			this.addChild(this.habitManager);
-		}
-
 		this.registerCommands();
 		this.registerEditorExt();
 
@@ -338,6 +333,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 						this.activateTaskView();
 					},
 				});
+			}
+
+			if (this.settings.habit.enableHabits) {
+				this.habitManager = new HabitManager(this);
+				this.addChild(this.habitManager);
 			}
 		});
 

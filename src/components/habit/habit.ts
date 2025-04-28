@@ -1,4 +1,4 @@
-import { Component, App, Modal, Setting } from "obsidian";
+import { Component, App, Modal, Setting, Notice } from "obsidian";
 import {
 	HabitProps,
 	DailyHabitProps,
@@ -12,7 +12,7 @@ import {
 	CountHabitCard,
 	ScheduledHabitCard,
 	MappingHabitCard,
-} from "./habitcard"; // Import the habit card classes
+} from "./habitcard/index"; // Import the habit card classes
 import { t } from "src/translations/helper";
 import "../../styles/habit.css";
 
@@ -27,13 +27,14 @@ export class Habit extends Component {
 	}
 
 	async onload() {
-		console.log("HabitView loaded.");
 		if (this.plugin) {
 			// Cast to any to avoid TypeScript error about event name
 			this.registerEvent(
-				(this.plugin.app.workspace as any).on(
+				this.plugin.app.workspace.on(
 					"task-genius:habit-index-updated",
-					this.redraw
+					() => {
+						this.redraw();
+					}
 				)
 			);
 		}
@@ -62,6 +63,7 @@ export class Habit extends Component {
 
 	getHabitData(): HabitProps[] {
 		const habits = this.plugin.habitManager?.habits || [];
+		console.log("habits", habits);
 		return habits;
 	}
 
@@ -76,6 +78,7 @@ export class Habit extends Component {
 	}
 
 	renderHabitList(habits: HabitProps[]) {
+		console.log("renderHabitList", habits);
 		const listContainer = this.containerEl.createDiv({
 			cls: "habit-list-container",
 		});
@@ -84,11 +87,8 @@ export class Habit extends Component {
 			const habitCardContainer = listContainer.createDiv({
 				cls: "habit-card-wrapper",
 			}); // Wrapper for context menu, etc.
-			// TODO: Add context menu logic here
 			this.renderHabitCard(habitCardContainer, habit);
 		});
-
-		// TODO: Add Confetti logic if needed (could be managed globally or per card)
 	}
 
 	renderHabitCard(container: HTMLElement, habit: HabitProps) {
@@ -99,28 +99,32 @@ export class Habit extends Component {
 			case "daily":
 				const dailyCard = new DailyHabitCard(
 					habit as DailyHabitProps,
-					container
+					container,
+					this.plugin
 				);
 				this.addChild(dailyCard);
 				break;
 			case "count":
 				const countCard = new CountHabitCard(
 					habit as CountHabitProps,
-					container
+					container,
+					this.plugin
 				);
 				this.addChild(countCard);
 				break;
 			case "scheduled":
 				const scheduledCard = new ScheduledHabitCard(
 					habit as ScheduledHabitProps,
-					container
+					container,
+					this.plugin
 				);
 				this.addChild(scheduledCard);
 				break;
 			case "mapping":
 				const mappingCard = new MappingHabitCard(
 					habit as MappingHabitProps,
-					container
+					container,
+					this.plugin
 				);
 				this.addChild(mappingCard);
 				break;
@@ -160,7 +164,7 @@ export class EventDetailModal extends Modal {
 			text: `Record Details for ${this.eventName}`,
 		});
 
-		new Setting(contentEl).setName("Details (optional)").addText((text) =>
+		new Setting(contentEl).setName("Details").addText((text) =>
 			text
 				.setPlaceholder(`Enter details for ${this.eventName}...`)
 				.onChange((value) => {
@@ -168,15 +172,28 @@ export class EventDetailModal extends Modal {
 				})
 		);
 
-		new Setting(contentEl).addButton((btn) =>
-			btn
-				.setButtonText("Submit")
-				.setCta()
-				.onClick(() => {
-					this.close();
-					this.onSubmit(this.details);
-				})
-		);
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Cancel")
+					.setWarning()
+					.onClick(() => {
+						this.close();
+					})
+			)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Submit")
+					.setCta()
+					.onClick(() => {
+						this.close();
+						if (!this.details) {
+							new Notice(t("Please enter details"));
+							return;
+						}
+						this.onSubmit(this.details);
+					})
+			);
 	}
 
 	onClose() {

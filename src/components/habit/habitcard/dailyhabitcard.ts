@@ -13,6 +13,11 @@ export class DailyHabitCard extends HabitCard {
 		super(habit, container, plugin);
 	}
 
+	onload(): void {
+		super.onload();
+		this.render();
+	}
+
 	render(): void {
 		super.render();
 
@@ -60,10 +65,9 @@ export class DailyHabitCard extends HabitCard {
 
 		checkbox.checked = isCompletedToday;
 
-		checkbox.addEventListener("click", (e) => {
+		this.registerDomEvent(checkbox, "click", (e) => {
 			e.preventDefault(); // Prevent default toggle, handle manually
 			this.toggleHabitCompletion(this.habit.id);
-			// TODO: Trigger confetti if needed
 			if (!isCompletedToday) {
 				// Optional: trigger confetti only on completion
 				new Notice(`${t("Completed")} ${this.habit.name}! 🎉`);

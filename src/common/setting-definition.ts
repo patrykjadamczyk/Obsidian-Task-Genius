@@ -1,5 +1,6 @@
 import { t } from "../translations/helper";
 import type TaskProgressBarPlugin from "../index"; // Type-only import
+import { BaseHabitData } from "../types/habit-card";
 
 // Interface for individual project review settings (If still needed, otherwise remove)
 // Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
@@ -213,8 +214,7 @@ export interface RewardSettings {
 
 export interface HabitSettings {
 	enableHabits: boolean;
-	habitKeyMap: Record<string, string[]>;
-	scheduledEventMap: Record<string, Record<string, string>>;
+	habits: BaseHabitData[]; // 存储基础习惯数据，不包含completions字段
 }
 
 /** Define the main settings structure */
@@ -621,8 +621,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Habit Settings
 	habit: {
 		enableHabits: false,
-		habitKeyMap: {},
-		scheduledEventMap: {},
+		habits: [],
 	},
 };
 

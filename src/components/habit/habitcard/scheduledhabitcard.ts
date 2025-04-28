@@ -1,4 +1,10 @@
-import { Component, Notice, setIcon, Setting } from "obsidian";
+import {
+	Component,
+	DropdownComponent,
+	Notice,
+	setIcon,
+	Setting,
+} from "obsidian";
 import { ScheduledHabitProps } from "src/types/habit-card";
 import { HabitCard } from "./habitcard";
 import TaskProgressBarPlugin from "src";
@@ -39,6 +45,11 @@ export class ScheduledHabitCard extends HabitCard {
 		public plugin: TaskProgressBarPlugin
 	) {
 		super(habit, container, plugin);
+	}
+
+	onload(): void {
+		super.onload();
+		this.render();
 	}
 
 	render(): void {
@@ -116,41 +127,40 @@ export class ScheduledHabitCard extends HabitCard {
 			totalEvents > 0 && completedEventsToday >= totalEvents;
 
 		// Use Obsidian Setting for dropdown
-		new Setting(controlsDiv)
-			.setClass("habit-event-dropdown") // Add class for styling
-			.addDropdown((dropdown) => {
-				dropdown.addOption(
-					"",
-					allEventsDoneToday ? t("All Done!") : t("Select event...")
-				);
-				if (Array.isArray(this.habit.events)) {
-					this.habit.events.forEach((event) => {
-						// Ensure event name exists and is not already completed
-						if (event?.name && !todaysCompletions[event.name]) {
-							dropdown.addOption(event.name, event.name);
+		const eventDropdown = new DropdownComponent(controlsDiv)
+			.addOption(
+				"",
+				allEventsDoneToday ? t("All Done!") : t("Select event...")
+			)
+			.setValue("")
+			.onChange((eventName) => {
+				if (eventName) {
+					// Open modal to get details
+					new EventDetailModal(
+						this.plugin.app,
+						eventName,
+						(details: string) => {
+							this.toggleHabitCompletion(this.habit.id, {
+								id: eventName,
+								details: details,
+							});
 						}
-					});
+					).open();
 				}
-				dropdown.setValue(""); // Reset selection
-				dropdown.onChange((eventName) => {
-					if (eventName) {
-						// Open modal to get details
-						new EventDetailModal(
-							this.plugin.app,
-							eventName,
-							(details: string) => {
-								this.toggleHabitCompletion(this.habit.id, {
-									id: eventName,
-									details: details,
-								});
-							}
-						).open();
-					}
-					// Reset dropdown after selection or modal close
-					dropdown.setValue("");
-				});
-				dropdown.setDisabled(allEventsDoneToday || totalEvents === 0);
+				// Reset dropdown after selection or modal close
+				eventDropdown.setValue("");
+			})
+			.setDisabled(allEventsDoneToday || totalEvents === 0);
+		if (Array.isArray(this.habit.events)) {
+			this.habit.events.forEach((event) => {
+				// Ensure event name exists and is not already completed
+				if (event?.name && !todaysCompletions[event.name]) {
+					eventDropdown.addOption(event.name, event.name);
+				}
 			});
+		}
+
+		eventDropdown.selectEl.toggleClass("habit-event-dropdown", true);
 
 		this.renderProgressBar(controlsDiv, completedEventsToday, totalEvents);
 	}
