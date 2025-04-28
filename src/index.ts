@@ -146,10 +146,6 @@ export const showPopoverWithProgressBar = (
 
 export default class TaskProgressBarPlugin extends Plugin {
 	settings: TaskProgressBarSettings;
-	// Used for completed task mover to track which lines should be removed
-	linesToRemove: number[] = [];
-	// Expose format function for use in settings UI
-	formatProgressText = formatProgressText;
 	// Task manager instance
 	taskManager: TaskManager;
 
