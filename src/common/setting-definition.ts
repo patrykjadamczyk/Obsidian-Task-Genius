@@ -659,12 +659,25 @@ export function getViewSettingOrDefault(
 
 	// Ensure essential properties exist even if defaults are weird
 	mergedConfig.filterRules = mergedConfig.filterRules || {};
-	// Optional: If specificConfig is expected for certain default types but missing after merge, could add fallback logic here.
-	// For example:
-	// if (mergedConfig.type === 'default' && (mergedConfig.id === 'kanban' || mergedConfig.id === 'calendar') && mergedConfig.specificConfig === undefined) {
-	//   console.warn(`Specific config missing for default view ${mergedConfig.id}, attempting to use default.`);
-	//   mergedConfig.specificConfig = DEFAULT_SETTINGS.viewConfiguration.find(v => v.id === mergedConfig.id)?.specificConfig;
-	// }
+
+	// Remove duplicate gantt view if it exists in the default settings
+	if (viewId === "gantt" && Array.isArray(viewConfiguration)) {
+		const ganttViews = viewConfiguration.filter((v) => v.id === "gantt");
+		if (ganttViews.length > 1) {
+			// Keep only the first gantt view
+			const indexesToRemove = viewConfiguration
+				.map((v, index) => (v.id === "gantt" ? index : -1))
+				.filter((index) => index !== -1)
+				.slice(1);
+
+			for (const index of indexesToRemove.reverse()) {
+				viewConfiguration.splice(index, 1);
+			}
+
+			// Save the updated configuration
+			plugin.saveSettings();
+		}
+	}
 
 	return mergedConfig;
 }

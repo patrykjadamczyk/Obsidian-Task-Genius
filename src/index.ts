@@ -703,7 +703,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 		}
 
 		// Otherwise, create a new leaf in the right split and open the view
-		const leaf = workspace.getLeaf();
+		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: TASK_VIEW_TYPE });
 		workspace.revealLeaf(leaf);
 	}
