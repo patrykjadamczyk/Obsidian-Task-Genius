@@ -736,9 +736,9 @@ export function handleCycleCompleteStatusTransaction(
 			line.number,
 			plugin.settings.preferMetadataFormat
 		);
-		if (completingTask && task) {
-			app.workspace.trigger("task-genius:task-completed", task);
-		}
+		// if (completingTask && task) {
+		// 	app.workspace.trigger("task-genius:task-completed", task);
+		// }
 		return {
 			changes: newChanges,
 			selection: tr.selection,

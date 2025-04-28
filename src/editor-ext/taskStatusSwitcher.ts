@@ -202,19 +202,19 @@ class TaskStatusWidget extends WidgetType {
 		// Replace text with the selected state's mark
 		const newText = currentText.replace(/\[(.)]/, `[${nextMark}]`);
 
-		if (nextMark === "x" || nextMark === "X") {
-			const line = this.view.state.doc.lineAt(this.from);
-			const path =
-				this.view.state.field(editorInfoField)?.file?.path || "";
-			const task = parseTaskLine(
-				path,
-				line.text,
-				line.number,
-				this.plugin.settings.preferMetadataFormat
-			);
-			task &&
-				this.app.workspace.trigger("task-genius:task-completed", task);
-		}
+		// if (nextMark === "x" || nextMark === "X") {
+		// 	const line = this.view.state.doc.lineAt(this.from);
+		// 	const path =
+		// 		this.view.state.field(editorInfoField)?.file?.path || "";
+		// 	const task = parseTaskLine(
+		// 		path,
+		// 		line.text,
+		// 		line.number,
+		// 		this.plugin.settings.preferMetadataFormat
+		// 	);
+		// 	task &&
+		// 		this.app.workspace.trigger("task-genius:task-completed", task);
+		// }
 
 		this.view.dispatch({
 			changes: {
@@ -293,19 +293,19 @@ class TaskStatusWidget extends WidgetType {
 		// Replace text
 		const newText = currentText.replace(/\[(.)]/, `[${nextMark}]`);
 
-		if (nextMark === "x" || nextMark === "X") {
-			const line = this.view.state.doc.lineAt(this.from);
-			const path =
-				this.view.state.field(editorInfoField)?.file?.path || "";
-			const task = parseTaskLine(
-				path,
-				line.text,
-				line.number,
-				this.plugin.settings.preferMetadataFormat
-			);
-			task &&
-				this.app.workspace.trigger("task-genius:task-completed", task);
-		}
+		// if (nextMark === "x" || nextMark === "X") {
+		// 	const line = this.view.state.doc.lineAt(this.from);
+		// 	const path =
+		// 		this.view.state.field(editorInfoField)?.file?.path || "";
+		// 	const task = parseTaskLine(
+		// 		path,
+		// 		line.text,
+		// 		line.number,
+		// 		this.plugin.settings.preferMetadataFormat
+		// 	);
+		// 	task &&
+		// 		this.app.workspace.trigger("task-genius:task-completed", task);
+		// }
 
 		this.view.dispatch({
 			changes: {

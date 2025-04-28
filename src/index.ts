@@ -68,6 +68,7 @@ import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
 import { getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
+import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -186,6 +187,10 @@ export default class TaskProgressBarPlugin extends Plugin {
 		if (this.settings.rewards.enableRewards) {
 			this.rewardManager = new RewardManager(this);
 			this.addChild(this.rewardManager);
+
+			this.registerEditorExtension([
+				monitorTaskCompletedExtension(this.app, this),
+			]);
 		}
 
 		this.registerCommands();
