@@ -67,6 +67,7 @@ import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
 import { getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
+import { HabitManager } from "./utils/HabitManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -151,6 +152,8 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 	rewardManager: RewardManager;
 
+	habitManager: HabitManager;
+
 	// Preloaded tasks:
 	preloadedTasks: Task[] = [];
 
@@ -183,6 +186,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 		if (this.settings.rewards.enableRewards) {
 			this.rewardManager = new RewardManager(this);
 			this.addChild(this.rewardManager);
+		}
+
+		if (this.settings.habit.enableHabits) {
+			this.habitManager = new HabitManager(this);
+			this.addChild(this.habitManager);
 		}
 
 		this.registerCommands();

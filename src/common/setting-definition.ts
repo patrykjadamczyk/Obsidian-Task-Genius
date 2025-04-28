@@ -211,6 +211,12 @@ export interface RewardSettings {
 	occurrenceLevels: OccurrenceLevel[];
 }
 
+export interface HabitSettings {
+	enableHabits: boolean;
+	habitKeyMap: Record<string, string[]>;
+	scheduledEventMap: Record<string, Record<string, string>>;
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -281,6 +287,9 @@ export interface TaskProgressBarSettings {
 
 	// Reward Settings (NEW)
 	rewards: RewardSettings;
+
+	// Habit Settings
+	habit: HabitSettings;
 }
 
 /** Define the default settings */
@@ -360,8 +369,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		enableCompletedTaskMover: true,
 		taskMarkerType: "date",
 		versionMarker: "version 1.0",
-		dateMarker: "archived on {{DATE:YYYY-MM-DD}}",
-		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
+		dateMarker: t("archived on") + " {{date}}",
+		customMarker: t("moved") + " {{DATE:YYYY-MM-DD HH:mm}}",
 		treatAbandonedAsCompleted: false,
 		completeAllMovedTasks: true,
 		withCurrentFileLink: true,
@@ -555,6 +564,16 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				useMarkdownRenderer: true,
 			} as GanttSpecificConfig,
 		},
+		{
+			id: "habit",
+			name: t("Habit"),
+			icon: "calendar-clock",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			filterBlanks: false,
+		},
 	],
 
 	// Review Settings
@@ -597,6 +616,13 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			{ name: t("rare"), chance: 25 },
 			{ name: t("legendary"), chance: 5 },
 		],
+	},
+
+	// Habit Settings
+	habit: {
+		enableHabits: false,
+		habitKeyMap: {},
+		scheduledEventMap: {},
 	},
 };
 

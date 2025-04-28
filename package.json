@@ -53,6 +53,7 @@
 	},
 	"dependencies": {
 		"date-fns": "^4.1.0",
-		"localforage": "^1.10.0"
+		"localforage": "^1.10.0",
+		"obsidian-daily-notes-interface": "^0.9.4"
 	}
 }

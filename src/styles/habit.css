@@ -1,0 +1,450 @@
+.tg-habit-component-container {
+	width: 100%;
+
+	display: flex;
+	flex-direction: column;
+	gap: 1rem; /* gap-4 */
+	padding: 1rem; /* p-4 */
+	height: 100%; /* Allow scrolling if content overflows */
+	overflow-y: auto;
+}
+
+/* === Habit List Container === */
+.habit-list-container {
+	display: grid;
+	grid-template-columns: repeat(1, minmax(0, 1fr));
+	gap: 1rem; /* gap-4 */
+}
+
+/* Medium breakpoint (md:) equivalent ~768px */
+@media (min-width: 768px) {
+	.habit-list-container {
+		/* Example: Switch to 2 columns on wider screens */
+		/* grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); */
+		/* Or fixed 2 columns */
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+/* Adjust max-width/columns based on desired layout */
+
+/* === Base Card Styles === */
+.habit-card {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m); /* Standard medium radius */
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column; /* Stack header and content */
+}
+
+.card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 1rem; /* Smaller padding than p-4 px-6 */
+	gap: 0.5rem; /* gap-2 */
+	border-bottom: 1px solid var(--background-modifier-border); /* Separator */
+}
+
+.card-title {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem; /* gap-2 */
+	font-size: var(--font-ui-large); /* Larger UI font */
+	font-weight: 600; /* font-semibold */
+	flex-grow: 1; /* Allow title to take space */
+	overflow: hidden; /* Prevent long names breaking layout */
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.habit-name.habit-name:hover {
+	/* Specificity for hover */
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.card-content-wrapper {
+	padding: 0.75rem 1rem; /* Consistent padding */
+	flex-grow: 1; /* Allow content to fill space */
+	/* Layout specifics defined per card type */
+}
+
+/* === Daily Habit Card === */
+.daily-habit-card .card-header {
+	/* No border needed if checkbox is main action */
+	/* border-bottom: none; */
+}
+.daily-habit-card .habit-checkbox-container {
+	/* Style container if needed */
+}
+.daily-habit-card .habit-checkbox {
+	width: 1.25rem; /* w-5 */
+	height: 1.25rem; /* h-5 */
+	cursor: pointer;
+	accent-color: var(--interactive-accent); /* Style checkbox color */
+}
+.daily-habit-card .card-content-wrapper {
+	/* Contains heatmap */
+	padding: 0.5rem 1rem 0.75rem; /* Adjust padding around heatmap */
+}
+
+/* === Count Habit Card === */
+.count-habit-card .card-content-wrapper {
+	display: flex;
+	flex-direction: column; /* Default mobile layout */
+	gap: 0.75rem; /* Adjusted gap */
+	align-items: center;
+}
+
+.count-habit-card .habit-icon-button {
+	height: 3.5rem; /* Slightly smaller than h-16 */
+	width: 3.5rem;
+	padding: 0;
+	border: 1px solid var(--button-secondary-border-color);
+	background-color: var(--button-secondary-bg);
+	color: var(--button-secondary-color);
+	cursor: pointer;
+	border-radius: var(--radius-s); /* Smaller radius */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 1.5rem; /* For icon */
+}
+.count-habit-card .habit-icon-button:hover {
+	background-color: var(--button-secondary-hover-bg);
+}
+
+.count-habit-card .habit-info {
+	display: flex;
+	flex-direction: column;
+	align-items: center; /* Center text on mobile */
+	text-align: center;
+	flex-grow: 1;
+}
+.count-habit-card .habit-info h3 {
+	font-size: var(--font-ui-large);
+	font-weight: 600;
+}
+
+.count-habit-card .habit-progress-area {
+	width: 100%; /* Full width on mobile */
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* Tablet/Desktop layout for Count Card */
+@media (min-width: 640px) {
+	/* sm breakpoint */
+	.count-habit-card .card-content-wrapper {
+		flex-direction: row;
+		align-items: center; /* Align items vertically */
+		gap: 1rem;
+	}
+	.count-habit-card .habit-info {
+		align-items: flex-start; /* Left-align text */
+		text-align: left;
+	}
+	.count-habit-card .habit-progress-area {
+		width: auto; /* Allow it to shrink */
+		min-width: 150px; /* Ensure minimum width for heatmap/progress */
+		align-items: flex-end; /* Align progress to the right */
+	}
+	.count-habit-card .habit-heatmap-small {
+		/* Allow heatmap to define its own width */
+	}
+}
+
+/* === Scheduled Habit Card === */
+.scheduled-habit-card .card-header {
+	padding-bottom: 0.5rem; /* pb-2 */
+}
+.scheduled-habit-card .card-content-wrapper {
+	display: flex;
+	flex-direction: column; /* Mobile default */
+	gap: 0.75rem;
+	align-items: center; /* Center on mobile */
+}
+
+.scheduled-habit-card .habit-heatmap-medium {
+	width: 100%; /* Full width heatmap on mobile */
+}
+
+.scheduled-habit-card .habit-controls {
+	width: 100%; /* Full width controls on mobile */
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	align-items: center; /* Center controls on mobile */
+}
+
+.scheduled-habit-card .habit-event-dropdown .setting-item-control select {
+	width: 100%; /* Full width dropdown */
+	max-width: 200px; /* Limit max width */
+	/* Use Obsidian's dropdown styles */
+}
+/* Hide the setting name/description by default */
+.scheduled-habit-card .habit-event-dropdown .setting-item-info {
+	display: none;
+}
+.scheduled-habit-card .habit-event-dropdown .setting-item {
+	width: 100%; /* Make setting take full width of controls */
+	padding: 0; /* Remove default setting padding */
+	border: none; /* Remove default setting border */
+}
+
+/* Tablet/Desktop layout for Scheduled Card */
+@media (min-width: 640px) {
+	.scheduled-habit-card .card-content-wrapper {
+		flex-direction: row;
+		align-items: flex-start; /* Align top */
+		justify-content: space-between;
+	}
+	.scheduled-habit-card .habit-heatmap-medium {
+		width: auto; /* Allow heatmap to shrink */
+		flex-grow: 1; /* Allow heatmap to take available space */
+		margin-right: 1rem; /* Space between heatmap and controls */
+	}
+	.scheduled-habit-card .habit-controls {
+		width: auto; /* Shrink controls */
+		min-width: 150px; /* Minimum width */
+		align-items: flex-start; /* Align controls left */
+	}
+	.scheduled-habit-card .habit-event-dropdown .setting-item-control select {
+		width: auto; /* Auto width dropdown */
+	}
+}
+
+/* === Mapping Habit Card === */
+.mapping-habit-card .card-header {
+	padding-bottom: 0.5rem; /* pb-2 */
+}
+.mapping-habit-card .card-content-wrapper {
+	display: flex;
+	flex-direction: column; /* Mobile default */
+	gap: 0.75rem;
+	align-items: center;
+}
+.mapping-habit-card .habit-heatmap-medium {
+	width: 100%; /* Full width heatmap on mobile */
+}
+.mapping-habit-card .habit-controls {
+	width: 100%; /* Full width controls on mobile */
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.mapping-habit-card .habit-mood-button {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 1.75rem; /* Larger emoji/text */
+	padding: 0.5rem;
+	width: 100%;
+	max-width: 100px; /* Limit button width */
+	height: 3.5rem; /* h-16 equivalent */
+	border: 1px solid var(--button-secondary-border-color);
+	background-color: var(--button-secondary-bg);
+	color: var(--text-normal); /* Ensure emoji visibility */
+	cursor: pointer;
+	border-radius: var(--radius-s);
+}
+.mapping-habit-card .habit-mood-button:hover {
+	background-color: var(--button-secondary-hover-bg);
+}
+
+.mapping-habit-card .habit-slider-setting {
+	width: 100%; /* Slider takes full width */
+	max-width: 200px; /* Limit slider width */
+}
+.mapping-habit-card .habit-slider-setting .setting-item-info {
+	display: none; /* Hide slider label */
+}
+.mapping-habit-card .habit-slider-setting .setting-item {
+	width: 100%;
+	padding: 0;
+	border: none;
+}
+.mapping-habit-card .habit-slider-setting .setting-item-control {
+	width: 100%; /* Make slider control take full width */
+}
+
+/* Tablet/Desktop layout for Mapping Card */
+@media (min-width: 640px) {
+	.mapping-habit-card .card-content-wrapper {
+		flex-direction: row;
+		align-items: center; /* Center items vertically */
+		justify-content: space-between;
+	}
+	.mapping-habit-card .habit-heatmap-medium {
+		width: auto;
+		flex-grow: 1;
+		margin-right: 1rem;
+	}
+	.mapping-habit-card .habit-controls {
+		width: auto;
+		min-width: 80px; /* Width for button + slider */
+		flex-direction: column; /* Keep button above slider */
+		align-items: center;
+		gap: 0.75rem;
+	}
+	.mapping-habit-card .habit-mood-button {
+		width: 4rem; /* Fixed width button */
+		height: 4rem;
+	}
+	.mapping-habit-card .habit-slider-setting {
+		width: 100%; /* Slider takes width of control area */
+		max-width: none;
+	}
+}
+
+/* === Progress Bar (Common for Count/Scheduled) === */
+.habit-progress-container {
+	width: 100%;
+	height: 0.75rem; /* Slightly thicker */
+	background-color: var(--background-modifier-border);
+	border-radius: var(--radius-l); /* Pill shape */
+	overflow: hidden;
+	position: relative; /* For text overlay */
+}
+.habit-progress-bar {
+	height: 100%;
+	background-color: var(--interactive-accent);
+	border-radius: var(--radius-l);
+	transition: width 0.3s ease-in-out;
+}
+.habit-progress-text {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 0.6rem; /* Tiny text */
+	line-height: 1;
+	color: var(--text-on-accent); /* Text color on filled part */
+	mix-blend-mode: difference; /* Try to make text visible */
+	font-weight: 500;
+}
+
+/* === Heatmap Styles === */
+.heatmap-root {
+	width: 100%; /* Take available width */
+}
+.heatmap-container-simple {
+	display: flex;
+	gap: 3px; /* Small gap between cells */
+	justify-content: flex-end; /* Align cells to the right by default */
+	overflow-x: auto; /* Allow horizontal scroll if too many cells */
+	padding-bottom: 2px; /* Space for scrollbar */
+}
+/* Specific adjustments for heatmap size classes */
+.heatmap-sm .heatmap-container-simple {
+	/* For Count Card */
+	justify-content: center; /* Center the dots */
+}
+
+.heatmap-cell {
+	border-radius: var(--radius-xs); /* Small radius */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	cursor: pointer;
+	flex-shrink: 0; /* Prevent cells from shrinking */
+	background-color: var(
+		--background-modifier-border
+	); /* Default background */
+	border: 1px solid transparent; /* Border for blank/custom */
+}
+
+/* Heatmap Shapes */
+.heatmap-cell-square {
+	/* Defined by size */
+}
+.heatmap-cell-dot {
+	border-radius: 50%;
+}
+
+/* Heatmap Sizes */
+.heatmap-sm .heatmap-cell {
+	width: 0.75rem;
+	height: 0.75rem;
+}
+.heatmap-md .heatmap-cell {
+	width: 1.1rem;
+	height: 1.1rem;
+	font-size: 0.7rem;
+} /* Mapping/Scheduled */
+.heatmap-lg .heatmap-cell {
+	width: 1.25rem;
+	height: 1.25rem;
+	font-size: 0.75rem;
+} /* Daily */
+
+/* Heatmap Variants */
+.heatmap-cell.default {
+	/* Default styles already set */
+}
+.heatmap-cell.filled {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent); /* Text on filled (e.g., emoji) */
+}
+/* Style for cells with custom content like PieDot or Emoji */
+.heatmap-cell.has-custom-content,
+.heatmap-cell.has-text-content {
+	background-color: var(--background-secondary); /* Use card background */
+	border-color: var(--background-modifier-border); /* Add border */
+	color: var(--text-normal); /* Ensure text/emoji is visible */
+}
+.heatmap-cell.has-text-content {
+	line-height: 1; /* Center emoji vertically */
+}
+
+/* PieDot Container */
+.pie-dot-container {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+.pie-dot-container svg {
+	display: block; /* Remove extra space below SVG */
+}
+
+/* === Empty State === */
+.habit-empty-state {
+	text-align: center;
+	padding: 2rem 1rem;
+	color: var(--text-muted);
+}
+.habit-empty-state h2 {
+	font-size: var(--font-ui-large);
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+}
+.habit-empty-state p {
+	font-size: var(--font-ui-normal);
+	color: var(--text-faint);
+}
+
+/* === Icons Placeholder === */
+.habit-icon {
+	/* Basic icon placeholder style */
+	display: inline-block;
+	width: 1em; /* Match font size */
+	height: 1em;
+	line-height: 1;
+	text-align: center;
+	/* Replace with actual Obsidian icon styles later */
+	color: var(--text-muted);
+	font-style: italic;
+	margin-right: 0.25em; /* Space after icon */
+}
