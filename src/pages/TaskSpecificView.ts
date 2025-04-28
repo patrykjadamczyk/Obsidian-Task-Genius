@@ -170,7 +170,6 @@ export class TaskSpecificView extends ItemView {
 
 		this.createActionButtons(); // Keep details toggle and quick capture
 
-		// Header modifications (if needed, similar to TaskView)
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement)?.empty();
 		(this.leaf.tabHeaderEl as HTMLElement)?.toggleClass(
 			"task-genius-tab-header",
@@ -198,7 +197,6 @@ export class TaskSpecificView extends ItemView {
 					});
 			}
 		);
-
 		if (this.tabActionButton) {
 			this.register(() => {
 				this.tabActionButton.detach();

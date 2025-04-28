@@ -135,36 +135,48 @@ export class TaskView extends ItemView {
 		this.createActionButtons();
 
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
-		(this.leaf.tabHeaderEl as HTMLElement).toggleClass(
-			"task-genius-tab-header",
-			true
+		console.log(
+			this.containerEl.closest(".mod-right-split"),
+			this.containerEl.closest(".mod-left-split")
 		);
-		this.tabActionButton = (
-			this.leaf.tabHeaderStatusContainerEl as HTMLElement
-		).createEl(
-			"span",
-			{
-				cls: "task-genius-action-btn",
-			},
-			(el: HTMLElement) => {
-				new ExtraButtonComponent(el)
-					.setIcon("check-square")
-					.setTooltip(t("Capture"))
-					.onClick(() => {
-						const modal = new QuickCaptureModal(
-							this.plugin.app,
-							this.plugin,
-							{},
-							true
-						);
-						modal.open();
-					});
-			}
-		);
+		if (
+			!(
+				this.containerEl.closest(".mod-right-split") ||
+				this.containerEl.closest(".mod-left-split")
+			)
+		) {
+			(this.leaf.tabHeaderEl as HTMLElement).toggleClass(
+				"task-genius-tab-header",
+				true
+			);
 
-		this.register(() => {
-			this.tabActionButton.detach();
-		});
+			this.tabActionButton = (
+				this.leaf.tabHeaderStatusContainerEl as HTMLElement
+			).createEl(
+				"span",
+				{
+					cls: "task-genius-action-btn",
+				},
+				(el: HTMLElement) => {
+					new ExtraButtonComponent(el)
+						.setIcon("check-square")
+						.setTooltip(t("Capture"))
+						.onClick(() => {
+							const modal = new QuickCaptureModal(
+								this.plugin.app,
+								this.plugin,
+								{},
+								true
+							);
+							modal.open();
+						});
+				}
+			);
+
+			this.register(() => {
+				this.tabActionButton.detach();
+			});
+		}
 
 		this.tasks = this.plugin.preloadedTasks;
 		this.triggerViewUpdate();
@@ -692,7 +704,13 @@ export class TaskView extends ItemView {
 		this.updateHeaderDisplay();
 		this.handleTaskSelection(null);
 
-		if (this.leaf.tabHeaderInnerIconEl) {
+		if (
+			this.leaf.tabHeaderInnerIconEl &&
+			!(
+				this.containerEl.closest(".mod-right-split") ||
+				this.containerEl.closest(".mod-left-split")
+			)
+		) {
 			setIcon(this.leaf.tabHeaderInnerIconEl, this.getIcon());
 			this.leaf.tabHeaderInnerTitleEl.setText(this.getDisplayText());
 			this.titleEl.setText(this.getDisplayText());
