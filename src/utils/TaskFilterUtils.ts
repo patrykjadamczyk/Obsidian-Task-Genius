@@ -12,6 +12,12 @@ interface FilterOptions {
 	// Add other potential options needed by specific views later
 	// selectedProject?: string;
 	// selectedTags?: string[];
+
+	settings?: {
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+	};
 }
 
 /**

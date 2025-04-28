@@ -12,6 +12,7 @@ import {
 	ErrorResult,
 	BatchIndexResult, // Keep if batch processing is still used
 } from "./TaskIndexWorkerMessage";
+import { parse } from "date-fns/parse";
 
 // --- Define Regexes similar to TaskParser ---
 
@@ -544,6 +545,55 @@ function parseTasksFromContent(
 	buildTaskHierarchy(tasks); // Call hierarchy builder if needed
 	return tasks;
 }
+/**
+ * Extract date from file path
+ */
+function extractDateFromPath(
+	filePath: string,
+	settings: {
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		dailyNotePath: string;
+	}
+): number | undefined {
+	if (!settings.useDailyNotePathAsDate) return undefined;
+
+	// Remove file extension first
+	let pathToMatch = filePath.replace(/\.[^/.]+$/, "");
+
+	// If dailyNotePath is specified, remove it from the path
+	if (
+		settings.dailyNotePath &&
+		pathToMatch.startsWith(settings.dailyNotePath)
+	) {
+		pathToMatch = pathToMatch.substring(settings.dailyNotePath.length);
+		// Remove leading slash if present
+		if (pathToMatch.startsWith("/")) {
+			pathToMatch = pathToMatch.substring(1);
+		}
+	}
+
+	// Try to match with the current path
+	let dateFromPath = parse(pathToMatch, settings.dailyNoteFormat, new Date());
+
+	// If no match, recursively try with subpaths
+	if (isNaN(dateFromPath.getTime()) && pathToMatch.includes("/")) {
+		return extractDateFromPath(
+			pathToMatch.substring(pathToMatch.indexOf("/") + 1),
+			{
+				...settings,
+				dailyNotePath: "", // Clear dailyNotePath for recursive calls
+			}
+		);
+	}
+
+	// Return the timestamp if we found a valid date
+	if (!isNaN(dateFromPath.getTime())) {
+		return dateFromPath.getTime();
+	}
+
+	return undefined;
+}
 
 /**
  * Process a single file - NOW ACCEPTS METADATA FORMAT
@@ -552,16 +602,60 @@ function processFile(
 	filePath: string,
 	content: string,
 	stats: FileStats,
-	preferMetadataFormat: MetadataFormat = "tasks"
+	settings: {
+		preferMetadataFormat: MetadataFormat;
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
+	}
 ): TaskParseResult {
 	const startTime = performance.now();
 	try {
 		const tasks = parseTasksFromContent(
 			filePath,
 			content,
-			preferMetadataFormat
+			settings.preferMetadataFormat
 		);
 		const completedTasks = tasks.filter((t) => t.completed).length;
+		try {
+			if (
+				(filePath.startsWith(settings.dailyNotePath) ||
+					("/" + filePath).startsWith(settings.dailyNotePath)) &&
+				settings.dailyNotePath &&
+				settings.useDailyNotePathAsDate
+			) {
+				for (const task of tasks) {
+					const dateFromPath = extractDateFromPath(filePath, {
+						useDailyNotePathAsDate: settings.useDailyNotePathAsDate,
+						dailyNoteFormat: settings.dailyNoteFormat
+							.replace(/Y/g, "y")
+							.replace(/D/g, "d"),
+						dailyNotePath: settings.dailyNotePath,
+					});
+					if (dateFromPath) {
+						if (settings.useAsDateType === "due" && !task.dueDate) {
+							task.dueDate = dateFromPath;
+						} else if (
+							settings.useAsDateType === "start" &&
+							!task.startDate
+						) {
+							task.startDate = dateFromPath;
+						} else if (
+							settings.useAsDateType === "scheduled" &&
+							!task.scheduledDate
+						) {
+							task.scheduledDate = dateFromPath;
+						}
+
+						task.useAsDateType = settings.useAsDateType;
+					}
+				}
+			}
+		} catch (error) {
+			console.error(`Worker: Error processing file ${filePath}:`, error);
+		}
+
 		return {
 			type: "parseResult",
 			filePath,
@@ -581,7 +675,13 @@ function processFile(
 // --- Batch processing function remains largely the same, but calls updated processFile ---
 function processBatch(
 	files: { path: string; content: string; stats: FileStats }[],
-	preferMetadataFormat: MetadataFormat
+	settings: {
+		preferMetadataFormat: MetadataFormat;
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
+	}
 ): BatchIndexResult {
 	// Ensure return type matches definition
 	const startTime = performance.now();
@@ -595,7 +695,7 @@ function processBatch(
 				file.path,
 				file.content,
 				file.stats,
-				preferMetadataFormat
+				settings
 			);
 			totalTasks += parseResult.stats.totalTasks;
 			results.push({
@@ -630,10 +730,13 @@ self.onmessage = async (event) => {
 
 		// Access preferMetadataFormat directly FROM message, NOT message.payload
 		// Provide default 'tasks' if missing
-		const format =
-			(message as any).preferMetadataFormat === "dataview"
-				? "dataview"
-				: "tasks";
+		const settings = message.settings || {
+			preferMetadataFormat: "tasks",
+			useDailyNotePathAsDate: false,
+			dailyNoteFormat: "yyyy-MM-dd",
+			useAsDateType: "due",
+			dailyNotePath: "",
+		};
 
 		// Using 'as any' here because I cannot modify IndexerCommand type directly,
 		// but the sending code MUST add this property to the message object.
@@ -646,7 +749,7 @@ self.onmessage = async (event) => {
 					message.filePath,
 					message.content,
 					message.stats,
-					format
+					settings
 				);
 				self.postMessage(result);
 			} catch (error) {
@@ -660,7 +763,7 @@ self.onmessage = async (event) => {
 		} else if (message.type === "batchIndex") {
 			// Type guard for BatchIndexCommand
 			// Access properties directly from message
-			const result = processBatch(message.files, format);
+			const result = processBatch(message.files, settings);
 			self.postMessage(result);
 		} else {
 			console.error(

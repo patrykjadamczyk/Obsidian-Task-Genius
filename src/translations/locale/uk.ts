@@ -349,12 +349,14 @@ const translations = {
 	"Make the text mark in source mode follow the task status cycle when clicked.": "Зробити так, щоб текстовий маркер у вихідному режимі слідував циклу статусу завдання при клацанні.",
 	"Status name": "Назва статусу",
 	"Progress display mode": "Режим відображення прогресу",
-	"Choose how to display task progress": "Виберіть, як відображати прогрес завдання",
+	"Choose how to display task progress":
+		"Виберіть, як відображати прогрес завдання",
 	"No progress indicators": "Без індикатора прогресу",
 	"Graphical progress bar": "Графічний прогрес-бар",
 	"Text progress indicator": "Текстовий прогрес-бар",
 	"Both graphical and text": "Графічний та текстовий",
-	"Toggle this to allow this plugin to count sub tasks when generating progress bar.": "Увімкніть, щоб додаток враховував дочірні завдання при створенні прогрес-бару.",
+	"Toggle this to allow this plugin to count sub tasks when generating progress bar.":
+		"Увімкніть, щоб додаток враховував дочірні завдання при створенні прогрес-бару.",
 	"Progress format": "Формат прогресу",
 	"Choose how to display the task progress": "Виберіть, як відображати прогрес завдання",
 	"Percentage (75%)": "Відсоток (75%)",
@@ -583,9 +585,10 @@ const translations = {
 	"No items selected": "Немає вибраних елементів",
 	"Two Column View Settings": "Налаштування двоколонкового вигляду",
 	"Group by Task Property": "Групувати за пріоритетом завдання",
-	"Select which task property to use for left column grouping": "Виберіть властивість завдання для групування у лівій колонці",
-	"Priorities": "Пріоритети",
-	"Contexts": "Контексти",
+	"Select which task property to use for left column grouping":
+		"Виберіть властивість завдання для групування у лівій колонці",
+	Priorities: "Пріоритети",
+	Contexts: "Контексти",
 	"Due Dates": "Терміни виконання",
 	"Scheduled Dates": "Заплановані дати",
 	"Start Dates": "Дати початку",
@@ -615,22 +618,27 @@ const translations = {
 	"From now": "З цього моменту",
 	"Complete workflow": "Завершити робочий процес",
 	"Move to": "Перемістити до",
-	"Settings": "Налаштування",
-	"Reward": "Нагорода",
-	"Rewards": "Нагороди",
-	"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.": "Налаштуйте нагороди за виконання завдань. Визначайте елементи, ймовірності їх появи та умови.",
+	Settings: "Налаштування",
+	Reward: "Нагорода",
+	Rewards: "Нагороди",
+	"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.":
+		"Налаштуйте нагороди за виконання завдань. Визначайте елементи, ймовірності їх появи та умови.",
 	"Enable Rewards": "Увімкнути нагороди",
-	"Toggle to enable or disable the reward system.": "Перемикач увімкнення, або вимкнення системи нагород.",
+	"Toggle to enable or disable the reward system.":
+		"Перемикач увімкнення, або вимкнення системи нагород.",
 	"Occurrence Levels": "Рівні рідкості",
-	"Define different levels of reward rarity and their probability.": "Визначити різні рівні рідкісності нагороди та їхню ймовірність.",
-	"Chance must be between 0 and 100.": "Ймовірність повинна бути від 0 до 100.",
+	"Define different levels of reward rarity and their probability.":
+		"Визначити різні рівні рідкісності нагороди та їхню ймовірність.",
+	"Chance must be between 0 and 100.":
+		"Ймовірність повинна бути від 0 до 100.",
 	"Level Name (e.g., common)": "Назва рівня, наприклад: звичайна",
 	"Chance (%)": "Ймовірність (%)",
 	"Delete Level": "Видалити рівень",
 	"Add Occurrence Level": "Додати рівень рідкості",
 	"New Level": "Додати рівень",
 	"Reward Items": "Нагороди",
-	"Manage the specific rewards that can be obtained.": "Керуйте конкретними нагородами, які можна отримати.",
+	"Manage the specific rewards that can be obtained.":
+		"Керуйте конкретними нагородами, які можна отримати.",
 	"No levels defined": "Рівні не визначені",
 	"Reward Name/Text": "Назва/текст нагороди",
 	"Inventory (-1 for ∞)": "Інвентар (-1 для ∞)",
@@ -639,12 +647,13 @@ const translations = {
 	"Delete Reward Item": "Видалити нагороду",
 	"No reward items defined yet.": "Нагороди ще не визначені.",
 	"Drink a cup of good tea": "Випити чашку гарного чаю",
-	"Watch an episode of a favorite series": "Подивитися серію улюбленого серіалу",
+	"Watch an episode of a favorite series":
+		"Подивитися серію улюбленого серіалу",
 	"Play a game": "Пограти у гру",
 	"Eat a piece of chocolate": "З’їсти шматочок шоколаду",
-	"common": "звичайна",
-	"rare": "рідкісна",
-	"legendary": "легендарна",
+	common: "звичайна",
+	rare: "рідкісна",
+	legendary: "легендарна",
 	"Add Reward Item": "Додати нову нагороду",
 	"New Reward": "Додати нагороду",
 	"Invalid inventory number.": "Невірний номер інвентаря.",
@@ -652,7 +661,30 @@ const translations = {
 	"Your reward:": "Ваша нагорода:",
 	"Image not found:": "Зображення не знайдено:",
 	"Claim Reward": "Отримати нагороду",
-	"Skip": "Пропустити"
+	Skip: "Пропустити",
+	"View & Index Configuration": "View & Index Configuration",
+	"Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault.":
+		"Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault.",
+	"Use daily note path as date": "Use daily note path as date",
+	"If enabled, the daily note path will be used as the date for tasks.":
+		"If enabled, the daily note path will be used as the date for tasks.",
+	"Task Genius will use moment.js and also this format to parse the daily note path.":
+		"Task Genius will use moment.js and also this format to parse the daily note path.",
+	"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.":
+		"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.",
+	"Daily note format": "Daily note format",
+	"Daily note path": "Daily note path",
+	"Select the folder that contains the daily note.":
+		"Select the folder that contains the daily note.",
+	"Use as date type": "Use as date type",
+	"You can choose due, start, or scheduled as the date type for tasks.":
+		"You can choose due, start, or scheduled as the date type for tasks.",
+	Due: "Due",
+	Start: "Start",
+	Scheduled: "Scheduled",
+	"Configure habit settings, including adding new habits, editing existing habits, and managing habit completion.":
+		"Configure habit settings, including adding new habits, editing existing habits, and managing habit completion.",
+	"Enable habits": "Enable habits",
 };
 
 export default translations;

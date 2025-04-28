@@ -27,7 +27,12 @@ import {
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
 import { ViewConfigModal } from "./components/ViewConfigModal";
-import { ImageSuggest } from "./components/AutoComplete";
+import {
+	FolderSuggest,
+	ImageSuggest,
+	SingleFolderSuggest,
+} from "./components/AutoComplete";
+import { HabitList } from "./components/HabitSettingList";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -49,6 +54,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
 		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
 		{ id: "reward", name: t("Reward"), icon: "medal" },
+		{ id: "habit", name: t("Habit"), icon: "calendar-check" },
 		{ id: "view-settings", name: t("View Config"), icon: "layout" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
@@ -239,9 +245,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const viewSettingsSection = this.createTabSection("view-settings");
 		this.displayViewSettings(viewSettingsSection);
 
-		// Reward Tab (NEW)
+		// Reward Tab
 		const rewardSection = this.createTabSection("reward");
 		this.displayRewardSettings(rewardSection);
+
+		// Habit Tab
+		const habitSection = this.createTabSection("habit");
+		this.displayHabitSettings(habitSection);
 
 		// About Tab
 		const aboutSection = this.createTabSection("about");
@@ -2556,7 +2566,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	private displayViewSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName(t("View Configuration"))
+			.setName(t("View & Index Configuration"))
 			.setDesc(
 				t(
 					"Configure the Task Genius sidebar views, visibility, order, and create custom views."
@@ -2566,6 +2576,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName(t("Enable task genius view"))
+			.setDesc(
+				t(
+					"Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault."
+				)
+			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.enableView);
 				toggle.onChange((value) => {
@@ -2594,6 +2609,87 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					});
 			});
+
+		new Setting(containerEl)
+			.setName(t("Use daily note path as date"))
+			.setDesc(
+				t(
+					"If enabled, the daily note path will be used as the date for tasks."
+				)
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.useDailyNotePathAsDate);
+				toggle.onChange((value) => {
+					this.plugin.settings.useDailyNotePathAsDate = value;
+					this.applySettingsUpdate();
+
+					setTimeout(() => {
+						this.display();
+					}, 200);
+				});
+			});
+
+		if (this.plugin.settings.useDailyNotePathAsDate) {
+			const descFragment = document.createDocumentFragment();
+			descFragment.createEl("div", {
+				text: t(
+					"Task Genius will use moment.js and also this format to parse the daily note path."
+				),
+			});
+			descFragment.createEl("div", {
+				text: t(
+					"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`."
+				),
+			});
+			new Setting(containerEl)
+				.setName(t("Daily note format"))
+				.setDesc(descFragment)
+				.addText((text) => {
+					text.setValue(this.plugin.settings.dailyNoteFormat);
+					text.onChange((value) => {
+						this.plugin.settings.dailyNoteFormat = value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Daily note path"))
+				.setDesc(t("Select the folder that contains the daily note."))
+				.addText((text) => {
+					new SingleFolderSuggest(
+						this.app,
+						text.inputEl,
+						this.plugin
+					);
+					text.setValue(this.plugin.settings.dailyNotePath);
+					text.onChange((value) => {
+						this.plugin.settings.dailyNotePath = value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Use as date type"))
+				.setDesc(
+					t(
+						"You can choose due, start, or scheduled as the date type for tasks."
+					)
+				)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("due", t("Due"))
+						.addOption("start", t("Start"))
+						.addOption("scheduled", t("Scheduled"))
+						.setValue(this.plugin.settings.useAsDateType)
+						.onChange(async (value) => {
+							this.plugin.settings.useAsDateType = value as
+								| "due"
+								| "start"
+								| "scheduled";
+							this.applySettingsUpdate();
+						});
+				});
+		}
 
 		if (!this.plugin.settings.enableView) return;
 
@@ -2635,6 +2731,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				// Edit button - Now available for ALL views to edit rules/name/icon
 				viewSetting.addExtraButton((button) => {
 					button
+						.setDisabled(view.id === "habit")
 						.setIcon("pencil")
 						.setTooltip(t("Edit View"))
 						.onClick(() => {
@@ -3106,6 +3203,35 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		);
 	}
 
+	private displayHabitSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Habit"))
+			.setDesc(
+				t(
+					"Configure habit settings, including adding new habits, editing existing habits, and managing habit completion."
+				)
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable habits"))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.habit.enableHabits)
+					.onChange(async (value) => {
+						this.plugin.settings.habit.enableHabits = value;
+						this.applySettingsUpdate();
+					});
+			});
+
+		const habitContainer = containerEl.createDiv({
+			cls: "habit-settings-container",
+		});
+
+		// Habit List
+		this.displayHabitList(habitContainer);
+	}
+
 	// Helper methods for task filters and workflows
 	private generateUniqueId(): string {
 		return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -3248,6 +3374,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			previewContainer.setText("Error rendering format");
 			previewContainer.addClass("custom-format-preview-error");
 		}
+	}
+
+	private displayHabitList(containerEl: HTMLElement): void {
+		// 创建习惯列表组件
+		new HabitList(this.plugin, containerEl);
 	}
 }
 

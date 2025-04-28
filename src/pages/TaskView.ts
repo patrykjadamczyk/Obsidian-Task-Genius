@@ -37,6 +37,7 @@ import { CalendarComponent, CalendarEvent } from "../components/calendar";
 import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
+import { Habit } from "src/components/habit/habit";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -67,6 +68,7 @@ export class TaskView extends ItemView {
 	private currentSelectedTaskId: string | null = null;
 	private currentSelectedTaskDOM: HTMLElement | null = null;
 	private lastToggleTimestamp: number = 0;
+	private habitComponent: Habit;
 
 	private tabActionButton: HTMLElement;
 
@@ -394,6 +396,10 @@ export class TaskView extends ItemView {
 		this.addChild(this.ganttComponent);
 		this.ganttComponent.containerEl.hide();
 
+		this.habitComponent = new Habit(this.plugin, this.rootContainerEl);
+		this.addChild(this.habitComponent);
+		this.habitComponent.containerEl.hide();
+
 		this.detailsComponent = new TaskDetailsComponent(
 			this.rootContainerEl,
 			this.app,
@@ -558,7 +564,7 @@ export class TaskView extends ItemView {
 		this.twoColumnViewComponents.forEach((component) => {
 			component.containerEl.hide();
 		});
-
+		this.habitComponent.containerEl.hide();
 		this.calendarComponent.containerEl.hide();
 		this.kanbanComponent.containerEl.hide();
 		this.ganttComponent.containerEl.hide();
@@ -605,6 +611,9 @@ export class TaskView extends ItemView {
 		} else {
 			// Standard view types
 			switch (viewId) {
+				case "habit":
+					targetComponent = this.habitComponent;
+					break;
 				case "forecast":
 					targetComponent = this.forecastComponent;
 					break;

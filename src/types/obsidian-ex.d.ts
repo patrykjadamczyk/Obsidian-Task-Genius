@@ -11,6 +11,7 @@ import {
 	TFile,
 } from "obsidian";
 import { Component } from "obsidian";
+import { HabitProps } from "./habit-card";
 
 interface Token extends EditorRange {
 	/** @todo Documentation incomplete. */
@@ -305,12 +306,17 @@ declare module "obsidian" {
 		cm: EditorView;
 	}
 
+	interface MetadataTypeManager {
+		properties: Record<string, any>;
+	}
+
 	interface App {
 		commands: Commands;
 		setting: Setting;
 		embedRegistry: EmbedRegistry;
 
 		appId: string;
+		metadataTypeManager: MetadataTypeManager;
 	}
 
 	interface EmbedRegistry {
@@ -370,6 +376,10 @@ declare module "obsidian" {
 			event: "task-genius:task-completed",
 			callback: (task: Task) => void
 		): EventRef;
+		on(
+			event: "task-genius:habit-index-updated",
+			callback: (habits: HabitProps[]) => void
+		): EventRef;
 
 		trigger(event: "task-genius:task-completed", task: Task): void;
 		trigger(event: "task-genius:task-added", task: Task): void;
@@ -378,6 +388,10 @@ declare module "obsidian" {
 		trigger(
 			event: "task-genius:task-cache-updated",
 			cache: TaskCache
+		): void;
+		trigger(
+			event: "task-genius:habit-index-updated",
+			habits: HabitProps[]
 		): void;
 	}
 

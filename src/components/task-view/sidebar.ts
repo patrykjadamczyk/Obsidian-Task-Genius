@@ -53,7 +53,7 @@ export class SidebarComponent extends Component {
 
 		// 将视图分成顶部组和底部组
 		const topViews = [];
-		const bottomViews = ["calendar", "gantt", "kanban"]; // 这些视图将放在底部
+		const bottomViews = ["habit", "calendar", "gantt", "kanban"]; // 这些视图将放在底部
 
 		// 首先渲染顶部组视图
 		this.plugin.settings.viewConfiguration.forEach((viewConfig) => {
