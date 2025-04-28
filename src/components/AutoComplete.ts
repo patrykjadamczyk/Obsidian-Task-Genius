@@ -140,6 +140,17 @@ export class TagSuggest extends CustomSuggest {
 	}
 }
 
+export class SingleFolderSuggest extends CustomSuggest {
+	constructor(
+		app: App,
+		inputEl: HTMLInputElement,
+		plugin: TaskProgressBarPlugin
+	) {
+		const folders = app.vault.getAllFolders();
+		const paths = folders.map((file) => file.path);
+		super(app, inputEl, ["/", ...paths]);
+	}
+}
 /**
  * PathSuggest - Provides autocomplete for file paths
  */

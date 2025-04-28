@@ -1,5 +1,6 @@
 import { t } from "../translations/helper";
 import type TaskProgressBarPlugin from "../index"; // Type-only import
+import { BaseHabitData } from "../types/habit-card";
 
 // Interface for individual project review settings (If still needed, otherwise remove)
 // Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
@@ -211,6 +212,11 @@ export interface RewardSettings {
 	occurrenceLevels: OccurrenceLevel[];
 }
 
+export interface HabitSettings {
+	enableHabits: boolean;
+	habits: BaseHabitData[]; // 存储基础习惯数据，不包含completions字段
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -267,8 +273,9 @@ export interface TaskProgressBarSettings {
 
 	// Index Related
 	useDailyNotePathAsDate: boolean;
-	dailyNotePathFormat: string;
+	dailyNoteFormat: string;
 	useAsDateType: "due" | "start" | "scheduled";
+	dailyNotePath: string;
 	preferMetadataFormat: "dataview" | "tasks";
 
 	// View Settings (Updated Structure)
@@ -280,6 +287,9 @@ export interface TaskProgressBarSettings {
 
 	// Reward Settings (NEW)
 	rewards: RewardSettings;
+
+	// Habit Settings
+	habit: HabitSettings;
 }
 
 /** Define the default settings */
@@ -296,11 +306,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	showPercentage: false,
 	customizeProgressRanges: false,
 	progressRanges: [
-		{ min: 0, max: 20, text: "Just started {{PROGRESS}}%" },
-		{ min: 20, max: 40, text: "Making progress {{PROGRESS}}%" },
-		{ min: 40, max: 60, text: "Half way {{PROGRESS}}%" },
-		{ min: 60, max: 80, text: "Good progress {{PROGRESS}}%" },
-		{ min: 80, max: 100, text: "Almost there {{PROGRESS}}%" },
+		{ min: 0, max: 20, text: t("Just started") + " {{PROGRESS}}%" },
+		{ min: 20, max: 40, text: t("Making progress") + " {{PROGRESS}}% " },
+		{ min: 40, max: 60, text: t("Half way") + " {{PROGRESS}}% " },
+		{ min: 60, max: 80, text: t("Good progress") + " {{PROGRESS}}% " },
+		{ min: 80, max: 100, text: t("Almost there") + " {{PROGRESS}}% " },
 	],
 	allowCustomProgressGoal: false,
 	hideProgressBarBasedOnConditions: false,
@@ -359,8 +369,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		enableCompletedTaskMover: true,
 		taskMarkerType: "date",
 		versionMarker: "version 1.0",
-		dateMarker: "archived on {{DATE:YYYY-MM-DD}}",
-		customMarker: "moved {{DATE:YYYY-MM-DD HH:mm}}",
+		dateMarker: t("archived on") + " {{date}}",
+		customMarker: t("moved") + " {{DATE:YYYY-MM-DD HH:mm}}",
 		treatAbandonedAsCompleted: false,
 		completeAllMovedTasks: true,
 		withCurrentFileLink: true,
@@ -370,7 +380,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	quickCapture: {
 		enableQuickCapture: true,
 		targetFile: "QuickCapture.md",
-		placeholder: "Capture your thoughts...",
+		placeholder: t("Capture your thoughts..."),
 		appendToFile: "append",
 	},
 
@@ -388,28 +398,28 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		definitions: [
 			{
 				id: "project_workflow",
-				name: "Project Workflow",
-				description: "Standard project management workflow",
+				name: t("Project Workflow"),
+				description: t("Standard project management workflow"),
 				stages: [
 					{
 						id: "planning",
-						name: "Planning",
+						name: t("Planning"),
 						type: "linear",
 						next: "in_progress",
 					},
 					{
 						id: "in_progress",
-						name: "In Progress",
+						name: t("In Progress"),
 						type: "cycle",
 						subStages: [
 							{
 								id: "development",
-								name: "Development",
+								name: t("Development"),
 								next: "testing",
 							},
 							{
 								id: "testing",
-								name: "Testing",
+								name: t("Testing"),
 								next: "development",
 							},
 						],
@@ -417,18 +427,18 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 					},
 					{
 						id: "review",
-						name: "Review",
+						name: t("Review"),
 						type: "cycle",
 						canProceedTo: ["in_progress", "completed"],
 					},
 					{
 						id: "completed",
-						name: "Completed",
+						name: t("Completed"),
 						type: "terminal",
 					},
 					{
 						id: "cancelled",
-						name: "Cancelled",
+						name: t("Cancelled"),
 						type: "terminal",
 					},
 				],
@@ -443,8 +453,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Index Related Defaults
 	useDailyNotePathAsDate: false,
-	dailyNotePathFormat: "YYYY-MM-DD",
+	dailyNoteFormat: "yyyy-MM-dd",
 	useAsDateType: "due",
+	dailyNotePath: "",
 	preferMetadataFormat: "tasks",
 
 	// View Defaults (Updated Structure)
@@ -553,6 +564,16 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				useMarkdownRenderer: true,
 			} as GanttSpecificConfig,
 		},
+		{
+			id: "habit",
+			name: t("Habit"),
+			icon: "calendar-clock",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			filterBlanks: false,
+		},
 	],
 
 	// Review Settings
@@ -595,6 +616,12 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			{ name: t("rare"), chance: 25 },
 			{ name: t("legendary"), chance: 5 },
 		],
+	},
+
+	// Habit Settings
+	habit: {
+		enableHabits: false,
+		habits: [],
 	},
 };
 
@@ -659,12 +686,25 @@ export function getViewSettingOrDefault(
 
 	// Ensure essential properties exist even if defaults are weird
 	mergedConfig.filterRules = mergedConfig.filterRules || {};
-	// Optional: If specificConfig is expected for certain default types but missing after merge, could add fallback logic here.
-	// For example:
-	// if (mergedConfig.type === 'default' && (mergedConfig.id === 'kanban' || mergedConfig.id === 'calendar') && mergedConfig.specificConfig === undefined) {
-	//   console.warn(`Specific config missing for default view ${mergedConfig.id}, attempting to use default.`);
-	//   mergedConfig.specificConfig = DEFAULT_SETTINGS.viewConfiguration.find(v => v.id === mergedConfig.id)?.specificConfig;
-	// }
+
+	// Remove duplicate gantt view if it exists in the default settings
+	if (viewId === "gantt" && Array.isArray(viewConfiguration)) {
+		const ganttViews = viewConfiguration.filter((v) => v.id === "gantt");
+		if (ganttViews.length > 1) {
+			// Keep only the first gantt view
+			const indexesToRemove = viewConfiguration
+				.map((v, index) => (v.id === "gantt" ? index : -1))
+				.filter((index) => index !== -1)
+				.slice(1);
+
+			for (const index of indexesToRemove.reverse()) {
+				viewConfiguration.splice(index, 1);
+			}
+
+			// Save the updated configuration
+			plugin.saveSettings();
+		}
+	}
 
 	return mergedConfig;
 }

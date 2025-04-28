@@ -54,20 +54,7 @@ export interface Task {
 	actualTime?: number;
 
 	/** File statistics and metadata for auto-date extraction */
-	fileStats?: {
-		/** File name without extension */
-		fileName?: string;
-		/** File creation timestamp */
-		created?: number;
-		/** File last modified timestamp */
-		modified?: number;
-		/** Extracted date from file name (for daily notes) */
-		fileDate?: number;
-		/** Whether this file is a daily note */
-		isDailyNote?: boolean;
-		/** Custom date format used in the file */
-		dateFormat?: string;
-	};
+	useAsDateType?: "due" | "start" | "scheduled";
 }
 
 /** High-performance cache structure for tasks */

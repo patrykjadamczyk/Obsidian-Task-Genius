@@ -15,10 +15,10 @@ const translations = {
 		"Увімкніть, щоб додати прогрес-бари до звичайних елементів списку (не завдань).",
 	"Add progress bar to Heading": "Додати прогрес-бар до заголовків",
 	"Toggle this to allow this plugin to add progress bar for Task below the headings.":
-		"Увімкніть, щоб додаток додавав прогрес-бар для завдань під заголовками.",
+		"Увімкніть, щоб додаток додавав прогрес-бари для завдань під заголовками.",
 	"Enable heading progress bars": "Увімкнути прогрес-бари для заголовків",
 	"Add progress bars to headings to show progress of all tasks under that heading.":
-		"Додайте прогрес-бари до заголовків, щоб показати прогрес усіх завдань під цим заголовком.",
+		"Додайте прогрес-бари до заголовків, щоб показати виконання усіх завдань під цим заголовком.",
 	"Auto complete parent task": "Автоматично завершувати батьківське завдання",
 	"Toggle this to allow this plugin to auto complete parent task when all child tasks are completed.":
 		"Увімкніть, щоб додаток автоматично завершував батьківське завдання, коли всі дочірні завдання завершені.",
@@ -63,18 +63,18 @@ const translations = {
 		'Вкажіть, які маркери завдань враховувати. Приклад: "x|X|>|/"',
 	"Conditional Progress Bar Display": "Умовне відображення прогрес-бару",
 	"Hide progress bars based on conditions":
-		"Приховувати прогрес-бари за умовами",
+		"Приховувати прогрес-бар за умовами",
 	"Toggle this to enable hiding progress bars based on tags, folders, or metadata.":
-		"Увімкніть, щоб приховувати прогрес-бари на основі міток, папок, або метаданих.",
+		"Увімкніть, щоб приховувати прогрес-бар на основі міток, тек, або властивостей.",
 	"Hide by tags": "Приховувати за мітками",
 	'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"':
-		'Вкажіть мітки, які приховуватимуть прогрес-бари (через кому, без #). Приклад: "no-progress-bar,hide-progress"',
-	"Hide by folders": "Приховувати за папками",
+		'Вкажіть мітки, які приховуватимуть прогрес-бар (через кому, без #). Наприклад: "no-progress-bar,hide-progress"',
+	"Hide by folders": "Приховувати за теками",
 	'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"':
-		'Вкажіть шляхи до папок, які приховуватимуть прогрес-бари (через кому). Приклад: "Daily Notes,Projects/Hidden"',
-	"Hide by metadata": "Приховувати за метаданими",
+		'Вкажіть шляхи до папок, у яких приховуватиметься прогрес-бар (через кому). Наприклад: "Daily Notes,Projects/Hidden"',
+	"Hide by metadata": "Приховувати за властивостями",
 	'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"':
-		'Вкажіть метадані frontmatter, які приховуватимуть прогрес-бари. Приклад: "hide-progress-bar: true"',
+		'Вкажіть властивість нотатки, яка приховуватиме прогрес-бар. Наприклад: "hide-progress-bar: true"',
 	"Task Status Switcher": "Перемикач статусу завдань",
 	"Enable task status switcher": "Увімкнути перемикач статусу завдань",
 	"Enable/disable the ability to cycle through task states by clicking.":
@@ -454,10 +454,10 @@ const translations = {
 	"Progress display mode": "Режим відображення прогресу",
 	"Choose how to display task progress":
 		"Виберіть, як відображати прогрес завдання",
-	"No progress indicators": "Без індикаторів прогресу",
+	"No progress indicators": "Без індикатора прогресу",
 	"Graphical progress bar": "Графічний прогрес-бар",
-	"Text progress indicator": "Текстовий індикатор прогресу",
-	"Both graphical and text": "Графічний і текстовий",
+	"Text progress indicator": "Текстовий прогрес-бар",
+	"Both graphical and text": "Графічний та текстовий",
 	"Toggle this to allow this plugin to count sub tasks when generating progress bar.":
 		"Увімкніть, щоб додаток враховував дочірні завдання при створенні прогрес-бару.",
 	"Progress format": "Формат прогресу",
@@ -704,7 +704,7 @@ const translations = {
 	"Show checkbox": "Показати прапорець",
 	"Show a checkbox for each task in the kanban view.":
 		"Показувати прапорець для кожного завдання у вигляді канбан.",
-	"Locale Default": "Локаль за замовчуванням",
+	"Locale Default": "Локальна за замовчуванням",
 	"Use custom goal for progress bar":
 		"Використовувати користувацьку мету для прогрес-бару",
 	"Toggle this to allow this plugin to find the pattern g::number as goal of the parent task.":
@@ -713,7 +713,7 @@ const translations = {
 		"Віддавати перевагу формату метаданих завдання",
 	"You can choose dataview format or tasks format, that will influence both index and save format.":
 		"Ви можете вибрати формат dataview, або tasks, що вплине на формат індексу та збереження.",
-	"Open in new tab": "Відкрити у новому вікні",
+	"Open in new tab": "Відкрити у новомий вкладці",
 	"Open settings": "Відкрити налаштування",
 	"Hide in sidebar": "Приховати у бічній панелі",
 	"No items found": "Немає елементів",
@@ -729,7 +729,7 @@ const translations = {
 	"selected items": "вибрані елементи",
 	"No items selected": "Немає вибраних елементів",
 	"Two Column View Settings": "Налаштування двоколонкового вигляду",
-	"Group by Task Property": "Групувати за властивістю завдання",
+	"Group by Task Property": "Групувати за пріоритетом завдання",
 	"Select which task property to use for left column grouping":
 		"Виберіть властивість завдання для групування у лівій колонці",
 	Priorities: "Пріоритети",
@@ -777,6 +777,72 @@ const translations = {
 	"Complete workflow": "Завершити робочий процес",
 	"Move to": "Перемістити до",
 	Settings: "Налаштування",
+	Reward: "Нагорода",
+	Rewards: "Нагороди",
+	"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.":
+		"Налаштуйте нагороди за виконання завдань. Визначайте елементи, ймовірності їх появи та умови.",
+	"Enable Rewards": "Увімкнути нагороди",
+	"Toggle to enable or disable the reward system.":
+		"Перемикач увімкнення, або вимкнення системи нагород.",
+	"Occurrence Levels": "Рівні рідкості",
+	"Define different levels of reward rarity and their probability.":
+		"Визначити різні рівні рідкісності нагороди та їхню ймовірність.",
+	"Chance must be between 0 and 100.":
+		"Ймовірність повинна бути від 0 до 100.",
+	"Level Name (e.g., common)": "Назва рівня, наприклад: звичайна",
+	"Chance (%)": "Ймовірність (%)",
+	"Delete Level": "Видалити рівень",
+	"Add Occurrence Level": "Додати рівень рідкості",
+	"New Level": "Додати рівень",
+	"Reward Items": "Нагороди",
+	"Manage the specific rewards that can be obtained.":
+		"Керуйте конкретними нагородами, які можна отримати.",
+	"No levels defined": "Рівні не визначені",
+	"Reward Name/Text": "Назва/текст нагороди",
+	"Inventory (-1 for ∞)": "Інвентар (-1 для ∞)",
+	"Condition (e.g., #tag AND project)": "Умова (#мітка AND проєкт)",
+	"Image URL (optional)": "URL зображення (необов'язково)",
+	"Delete Reward Item": "Видалити нагороду",
+	"No reward items defined yet.": "Нагороди ще не визначені.",
+	"Drink a cup of good tea": "Випити чашку гарного чаю",
+	"Watch an episode of a favorite series":
+		"Подивитися серію улюбленого серіалу",
+	"Play a game": "Пограти у гру",
+	"Eat a piece of chocolate": "З’їсти шматочок шоколаду",
+	common: "звичайна",
+	rare: "рідкісна",
+	legendary: "легендарна",
+	"Add Reward Item": "Додати нову нагороду",
+	"New Reward": "Додати нагороду",
+	"Invalid inventory number.": "Невірний номер інвентаря.",
+	"You've Earned a Reward!": "Ви отримали нагороду!",
+	"Your reward:": "Ваша нагорода:",
+	"Image not found:": "Зображення не знайдено:",
+	"Claim Reward": "Отримати нагороду",
+	Skip: "Пропустити",
+	"View & Index Configuration": "View & Index Configuration",
+	"Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault.":
+		"Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault.",
+	"Use daily note path as date": "Use daily note path as date",
+	"If enabled, the daily note path will be used as the date for tasks.":
+		"If enabled, the daily note path will be used as the date for tasks.",
+	"Task Genius will use moment.js and also this format to parse the daily note path.":
+		"Task Genius will use moment.js and also this format to parse the daily note path.",
+	"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.":
+		"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.",
+	"Daily note format": "Daily note format",
+	"Daily note path": "Daily note path",
+	"Select the folder that contains the daily note.":
+		"Select the folder that contains the daily note.",
+	"Use as date type": "Use as date type",
+	"You can choose due, start, or scheduled as the date type for tasks.":
+		"You can choose due, start, or scheduled as the date type for tasks.",
+	Due: "Due",
+	Start: "Start",
+	Scheduled: "Scheduled",
+	"Configure habit settings, including adding new habits, editing existing habits, and managing habit completion.":
+		"Configure habit settings, including adding new habits, editing existing habits, and managing habit completion.",
+	"Enable habits": "Enable habits",
 };
 
 export default translations;

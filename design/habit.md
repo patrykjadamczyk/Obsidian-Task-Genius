@@ -22,9 +22,21 @@ interface Habit {
   name: string;        // Display name (e.g., "Meditation")
   description?: string; // Optional description
   goal?: string;        // Description of the goal (e.g., "Meditate for 10 minutes daily")
-  frequency: 'daily' | 'weekly' | 'monthly' | number; // How often? (number for specific days interval)
+  // Frequency definition - determines expected occurrences.
+  // 'daily' is simple. 'weekly' might imply checking specific weekdays. 'monthly' specific month days.
+  // number could mean 'every N days'. Needs careful definition for streak calculation.
+  frequency: 'daily' | 'weekly' | 'monthly' | number;
   metadataKey: string; // The frontmatter key used to track this habit (e.g., 'meditation-done')
-  // Potential future fields: icon, color, target value (e.g., 10 minutes)
+  // Define the type of habit, influencing how data might be stored and interpreted.
+  // Corresponds to the HabitProps types defined later for UI/consumption.
+  type: 'daily' | 'count' | 'scheduled' | 'mapping';
+  // Defines how to determine if the habit is 'completed' based on the metadata value.
+  // Default: { condition: 'exists' } - any value present means completed.
+  completionCondition?: {
+    condition: 'exists' | 'equals' | 'greaterThan' | 'lessThan' | 'contains'; // Type of comparison
+    value?: any; // The value to compare against (for 'equals', 'greaterThan', 'lessThan', 'contains')
+  };
+  // Potential future fields: icon, color, target value (e.g., for count type)
 }
 ```
 
@@ -34,9 +46,12 @@ interface Habit {
 interface HabitLogEntry {
   habitId: string;     // Reference to Habit.id
   date: number;        // Timestamp (representing the start of the day) of the log entry
-  completed: boolean;  // Was the habit marked as completed on this date?
+  // Determined based on the Habit's completionCondition and the raw value found in metadata.
+  completed: boolean;
   filePath: string;    // Path to the daily note file
-  value?: any;         // Optional value associated with the log (e.g., minutes meditated)
+  // Stores the raw value found in the frontmatter associated with the habit's metadataKey for this date.
+  // Useful for 'count', 'mapping', or 'scheduled' types, or showing specific recorded data.
+  value?: any;
 }
 ```
 
@@ -132,15 +147,48 @@ class HabitIndexer extends Component {
 
     for (const [habitId, habit] of this.habitCache.habits.entries()) {
       if (frontmatter.hasOwnProperty(habit.metadataKey)) {
-        const value = frontmatter[habit.metadataKey];
-        const completed = !!value; // Basic completion check, can be refined
+        const metadataValue = frontmatter[habit.metadataKey];
+
+        // Determine completion status based on the configured condition
+        let completed = false;
+        const conditionConfig = habit.completionCondition || { condition: 'exists' }; // Default to 'exists'
+
+        if (metadataValue !== undefined && metadataValue !== null) {
+             switch (conditionConfig.condition) {
+                case 'exists':
+                    completed = true; // Value exists
+                    break;
+                case 'equals':
+                    // Use strict equality for predictability
+                    completed = metadataValue === conditionConfig.value;
+                    break;
+                case 'greaterThan':
+                    completed = typeof metadataValue === 'number' && typeof conditionConfig.value === 'number' && metadataValue > conditionConfig.value;
+                    break;
+                case 'lessThan':
+                     completed = typeof metadataValue === 'number' && typeof conditionConfig.value === 'number' && metadataValue < conditionConfig.value;
+                     break;
+                case 'contains':
+                     // Basic check - might need refinement based on expected data types (string, array)
+                     if (typeof metadataValue === 'string' && typeof conditionConfig.value === 'string') {
+                         completed = metadataValue.includes(conditionConfig.value);
+                     } else if (Array.isArray(metadataValue) && conditionConfig.value) {
+                         completed = metadataValue.includes(conditionConfig.value);
+                     }
+                     break;
+                 default:
+                     // Fallback or default behavior if condition is unknown - treat as 'exists'
+                     completed = true;
+            }
+        }
+        // If metadataValue is null/undefined, 'completed' remains false.
 
         const logEntry: HabitLogEntry = {
           habitId,
           date: dateTimestamp,
-          completed,
+          completed, // Use the calculated completion status
           filePath: file.path,
-          value: typeof value !== 'boolean' ? value : undefined
+          value: metadataValue // Store the raw value found in frontmatter
         };
 
         // Add to main logs map
@@ -148,8 +196,9 @@ class HabitIndexer extends Component {
         logs.push(logEntry);
         this.habitCache.logs.set(habitId, logs); // Re-set in case it was new
 
-        // Add to logsByDate index
+        // Add to logsByDate index - Note: we store `completed` status here too
         const dateLogs = this.habitCache.logsByDate.get(dateTimestamp) || [];
+        // Consider if the structure of logsByDate needs the raw 'value' as well
         dateLogs.push({ habitId, filePath: file.path, completed });
         this.habitCache.logsByDate.set(dateTimestamp, dateLogs);
 
@@ -275,9 +324,7 @@ class HabitIndexer extends Component {
 
 ### 习惯的种类和类型
 
-```
-import { LucideIcon } from "lucide-react";
-
+```typescript
 // 基础习惯类型
 interface BaseHabitProps {
   id: string;
@@ -351,7 +398,7 @@ interface ScheduledHabitCardProps extends HabitCardProps {
 
 ### 设置和相关类型
 
-```
+```typescript
 import { LucideIcon } from "lucide-react";
 
 // 基础习惯类型

@@ -67,6 +67,7 @@ import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
 import { getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
+import { HabitManager } from "./utils/HabitManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -146,14 +147,12 @@ export const showPopoverWithProgressBar = (
 
 export default class TaskProgressBarPlugin extends Plugin {
 	settings: TaskProgressBarSettings;
-	// Used for completed task mover to track which lines should be removed
-	linesToRemove: number[] = [];
-	// Expose format function for use in settings UI
-	formatProgressText = formatProgressText;
 	// Task manager instance
 	taskManager: TaskManager;
 
 	rewardManager: RewardManager;
+
+	habitManager: HabitManager;
 
 	// Preloaded tasks:
 	preloadedTasks: Task[] = [];
@@ -334,6 +333,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 						this.activateTaskView();
 					},
 				});
+			}
+
+			if (this.settings.habit.enableHabits) {
+				this.habitManager = new HabitManager(this);
+				this.addChild(this.habitManager);
 			}
 		});
 
@@ -703,7 +707,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 		}
 
 		// Otherwise, create a new leaf in the right split and open the view
-		const leaf = workspace.getLeaf();
+		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: TASK_VIEW_TYPE });
 		workspace.revealLeaf(leaf);
 	}

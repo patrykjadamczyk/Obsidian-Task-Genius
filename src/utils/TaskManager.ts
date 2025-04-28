@@ -91,8 +91,7 @@ export class TaskManager extends Component {
 					{
 						maxWorkers: this.options.maxWorkers,
 						debug: this.options.debug,
-						preferMetadataFormat:
-							this.plugin.settings.preferMetadataFormat,
+						settings: this.plugin.settings,
 					}
 				);
 				this.log("Worker manager initialized");
@@ -1200,29 +1199,55 @@ export class TaskManager extends Component {
 
 			// 6. Start Date
 			if (formattedStartDate) {
-				metadata.push(
-					useDataviewFormat
-						? `[start:: ${formattedStartDate}]`
-						: `🛫 ${formattedStartDate}`
-				);
+				// Check if this date should be skipped based on useAsDateType
+				if (
+					!(
+						updatedTask.useAsDateType === "start" &&
+						formatDate(originalTask.startDate) ===
+							formattedStartDate
+					)
+				) {
+					metadata.push(
+						useDataviewFormat
+							? `[start:: ${formattedStartDate}]`
+							: `🛫 ${formattedStartDate}`
+					);
+				}
 			}
 
 			// 7. Scheduled Date
 			if (formattedScheduledDate) {
-				metadata.push(
-					useDataviewFormat
-						? `[scheduled:: ${formattedScheduledDate}]`
-						: `⏳ ${formattedScheduledDate}`
-				);
+				// Check if this date should be skipped based on useAsDateType
+				if (
+					!(
+						updatedTask.useAsDateType === "scheduled" &&
+						formatDate(originalTask.scheduledDate) ===
+							formattedScheduledDate
+					)
+				) {
+					metadata.push(
+						useDataviewFormat
+							? `[scheduled:: ${formattedScheduledDate}]`
+							: `⏳ ${formattedScheduledDate}`
+					);
+				}
 			}
 
 			// 8. Due Date
 			if (formattedDueDate) {
-				metadata.push(
-					useDataviewFormat
-						? `[due:: ${formattedDueDate}]`
-						: `📅 ${formattedDueDate}`
-				);
+				// Check if this date should be skipped based on useAsDateType
+				if (
+					!(
+						updatedTask.useAsDateType === "due" &&
+						formatDate(originalTask.dueDate) === formattedDueDate
+					)
+				) {
+					metadata.push(
+						useDataviewFormat
+							? `[due:: ${formattedDueDate}]`
+							: `📅 ${formattedDueDate}`
+					);
+				}
 			}
 
 			// 9. Completion Date (only if completed)

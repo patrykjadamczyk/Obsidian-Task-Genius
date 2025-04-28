@@ -24,8 +24,14 @@ export interface ParseTasksCommand {
 		/** Full file metadata cache */
 		fileCache?: CachedMetadata;
 	};
-	/** Whether to use dataview format */
-	preferMetadataFormat?: "dataview" | "tasks";
+	/** Settings for the task indexer */
+	settings: {
+		preferMetadataFormat: "dataview" | "tasks";
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
+	};
 }
 
 /**
@@ -48,6 +54,14 @@ export interface BatchIndexCommand {
 			fileCache?: CachedMetadata;
 		};
 	}[];
+	/** Settings for the task indexer */
+	settings: {
+		preferMetadataFormat: "dataview" | "tasks";
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
+	};
 }
 
 /**
