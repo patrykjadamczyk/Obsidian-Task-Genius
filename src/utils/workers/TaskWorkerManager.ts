@@ -35,8 +35,13 @@ export interface WorkerPoolOptions {
 	cpuUtilization: number;
 	/** Whether to enable debug logging */
 	debug?: boolean;
-	/** Whether to use dataview format */
-	preferMetadataFormat?: "dataview" | "tasks";
+	/** Settings for the task indexer */
+	settings?: {
+		preferMetadataFormat: "dataview" | "tasks";
+		useDailyNotePathAsDate: boolean;
+		dailyNotePathFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+	};
 }
 
 /**
@@ -46,6 +51,12 @@ export const DEFAULT_WORKER_OPTIONS: WorkerPoolOptions = {
 	maxWorkers: 2,
 	cpuUtilization: 0.75,
 	debug: false,
+	settings: {
+		preferMetadataFormat: "tasks",
+		useDailyNotePathAsDate: false,
+		dailyNotePathFormat: "YYYY-MM-DD",
+		useAsDateType: "due",
+	},
 };
 
 /**
@@ -436,7 +447,9 @@ export class TaskWorkerManager extends Component {
 								this.metadataCache.getFileCache(file) ||
 								undefined,
 						},
-						preferMetadataFormat: this.options.preferMetadataFormat,
+						settings: this.options.settings || {
+							preferMetadataFormat: "tasks",
+						},
 					};
 
 					worker.worker.postMessage(command);

@@ -552,14 +552,16 @@ function processFile(
 	filePath: string,
 	content: string,
 	stats: FileStats,
-	preferMetadataFormat: MetadataFormat = "tasks"
+	settings: {
+		preferMetadataFormat: MetadataFormat;
+	}
 ): TaskParseResult {
 	const startTime = performance.now();
 	try {
 		const tasks = parseTasksFromContent(
 			filePath,
 			content,
-			preferMetadataFormat
+			settings.preferMetadataFormat
 		);
 		const completedTasks = tasks.filter((t) => t.completed).length;
 		return {
@@ -581,7 +583,9 @@ function processFile(
 // --- Batch processing function remains largely the same, but calls updated processFile ---
 function processBatch(
 	files: { path: string; content: string; stats: FileStats }[],
-	preferMetadataFormat: MetadataFormat
+	settings: {
+		preferMetadataFormat: MetadataFormat;
+	}
 ): BatchIndexResult {
 	// Ensure return type matches definition
 	const startTime = performance.now();
@@ -595,7 +599,7 @@ function processBatch(
 				file.path,
 				file.content,
 				file.stats,
-				preferMetadataFormat
+				settings
 			);
 			totalTasks += parseResult.stats.totalTasks;
 			results.push({
@@ -630,10 +634,9 @@ self.onmessage = async (event) => {
 
 		// Access preferMetadataFormat directly FROM message, NOT message.payload
 		// Provide default 'tasks' if missing
-		const format =
-			(message as any).preferMetadataFormat === "dataview"
-				? "dataview"
-				: "tasks";
+		const settings = message.settings || {
+			preferMetadataFormat: "tasks",
+		};
 
 		// Using 'as any' here because I cannot modify IndexerCommand type directly,
 		// but the sending code MUST add this property to the message object.
@@ -646,7 +649,7 @@ self.onmessage = async (event) => {
 					message.filePath,
 					message.content,
 					message.stats,
-					format
+					settings
 				);
 				self.postMessage(result);
 			} catch (error) {
@@ -660,7 +663,7 @@ self.onmessage = async (event) => {
 		} else if (message.type === "batchIndex") {
 			// Type guard for BatchIndexCommand
 			// Access properties directly from message
-			const result = processBatch(message.files, format);
+			const result = processBatch(message.files, settings);
 			self.postMessage(result);
 		} else {
 			console.error(

@@ -91,8 +91,7 @@ export class TaskManager extends Component {
 					{
 						maxWorkers: this.options.maxWorkers,
 						debug: this.options.debug,
-						preferMetadataFormat:
-							this.plugin.settings.preferMetadataFormat,
+						settings: this.plugin.settings,
 					}
 				);
 				this.log("Worker manager initialized");

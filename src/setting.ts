@@ -2556,7 +2556,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	private displayViewSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName(t("View Configuration"))
+			.setName(t("View & Index Configuration"))
 			.setDesc(
 				t(
 					"Configure the Task Genius sidebar views, visibility, order, and create custom views."
@@ -2566,6 +2566,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName(t("Enable task genius view"))
+			.setDesc(
+				t(
+					"Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault."
+				)
+			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.enableView);
 				toggle.onChange((value) => {
@@ -2594,6 +2599,64 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					});
 			});
+
+		new Setting(containerEl)
+			.setName(t("Use daily note path as date"))
+			.setDesc(
+				t(
+					"If enabled, the daily note path will be used as the date for tasks."
+				)
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.useDailyNotePathAsDate);
+				toggle.onChange((value) => {
+					this.plugin.settings.useDailyNotePathAsDate = value;
+					this.applySettingsUpdate();
+
+					setTimeout(() => {
+						this.display();
+					}, 200);
+				});
+			});
+
+		if (this.plugin.settings.useDailyNotePathAsDate) {
+			new Setting(containerEl)
+				.setName(t("Daily note path format"))
+				.setDesc(
+					t(
+						"Task Genius will use moment.js and also this format to parse the daily note path."
+					)
+				)
+				.addText((text) => {
+					text.setValue(this.plugin.settings.dailyNotePathFormat);
+					text.onChange((value) => {
+						this.plugin.settings.dailyNotePathFormat = value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Use as date type"))
+				.setDesc(
+					t(
+						"You can choose due, start, or scheduled as the date type for tasks."
+					)
+				)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("due", t("Due"))
+						.addOption("start", t("Start"))
+						.addOption("scheduled", t("Scheduled"))
+						.setValue(this.plugin.settings.useAsDateType)
+						.onChange(async (value) => {
+							this.plugin.settings.useAsDateType = value as
+								| "due"
+								| "start"
+								| "scheduled";
+							this.applySettingsUpdate();
+						});
+				});
+		}
 
 		if (!this.plugin.settings.enableView) return;
 

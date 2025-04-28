@@ -24,8 +24,10 @@ export interface ParseTasksCommand {
 		/** Full file metadata cache */
 		fileCache?: CachedMetadata;
 	};
-	/** Whether to use dataview format */
-	preferMetadataFormat?: "dataview" | "tasks";
+	/** Settings for the task indexer */
+	settings: {
+		preferMetadataFormat: "dataview" | "tasks";
+	};
 }
 
 /**
@@ -48,6 +50,10 @@ export interface BatchIndexCommand {
 			fileCache?: CachedMetadata;
 		};
 	}[];
+	/** Settings for the task indexer */
+	settings: {
+		preferMetadataFormat: "dataview" | "tasks";
+	};
 }
 
 /**
