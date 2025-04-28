@@ -39,8 +39,9 @@ export interface WorkerPoolOptions {
 	settings?: {
 		preferMetadataFormat: "dataview" | "tasks";
 		useDailyNotePathAsDate: boolean;
-		dailyNotePathFormat: string;
+		dailyNoteFormat: string;
 		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
 	};
 }
 
@@ -54,8 +55,9 @@ export const DEFAULT_WORKER_OPTIONS: WorkerPoolOptions = {
 	settings: {
 		preferMetadataFormat: "tasks",
 		useDailyNotePathAsDate: false,
-		dailyNotePathFormat: "YYYY-MM-DD",
+		dailyNoteFormat: "yyyy-MM-dd",
 		useAsDateType: "due",
+		dailyNotePath: "",
 	},
 };
 
@@ -449,6 +451,10 @@ export class TaskWorkerManager extends Component {
 						},
 						settings: this.options.settings || {
 							preferMetadataFormat: "tasks",
+							useDailyNotePathAsDate: false,
+							dailyNoteFormat: "yyyy-MM-dd",
+							useAsDateType: "due",
+							dailyNotePath: "",
 						},
 					};
 

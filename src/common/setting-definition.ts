@@ -267,8 +267,9 @@ export interface TaskProgressBarSettings {
 
 	// Index Related
 	useDailyNotePathAsDate: boolean;
-	dailyNotePathFormat: string;
+	dailyNoteFormat: string;
 	useAsDateType: "due" | "start" | "scheduled";
+	dailyNotePath: string;
 	preferMetadataFormat: "dataview" | "tasks";
 
 	// View Settings (Updated Structure)
@@ -443,8 +444,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Index Related Defaults
 	useDailyNotePathAsDate: false,
-	dailyNotePathFormat: "YYYY-MM-DD",
+	dailyNoteFormat: "yyyy-MM-dd",
 	useAsDateType: "due",
+	dailyNotePath: "",
 	preferMetadataFormat: "tasks",
 
 	// View Defaults (Updated Structure)

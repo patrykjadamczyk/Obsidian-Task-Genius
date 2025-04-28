@@ -12,6 +12,7 @@ import {
 	ErrorResult,
 	BatchIndexResult, // Keep if batch processing is still used
 } from "./TaskIndexWorkerMessage";
+import { parse } from "date-fns/parse";
 
 // --- Define Regexes similar to TaskParser ---
 
@@ -544,6 +545,55 @@ function parseTasksFromContent(
 	buildTaskHierarchy(tasks); // Call hierarchy builder if needed
 	return tasks;
 }
+/**
+ * Extract date from file path
+ */
+function extractDateFromPath(
+	filePath: string,
+	settings: {
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		dailyNotePath: string;
+	}
+): number | undefined {
+	if (!settings.useDailyNotePathAsDate) return undefined;
+
+	// Remove file extension first
+	let pathToMatch = filePath.replace(/\.[^/.]+$/, "");
+
+	// If dailyNotePath is specified, remove it from the path
+	if (
+		settings.dailyNotePath &&
+		pathToMatch.startsWith(settings.dailyNotePath)
+	) {
+		pathToMatch = pathToMatch.substring(settings.dailyNotePath.length);
+		// Remove leading slash if present
+		if (pathToMatch.startsWith("/")) {
+			pathToMatch = pathToMatch.substring(1);
+		}
+	}
+
+	// Try to match with the current path
+	let dateFromPath = parse(pathToMatch, settings.dailyNoteFormat, new Date());
+
+	// If no match, recursively try with subpaths
+	if (isNaN(dateFromPath.getTime()) && pathToMatch.includes("/")) {
+		return extractDateFromPath(
+			pathToMatch.substring(pathToMatch.indexOf("/") + 1),
+			{
+				...settings,
+				dailyNotePath: "", // Clear dailyNotePath for recursive calls
+			}
+		);
+	}
+
+	// Return the timestamp if we found a valid date
+	if (!isNaN(dateFromPath.getTime())) {
+		return dateFromPath.getTime();
+	}
+
+	return undefined;
+}
 
 /**
  * Process a single file - NOW ACCEPTS METADATA FORMAT
@@ -554,6 +604,10 @@ function processFile(
 	stats: FileStats,
 	settings: {
 		preferMetadataFormat: MetadataFormat;
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
 	}
 ): TaskParseResult {
 	const startTime = performance.now();
@@ -564,6 +618,49 @@ function processFile(
 			settings.preferMetadataFormat
 		);
 		const completedTasks = tasks.filter((t) => t.completed).length;
+		try {
+			console.log(
+				filePath.startsWith(settings.dailyNotePath),
+				settings.dailyNotePath,
+				settings.useDailyNotePathAsDate
+			);
+			if (
+				(filePath.startsWith(settings.dailyNotePath) ||
+					("/" + filePath).startsWith(settings.dailyNotePath)) &&
+				settings.dailyNotePath &&
+				settings.useDailyNotePathAsDate
+			) {
+				for (const task of tasks) {
+					const dateFromPath = extractDateFromPath(filePath, {
+						useDailyNotePathAsDate: settings.useDailyNotePathAsDate,
+						dailyNoteFormat: settings.dailyNoteFormat
+							.replace(/Y/g, "y")
+							.replace(/D/g, "d"),
+						dailyNotePath: settings.dailyNotePath,
+					});
+					if (dateFromPath) {
+						if (settings.useAsDateType === "due" && !task.dueDate) {
+							task.dueDate = dateFromPath;
+						} else if (
+							settings.useAsDateType === "start" &&
+							!task.startDate
+						) {
+							task.startDate = dateFromPath;
+						} else if (
+							settings.useAsDateType === "scheduled" &&
+							!task.scheduledDate
+						) {
+							task.scheduledDate = dateFromPath;
+						}
+
+						task.useAsDateType = settings.useAsDateType;
+					}
+				}
+			}
+		} catch (error) {
+			console.error(`Worker: Error processing file ${filePath}:`, error);
+		}
+
 		return {
 			type: "parseResult",
 			filePath,
@@ -585,6 +682,10 @@ function processBatch(
 	files: { path: string; content: string; stats: FileStats }[],
 	settings: {
 		preferMetadataFormat: MetadataFormat;
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
 	}
 ): BatchIndexResult {
 	// Ensure return type matches definition
@@ -636,6 +737,10 @@ self.onmessage = async (event) => {
 		// Provide default 'tasks' if missing
 		const settings = message.settings || {
 			preferMetadataFormat: "tasks",
+			useDailyNotePathAsDate: false,
+			dailyNoteFormat: "yyyy-MM-dd",
+			useAsDateType: "due",
+			dailyNotePath: "",
 		};
 
 		// Using 'as any' here because I cannot modify IndexerCommand type directly,

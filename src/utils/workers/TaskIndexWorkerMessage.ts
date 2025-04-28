@@ -27,6 +27,10 @@ export interface ParseTasksCommand {
 	/** Settings for the task indexer */
 	settings: {
 		preferMetadataFormat: "dataview" | "tasks";
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
 	};
 }
 
@@ -53,6 +57,10 @@ export interface BatchIndexCommand {
 	/** Settings for the task indexer */
 	settings: {
 		preferMetadataFormat: "dataview" | "tasks";
+		useDailyNotePathAsDate: boolean;
+		dailyNoteFormat: string;
+		useAsDateType: "due" | "start" | "scheduled";
+		dailyNotePath: string;
 	};
 }
 

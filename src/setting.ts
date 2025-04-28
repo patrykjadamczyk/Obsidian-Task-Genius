@@ -27,7 +27,11 @@ import {
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
 import { ViewConfigModal } from "./components/ViewConfigModal";
-import { ImageSuggest } from "./components/AutoComplete";
+import {
+	FolderSuggest,
+	ImageSuggest,
+	SingleFolderSuggest,
+} from "./components/AutoComplete";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -2620,17 +2624,40 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		if (this.plugin.settings.useDailyNotePathAsDate) {
+			const descFragment = document.createDocumentFragment();
+			descFragment.createEl("div", {
+				text: t(
+					"Task Genius will use moment.js and also this format to parse the daily note path."
+				),
+			});
+			descFragment.createEl("div", {
+				text: t(
+					"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`."
+				),
+			});
 			new Setting(containerEl)
-				.setName(t("Daily note path format"))
-				.setDesc(
-					t(
-						"Task Genius will use moment.js and also this format to parse the daily note path."
-					)
-				)
+				.setName(t("Daily note format"))
+				.setDesc(descFragment)
 				.addText((text) => {
-					text.setValue(this.plugin.settings.dailyNotePathFormat);
+					text.setValue(this.plugin.settings.dailyNoteFormat);
 					text.onChange((value) => {
-						this.plugin.settings.dailyNotePathFormat = value;
+						this.plugin.settings.dailyNoteFormat = value;
+						this.applySettingsUpdate();
+					});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Daily note path"))
+				.setDesc(t("Select the folder that contains the daily note."))
+				.addText((text) => {
+					new SingleFolderSuggest(
+						this.app,
+						text.inputEl,
+						this.plugin
+					);
+					text.setValue(this.plugin.settings.dailyNotePath);
+					text.onChange((value) => {
+						this.plugin.settings.dailyNotePath = value;
 						this.applySettingsUpdate();
 					});
 				});

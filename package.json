@@ -52,6 +52,7 @@
 		"typescript": "4.7.3"
 	},
 	"dependencies": {
+		"date-fns": "^4.1.0",
 		"localforage": "^1.10.0"
 	}
 }
