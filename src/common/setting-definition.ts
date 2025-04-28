@@ -296,11 +296,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	showPercentage: false,
 	customizeProgressRanges: false,
 	progressRanges: [
-		{ min: 0, max: 20, text: "Just started {{PROGRESS}}%" },
-		{ min: 20, max: 40, text: "Making progress {{PROGRESS}}%" },
-		{ min: 40, max: 60, text: "Half way {{PROGRESS}}%" },
-		{ min: 60, max: 80, text: "Good progress {{PROGRESS}}%" },
-		{ min: 80, max: 100, text: "Almost there {{PROGRESS}}%" },
+		{ min: 0, max: 20, text: t("Just started") + " {{PROGRESS}}%" },
+		{ min: 20, max: 40, text: t("Making progress") + " {{PROGRESS}}% " },
+		{ min: 40, max: 60, text: t("Half way") + " {{PROGRESS}}% " },
+		{ min: 60, max: 80, text: t("Good progress") + " {{PROGRESS}}% " },
+		{ min: 80, max: 100, text: t("Almost there") + " {{PROGRESS}}% " },
 	],
 	allowCustomProgressGoal: false,
 	hideProgressBarBasedOnConditions: false,
@@ -370,7 +370,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	quickCapture: {
 		enableQuickCapture: true,
 		targetFile: "QuickCapture.md",
-		placeholder: "Capture your thoughts...",
+		placeholder: t("Capture your thoughts..."),
 		appendToFile: "append",
 	},
 
@@ -388,28 +388,28 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		definitions: [
 			{
 				id: "project_workflow",
-				name: "Project Workflow",
-				description: "Standard project management workflow",
+				name: t("Project Workflow"),
+				description: t("Standard project management workflow"),
 				stages: [
 					{
 						id: "planning",
-						name: "Planning",
+						name: t("Planning"),
 						type: "linear",
 						next: "in_progress",
 					},
 					{
 						id: "in_progress",
-						name: "In Progress",
+						name: t("In Progress"),
 						type: "cycle",
 						subStages: [
 							{
 								id: "development",
-								name: "Development",
+								name: t("Development"),
 								next: "testing",
 							},
 							{
 								id: "testing",
-								name: "Testing",
+								name: t("Testing"),
 								next: "development",
 							},
 						],
@@ -417,18 +417,18 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 					},
 					{
 						id: "review",
-						name: "Review",
+						name: t("Review"),
 						type: "cycle",
 						canProceedTo: ["in_progress", "completed"],
 					},
 					{
 						id: "completed",
-						name: "Completed",
+						name: t("Completed"),
 						type: "terminal",
 					},
 					{
 						id: "cancelled",
-						name: "Cancelled",
+						name: t("Cancelled"),
 						type: "terminal",
 					},
 				],
