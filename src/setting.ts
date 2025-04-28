@@ -2731,10 +2731,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				// Edit button - Now available for ALL views to edit rules/name/icon
 				viewSetting.addExtraButton((button) => {
 					button
-						.setDisabled(view.id === "habit")
 						.setIcon("pencil")
 						.setTooltip(t("Edit View"))
 						.onClick(() => {
+							if (view.id === "habit") {
+								this.openTab("habit");
+								return;
+							}
 							// Get current rules (might be undefined for defaults initially)
 							const currentRules = view.filterRules || {};
 							new ViewConfigModal(
