@@ -399,8 +399,22 @@
 	color: var(--text-on-accent);
 }
 
-.task-genius-action-btn {
+.mod-root .task-genius-action-btn {
 	--icon-size: 16px;
+}
+
+.mod-left-split .task-genius-action-btn {
+	display: none;
+}
+
+.mod-left-split
+	.workspace-tab-header-status-container:has(.task-genius-action-btn) {
+	display: none;
+}
+
+.mod-right-split
+	.workspace-tab-header-status-container:has(.task-genius-action-btn) {
+	display: none;
 }
 
 .task-genius-view .task-empty-state {
@@ -412,12 +426,12 @@
 	justify-content: center;
 }
 
-.task-genius-tab-header {
+.mod-root .task-genius-tab-header {
 	container-type: inline-size !important;
 }
 
 @container (max-width: 120px) {
-	.task-genius-action-btn {
+	.mod-root .task-genius-action-btn {
 		display: none;
 	}
 }
