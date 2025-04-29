@@ -36,6 +36,7 @@ import { CalendarComponent, CalendarEvent } from "../components/calendar";
 import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
+import { Habit as HabitsComponent } from "../components/habit/habit";
 
 export const TASK_SPECIFIC_VIEW_TYPE = "task-genius-specific-view";
 
@@ -58,6 +59,7 @@ export class TaskSpecificView extends ItemView {
 	private calendarComponent: CalendarComponent;
 	private kanbanComponent: KanbanComponent;
 	private ganttComponent: GanttComponent;
+	private habitsComponent: HabitsComponent;
 	// Custom view components by view ID
 	private twoColumnViewComponents: Map<string, TaskPropertyTwoColumnView> =
 		new Map();
@@ -377,6 +379,12 @@ export class TaskSpecificView extends ItemView {
 		this.addChild(this.ganttComponent);
 		this.ganttComponent.containerEl.hide();
 
+		this.habitsComponent = new HabitsComponent(
+			this.plugin,
+			this.rootContainerEl
+		);
+		this.addChild(this.habitsComponent);
+		this.habitsComponent.containerEl.hide();
 		this.detailsComponent = new TaskDetailsComponent(
 			this.rootContainerEl,
 			this.app,
@@ -486,7 +494,7 @@ export class TaskSpecificView extends ItemView {
 		this.calendarComponent.containerEl.hide();
 		this.kanbanComponent.containerEl.hide();
 		this.ganttComponent.containerEl.hide();
-
+		this.habitsComponent.containerEl.hide();
 		let targetComponent: any = null;
 		let modeForComponent: ViewMode = viewId;
 
@@ -529,6 +537,9 @@ export class TaskSpecificView extends ItemView {
 		} else {
 			// Standard view types
 			switch (viewId) {
+				case "habit":
+					targetComponent = this.habitsComponent;
+					break;
 				case "forecast":
 					targetComponent = this.forecastComponent;
 					break;

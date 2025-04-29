@@ -2959,7 +2959,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// --- Enable Rewards ---
 		new Setting(containerEl)
-			.setName(t("Enable Rewards"))
+			.setName(t("Enable rewards"))
 			.setDesc(t("Toggle to enable or disable the reward system."))
 			.addToggle((toggle) =>
 				toggle
@@ -2975,9 +2975,26 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			return; // Don't render the rest if rewards are disabled
 		}
 
+		// --- Reward Display Type ---
+		new Setting(containerEl)
+			.setName(t("Reward display type"))
+			.setDesc(t("Choose how rewards are displayed when earned."))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("modal", t("Modal dialog"))
+					.addOption("notice", t("Notice (Auto-accept)"))
+					.setValue(
+						this.plugin.settings.rewards.showRewardType || "modal"
+					)
+					.onChange(async (value: "modal" | "notice") => {
+						this.plugin.settings.rewards.showRewardType = value;
+						this.applySettingsUpdate();
+					});
+			});
+
 		// --- Occurrence Levels ---
 		new Setting(containerEl)
-			.setName(t("Occurrence Levels"))
+			.setName(t("Occurrence levels"))
 			.setDesc(
 				t(
 					"Define different levels of reward rarity and their probability."
@@ -3059,7 +3076,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		new Setting(occurrenceLevelsContainer).addButton((button) =>
 			button
-				.setButtonText(t("Add Occurrence Level"))
+				.setButtonText(t("Add occurrence level"))
 				.setCta()
 				.onClick(() => {
 					const newLevel: OccurrenceLevel = {
@@ -3076,7 +3093,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// --- Reward Items ---
 		new Setting(containerEl)
-			.setName(t("Reward Items"))
+			.setName(t("Reward items"))
 			.setDesc(t("Manage the specific rewards that can be obtained."))
 			.setHeading();
 
@@ -3146,7 +3163,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						})
 				)
 				.addText((text) => {
-					text.setPlaceholder(t("Image URL (optional)")) // For Image URL
+					text.setPlaceholder(t("Image url (optional)")) // For Image URL
 						.setValue(item.imageUrl || "")
 						.onChange((value) => {
 							this.plugin.settings.rewards.rewardItems[
@@ -3160,7 +3177,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				.addButton((button) =>
 					button
 						.setIcon("trash")
-						.setTooltip(t("Delete Reward Item"))
+						.setTooltip(t("Delete reward item"))
 						.setClass("mod-warning")
 						.onClick(() => {
 							this.plugin.settings.rewards.rewardItems.splice(
@@ -3186,7 +3203,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		new Setting(rewardItemsContainer).addButton((button) =>
 			button
-				.setButtonText(t("Add Reward Item"))
+				.setButtonText(t("Add reward item"))
 				.setCta()
 				.onClick(() => {
 					const newItem: RewardItem = {

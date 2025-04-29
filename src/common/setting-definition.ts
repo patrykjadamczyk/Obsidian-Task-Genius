@@ -210,6 +210,7 @@ export interface RewardSettings {
 	enableRewards: boolean;
 	rewardItems: RewardItem[];
 	occurrenceLevels: OccurrenceLevel[];
+	showRewardType: "modal" | "notice"; // Type of reward display - modal (default) or notice
 }
 
 export interface HabitSettings {
@@ -616,6 +617,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			{ name: t("rare"), chance: 25 },
 			{ name: t("legendary"), chance: 5 },
 		],
+		showRewardType: "modal",
 	},
 
 	// Habit Settings

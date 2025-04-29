@@ -26,6 +26,8 @@ import {
 	getAllDailyNotes,
 	getDailyNote,
 	getDateFromFile,
+	appHasDailyNotesPluginLoaded,
+	getDailyNoteSettings,
 } from "obsidian-daily-notes-interface";
 
 export class HabitManager extends Component {
@@ -474,7 +476,9 @@ export class HabitManager extends Component {
 		date: string
 	): Promise<void> {
 		const app: App = this.plugin.app;
-		const momentDate = moment(date, "YYYY-MM-DD");
+		const momentDate = moment(date, "YYYY-MM-DD").set("hour", 12);
+
+		console.log(momentDate);
 		if (!momentDate.isValid()) {
 			console.error(
 				`Invalid date format provided: ${date}. Expected YYYY-MM-DD.`
@@ -484,10 +488,39 @@ export class HabitManager extends Component {
 
 		let dailyNote: TFile | null = null;
 		try {
+			console.log(getAllDailyNotes());
 			dailyNote = getDailyNote(momentDate, getAllDailyNotes());
 
 			if (!dailyNote) {
-				dailyNote = await createDailyNote(momentDate);
+				if (!appHasDailyNotesPluginLoaded()) {
+					console.error(
+						"Daily notes plugin is not loaded. Please enable the Daily Notes plugin in Obsidian."
+					);
+					return;
+				}
+
+				const settings = getDailyNoteSettings();
+				if (!settings.folder) {
+					console.error(
+						"Daily notes folder is not set. Please configure the Daily Notes plugin in Obsidian."
+					);
+					return;
+				}
+
+				try {
+					dailyNote = await createDailyNote(momentDate);
+				} catch (error) {
+					console.error(
+						"Trying to use obsidian default create daily note function",
+						error
+					);
+
+					this.plugin.app.commands.executeCommandById("daily-notes");
+
+					console.log(getAllDailyNotes());
+
+					dailyNote = getDailyNote(momentDate, getAllDailyNotes());
+				}
 			}
 		} catch (error) {
 			console.error("Error getting or creating daily note:", error);

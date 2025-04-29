@@ -63,7 +63,6 @@ export class Habit extends Component {
 
 	getHabitData(): HabitProps[] {
 		const habits = this.plugin.habitManager?.habits || [];
-		console.log("habits", habits);
 		return habits;
 	}
 

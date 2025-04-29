@@ -13,6 +13,7 @@ export function monitorTaskCompletedExtension(
 	app: App,
 	plugin: TaskProgressBarPlugin
 ) {
+	console.log("monitorTaskCompletedExtension");
 	return EditorState.transactionFilter.of((tr) => {
 		// Handle the transaction to check for task completions
 		handleMonitorTaskCompletionTransaction(tr, app, plugin);
@@ -32,6 +33,7 @@ function handleMonitorTaskCompletionTransaction(
 	app: App,
 	plugin: TaskProgressBarPlugin
 ) {
+	console.log("handleMonitorTaskCompletionTransaction");
 	// Only process transactions that change the document
 	if (!tr.docChanged) {
 		return;
@@ -99,9 +101,11 @@ function handleMonitorTaskCompletionTransaction(
 						newLine.number, // line numbers are 1-based
 						plugin.settings.preferMetadataFormat // Use plugin setting for format preference
 					);
+					console.log(task);
 
 					// Optionally, trigger a custom event that other parts of the plugin or Obsidian could listen to
 					if (task) {
+						console.log("trigger task-completed event");
 						app.workspace.trigger(
 							"task-genius:task-completed",
 							task

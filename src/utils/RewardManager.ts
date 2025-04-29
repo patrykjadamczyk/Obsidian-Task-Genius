@@ -43,6 +43,7 @@ export class RewardManager extends Component {
 		}
 
 		const eligibleRewards = this.getEligibleRewards(task);
+		console.log("eligibleRewards", eligibleRewards);
 		if (!eligibleRewards.length) {
 			return; // No rewards match the conditions or inventory is depleted
 		}
@@ -53,7 +54,6 @@ export class RewardManager extends Component {
 		}
 
 		this.showRewardModal(chosenReward);
-		// Inventory update happens when the user accepts in the modal
 	}
 
 	/**
@@ -179,6 +179,17 @@ export class RewardManager extends Component {
 	 * @param reward The reward item to display.
 	 */
 	private showRewardModal(reward: RewardItem): void {
+		console.log("showRewardModal", this.settings.showRewardType);
+		// Check if showRewardType is set to notice
+		if (this.settings.showRewardType === "notice") {
+			// Show a notice that automatically accepts the reward
+			new Notice(`🎉 ${reward.name}!`, 0);
+			// Automatically accept the reward (decrease inventory)
+			this.acceptReward(reward);
+			return;
+		}
+
+		// Original modal behavior
 		new RewardModal(this.app, reward, (accepted) => {
 			if (accepted) {
 				this.acceptReward(reward);

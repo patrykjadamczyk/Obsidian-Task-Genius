@@ -62,6 +62,7 @@ class TranslationManager {
 	private currentLocale: string = "en";
 	private translations: Map<string, Translation> = new Map();
 	private fallbackTranslation: Translation = en;
+	private lowercaseKeyMap: Map<string, Map<string, string>> = new Map();
 
 	private constructor() {
 		this.currentLocale = moment.locale();
@@ -69,6 +70,13 @@ class TranslationManager {
 		// Initialize with all supported translations
 		Object.entries(SUPPORTED_LOCALES).forEach(([locale, translations]) => {
 			this.translations.set(locale, translations as Translation);
+
+			// Create lowercase key mapping for each locale
+			const lowercaseMap = new Map<string, string>();
+			Object.keys(translations).forEach((key) => {
+				lowercaseMap.set(key.toLowerCase(), key);
+			});
+			this.lowercaseKeyMap.set(locale, lowercaseMap);
 		});
 	}
 
@@ -99,13 +107,44 @@ class TranslationManager {
 			this.translations.get(this.currentLocale) ||
 			this.fallbackTranslation;
 
+		// Try to get the exact match first
 		let result = this.getNestedValue(translation, key);
 
+		// If not found, try case-insensitive match
+		if (!result) {
+			const lowercaseKey = key.toLowerCase();
+			const lowercaseMap = this.lowercaseKeyMap.get(this.currentLocale);
+			const originalKey = lowercaseMap?.get(lowercaseKey);
+
+			if (originalKey) {
+				result = this.getNestedValue(translation, originalKey);
+			}
+		}
+
+		// If still not found, use fallback
 		if (!result) {
 			console.warn(
 				`Missing translation for key: ${key} in locale: ${this.currentLocale}`
 			);
-			result = this.getNestedValue(this.fallbackTranslation, key) || key;
+
+			// Try exact match in fallback
+			result = this.getNestedValue(this.fallbackTranslation, key);
+
+			// Try case-insensitive match in fallback
+			if (!result) {
+				const lowercaseKey = key.toLowerCase();
+				const lowercaseMap = this.lowercaseKeyMap.get("en");
+				const originalKey = lowercaseMap?.get(lowercaseKey);
+
+				if (originalKey) {
+					result = this.getNestedValue(
+						this.fallbackTranslation,
+						originalKey
+					);
+				} else {
+					result = key;
+				}
+			}
 		}
 
 		if (options?.interpolation) {
@@ -113,7 +152,7 @@ class TranslationManager {
 		}
 
 		// Remove leading/trailing quotes if present
-		result = result.replace(/^[“”"']|[“”"']$/g, "");
+		result = result.replace(/^["""']|["""']$/g, "");
 
 		return result;
 	}
