@@ -2,7 +2,7 @@
     <img src="media/task-genius.svg" alt="Task Genius Logo" width="150">
 </p>
 
-Full documentation is available at [Docs](https://taskgenius.md/docs).
+Full documentation is available at [Docs](https://taskgenius.md/docs/getting-started).
 
 ---
 
