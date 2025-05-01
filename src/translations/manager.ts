@@ -121,6 +121,8 @@ class TranslationManager {
 			}
 		}
 
+		console.log(this.currentLocale);
+
 		// If still not found, use fallback
 		if (!result) {
 			console.warn(
@@ -153,6 +155,8 @@ class TranslationManager {
 
 		// Remove leading/trailing quotes if present
 		result = result.replace(/^["""']|["""']$/g, "");
+
+		console.log(result);
 
 		return result;
 	}

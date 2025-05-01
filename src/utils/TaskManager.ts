@@ -1270,7 +1270,7 @@ export class TaskManager extends Component {
 				updatedLine = `${indentation}${updatedLine.trimStart()}`;
 			}
 
-			if (updatedTask.completed) {
+			if (updatedTask.completed && !originalTask.completed) {
 				updatedTask &&
 					this.app.workspace.trigger(
 						"task-genius:task-completed",

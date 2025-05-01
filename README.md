@@ -2,7 +2,7 @@
     <img src="media/task-genius.svg" alt="Task Genius Logo" width="150">
 </p>
 
-Full documentation is available at [Docs](docs/general.md).
+Full documentation is available at [Docs](https://taskgenius.md/docs).
 
 ---
 
@@ -21,79 +21,6 @@ Task Genius is a comprehensive plugin for Obsidian designed to enhance your task
 -   **Workflow Management**: Define multi-stage workflows (e.g., Todo -> Doing -> Review -> Done) and track tasks through them. Includes options for automatic timestamping, duration tracking, and next-task creation.
 -   **Dedicated Task View**: A powerful, unified interface (`Task Genius: Open Task Genius view`) to see, sort, filter, and manage all tasks across your vault. Includes modes like Inbox, Forecast, Tags, Projects, and Review.
 -   **Customizable Settings**: Extensive options to configure the appearance and behavior of all features.
-
-## Feature Highlights
-
-### Progress Bars
-
-Automatically adds progress indicators to parent items.
-
-```markdown
-- [ ] Parent Task [||||----] [4/8] // Example progress bar and text
-    - [x] Sub-task 1
-    - [x] Sub-task 2
-    - [/] Sub-task 3 (In Progress)
-    - [ ] Sub-task 4
-    - [-] Sub-task 5 (Abandoned - might be excluded from count based on settings)
-    - [?] Sub-task 6 (Planned - might be excluded)
-    - [x] Sub-task 7
-    - [x] Sub-task 8
-```
-
-*   **Customize:** Display mode (bar, text, both), count sub-levels, show on headings/non-tasks, custom text format (placeholders, expressions), conditional hiding (tags, folders, metadata).
-
-### Task Status & Cycling
-
-Define custom markers and cycle through them.
-
-*   **Settings:** Define markers (`x`, `/`, `?`, `-`), configure counting, choose themes, set up custom click cycles.
-*   **Usage:** Click markers in Live Preview/Reading (if enabled), use commands (`Cycle task status forward/backward`).
-
-### Date & Priority
-
-Add metadata easily.
-
-*   **Dates:** Click calendar icon or date text (`📅 2023-12-25`) for a picker.
-*   **Priorities:** Click icon (🔺) for dropdown, use context menu (`Set priority`), or use commands (`Set priority Highest`, `Remove priority`).
-
-### Task Filtering (Editor)
-
-Focus on specific tasks within a note.
-
-*   **Command:** `Toggle task filter panel`.
-*   **Options:** Filter by status, text/tags (`#tag`), related tasks. Save/load presets.
-
-### Task Mover
-
-Archive tasks.
-
-*   **Commands:** `Move all completed subtasks`, `Move direct completed subtasks`, `Move all subtasks`, `Move task`.
-*   **Settings:** Define destination file (via Quick Capture settings), add markers (`{{DATE:YYYY-MM-DD}}`), link back to source.
-
-### Quick Capture
-
-Add tasks quickly.
-
-*   **Inline:** `Toggle quick capture panel` (`Alt+C`).
-*   **Global:** `Quick capture (Global)`.
-*   **Detailed:** `Task capture with metadata`.
-*   **Settings:** Define target file, append/prepend/replace mode.
-
-### Workflows
-
-Manage multi-stage processes.
-
-*   **Define:** Create workflows with stages (Cycle, Terminal) in settings.
-*   **Use:** Associate tasks (e.g., via tag `#workflow/MyFlow`), use context menu (`Move to Next Stage`), automate timestamps/next tasks.
-
-### Task Genius View
-
-Manage all tasks centrally.
-
-*   **Open:** Ribbon icon or command `Open Task Genius view`.
-*   **Modes:** Inbox, Forecast, Tags, Projects, Review.
-*   **Interact:** Click tasks to view/edit details (description, date, priority, notes) in the right panel. Complete/cycle status directly. Right-click for context menu.
-*   **Manage Index:** Commands `Refresh task index`, `Force reindex all tasks`.
 
 ## Installation
 
