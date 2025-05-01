@@ -6,7 +6,7 @@ Full documentation is available at [Docs](https://taskgenius.md/docs).
 
 ---
 
-Task Genius is a comprehensive plugin for Obsidian designed to enhance your task and project management workflow. It integrates seamlessly into your notes, offering visual progress tracking, flexible status management, powerful filtering, and a dedicated view to manage tasks across your vault.
+Task Genius is a comprehensive plugin for Obsidian designed to enhance your task and project management workflow.
 
 ![Task Genius Feature Showcase](./media/task-genius-view.jpg)
 
