@@ -194,7 +194,7 @@ const translations = {
 	"Include Sibling Tasks": "Включати сусідні завдання",
 	"Advanced Filter": "Розширений фільтр",
 	"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1'":
-		"Використовуйте булеві операції: AND, OR, NOT. Приклад: 'text content AND #tag1'",
+		"Використовуйте булеві операції: AND, OR, NOT. Приклад: 'зміст тексту AND #мітка1'",
 	"Filter query": "Запит фільтрування",
 	"Filter out tasks": "Фільтрувати завдання",
 	"If enabled, tasks that match the query will be hidden, otherwise they will be shown":
@@ -210,7 +210,7 @@ const translations = {
 	"Select a preset...": "Оберіть типовий...",
 	Query: "Запит",
 	"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Supports >, <, =, >=, <=, != for PRIORITY and DATE.":
-		"Використовуйте булеві операції: AND, OR, NOT. Приклад: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Підтримує >, <, =, >=, <=, != для PRIORITY і DATE.",
+		"Використовуйте булеві операції: AND, OR, NOT. Приклад: 'зміст тексту AND #мітка1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Підтримує: >, <, =, >=, <=, != для PRIORITY та DATE.",
 	"If true, tasks that match the query will be hidden, otherwise they will be shown":
 		"Якщо увімкнено, завдання, що відповідають запиту, будуть приховані, інакше вони відображатимуться",
 	Completed: "Завершено",
@@ -300,7 +300,7 @@ const translations = {
 	"Making progress {{PROGRESS}}%": "Прогрес {{PROGRESS}}%",
 	"Half way {{PROGRESS}}%": "На півдорозі {{PROGRESS}}%",
 	"Good progress {{PROGRESS}}%": "Гарний прогрес {{PROGRESS}}%",
-	"Almost there {{PROGRESS}}%": "Майже готово {{PROGRESS}}%",
+	"Almost there {{PROGRESS}}%": "Майже виконане {{PROGRESS}}%",
 	"Progress bar": "Прогрес-бар",
 	"You can customize the progress bar behind the parent task(usually at the end of the task). You can also customize the progress bar for the task below the heading.":
 		"Ви можете налаштувати прогрес-бар за батьківським завданням (зазвичай у кінці завдання). Також можна налаштувати прогрес-бар для завдань під заголовком.",
@@ -589,7 +589,7 @@ const translations = {
 	"Task Genius View": "Вигляд Task Genius",
 	"Toggle Sidebar": "Перемкнути бічну панель",
 	Details: "Деталі",
-	View: "Вигляд",
+	View: "Подання",
 	"Task Genius view is a comprehensive view that allows you to manage your tasks in a more efficient way.":
 		"Подання Task Genius — це комплексний вигляд, який дозволяє більш ефективно керувати завданнями.",
 	"Enable task genius view": "Увімкнути подання Task Genius",
@@ -631,7 +631,8 @@ const translations = {
 	"Task must belong to this project (exact match).":
 		"Завдання має належати до цього проєкту (точна відповідність).",
 	"Priority Is": "Пріоритет",
-	"Task must have this priority (e.g., 1, 2, 3).": "Завдання має мати цей пріоритет (наприклад: 1, 2, 3).",
+	"Task must have this priority (e.g., 1, 2, 3).":
+		"Завдання має мати цей пріоритет (наприклад: 1, 2, 3).",
 	"Status Include": "Статус включає",
 	"Task status must be one of these (comma-separated markers, e.g., /,>).":
 		"Статус завдання має бути одним із цих (маркери, розділені комами, наприклад: /,>).",
@@ -766,9 +767,9 @@ const translations = {
   "archived on": "заархівований на",
   moved: "переміщено",
   "Capture your thoughts...": "Фіксуйте свої думки...",
-  "Project Workflow": "Project Workflow",
+  "Project Workflow": "Робочий процес проєкту",
   "Standard project management workflow":
-		"Standard project management workflow",
+		"Стандартний процес управління проєктами",
   Planning: "Заплановано",
   Development: "Розробка",
   Testing: "Тестування",
@@ -818,7 +819,7 @@ const translations = {
   "(Optional) Specific text representing completion, leave blank for any non-empty value to be considered completed":
 		"(Необов’язково) Конкретний текст для завершення. Залиште порожнім, щоб будь-яке непорожнє значення вважалося завершеним",
   "The property name in daily note front matter to store count values":
-		"The property name in daily note front matter to store count values",
+		"Назва властивості у щоденній нотатці де зберігатиметися значення підрахунку",
   "Minimum value": "Мін значення",
   "(Optional) Minimum value for the count":
 		"(Необов’язково) Мінімальне значення лічильника",
@@ -835,7 +836,7 @@ const translations = {
 		"The property name in daily note front matter to store mapping values",
   "Value mapping": "Значення зіставлення",
   "Define mappings from numeric values to display text":
-		"Define mappings from numeric values to display text",
+		"Визначити зісталення для числових значень відображення тексту",
   "Add new mapping": "Створити нове зіставлення",
   "Scheduled events": "Заплановані події",
   "Add multiple events that need to be completed":
@@ -845,16 +846,16 @@ const translations = {
   "Add new event": "Додати нову подію",
   "Please enter a property name": "Будь ласка, введіть назву властивості",
   "Please add at least one mapping value":
-		"Please add at least one mapping value",
-  "Mapping key must be a number": "Mapping key must be a number",
+		"Будь ласка, додайте принаймні одну значення зісталвлення",
+  "Mapping key must be a number": "Ключ зіставлення повинен бути числом",
   "Please enter text for all mapping values":
-		"Please enter text for all mapping values",
+		"Будь ласка, введіть текст для всіх зіставленних значень",
   "Please add at least one event": "Будь ласка, додайте принаймні одну подію",
   "Event name cannot be empty": "Назва події не може бути порожньою",
   "Add new habit": "Додати нову звичку",
   "No habits yet": "Ще немає звичок",
   "Click the button above to add your first habit":
-		"Натисніть кнопку вище, щоб додати першу звичку",
+		"Натисніть кнопку вище щоб додати першу звичку",
   "Habit updated": "Звичку оновлено",
   "Habit added": "Звичка додана",
   "Delete habit": "Видалити звичку",
@@ -868,7 +869,7 @@ const translations = {
   Reward: "Нагорода",
   "View & Index Configuration": "Налаштування Подання та Індексації",
   "Enable task genius view will also enable the task genius indexer, which will provide the task genius view results from whole vault.":
-		"Увімкнення Task Genius також увімкне індексатор task genius, який надасть у поданні task genius результати з усього сховища.",
+		"Увімкнення Task Genius, також увімкне індексатор task genius, який надасть у поданні task genius результати з усього сховища.",
   "Use daily note path as date": "Використати дату як шлях до щоденної нотатки",
   "If enabled, the daily note path will be used as the date for tasks.":
 		"Якщо увімкнено, шлях до щоденної нотатки буде використовуватися як дата для завдань.",
