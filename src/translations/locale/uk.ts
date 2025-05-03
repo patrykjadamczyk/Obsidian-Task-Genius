@@ -3,11 +3,14 @@ const translations = {
 	"Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features.":
 		"Комплексний додаток для керування завданнями в Obsidian із прогрес-барами, циклічною зміною статусу завдань та розширеними функціями відстеження.",
 	"Show progress bar": "Показати прогрес-бар",
-	"Toggle this to show the progress bar.": "Увімкніть, щоб показати прогрес-бар.",
-	"Support hover to show progress info": "Показувати інформацію про прогрес при наведенні",
+	"Toggle this to show the progress bar.":
+		"Увімкніть, щоб показати прогрес-бар.",
+	"Support hover to show progress info":
+		"Показувати інформацію про прогрес при наведенні",
 	"Toggle this to allow this plugin to show progress info when hovering over the progress bar.":
 		"Увімкніть, щоб додаток показував інформацію про прогрес при наведенні на прогрес-бар.",
-	"Add progress bar to non-task bullet": "Додати прогрес-бар до звичайних елементів списку",
+	"Add progress bar to non-task bullet":
+		"Додати прогрес-бар до звичайних елементів списку",
 	"Toggle this to allow adding progress bars to regular list items (non-task bullets).":
 		"Увімкніть, щоб додати прогрес-бари до звичайних елементів списку (не завдань).",
 	"Add progress bar to Heading": "Додати прогрес-бар до заголовків",
@@ -23,8 +26,10 @@ const translations = {
 		"Позначати батьківське завдання як 'В процесі', якщо завершено частково",
 	"When some but not all child tasks are completed, mark the parent task as 'In Progress'. Only works when 'Auto complete parent' is enabled.":
 		"Якщо деякі, але не всі дочірні завдання завершені, позначити батьківське завдання як 'В процесі'. Працює лише при увімкненій опції 'Автоматично завершувати батьківське завдання'.",
-	"Count sub children level of current Task": "Враховувати дочірні завдання поточного завдання",
-	"Toggle this to allow this plugin to count sub tasks.": "Увімкніть, щоб додаток враховував дочірні завдання.",
+	"Count sub children level of current Task":
+		"Враховувати дочірні завдання поточного завдання",
+	"Toggle this to allow this plugin to count sub tasks.":
+		"Увімкніть, щоб додаток враховував дочірні завдання.",
 	"Task Status Settings": "Налаштування статусу завдань",
 	"Select a predefined task status collection or customize your own":
 		"Оберіть попередньо визначений набір статусів завдань, або налаштуйте власний",
@@ -43,27 +48,32 @@ const translations = {
 	'Characters in square brackets that represent not started tasks. Default is space " "':
 		'Символи в квадратних дужках, що позначають не розпочаті завдання. За замовчуванням — пробіл " "',
 	"Count other statuses as": "Враховувати інші статуси як",
-	'Select the status to count other statuses as. Default is "Not Started".': 'Виберіть статус, у який переводити інші статуси. За замовчуванням — "Не розпочато".',
+	'Select the status to count other statuses as. Default is "Not Started".':
+		'Виберіть статус, у який переводити інші статуси. За замовчуванням — "Не розпочато".',
 	"Task Counting Settings": "Налаштування підрахунку завдань",
 	"Exclude specific task markers": "Виключити певні маркери завдань",
-	'Specify task markers to exclude from counting. Example: "?|/"': 'Вкажіть маркери завдань, які потрібно виключити з підрахунку. Приклад: "?|/"',
+	'Specify task markers to exclude from counting. Example: "?|/"':
+		'Вкажіть маркери завдань, які потрібно виключити з підрахунку. Приклад: "?|/"',
 	"Only count specific task markers": "Враховувати лише певні маркери завдань",
-	"Toggle this to only count specific task markers": "Увімкніть, щоб враховувати лише певні маркери завдань",
+	"Toggle this to only count specific task markers":
+		"Увімкніть, щоб враховувати лише певні маркери завдань",
 	"Specific task markers to count": "Певні маркери завдань для підрахунку",
-	'Specify which task markers to count. Example: "x|X|>|/"': 'Вкажіть, які маркери завдань враховувати. Приклад: "x|X|>|/"',
+	'Specify which task markers to count. Example: "x|X|>|/"':
+		'Вкажіть, які маркери завдань враховувати. Приклад: "x|X|>|/"',
 	"Conditional Progress Bar Display": "Умовне відображення прогрес-бару",
-	"Hide progress bars based on conditions": "Приховувати прогрес-бар за умовами",
+	"Hide progress bars based on conditions":
+		"Приховувати прогрес-бар за умовами",
 	"Toggle this to enable hiding progress bars based on tags, folders, or metadata.":
 		"Увімкніть, щоб приховувати прогрес-бар на основі міток, тек, або властивостей.",
 	"Hide by tags": "Приховувати за мітками",
-	"Specify tags that will hide progress bars (comma-separated, without #). Example: \"no-progress-bar,hide-progress\"":
-		"Вкажіть мітки, які приховуватимуть прогрес-бар (через кому, без #). Наприклад: \"no-progress-bar,hide-progress\"",
+	'Specify tags that will hide progress bars (comma-separated, without #). Example: "no-progress-bar,hide-progress"':
+		'Вкажіть мітки, які приховуватимуть прогрес-бар (через кому, без #). Наприклад: "no-progress-bar,hide-progress"',
 	"Hide by folders": "Приховувати за теками",
-	"Specify folder paths that will hide progress bars (comma-separated). Example: \"Daily Notes,Projects/Hidden\"":
-		"Вкажіть шляхи до папок, у яких приховуватиметься прогрес-бар (через кому). Наприклад: \"Daily Notes,Projects/Hidden\"",
+	'Specify folder paths that will hide progress bars (comma-separated). Example: "Daily Notes,Projects/Hidden"':
+		'Вкажіть шляхи до папок, у яких приховуватиметься прогрес-бар (через кому). Наприклад: "Daily Notes,Projects/Hidden"',
 	"Hide by metadata": "Приховувати за властивостями",
-	"Specify frontmatter metadata that will hide progress bars. Example: \"hide-progress-bar: true\"":
-		"Вкажіть властивість нотатки, яка приховуватиме прогрес-бар. Наприклад: \"hide-progress-bar: true\"",
+	'Specify frontmatter metadata that will hide progress bars. Example: "hide-progress-bar: true"':
+		'Вкажіть властивість нотатки, яка приховуватиме прогрес-бар. Наприклад: "hide-progress-bar: true"',
 	"Task Status Switcher": "Перемикач статусу завдань",
 	"Enable task status switcher": "Увімкнути перемикач статусу завдань",
 	"Enable/disable the ability to cycle through task states by clicking.":
@@ -98,7 +108,8 @@ const translations = {
 	"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}}":
 		"Використовуйте {{DATE:format}} для форматування дат (наприклад: {{DATE:YYYY-MM-DD}})",
 	"Treat abandoned tasks as completed": "Вважати покинуті завдання завершеними",
-	"If enabled, abandoned tasks will be treated as completed.": "Якщо увімкнено, покинуті завдання вважатимуться завершеними.",
+	"If enabled, abandoned tasks will be treated as completed.":
+		"Якщо увімкнено, покинуті завдання вважатимуться завершеними.",
 	"Complete all moved tasks": "Завершувати всі переміщені завдання",
 	"If enabled, all moved tasks will be marked as completed.":
 		"Якщо увімкнено, усі переміщені завдання будуть позначені як завершені.",
@@ -128,7 +139,8 @@ const translations = {
 	"Max percentage (0-100)": "Максимальний відсоток (0-100)",
 	"Text template (use {{PROGRESS}})": "Шаблон тексту (використовуйте {{PROGRESS}})",
 	"Reset to defaults": "Скинути до значень за замовчуванням",
-	"Reset progress ranges to default values": "Скинути діапазони прогресу до значень за замовчуванням",
+	"Reset progress ranges to default values":
+		"Скинути діапазони прогресу до значень за замовчуванням",
 	Reset: "Скинути",
 	"Priority Picker Settings": "Налаштування вибору пріоритету",
 	"Toggle to enable priority picker dropdown for emoji and letter format priorities.":
@@ -152,27 +164,31 @@ const translations = {
 	"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'":
 		"Файл, у якому зберігатиметься захоплений текст. Можна вказати шлях, наприклад: 'folder/Quick Capture.md'",
 	"Placeholder text": "Текст-заповнювач",
-	"Placeholder text to display in the capture panel": "Текст-заповнювач для відображення в панелі захоплення",
+	"Placeholder text to display in the capture panel":
+		"Текст-заповнювач для відображення в панелі захоплення",
 	"Append to file": "Додати до файлу",
 	"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content.":
 		"Якщо увімкнено, захоплений текст додаватиметься до цільового файлу. Якщо вимкнено, він замінить вміст файлу.",
 	"Task Filter": "Фільтр завдань",
 	"Enable Task Filter": "Увімкнути фільтр завдань",
-	"Toggle this to enable the task filter panel": "Увімкніть для активації панелі фільтрів завдань",
+	"Toggle this to enable the task filter panel":
+		"Увімкніть для активації панелі фільтрів завдань",
 	"Preset Filters": "Типові фільтри",
 	"Create and manage preset filters for quick access to commonly used task filters.":
 		"Створюйте та керуйте типовими фільтрами для швидкого доступу до часто використуємих фільтрів завдань.",
 	"Edit Filter: ": "Редагувати фільтр: ",
 	"Filter name": "Назва фільтру",
 	"Task Status": "Статус завдання",
-	"Include or exclude tasks based on their status": "Включати, або виключати завдання на основі їхнього статусу",
+	"Include or exclude tasks based on their status":
+		"Включати, або виключати завдання на основі їхнього статусу",
 	"Include Completed Tasks": "Включати завершені завдання",
 	"Include In Progress Tasks": "Включати завдання у процесі",
 	"Include Abandoned Tasks": "Включати покинуті завдання",
 	"Include Not Started Tasks": "Включати не розпочаті завдання",
 	"Include Planned Tasks": "Включати заплановані завдання",
 	"Related Tasks": "Пов’язані завдання",
-	"Include parent, child, and sibling tasks in the filter": "Включати батьківські, дочірні та сусідні завдання у фільтр",
+	"Include parent, child, and sibling tasks in the filter":
+		"Включати батьківські, дочірні та сусідні завдання у фільтр",
 	"Include Parent Tasks": "Включати батьківські завдання",
 	"Include Child Tasks": "Включати дочірні завдання",
 	"Include Sibling Tasks": "Включати сусідні завдання",
@@ -189,7 +205,8 @@ const translations = {
 	"Show filter panel": "Показати панель фільтрів",
 	"Filter Tasks": "Фільтрувати завдання",
 	"Preset filters": "Типові фільтри",
-	"Select a saved filter preset to apply": "Оберіть типовий фільтр для застосування",
+	"Select a saved filter preset to apply":
+		"Оберіть типовий фільтр для застосування",
 	"Select a preset...": "Оберіть типовий...",
 	Query: "Запит",
 	"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Supports >, <, =, >=, <=, != for PRIORITY and DATE.":
@@ -212,7 +229,8 @@ const translations = {
 	Close: "Закрити",
 	"Capture to": "Захопити до",
 	Capture: "Захопити",
-	"Capture thoughts, tasks, or ideas...": "Захоплюйте думки, завдання чи ідеї...",
+	"Capture thoughts, tasks, or ideas...":
+		"Захоплюйте думки, завдання чи ідеї...",
 	Tomorrow: "Завтра",
 	"In 2 days": "Через 2 дні",
 	"In 3 days": "Через 3 дні",
@@ -242,8 +260,10 @@ const translations = {
 	"Cycle task status backward": "Перемкнути статус завдання назад",
 	"Remove priority": "Видалити пріоритет",
 	"Move task to another file": "Перемістити завдання до іншого файлу",
-	"Move all completed subtasks to another file": "Перемістити всі завершені підзавдання до іншого файлу",
-	"Move direct completed subtasks to another file": "Перемістити прямі завершені підзавдання до іншого файлу",
+	"Move all completed subtasks to another file":
+		"Перемістити всі завершені підзавдання до іншого файлу",
+	"Move direct completed subtasks to another file":
+		"Перемістити прямі завершені підзавдання до іншого файлу",
 	"Move all subtasks to another file": "Перемістити всі підзавдання до іншого файлу",
 	"Set priority": "Встановити пріоритет",
 	"Toggle quick capture panel": "Перемкнути панель швидкого захоплення",
@@ -286,26 +306,30 @@ const translations = {
 		"Ви можете налаштувати прогрес-бар за батьківським завданням (зазвичай у кінці завдання). Також можна налаштувати прогрес-бар для завдань під заголовком.",
 	"Hide progress bars": "Приховати прогрес-бари",
 	"Parent task changer": "Зміна батьківського завдання",
-	"Change the parent task of the current task.": "Змінити батьківське завдання поточного завдання.",
+	"Change the parent task of the current task.":
+		"Змінити батьківське завдання поточного завдання.",
 	"No preset filters created yet. Click 'Add New Preset' to create one.":
 		"Типові фільтри ще не створені. Натисніть 'Створити типовий фільтр', щоб додати один.",
 	"Configure task workflows for project and process management":
 		"Налаштуйте робочі процеси завдань для керування проєктами та процесами",
 	"Enable workflow": "Увімкнути робочий процес",
-	"Toggle to enable the workflow system for tasks": "Увімкніть, щоб активувати систему робочих процесів для завдань",
+	"Toggle to enable the workflow system for tasks":
+		"Увімкніть, щоб активувати систему робочих процесів для завдань",
 	"Auto-add timestamp": "Автоматично додавати часову мітку",
 	"Automatically add a timestamp to the task when it is created":
 		"Автоматично додавати часову мітку до завдання під час його створення",
 	"Timestamp format:": "Формат часової мітки:",
 	"Timestamp format": "Формат часової мітки",
-	"Remove timestamp when moving to next stage": "Видаляти часову мітку при переході до наступного етапу",
+	"Remove timestamp when moving to next stage":
+		"Видаляти часову мітку при переході до наступного етапу",
 	"Remove the timestamp from the current task when moving to the next stage":
 		"Видаляти часову мітку з поточного завдання при переході до наступного етапу",
 	"Calculate spent time": "Розраховувати витрачений час",
 	"Calculate and display the time spent on the task when moving to the next stage":
 		"Розраховувати та відображати час, витрачений на завдання, при переході до наступного етапу",
 	"Format for spent time:": "Формат для витраченого часу:",
-	"Calculate spent time when move to next stage.": "Розраховувати витрачений час при переході до наступного етапу.",
+	"Calculate spent time when move to next stage.":
+		"Розраховувати витрачений час при переході до наступного етапу.",
 	"Spent time format": "Формат витраченого часу",
 	"Calculate full spent time": "Розраховувати повний витрачений час",
 	"Calculate the full spent time from the start of the task to the last stage":
@@ -329,15 +353,19 @@ const translations = {
 	"New Workflow": "Новий робочий процес",
 	"Create New Workflow": "Створити новий робочий процес",
 	"Workflow name": "Назва робочого процесу",
-	"A descriptive name for the workflow": "Описова назва для робочого процесу",
+	"A descriptive name for the workflow":
+		"Описова назва для робочого процесу",
 	"Workflow ID": "Ідентифікатор робочого процесу",
 	"A unique identifier for the workflow (used in tags)":
 		"Унікальний ідентифікатор робочого процесу (використовується у мітках)",
 	Description: "Подробиці",
-	"Optional description for the workflow": "Необов’язковий опис для робочого процесу",
-	"Describe the purpose and use of this workflow...": "Опишіть призначення та використання цього робочого процесу...",
+	"Optional description for the workflow":
+		"Необов’язковий опис для робочого процесу",
+	"Describe the purpose and use of this workflow...":
+		"Опишіть призначення та використання цього робочого процесу...",
 	"Workflow Stages": "Етапи робочого процесу",
-	"No stages defined yet. Add a stage to get started.": "Етапи ще не визначені. Додайте етап, щоб почати.",
+	"No stages defined yet. Add a stage to get started.":
+		"Етапи ще не визначені. Додайте етап, щоб почати.",
 	Edit: "Редагувати",
 	"Move up": "Перемістити вгору",
 	"Move down": "Перемістити вниз",
@@ -349,23 +377,27 @@ const translations = {
 	"New Sub-stage": "Новий підетап",
 	"Edit Stage": "Редагувати етап",
 	"Stage name": "Назва етапу",
-	"A descriptive name for this workflow stage": "Описова назва для цього етапу робочого процесу",
+	"A descriptive name for this workflow stage":
+		"Описова назва для цього етапу робочого процесу",
 	"Stage ID": "Ідентифікатор етапу",
-	"A unique identifier for the stage (used in tags)": "Унікальний ідентифікатор для етапу (використовується у мітках)",
+	"A unique identifier for the stage (used in tags)":
+		"Унікальний ідентифікатор для етапу (використовується у мітках)",
 	"Stage type": "Тип етапу",
 	"The type of this workflow stage": "Тип цього етапу робочого процесу",
 	"Linear (sequential)": "Лінійний (послідовний)",
 	"Cycle (repeatable)": "Циклічний (повторюваний)",
 	"Terminal (end stage)": "Термінальний (кінцевий етап)",
 	"Next stage": "Наступний етап",
-	"The stage to proceed to after this one": "Етап, до якого потрібно перейти після цього",
+	"The stage to proceed to after this one":
+		"Етап, до якого потрібно перейти після цього",
 	"Sub-stages": "Підетапи",
 	"Define cycle sub-stages (optional)": "Визначте цикли підетапів (необов’язково)",
 	"No sub-stages defined yet.": "Підетапи ще не визначені.",
 	"Can proceed to": "Може перейти до",
 	"Additional stages that can follow this one (for right-click menu)":
 		"Додаткові етапи, які можуть слідувати за цим (для контекстного меню)",
-	"No additional destination stages defined.": "Додаткові цільові етапи не визначені.",
+	"No additional destination stages defined.":
+		"Додаткові цільові етапи не визначені.",
 	Remove: "Видалити",
 	Add: "Додати",
 	"Name and ID are required.": "Назва та ідентифікатор є обов’язковими.",
@@ -390,12 +422,14 @@ const translations = {
 	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
 		"Увімкніть, щоб додаток враховував дочірні завдання при створенні прогрес-бару\t.",
 	"Configure task status settings": "Налаштувати параметри статусу завдань",
-	"Configure which task markers to count or exclude": "Налаштувати, які маркери завдань враховувати, або виключати",
+	"Configure which task markers to count or exclude":
+		"Налаштувати, які маркери завдань враховувати, або виключати",
 	"Task status cycle and marks": "Цикл статусів завдань і маркери",
 	"About Task Genius": "Про Task Genius",
 	Version: "Версія",
 	Documentation: "Документація",
-	"View the documentation for this plugin": "Переглянути документацію цього додатку",
+	"View the documentation for this plugin":
+		"Переглянути документацію цього додатку",
 	"Open Documentation": "Переглянути документацію",
 	"Incomplete tasks": "Незавершені завдання",
 	"In progress tasks": "Завдання у процесі",
@@ -408,7 +442,8 @@ const translations = {
 		"Зробити так, щоб текстовий маркер у вихідному режимі слідував циклу статусу завдання при клацанні.",
 	"Status name": "Назва статусу",
 	"Progress display mode": "Режим відображення прогресу",
-	"Choose how to display task progress": "Виберіть, як відображати прогрес завдання",
+	"Choose how to display task progress":
+		"Виберіть, як відображати прогрес завдання",
 	"No progress indicators": "Без індикатора прогресу",
 	"Graphical progress bar": "Графічний прогрес-бар",
 	"Text progress indicator": "Текстовий прогрес-бар",
@@ -416,7 +451,8 @@ const translations = {
 	"Toggle this to allow this plugin to count sub tasks when generating progress bar.":
 		"Увімкніть, щоб додаток враховував дочірні завдання при створенні прогрес-бару.",
 	"Progress format": "Формат прогресу",
-	"Choose how to display the task progress": "Виберіть, як відображати прогрес завдання",
+	"Choose how to display the task progress":
+		"Виберіть, як відображати прогрес завдання",
 	"Percentage (75%)": "Відсоток (75%)",
 	"Bracketed percentage ([75%])": "Відсоток у дужках ([75%])",
 	"Fraction (3/4)": "Дріб (3/4)",
@@ -431,7 +467,8 @@ const translations = {
 	"Available placeholders: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}":
 		"Доступні заповнювачі: {{COMPLETED}}, {{TOTAL}}, {{IN_PROGRESS}}, {{ABANDONED}}, {{PLANNED}}, {{NOT_STARTED}}, {{PERCENT}}, {{COMPLETED_SYMBOL}}, {{IN_PROGRESS_SYMBOL}}, {{ABANDONED_SYMBOL}}, {{PLANNED_SYMBOL}}",
 	"Expression examples": "Приклади виразів",
-	"Examples of advanced formats using expressions": "Приклади розширених форматів із використанням виразів",
+	"Examples of advanced formats using expressions":
+		"Приклади розширених форматів із використанням виразів",
 	"Text Progress Bar": "Текстовий прогрес-бар",
 	"Emoji Progress Bar": "Емодзі прогрес-бар",
 	"Color-coded Status": "Статус із кольоровим кодуванням",
@@ -498,17 +535,20 @@ const translations = {
 	"projects selected": "вибрано проєктів",
 	tasks: "завдань",
 	"No tasks in the selected projects": "Немає завдань у обраних проєктах",
-	"Select a project to see related tasks": "Оберіть проєкт, щоб побачити пов’язані завдання",
+	"Select a project to see related tasks":
+		"Оберіть проєкт, щоб побачити пов’язані завдання",
 	"Configure Review for": "Налаштувати огляд для",
 	"Review Frequency": "Частота огляду",
-	"How often should this project be reviewed": "Як часто потрібно переглядати цей проєкт",
+	"How often should this project be reviewed":
+		"Як часто потрібно переглядати цей проєкт",
 	"Custom...": "Користувацький...",
 	"e.g., every 3 months": "наприклад: кожні 3 місяці",
 	"Last Reviewed": "Останній огляд",
 	"Please specify a review frequency": "Будь ласка, вкажіть частоту огляду",
 	"Review schedule updated for": "Графік огляду оновлено для",
 	"Review Projects": "Огляд проєктів",
-	"Select a project to review its tasks.": "Оберіть проєкт для огляду його завдань.",
+	"Select a project to review its tasks.":
+		"Оберіть проєкт для огляду його завдань.",
 	"Configured for Review": "Налаштовано для огляду",
 	"Not Configured": "Не налаштовано",
 	"No projects available.": "Немає доступних проєктів.",
@@ -516,13 +556,15 @@ const translations = {
 	"Show all tasks": "Показати всі завдання",
 	"Showing all tasks, including completed tasks from previous reviews.":
 		"Показані всі завдання, включно із завершеними завданнями з попередніх оглядів.",
-	"Show only new and in-progress tasks": "Показати лише нові та завдання в процесі",
+	"Show only new and in-progress tasks":
+		"Показати лише нові та завдання в процесі",
 	"No tasks found for this project.": "Для цього проєкту завдань не знайдено.",
 	"Review every": "Оглядувати кожні",
 	never: "ніколи",
 	"Last reviewed": "Останній огляд",
 	"Mark as Reviewed": "Позначити оглянутим",
-	"No review schedule configured for this project": "Не налаштований графік огляду цього проєкту",
+	"No review schedule configured for this project":
+		"Не налаштований графік огляду цього проєкту",
 	"Configure Review Schedule": "Налаштувати графік огляду",
 	"Project Review": "Огляд проєкту",
 	"Select a project from the left sidebar to review its tasks.":
@@ -540,7 +582,8 @@ const translations = {
 	"Task index refreshed": "Індекс завдань оновлено",
 	"Failed to refresh task index": "Не вдалося оновити індекс завдань",
 	"Force reindex all tasks": "Примусово переіндексувати всі завдання",
-	"Clearing task cache and rebuilding index...": "Очищення кешу завдань і перебудова індексу...",
+	"Clearing task cache and rebuilding index...":
+		"Очищення кешу завдань і перебудова індексу...",
 	"Task index completely rebuilt": "Індекс завдань повністю перебудовано",
 	"Failed to force reindex tasks": "Не вдалося примусово переіндексувати завдання",
 	"Task Genius View": "Вигляд Task Genius",
@@ -601,9 +644,11 @@ const translations = {
 	"Start Date Is": "Дата початку",
 	"Scheduled Date Is": "Запланована дата",
 	"Path Includes": "Шлях включає",
-	"Task must contain this path (case-insensitive).": "Завдання має містити цей шлях (без урахування регістру).",
+	"Task must contain this path (case-insensitive).":
+		"Завдання має містити цей шлях (без урахування регістру).",
 	"Path Excludes": "Шлях виключає",
-	"Task must NOT contain this path (case-insensitive).": "Завдання НЕ має містити цей шлях (без урахування регістру).",
+	"Task must NOT contain this path (case-insensitive).":
+		"Завдання НЕ має містити цей шлях (без урахування регістру).",
 	"Unnamed View": "Подання без назви",
 	"View configuration saved.": "Налаштування подання збережені.",
 	"Hide Details": "Приховати деталі",
@@ -667,7 +712,8 @@ const translations = {
 	"No items selected": "Немає вибраних елементів",
 	"Two Column View Settings": "Налаштування двоколонкового подання",
 	"Group by Task Property": "Групувати за пріоритетом завдання",
-	"Select which task property to use for left column grouping": "Виберіть властивість завдання для групування у лівій колонці",
+	"Select which task property to use for left column grouping":
+		"Виберіть властивість завдання для групування у лівій колонці",
 	Priorities: "Пріоритети",
 	Contexts: "Контексти",
 	"Due Dates": "Терміни виконання",
@@ -675,15 +721,20 @@ const translations = {
 	"Start Dates": "Дати початку",
 	Files: "Файли",
 	"Left Column Title": "Назва лівої колонки",
-	"Title for the left column (items list)": "Назва для лівої колонки (список елементів)",
+	"Title for the left column (items list)":
+		"Назва для лівої колонки (список елементів)",
 	"Right Column Title": "Назва правої колонки",
-	"Default title for the right column (tasks list)": "Назва для правої колонки (список завдань)",
+	"Default title for the right column (tasks list)":
+		"Назва для правої колонки (список завдань)",
 	"Multi-select Text": "Текст для відображення, коли вибрано кілька елементів",
-	"Text to show when multiple items are selected": "Текст для відображення, коли вибрано кілька елементів",
+	"Text to show when multiple items are selected":
+		"Текст для відображення, коли вибрано кілька елементів",
 	"Empty State Text": "Текст для відображення, коли немає елементів",
-	"Text to show when no items are selected": "Текст для відображення, коли немає елементів",
+	"Text to show when no items are selected":
+		"Текст для відображення, коли немає елементів",
 	"Filter Blanks": "Фільтрувати порожні завдання",
-	"Filter out blank tasks in this view.": "Фільтрувати порожні завдання в цьому вигляді.",
+	"Filter out blank tasks in this view.":
+		"Фільтрувати порожні завдання в цьому вигляді.",
 	"Task must contain this path (case-insensitive). Separate multiple paths with commas.":
 		"Завдання має містити цей шлях (без урахування регістру). Розділяйте кілька шляхів комами.",
 	"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas.":
@@ -691,12 +742,15 @@ const translations = {
 	"You have unsaved changes. Save before closing?":
 		"У вас є незбережені зміни. Зберегти перед закриттям?",
 	Rotate: "Повернути",
-	"Are you sure you want to force reindex all tasks?": "Ви впевнені, що бажаєте примусово переіндексувати всі завдання?",
-	"Enable progress bar in reading mode": "Увімкнути прогрес-бар у режимі читання",
+	"Are you sure you want to force reindex all tasks?":
+		"Ви впевнені, що бажаєте примусово переіндексувати всі завдання?",
+	"Enable progress bar in reading mode":
+		"Увімкнути прогрес-бар у режимі читання",
 	"Toggle this to allow this plugin to show progress bars in reading mode.":
 		"Увімкніть, щоб додаток показував прогрес-бари у режимі читання.",
 	Range: "Діапазон",
-	"as a placeholder for the percentage value": "як замінник для значення відсотка",
+	"as a placeholder for the percentage value":
+		"як замінник для значення відсотка",
 	"Template text with": "Шаблон тексту з",
 	placeholder: "замінником",
 	Reindex: "Переіндексувати",
@@ -713,21 +767,24 @@ const translations = {
   moved: "переміщено",
   "Capture your thoughts...": "Фіксуйте свої думки...",
   "Project Workflow": "Project Workflow",
-  "Standard project management workflow": "Standard project management workflow",
+  "Standard project management workflow":
+		"Standard project management workflow",
   Planning: "Заплановано",
   Development: "Розробка",
   Testing: "Тестування",
   Cancelled: "Скасовано",
   Habit: "Звичка",
 	"Drink a cup of good tea": "Випити чашку гарного чаю",
-	"Watch an episode of a favorite series": "Подивитися серію улюбленого серіалу",
+	"Watch an episode of a favorite series":
+		"Подивитися серію улюбленого серіалу",
 	"Play a game": "Пограти у гру",
 	"Eat a piece of chocolate": "З’їсти шматочок шоколаду",
 	common: "звичайна",
 	rare: "рідкісна",
 	legendary: "легендарна",
   "No Habits Yet": "Звичок ще немає",
-  "Click the open habit button to create a new habit.": "Натисніть кнопку відкриття звички, щоб створити нову звичку.",
+  "Click the open habit button to create a new habit.":
+		"Натисніть кнопку відкриття звички, щоб створити нову звичку.",
   "Please enter details": "Будь ласка, вкажіть подробиці",
   "Goal reached": "Мета досягнута",
   "Exceeded goal": "Мета перевищена",
@@ -755,7 +812,8 @@ const translations = {
   Icon: "Іконка",
   "Please enter a habit name": "Будь ласка, введіть назву звички",
   "Property name": "Властивость",
-  "The property name of the daily note front matter": "Назва властивості у щоденній нотатці",
+  "The property name of the daily note front matter":
+		"Назва властивості у щоденній нотатці",
   "Completion text": "Текст завершення",
   "(Optional) Specific text representing completion, leave blank for any non-empty value to be considered completed":
 		"(Необов’язково) Конкретний текст для завершення. Залиште порожнім, щоб будь-яке непорожнє значення вважалося завершеним",
@@ -776,22 +834,27 @@ const translations = {
   "The property name in daily note front matter to store mapping values":
 		"The property name in daily note front matter to store mapping values",
   "Value mapping": "Значення зіставлення",
-  "Define mappings from numeric values to display text": "Define mappings from numeric values to display text",
+  "Define mappings from numeric values to display text":
+		"Define mappings from numeric values to display text",
   "Add new mapping": "Створити нове зіставлення",
   "Scheduled events": "Заплановані події",
-  "Add multiple events that need to be completed": "Додайте кілька подій, які потрібно завершити",
+  "Add multiple events that need to be completed":
+		"Додайте кілька подій, які потрібно завершити",
   "Event name": "Назва події",
   "Event details": "Опис події",
   "Add new event": "Додати нову подію",
   "Please enter a property name": "Будь ласка, введіть назву властивості",
-  "Please add at least one mapping value": "Please add at least one mapping value",
+  "Please add at least one mapping value":
+		"Please add at least one mapping value",
   "Mapping key must be a number": "Mapping key must be a number",
-  "Please enter text for all mapping values": "Please enter text for all mapping values",
+  "Please enter text for all mapping values":
+		"Please enter text for all mapping values",
   "Please add at least one event": "Будь ласка, додайте принаймні одну подію",
   "Event name cannot be empty": "Назва події не може бути порожньою",
   "Add new habit": "Додати нову звичку",
   "No habits yet": "Ще немає звичок",
-  "Click the button above to add your first habit": "Натисніть кнопку вище, щоб додати першу звичку",
+  "Click the button above to add your first habit":
+		"Натисніть кнопку вище, щоб додати першу звичку",
   "Habit updated": "Звичку оновлено",
   "Habit added": "Звичка додана",
   "Delete habit": "Видалити звичку",
@@ -815,7 +878,8 @@ const translations = {
 		"У рядку форматування потрібно вказати `yyyy` замість `YYYY`. Та `dd` замість `DD`.",
   "Daily note format": "Формат щоденної нотатки",
   "Daily note path": "Шлях щоденної нотатки",
-  "Select the folder that contains the daily note.": "Оберіть теку яка містить щоденну нотатку.",
+  "Select the folder that contains the daily note.":
+		"Оберіть теку яка містить щоденну нотатку.",
   "Use as date type": "Використовувати як тип дати",
   "You can choose due, start, or scheduled as the date type for tasks.":
 		"Ви можете обрати тип дати завдання як термін, початок, або заплановано.",
@@ -826,9 +890,11 @@ const translations = {
   "Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.":
 		"Налаштуйте нагороди за виконання завдань. Визначайте елементи, ймовірності їх появи та умови.",
   "Enable rewards": "Увімкнути нагороди",
-  "Toggle to enable or disable the reward system.": "Перемикач увімкнення/вимкнення системи нагород.",
+  "Toggle to enable or disable the reward system.":
+		"Перемикач увімкнення/вимкнення системи нагород.",
   "Occurrence levels": "Рівні виникнення",
-  "Define different levels of reward rarity and their probability.": "Визначити різні рівні рідкісності нагороди та їхню ймовірність.",
+  "Define different levels of reward rarity and their probability.":
+		"Визначити різні рівні рідкісності нагороди та їхню ймовірність.",
   "Chance must be between 0 and 100.": "Ймовірність повинна бути від 0 до 100.",
   "Level name (e.g., common)": "Назва рівня (наприклад: звичайна)",
   "Chance (%)": "Ймовірність (%)",
@@ -836,7 +902,8 @@ const translations = {
   "Add occurrence level": "Додати рівень виникнення",
   "New level": "Новий рівень",
   "Reward items": "Нагороди",
-  "Manage the specific rewards that can be obtained.": "Керуйте конкретними нагородами, які можна отримати.",
+  "Manage the specific rewards that can be obtained.":
+		"Керуйте конкретними нагородами, які можна отримати.",
   "No levels defined": "Рівні не визначені",
   "Reward name/text": "Назва/текст нагороди",
   "Inventory (-1 for ∞)": "Інвентар (-1 для ∞)",
@@ -851,7 +918,8 @@ const translations = {
 		"Налаштуйте параметри звичок, включаючи додавання нових, редагування існуючих та керування завершенням звичок.",
   "Enable habits": "Увімкнути звички",
   "Reward display type": "Тип відображення нагороди",
-  "Choose how rewards are displayed when earned.": "Оберіть відображення нагороди після досягнення.",
+  "Choose how rewards are displayed when earned.":
+		"Оберіть відображення нагороди після досягнення.",
   "Modal dialog": "Модальне вікно",
   "Notice (Auto-accept)": "Повідомлення (автоприйняття)",
 };
