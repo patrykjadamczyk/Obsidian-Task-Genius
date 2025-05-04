@@ -30,6 +30,7 @@ export const DEFAULT_SYMBOLS = {
 	idSymbol: "🆔",
 };
 
+// --- Priority Mapping --- (Combine from TaskParser)
 export const PRIORITY_MAP: Record<string, number> = {
 	"🔺": 5,
 	"⏫": 4,
@@ -37,14 +38,14 @@ export const PRIORITY_MAP: Record<string, number> = {
 	"🔽": 2,
 	"⏬️": 1,
 	"⏬": 1,
+	"[#A]": 5,
+	"[#B]": 4,
+	"[#C]": 3, // Keep Taskpaper style? Maybe remove later
+	"[#D]": 2,
+	"[#E]": 1,
 	highest: 5,
 	high: 4,
 	medium: 3,
 	low: 2,
 	lowest: 1,
-	"[#A]": 5,
-	"[#B]": 4,
-	"[#C]": 3,
-	"[#D]": 2,
-	"[#E]": 1,
 };

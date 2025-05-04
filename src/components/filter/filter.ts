@@ -10,6 +10,7 @@ import "./filter.css";
 import { Task } from "../../utils/types/TaskIndex";
 import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
+import { PRIORITY_MAP } from "../../common/default-symbol";
 
 // Helper function to build filter categories and options from tasks
 export function buildFilterOptionsFromTasks(tasks: Task[]): FilterCategory[] {
@@ -45,26 +46,6 @@ export function buildFilterOptionsFromTasks(tasks: Task[]): FilterCategory[] {
 	const sortedTags = Array.from(tags).sort();
 	const sortedProjects = Array.from(projects).sort();
 	const sortedContexts = Array.from(contexts).sort();
-
-	const PRIORITY_MAP: Record<string, number> = {
-		"🔺": 5, // Highest
-		"⏫": 4, // High
-		"🔼": 3, // Medium
-		"🔽": 2, // Low
-		"⏬️": 1, // Lowest
-		"⏬": 1, // Lowest (variant)
-		// Add other mappings if necessary, ensure keys are unique where possible
-		highest: 5,
-		high: 4,
-		medium: 3,
-		low: 2,
-		lowest: 1,
-		"[#A]": 5,
-		"[#B]": 4,
-		"[#C]": 3,
-		"[#D]": 2,
-		"[#E]": 1,
-	};
 
 	// Create a reverse map (Number -> Icon/Preferred String)
 	// Prioritize icons. Handle potential duplicate values (like ⏬️ and ⏬ both mapping to 1).

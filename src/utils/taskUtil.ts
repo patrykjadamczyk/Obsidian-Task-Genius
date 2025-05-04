@@ -1,83 +1,33 @@
+import { PRIORITY_MAP } from "src/common/default-symbol";
+import { parseLocalDate } from "./dateUtil";
 import { Task } from "./types/TaskIndex";
+import {
+	DV_DUE_DATE_REGEX,
+	EMOJI_DUE_DATE_REGEX,
+	DV_SCHEDULED_DATE_REGEX,
+	EMOJI_SCHEDULED_DATE_REGEX,
+	DV_START_DATE_REGEX,
+	EMOJI_START_DATE_REGEX,
+	DV_COMPLETED_DATE_REGEX,
+	EMOJI_COMPLETED_DATE_REGEX,
+	DV_CREATED_DATE_REGEX,
+	EMOJI_CREATED_DATE_REGEX,
+	DV_RECURRENCE_REGEX,
+	EMOJI_RECURRENCE_REGEX,
+	DV_PRIORITY_REGEX,
+	EMOJI_PRIORITY_REGEX,
+	DV_PROJECT_REGEX,
+	EMOJI_PROJECT_PREFIX,
+	DV_CONTEXT_REGEX,
+	EMOJI_CONTEXT_REGEX,
+	ANY_DATAVIEW_FIELD_REGEX,
+	EMOJI_TAG_REGEX,
+	TASK_REGEX,
+} from "../common/regex-define";
 
-// Task identification
-const TASK_REGEX = /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/m;
+export type MetadataFormat = "tasks" | "dataview"; // Define the type for clarity
 
-// --- Emoji/Tasks Style Regexes ---
-const EMOJI_START_DATE_REGEX = /🛫\s*(\d{4}-\d{2}-\d{2})/;
-const EMOJI_COMPLETED_DATE_REGEX = /✅\s*(\d{4}-\d{2}-\d{2})/;
-const EMOJI_DUE_DATE_REGEX = /📅\s*(\d{4}-\d{2}-\d{2})/;
-const EMOJI_SCHEDULED_DATE_REGEX = /⏳\s*(\d{4}-\d{2}-\d{2})/;
-const EMOJI_CREATED_DATE_REGEX = /➕\s*(\d{4}-\d{2}-\d{2})/;
-const EMOJI_RECURRENCE_REGEX = /🔁\s*(.*?)(?=\s(?:🗓️|🛫|⏳|✅|➕|🔁|@|#)|$)/u;
-const EMOJI_PRIORITY_REGEX = /(([🔺⏫🔼🔽⏬️⏬])|(\[#[A-E]\]))/u; // Using the corrected variant selector
-const EMOJI_CONTEXT_REGEX = /@([\w-]+)/g;
-const EMOJI_TAG_REGEX =
-	/#[^\u2000-\u206F\u2E00-\u2E7F'!"#$%&()*+,.:;<=>?@^`{|}~\[\]\\\s]+/g; // Includes #project/ tags
-const EMOJI_PROJECT_PREFIX = "#project/";
-
-// --- Dataview Style Regexes ---
-const DV_START_DATE_REGEX = /\[(?:start|🛫)::\s*(\d{4}-\d{2}-\d{2})\]/i;
-const DV_COMPLETED_DATE_REGEX =
-	/\[(?:completion|✅)::\s*(\d{4}-\d{2}-\d{2})\]/i;
-const DV_DUE_DATE_REGEX = /\[(?:due|🗓️)::\s*(\d{4}-\d{2}-\d{2})\]/i;
-const DV_SCHEDULED_DATE_REGEX = /\[(?:scheduled|⏳)::\s*(\d{4}-\d{2}-\d{2})\]/i;
-const DV_CREATED_DATE_REGEX = /\[(?:created|➕)::\s*(\d{4}-\d{2}-\d{2})\]/i;
-const DV_RECURRENCE_REGEX = /\[(?:repeat|recurrence|🔁)::\s*([^\]]+)\]/i;
-const DV_PRIORITY_REGEX = /\[priority::\s*([^\]]+)\]/i;
-const DV_PROJECT_REGEX = /\[project::\s*([^\]]+)\]/i;
-const DV_CONTEXT_REGEX = /\[context::\s*([^\]]+)\]/i;
-// Dataview Tag Regex is the same, applied after DV field removal
-const ANY_DATAVIEW_FIELD_REGEX = /\[\w+(?:|🗓️|✅|➕|🛫|⏳|🔁)::\s*[^\]]+\]/gi;
-
-// --- Priority Mapping --- (Combine from TaskParser)
-const PRIORITY_MAP: Record<string, number> = {
-	"🔺": 5,
-	"⏫": 4,
-	"🔼": 3,
-	"🔽": 2,
-	"⏬️": 1,
-	"⏬": 1,
-	"[#A]": 5,
-	"[#B]": 4,
-	"[#C]": 3, // Keep Taskpaper style? Maybe remove later
-	"[#D]": 2,
-	"[#E]": 1,
-	highest: 5,
-	high: 4,
-	medium: 3,
-	low: 2,
-	lowest: 1,
-	// Consider adding number string keys? e.g. "5": 5?
-};
-
-type MetadataFormat = "tasks" | "dataview"; // Define the type for clarity
-
-// --- Helper function to parse date string ---
-function parseLocalDate(dateString: string): number | undefined {
-	if (!dateString) return undefined;
-	const parts = dateString.split("-");
-	if (parts.length === 3) {
-		const year = parseInt(parts[0], 10);
-		const month = parseInt(parts[1], 10); // 1-based month
-		const day = parseInt(parts[2], 10);
-		if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-			// Create Date object using UTC to avoid timezone shifts affecting the date part
-			// Then get time. Or just use local date constructor if consistency is guaranteed.
-			// Using local date constructor:
-			return new Date(year, month - 1, day).getTime();
-		}
-	}
-	console.warn(`Worker: Invalid date format encountered: ${dateString}`);
-	return undefined;
-}
-
-// --- Refactored Metadata Extraction Functions ---
-
-// Each function now takes task, content, and format, returns remaining content
-// They modify the task object directly.
-
-function extractDates(
+export function extractDates(
 	task: Task,
 	content: string,
 	format: MetadataFormat
@@ -156,7 +106,7 @@ function extractDates(
 	return remainingContent;
 }
 
-function extractRecurrence(
+export function extractRecurrence(
 	task: Task,
 	content: string,
 	format: MetadataFormat
@@ -184,7 +134,7 @@ function extractRecurrence(
 	return remainingContent;
 }
 
-function extractPriority(
+export function extractPriority(
 	task: Task,
 	content: string,
 	format: MetadataFormat
@@ -225,7 +175,7 @@ function extractPriority(
 	return remainingContent;
 }
 
-function extractProject(
+export function extractProject(
 	task: Task,
 	content: string,
 	format: MetadataFormat
@@ -254,7 +204,7 @@ function extractProject(
 	return remainingContent;
 }
 
-function extractContext(
+export function extractContext(
 	task: Task,
 	content: string,
 	format: MetadataFormat
@@ -307,7 +257,7 @@ function extractContext(
 	return remainingContent;
 }
 
-function extractTags(
+export function extractTags(
 	task: Task,
 	content: string,
 	format: MetadataFormat
@@ -516,4 +466,21 @@ export function parseTaskLine(
 	task.content = remainingContent.replace(/\s{2,}/g, " ").trim();
 
 	return task;
+}
+
+export function parseTasksFromContent(
+	path: string,
+	content: string,
+	format: MetadataFormat
+): Task[] {
+	const tasks: Task[] = [];
+	const lines = content.split("\n");
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const task = parseTaskLine(path, line, i + 1, format);
+		if (task) {
+			tasks.push(task);
+		}
+	}
+	return tasks;
 }

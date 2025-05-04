@@ -69,6 +69,10 @@ import { getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
 import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
+import {
+	SortCriterion,
+	sortTasksInDocument,
+} from "./commands/sortTaskCommands";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -444,6 +448,31 @@ export default class TaskProgressBarPlugin extends Plugin {
 	}
 
 	registerCommands() {
+		this.addCommand({
+			id: "sort-tasks-by-due-date",
+			name: t("Sort Tasks by Status, Due Date, Priority"),
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				// Use editorCallback for CM6
+				const editorView = (editor as any).cm as EditorView; // Access CM6 view
+				if (!editorView) return;
+
+				const criteria: SortCriterion[] = [
+					{ field: "dueDate", order: "asc" }, // Undated last, then earliest first
+					{ field: "priority", order: "asc" }, // Highest first (lower number)
+					{ field: "status", order: "asc" }, // Overdue, Active, Incomplete, Done, Cancelled
+					{ field: "content", order: "asc" }, // Alphabetical content as fallback
+				];
+
+				const changes = sortTasksInDocument(editorView, this, criteria);
+
+				if (changes) {
+					editorView.dispatch({ changes });
+				} else {
+					new Notice("Tasks already sorted or no tasks found.");
+				}
+			},
+		});
+
 		// Add command for cycling task status forward
 		this.addCommand({
 			id: "cycle-task-status-forward",
