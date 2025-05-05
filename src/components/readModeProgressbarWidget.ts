@@ -98,7 +98,15 @@ function loadProgressbar(
 
 			const previousSibling = group.parentElement.previousElementSibling;
 			if (previousSibling && previousSibling.tagName === "P") {
-				previousSibling.appendChild(progressBar);
+				// @ts-ignore
+				if (plugin.app.plugins.getPlugin("dataview")?._loaded) {
+					group.parentElement.parentElement.insertBefore(
+						progressBar,
+						group.parentElement
+					);
+				} else {
+					previousSibling.appendChild(progressBar);
+				}
 			} else {
 				group.parentElement.parentElement.insertBefore(
 					progressBar,
@@ -1240,7 +1248,6 @@ class ProgressBar extends Component {
 			this.plugin?.settings.progressBarDisplayMode === "text" ||
 			this.plugin?.settings.progressBarDisplayMode === "both"
 		) {
-			// 使用formatProgressText函数来生成进度文本
 			const text = formatProgressText(
 				{
 					completed: this.completed,
@@ -1330,6 +1337,8 @@ class ProgressBar extends Component {
 		) {
 			this.progressBackGroundEl.hide();
 		}
+
+		this.plugin.addChild(this);
 
 		return this.progressBarEl;
 	}
