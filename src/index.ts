@@ -69,10 +69,7 @@ import { getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
 import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
-import {
-	SortCriterion,
-	sortTasksInDocument,
-} from "./commands/sortTaskCommands";
+import { sortTasksInDocument } from "./commands/sortTaskCommands";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -450,20 +447,33 @@ export default class TaskProgressBarPlugin extends Plugin {
 	registerCommands() {
 		this.addCommand({
 			id: "sort-tasks-by-due-date",
-			name: t("Sort Tasks by Status, Due Date, Priority"),
+			name: t("Sort Tasks in Section"),
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				// Use editorCallback for CM6
-				const editorView = (editor as any).cm as EditorView; // Access CM6 view
+				const editorView = (editor as any).cm as EditorView;
 				if (!editorView) return;
 
-				const criteria: SortCriterion[] = [
-					{ field: "dueDate", order: "asc" }, // Undated last, then earliest first
-					{ field: "priority", order: "asc" }, // Highest first (lower number)
-					{ field: "status", order: "asc" }, // Overdue, Active, Incomplete, Done, Cancelled
-					{ field: "content", order: "asc" }, // Alphabetical content as fallback
-				];
+				const changes = sortTasksInDocument(editorView, this, false);
 
-				const changes = sortTasksInDocument(editorView, this, criteria);
+				if (changes) {
+					new Notice(
+						t(
+							"Tasks sorted (using settings). Change application needs refinement."
+						)
+					);
+				} else {
+					// Notice is already handled within sortTasksInDocument if no changes or sorting disabled
+				}
+			},
+		});
+
+		this.addCommand({
+			id: "sort-tasks-in-entire-document",
+			name: t("Sort Tasks in Entire Document"),
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				const editorView = (editor as any).cm as EditorView;
+				if (!editorView) return;
+
+				const changes = sortTasksInDocument(editorView, this, true);
 
 				if (changes) {
 					const info = editorView.state.field(editorInfoField);
@@ -471,8 +481,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 					this.app.vault.process(info.file, (data) => {
 						return changes;
 					});
+					new Notice(t("Entire document sorted (using settings)."));
 				} else {
-					new Notice("Tasks already sorted or no tasks found.");
+					new Notice(t("Tasks already sorted or no tasks found."));
 				}
 			},
 		});

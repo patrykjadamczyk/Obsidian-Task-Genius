@@ -23,6 +23,7 @@ import {
 	ViewMode,
 	RewardItem,
 	OccurrenceLevel,
+	SortCriterion, // Import SortCriterion
 } from "./common/setting-definition";
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
@@ -45,7 +46,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "progress-bar", name: t("Progress Bar"), icon: "route" },
 		{ id: "task-status", name: t("Task Status"), icon: "checkbox-glyph" },
 		{ id: "task-filter", name: t("Task Filter"), icon: "filter" },
-		{ id: "task-mover", name: t("Task Mover"), icon: "arrow-right-circle" },
+		{
+			id: "task-handler",
+			name: t("Task Handler"),
+			icon: "arrow-right-circle",
+		},
 		{
 			id: "quick-capture",
 			name: t("Quick Capture"),
@@ -225,9 +230,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const taskFilterSection = this.createTabSection("task-filter");
 		this.displayTaskFilterSettings(taskFilterSection);
 
-		// Task Mover Tab
-		const taskMoverSection = this.createTabSection("task-mover");
-		this.displayTaskMoverSettings(taskMoverSection);
+		// Task Handler Tab
+		const taskHandlerSection = this.createTabSection("task-handler");
+		this.displayTaskHandlerSettings(taskHandlerSection);
 
 		// Quick Capture Tab
 		const quickCaptureSection = this.createTabSection("quick-capture");
@@ -2388,7 +2393,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			);
 	}
 
-	private displayTaskMoverSettings(containerEl: HTMLElement): void {
+	private displayTaskHandlerSettings(containerEl: HTMLElement): void {
 		// Add Completed Task Mover settings
 		new Setting(containerEl)
 			.setName(t("Completed Task Mover"))
@@ -2562,7 +2567,211 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					});
 				});
 		}
-	}
+
+		// --- Task Sorting Settings ---
+		new Setting(containerEl)
+			.setName(t("Task Sorting"))
+			.setDesc(t("Configure how tasks are sorted in the document."))
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable Task Sorting"))
+			.setDesc(t("Toggle this to enable commands for sorting tasks."))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.sortTasks)
+					.onChange(async (value) => {
+						this.plugin.settings.sortTasks = value;
+						this.applySettingsUpdate();
+						// Refresh the settings display to show/hide criteria section
+						this.display(); // Or just this section if optimized
+					});
+			});
+
+		if (this.plugin.settings.sortTasks) {
+			new Setting(containerEl)
+				.setName(t("Sort Criteria"))
+				.setDesc(
+					t(
+						"Define the order in which tasks should be sorted. Criteria are applied sequentially."
+					)
+				)
+				.setHeading();
+
+			const criteriaContainer = containerEl.createDiv({
+				cls: "sort-criteria-container",
+			});
+
+			const refreshCriteriaList = () => {
+				criteriaContainer.empty();
+				const criteria = this.plugin.settings.sortCriteria || [];
+
+				if (criteria.length === 0) {
+					criteriaContainer.createEl("p", {
+						text: t(
+							"No sort criteria defined. Add criteria below."
+						),
+						cls: "setting-item-description",
+					});
+				}
+
+				criteria.forEach((criterion, index) => {
+					const criterionSetting = new Setting(criteriaContainer)
+						.setClass("sort-criterion-row")
+						.addDropdown((dropdown) => {
+							dropdown
+								.addOption("status", t("Status"))
+								.addOption("priority", t("Priority"))
+								.addOption("dueDate", t("Due Date"))
+								.addOption("startDate", t("Start Date"))
+								.addOption("scheduledDate", t("Scheduled Date"))
+								.addOption("content", t("Content"))
+								.setValue(criterion.field)
+								.onChange((value: SortCriterion["field"]) => {
+									this.plugin.settings.sortCriteria[
+										index
+									].field = value;
+									this.applySettingsUpdate();
+								});
+						})
+						.addDropdown((dropdown) => {
+							dropdown
+								.addOption("asc", t("Ascending")) // Ascending might mean different things (e.g., High -> Low for priority)
+								.addOption("desc", t("Descending")) // Descending might mean different things (e.g., Low -> High for priority)
+								.setValue(criterion.order)
+								.onChange((value: SortCriterion["order"]) => {
+									this.plugin.settings.sortCriteria[
+										index
+									].order = value;
+									this.applySettingsUpdate();
+								});
+							// Add tooltips explaining what asc/desc means for each field type if possible
+							if (criterion.field === "priority") {
+								dropdown.selectEl.title = t(
+									"Ascending: High -> Low -> None. Descending: None -> Low -> High"
+								);
+							} else if (
+								[
+									"dueDate",
+									"startDate",
+									"scheduledDate",
+								].includes(criterion.field)
+							) {
+								dropdown.selectEl.title = t(
+									"Ascending: Earlier -> Later -> None. Descending: None -> Later -> Earlier"
+								);
+							} else if (criterion.field === "status") {
+								dropdown.selectEl.title = t(
+									"Ascending respects status order (Overdue first). Descending reverses it."
+								);
+							} else {
+								dropdown.selectEl.title = t(
+									"Ascending: A-Z. Descending: Z-A"
+								);
+							}
+						});
+
+					// Controls for reordering and deleting
+					criterionSetting.addExtraButton((button) => {
+						button
+							.setIcon("arrow-up")
+							.setTooltip(t("Move Up"))
+							.setDisabled(index === 0)
+							.onClick(() => {
+								if (index > 0) {
+									const item =
+										this.plugin.settings.sortCriteria.splice(
+											index,
+											1
+										)[0];
+									this.plugin.settings.sortCriteria.splice(
+										index - 1,
+										0,
+										item
+									);
+									this.applySettingsUpdate();
+									refreshCriteriaList();
+								}
+							});
+					});
+					criterionSetting.addExtraButton((button) => {
+						button
+							.setIcon("arrow-down")
+							.setTooltip(t("Move Down"))
+							.setDisabled(index === criteria.length - 1)
+							.onClick(() => {
+								if (index < criteria.length - 1) {
+									const item =
+										this.plugin.settings.sortCriteria.splice(
+											index,
+											1
+										)[0];
+									this.plugin.settings.sortCriteria.splice(
+										index + 1,
+										0,
+										item
+									);
+									this.applySettingsUpdate();
+									refreshCriteriaList();
+								}
+							});
+					});
+					criterionSetting.addExtraButton((button) => {
+						button
+							.setIcon("trash")
+							.setTooltip(t("Remove Criterion"))
+							.onClick(() => {
+								this.plugin.settings.sortCriteria.splice(
+									index,
+									1
+								);
+								this.applySettingsUpdate();
+								refreshCriteriaList();
+							});
+						// Add class to the container element of the extra button
+						button.extraSettingsEl.addClass("mod-warning");
+					});
+				});
+
+				// Button to add a new criterion
+				new Setting(criteriaContainer)
+					.addButton((button) => {
+						button
+							.setButtonText(t("Add Sort Criterion"))
+							.setCta()
+							.onClick(() => {
+								const newCriterion: SortCriterion = {
+									field: "status",
+									order: "asc",
+								};
+								if (!this.plugin.settings.sortCriteria) {
+									this.plugin.settings.sortCriteria = [];
+								}
+								this.plugin.settings.sortCriteria.push(
+									newCriterion
+								);
+								this.applySettingsUpdate();
+								refreshCriteriaList();
+							});
+					})
+					.addButton((button) => {
+						// Button to reset to defaults
+						button
+							.setButtonText(t("Reset to Defaults"))
+							.onClick(() => {
+								// Optional: Add confirmation dialog here
+								this.plugin.settings.sortCriteria = [
+									...DEFAULT_SETTINGS.sortCriteria,
+								]; // Use spread to copy
+								this.applySettingsUpdate();
+								refreshCriteriaList();
+							});
+					});
+			};
+
+			refreshCriteriaList(); // Initial render
+		}
+	} // End displayTaskHandlerSettings
 
 	private displayViewSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)

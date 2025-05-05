@@ -3,7 +3,12 @@ import { Notice } from "obsidian";
 import { parseTaskLine, MetadataFormat } from "../utils/taskUtil";
 import { Task as IndexerTask } from "../utils/types/TaskIndex";
 import TaskProgressBarPlugin from "../index";
-import { TaskProgressBarSettings } from "../common/setting-definition";
+import {
+	TaskProgressBarSettings,
+	SortCriterion,
+	DEFAULT_SETTINGS,
+} from "../common/setting-definition";
+import { t } from "../translations/helper";
 
 // Task statuses (aligned with common usage and sorting needs)
 export enum SortableTaskStatus {
@@ -49,18 +54,6 @@ export interface SortableTask
 	// project?: string;
 	// context?: string;
 	// tags?: string[]; // Keep tags if needed for sorting/filtering later? Not currently used.
-}
-
-// Sorting criteria
-export interface SortCriterion {
-	field:
-		| "status"
-		| "priority"
-		| "dueDate"
-		| "startDate"
-		| "scheduledDate"
-		| "content"; // Fields to sort by
-	order: "asc" | "desc"; // Sort order
 }
 
 // Simple function to get indentation (tabs or spaces)
@@ -459,8 +452,7 @@ function sortTasksRecursively(
 export function sortTasksInDocument(
 	view: EditorView,
 	plugin: TaskProgressBarPlugin,
-	sortCriteria: SortCriterion[],
-	fullDocument: boolean = false // Keep parameter
+	fullDocument: boolean = false
 ): string | null {
 	const app = plugin.app;
 	const activeFile = app.workspace.getActiveFile(); // Assume command runs on active file
@@ -477,7 +469,20 @@ export function sortTasksInDocument(
 
 	const doc = view.state.doc;
 	const settings = plugin.settings;
-	const metadataFormat: MetadataFormat = plugin.settings.preferMetadataFormat;
+	const metadataFormat: MetadataFormat = settings.preferMetadataFormat;
+
+	console.log("settings", settings.sortCriteria);
+
+	// --- Get sortCriteria from settings ---
+	const sortCriteria = settings.sortCriteria || DEFAULT_SETTINGS.sortCriteria; // Get from settings, use default if missing
+	if (!settings.sortTasks || !sortCriteria || sortCriteria.length === 0) {
+		new Notice(
+			t(
+				"Task sorting is disabled or no sort criteria are defined in settings."
+			)
+		);
+		return null; // Exit if sorting is disabled or no criteria
+	}
 
 	let startLine = 0;
 	let endLine = doc.lines - 1;
@@ -563,12 +568,15 @@ export function sortTasksInDocument(
 	// 2. Sort each continuous block separately
 	for (let i = 0; i < taskBlocks.length; i++) {
 		// Replace tasks in the original block with sorted tasks
+		// Pass the criteria fetched from settings
 		taskBlocks[i] = sortTasksRecursively(
 			taskBlocks[i],
-			sortCriteria,
+			sortCriteria, // Use criteria from settings
 			settings
 		);
 	}
+
+	console.log("taskBlocks", taskBlocks);
 
 	// 3. Update the original blockTasks to reflect sorting results
 	// Clear the original blockTasks

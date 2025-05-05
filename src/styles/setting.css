@@ -1017,3 +1017,14 @@
 }
 
 /* END: Reward Settings Styles */
+
+/* START: Task Handler Settings Styles */
+.setting-item.sort-criterion-row .setting-item-info {
+	display: none;
+}
+
+.setting-item.sort-criterion-row select.dropdown {
+	flex: 1;
+}
+
+/* END: Task Handler Settings Styles */

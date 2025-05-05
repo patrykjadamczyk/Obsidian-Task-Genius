@@ -218,6 +218,18 @@ export interface HabitSettings {
 	habits: BaseHabitData[]; // 存储基础习惯数据，不包含completions字段
 }
 
+// Define SortCriterion interface (if not already present)
+export interface SortCriterion {
+	field:
+		| "status"
+		| "priority"
+		| "dueDate"
+		| "startDate"
+		| "scheduledDate"
+		| "content"; // Fields to sort by
+	order: "asc" | "desc"; // Sort order
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -291,6 +303,10 @@ export interface TaskProgressBarSettings {
 
 	// Habit Settings
 	habit: HabitSettings;
+
+	// Sorting Settings
+	sortTasks: boolean; // Enable/disable task sorting feature
+	sortCriteria: SortCriterion[]; // Array defining the sorting order
 }
 
 /** Define the default settings */
@@ -625,6 +641,15 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		enableHabits: false,
 		habits: [],
 	},
+
+	// Sorting Defaults
+	sortTasks: true, // Default to enabled
+	sortCriteria: [
+		// Default sorting criteria
+		{ field: "status", order: "asc" },
+		{ field: "priority", order: "asc" },
+		{ field: "dueDate", order: "asc" },
+	],
 };
 
 // Helper function to get view settings safely

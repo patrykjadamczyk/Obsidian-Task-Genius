@@ -1,7 +1,4 @@
-import {
-	sortTasksInDocument,
-	SortCriterion,
-} from "../commands/sortTaskCommands";
+import { sortTasksInDocument } from "../commands/sortTaskCommands";
 import {
 	createMockText,
 	createMockPlugin,
@@ -23,20 +20,12 @@ describe("sortTasksInDocument", () => {
 
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
-		const mockPlugin = createMockPlugin();
+		const mockPlugin = createMockPlugin({
+			sortTasks: true,
+			sortCriteria: [{ field: "status", order: "asc" }],
+		});
 
-		// Sort criteria: by status (incomplete -> in progress -> completed)
-		const sortCriteria: SortCriterion[] = [
-			{ field: "status", order: "asc" },
-		];
-
-		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: text sorted by status
 		const expectedContent = `
@@ -58,20 +47,13 @@ describe("sortTasksInDocument", () => {
 
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
-		const mockPlugin = createMockPlugin();
-
-		// Sort criteria: by priority (which would normally put tasks with priority first)
-		const sortCriteria: SortCriterion[] = [
-			{ field: "priority", order: "asc" },
-		];
+		const mockPlugin = createMockPlugin({
+			sortTasks: true,
+			sortCriteria: [{ field: "priority", order: "asc" }],
+		});
 
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: incomplete tasks sorted by priority, but completed tasks always at the end
 		const expectedContent = `
@@ -99,20 +81,13 @@ Second task block:
 
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
-		const mockPlugin = createMockPlugin();
-
-		// Sort criteria: by status
-		const sortCriteria: SortCriterion[] = [
-			{ field: "status", order: "asc" },
-		];
+		const mockPlugin = createMockPlugin({
+			sortTasks: true,
+			sortCriteria: [{ field: "status", order: "asc" }],
+		});
 
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: each block sorted internally, but blocks maintain relative position
 		const expectedContent = `
@@ -141,20 +116,13 @@ Second task block:
 
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
-		const mockPlugin = createMockPlugin();
-
-		// Sort criteria: by status
-		const sortCriteria: SortCriterion[] = [
-			{ field: "status", order: "asc" },
-		];
+		const mockPlugin = createMockPlugin({
+			sortTasks: true,
+			sortCriteria: [{ field: "status", order: "asc" }],
+		});
 
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: parent tasks sorted, child tasks follow their respective parents
 		const expectedContent = `
@@ -180,21 +148,15 @@ Second task block:
 		const mockView = createMockEditorView(originalContent);
 		const mockPlugin = createMockPlugin({
 			preferMetadataFormat: "dataview",
+			sortTasks: true,
+			sortCriteria: [
+				{ field: "priority", order: "asc" },
+				{ field: "dueDate", order: "asc" },
+			],
 		});
 
-		// Sort criteria: first by priority, then by due date
-		const sortCriteria: SortCriterion[] = [
-			{ field: "priority", order: "asc" },
-			{ field: "dueDate", order: "asc" },
-		];
-
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: sorted first by priority (high->medium->low), then by due date (early->late)
 		const expectedContent = `
@@ -215,20 +177,13 @@ Just regular text content`;
 
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
-		const mockPlugin = createMockPlugin();
-
-		// Sort criteria
-		const sortCriteria: SortCriterion[] = [
-			{ field: "status", order: "asc" },
-		];
+		const mockPlugin = createMockPlugin({
+			sortTasks: true,
+			sortCriteria: [{ field: "status", order: "asc" }],
+		});
 
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Verify result is null
 		expect(result).toBeNull();
@@ -245,20 +200,12 @@ Just regular text content`;
 		const mockView = createMockEditorView(originalContent);
 		const mockPlugin = createMockPlugin({
 			preferMetadataFormat: "dataview",
+			sortTasks: true,
+			sortCriteria: [{ field: "priority", order: "asc" }],
 		});
 
-		// Sort criteria: by priority
-		const sortCriteria: SortCriterion[] = [
-			{ field: "priority", order: "asc" },
-		];
-
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: sorted by priority, completed task at the end
 		const expectedContent = `
@@ -279,20 +226,14 @@ Just regular text content`;
 
 		// Create mock EditorView and plugin with tasks plugin enabled
 		const mockView = createMockEditorView(originalContent);
-		const mockPlugin = createMockPlugin({ preferMetadataFormat: "tasks" });
-
-		// Sort criteria: by due date
-		const sortCriteria: SortCriterion[] = [
-			{ field: "dueDate", order: "asc" },
-		];
+		const mockPlugin = createMockPlugin({
+			preferMetadataFormat: "tasks",
+			sortTasks: true,
+			sortCriteria: [{ field: "dueDate", order: "asc" }],
+		});
 
 		// Call sort function
-		const result = sortTasksInDocument(
-			mockView,
-			mockPlugin,
-			sortCriteria,
-			true
-		);
+		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
 		// Expected result: sorted by due date, completed task at the end
 		const expectedContent = `
