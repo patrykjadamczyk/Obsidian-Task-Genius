@@ -993,7 +993,7 @@ export class TaskManager extends Component {
 			updatedLine = updatedLine.replace(/\[priority::\s*\w+\]/gi, ""); // Assuming priority value is a word like high, medium, etc. or number
 
 			// Emoji Recurrence
-			updatedLine = updatedLine.replace(/🔁\s*[a-zA-Z0-9, !]+/g, "");
+			updatedLine = updatedLine.replace(/🔁\s*[^\s]+/g, "");
 			// Dataview Recurrence
 			updatedLine = updatedLine.replace(
 				/\[(?:repeat|recurrence)::\s*[^\]]+\]/gi,
@@ -1378,6 +1378,20 @@ export class TaskManager extends Component {
 		// Add metadata based on format preference
 		const metadata = [];
 
+		// Create sets to track existing project and context tags
+		const existingProjectTags = new Set<string>();
+		const existingContextTags = new Set<string>();
+
+		if (completedTask.tags && completedTask.tags.length > 0) {
+			completedTask.tags.forEach((tag) => {
+				if (tag.startsWith("#project/")) {
+					existingProjectTags.add(tag.substring("#project/".length));
+				} else if (tag.startsWith("@")) {
+					existingContextTags.add(tag.substring(1));
+				}
+			});
+		}
+
 		// 1. Tags (excluding project/context tags that are handled separately)
 		if (completedTask.tags && completedTask.tags.length > 0) {
 			const tagsToAdd = completedTask.tags.filter((tag) => {
@@ -1403,7 +1417,16 @@ export class TaskManager extends Component {
 			if (useDataviewFormat) {
 				metadata.push(`[project:: ${completedTask.project}]`);
 			} else {
-				metadata.push(`#project/${completedTask.project}`);
+				// Only add project tag if it's not already in the existing project tags
+				if (!existingProjectTags.has(completedTask.project)) {
+					metadata.push(`#project/${completedTask.project}`);
+				} else {
+					// Project already in tags, ensure it's added to the tag list
+					const projectTag = `#project/${completedTask.project}`;
+					if (!metadata.includes(projectTag)) {
+						metadata.push(projectTag);
+					}
+				}
 			}
 		}
 
@@ -1412,7 +1435,16 @@ export class TaskManager extends Component {
 			if (useDataviewFormat) {
 				metadata.push(`[context:: ${completedTask.context}]`);
 			} else {
-				metadata.push(`@${completedTask.context}`);
+				// 仅当上下文不在已有上下文标签集合中时才添加
+				if (!existingContextTags.has(completedTask.context)) {
+					metadata.push(`@${completedTask.context}`);
+				} else {
+					// 上下文已在标签中，确保它被添加到标签列表
+					const contextTag = `@${completedTask.context}`;
+					if (!metadata.includes(contextTag)) {
+						metadata.push(contextTag);
+					}
+				}
 			}
 		}
 
