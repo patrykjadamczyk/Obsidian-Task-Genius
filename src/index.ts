@@ -445,48 +445,58 @@ export default class TaskProgressBarPlugin extends Plugin {
 	}
 
 	registerCommands() {
-		this.addCommand({
-			id: "sort-tasks-by-due-date",
-			name: t("Sort Tasks in Section"),
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				const editorView = (editor as any).cm as EditorView;
-				if (!editorView) return;
+		if (this.settings.sortTasks) {
+			this.addCommand({
+				id: "sort-tasks-by-due-date",
+				name: t("Sort Tasks in Section"),
+				editorCallback: (editor: Editor, view: MarkdownView) => {
+					const editorView = (editor as any).cm as EditorView;
+					if (!editorView) return;
 
-				const changes = sortTasksInDocument(editorView, this, false);
-
-				if (changes) {
-					new Notice(
-						t(
-							"Tasks sorted (using settings). Change application needs refinement."
-						)
+					const changes = sortTasksInDocument(
+						editorView,
+						this,
+						false
 					);
-				} else {
-					// Notice is already handled within sortTasksInDocument if no changes or sorting disabled
-				}
-			},
-		});
 
-		this.addCommand({
-			id: "sort-tasks-in-entire-document",
-			name: t("Sort Tasks in Entire Document"),
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				const editorView = (editor as any).cm as EditorView;
-				if (!editorView) return;
+					if (changes) {
+						new Notice(
+							t(
+								"Tasks sorted (using settings). Change application needs refinement."
+							)
+						);
+					} else {
+						// Notice is already handled within sortTasksInDocument if no changes or sorting disabled
+					}
+				},
+			});
 
-				const changes = sortTasksInDocument(editorView, this, true);
+			this.addCommand({
+				id: "sort-tasks-in-entire-document",
+				name: t("Sort Tasks in Entire Document"),
+				editorCallback: (editor: Editor, view: MarkdownView) => {
+					const editorView = (editor as any).cm as EditorView;
+					if (!editorView) return;
 
-				if (changes) {
-					const info = editorView.state.field(editorInfoField);
-					if (!info || !info.file) return;
-					this.app.vault.process(info.file, (data) => {
-						return changes;
-					});
-					new Notice(t("Entire document sorted (using settings)."));
-				} else {
-					new Notice(t("Tasks already sorted or no tasks found."));
-				}
-			},
-		});
+					const changes = sortTasksInDocument(editorView, this, true);
+
+					if (changes) {
+						const info = editorView.state.field(editorInfoField);
+						if (!info || !info.file) return;
+						this.app.vault.process(info.file, (data) => {
+							return changes;
+						});
+						new Notice(
+							t("Entire document sorted (using settings).")
+						);
+					} else {
+						new Notice(
+							t("Tasks already sorted or no tasks found.")
+						);
+					}
+				},
+			});
+		}
 
 		// Add command for cycling task status forward
 		this.addCommand({

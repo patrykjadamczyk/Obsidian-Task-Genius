@@ -38,6 +38,7 @@ import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
 import { Habit } from "../components/habit/habit";
+import { ConfirmModal } from "src/components/ConfirmModal";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -481,20 +482,32 @@ export class TaskView extends ItemView {
 				item.setTitle(t("Reindex"));
 				item.setIcon("rotate-ccw");
 				item.onClick(async () => {
-					const confirmed = window.confirm(
-						t("Are you sure you want to force reindex all tasks?")
-					);
-					if (!confirmed) return;
-					try {
-						new Notice(
-							t("Clearing task cache and rebuilding index...")
-						);
-						await this.plugin.taskManager.forceReindex();
-						new Notice(t("Task index completely rebuilt"));
-					} catch (error) {
-						console.error("Failed to force reindex tasks:", error);
-						new Notice(t("Failed to force reindex tasks"));
-					}
+					new ConfirmModal(this.plugin, {
+						title: t("Reindex"),
+						message: t(
+							"Are you sure you want to force reindex all tasks?"
+						),
+						confirmText: t("Reindex"),
+						cancelText: t("Cancel"),
+						onConfirm: async (confirmed) => {
+							if (!confirmed) return;
+							try {
+								new Notice(
+									t(
+										"Clearing task cache and rebuilding index..."
+									)
+								);
+								await this.plugin.taskManager.forceReindex();
+								new Notice(t("Task index completely rebuilt"));
+							} catch (error) {
+								console.error(
+									"Failed to force reindex tasks:",
+									error
+								);
+								new Notice(t("Failed to force reindex tasks"));
+							}
+						},
+					}).open();
 				});
 			});
 

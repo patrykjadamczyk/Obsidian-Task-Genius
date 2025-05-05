@@ -1,0 +1,6 @@
+.confirm-modal-buttons {
+	display: flex;
+	gap: var(--size-4-3);
+	justify-content: flex-end;
+	margin-top: var(--size-4-3);
+}
