@@ -345,10 +345,10 @@ export class TagViewComponent extends TwoColumnViewBase<string> {
 				taskListEl.hide();
 			}
 
-			// 为此分区创建一个渲染器
 			section.renderer = new TaskListRendererComponent(
 				this,
-				taskListEl, // 在此分区的容器内渲染
+				taskListEl,
+				this.plugin,
 				this.app,
 				this.config.rendererContext
 			);

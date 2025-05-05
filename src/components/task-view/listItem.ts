@@ -119,7 +119,10 @@ export class TaskListItemComponent extends Component {
 				let dateText = "";
 				if (dueDate.getTime() < today.getTime()) {
 					dateText =
-						t("Overdue") + " | " + getRelativeTimeString(dueDate);
+						t("Overdue") +
+						(this.settings.useRelativeTimeForDate
+							? " | " + getRelativeTimeString(dueDate)
+							: "");
 					dueEl.classList.add("task-overdue");
 				} else if (dueDate.getTime() === today.getTime()) {
 					dateText = this.settings.useRelativeTimeForDate

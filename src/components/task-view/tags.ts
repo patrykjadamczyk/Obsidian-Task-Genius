@@ -634,6 +634,7 @@ export class TagsComponent extends Component {
 			this.mainTaskRenderer = new TaskListRendererComponent(
 				this,
 				this.taskListContainerEl,
+				this.plugin,
 				this.app,
 				"tags"
 			);
@@ -685,6 +686,7 @@ export class TagsComponent extends Component {
 			section.renderer = new TaskListRendererComponent(
 				this,
 				taskListEl, // Render inside this section's container
+				this.plugin,
 				this.app,
 				"tags"
 			);

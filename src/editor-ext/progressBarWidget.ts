@@ -634,6 +634,15 @@ export function taskProgressBarExtension(
 					let { from, to } = cursor.value;
 					const headingLine = view.state.doc.lineAt(from);
 
+					if (
+						!this.isPositionEnabledByHeading(
+							view.state,
+							headingLine.from
+						)
+					) {
+						continue;
+					}
+
 					const range = this.calculateRangeForTransform(
 						view.state,
 						headingLine.from
@@ -683,6 +692,9 @@ export function taskProgressBarExtension(
 					let { from } = cursor.value;
 					const linePos = view.state.doc.lineAt(from)?.from;
 
+					if (!this.isPositionEnabledByHeading(view.state, linePos)) {
+						continue;
+					}
 					// Don't parse any tasks in code blocks or frontmatter
 					const syntaxNode = syntaxTree(view.state).resolveInner(
 						linePos + 1
@@ -773,10 +785,15 @@ export function taskProgressBarExtension(
 					let { from } = cursor.value;
 					const linePos = view.state.doc.lineAt(from)?.from;
 
+					if (!this.isPositionEnabledByHeading(view.state, linePos)) {
+						continue;
+					}
+
 					// Don't parse any bullets in code blocks or frontmatter
 					const syntaxNode = syntaxTree(view.state).resolveInner(
 						linePos + 1
 					);
+
 					const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
 					const excludedSection = [
 						"hmd-codeblock",
@@ -1279,6 +1296,85 @@ export function taskProgressBarExtension(
 					console.error("Error getting tab size:", e);
 					return 4; // Default tab size
 				}
+			}
+
+			/**
+			 * Check the nearest preceding heading text
+			 * @param state EditorState
+			 * @param position The current position to check
+			 * @returns The heading text or null
+			 */
+			private findNearestPrecedingHeadingText(
+				state: EditorState,
+				position: number
+			): string | null {
+				// 首先检查当前行是否是标题
+				const currentLine = state.doc.lineAt(position);
+				const currentLineText = state.doc.sliceString(
+					currentLine.from,
+					currentLine.to
+				);
+
+				// 检查当前行是否是标题格式（以 # 开头）
+				if (/^#{1,6}\s+/.test(currentLineText.trim())) {
+					return currentLineText.trim();
+				}
+
+				let nearestHeadingText: string | null = null;
+				let nearestHeadingPos = -1;
+
+				syntaxTree(state).iterate({
+					to: position, // Only iterate to the current position
+					enter: (nodeRef: any) => {
+						// Check if the node type is a heading (ATXHeading1, ATXHeading2, ...)
+						if (nodeRef.type.name.startsWith("header")) {
+							// Ensure the heading is before the current position and closer than the last found
+							if (
+								nodeRef.from < position &&
+								nodeRef.from > nearestHeadingPos
+							) {
+								nearestHeadingPos = nodeRef.from;
+								const line = state.doc.lineAt(nodeRef.from);
+								nearestHeadingText = state.doc
+									.sliceString(line.from, line.to)
+									.trim();
+							}
+						}
+					},
+				});
+				return nearestHeadingText;
+			}
+
+			/**
+			 * Check if the position is disabled by heading
+			 * @param state EditorState
+			 * @param position The position to check (usually the start of the line)
+			 * @returns boolean
+			 */
+			private isPositionEnabledByHeading(
+				state: EditorState,
+				position: number
+			): boolean {
+				// Check if the feature is enabled and the disabled list is valid
+				if (!plugin.settings.showProgressBarBasedOnHeading?.trim()) {
+					return true;
+				}
+
+				const headingText = this.findNearestPrecedingHeadingText(
+					state,
+					position
+				);
+
+				if (
+					headingText &&
+					plugin.settings.showProgressBarBasedOnHeading
+						.split(",")
+						.includes(headingText)
+				) {
+					return true;
+				}
+
+				return false;
 			}
 
 			public calculateTasksNum(

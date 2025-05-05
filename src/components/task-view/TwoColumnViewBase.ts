@@ -205,6 +205,7 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 		this.taskRenderer = new TaskListRendererComponent(
 			this,
 			this.taskListContainerEl,
+			this.plugin,
 			this.app,
 			this.config.rendererContext
 		);

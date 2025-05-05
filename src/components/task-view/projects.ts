@@ -76,6 +76,7 @@ export class ProjectsComponent extends Component {
 		this.taskRenderer = new TaskListRendererComponent(
 			this,
 			this.taskListContainerEl,
+			this.plugin,
 			this.app,
 			"projects"
 		);

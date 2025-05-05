@@ -503,6 +503,27 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 								this.applySettingsUpdate();
 							})
 					);
+
+				new Setting(containerEl)
+					.setName(t("Show progress bars based on heading"))
+					.setDesc(
+						t(
+							"Toggle this to enable showing progress bars based on heading."
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder(t("# heading"))
+							.setValue(
+								this.plugin.settings
+									.showProgressBarBasedOnHeading
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.showProgressBarBasedOnHeading =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
 			}
 		}
 	}

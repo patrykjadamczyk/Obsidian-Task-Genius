@@ -307,6 +307,7 @@ export class ReviewComponent extends Component {
 		this.taskRenderer = new TaskListRendererComponent(
 			this, // Parent component
 			this.taskListContainerEl, // Container element
+			this.plugin,
 			this.app,
 			"review" // Context
 		);

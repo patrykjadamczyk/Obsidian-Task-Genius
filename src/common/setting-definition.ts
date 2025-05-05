@@ -258,6 +258,7 @@ export interface TaskProgressBarSettings {
 	hideProgressBarTags: string;
 	hideProgressBarFolders: string;
 	hideProgressBarMetadata: string;
+	showProgressBarBasedOnHeading: string;
 
 	// Task Status Settings
 	autoCompleteParent: boolean;
@@ -346,6 +347,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	hideProgressBarTags: "no-progress,hide-progress",
 	hideProgressBarFolders: "",
 	hideProgressBarMetadata: "hide-progress-bar",
+	showProgressBarBasedOnHeading: "",
 
 	// Task Status Defaults
 	autoCompleteParent: true,

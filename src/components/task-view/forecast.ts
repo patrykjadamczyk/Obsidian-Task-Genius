@@ -742,6 +742,7 @@ export class ForecastComponent extends Component {
 			section.renderer = new TaskListRendererComponent(
 				this,
 				taskListEl,
+				this.plugin,
 				this.app,
 				"forecast"
 			);

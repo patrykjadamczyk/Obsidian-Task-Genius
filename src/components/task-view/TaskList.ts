@@ -4,6 +4,7 @@ import { TaskListItemComponent } from "./listItem";
 import { TaskTreeItemComponent } from "./treeItem";
 import { tasksToTree } from "../../utils/treeViewUtil";
 import { t } from "../../translations/helper";
+import TaskProgressBarPlugin from "../../index";
 
 export class TaskListRendererComponent extends Component {
 	private taskComponents: TaskListItemComponent[] = [];
@@ -18,6 +19,7 @@ export class TaskListRendererComponent extends Component {
 	constructor(
 		private parent: Component, // Parent component to manage child lifecycle
 		private containerEl: HTMLElement, // The HTML element to render tasks into
+		private plugin: TaskProgressBarPlugin,
 		private app: App,
 		private context: string // Context identifier (e.g., "projects", "review")
 	) {
