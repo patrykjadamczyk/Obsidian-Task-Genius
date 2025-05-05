@@ -7,7 +7,7 @@ import {
 } from "@codemirror/state";
 import { getTabSize } from "../utils";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
-import TaskProgressBarPlugin from "..";
+import TaskProgressBarPlugin from "../index";
 import {
 	isLastWorkflowStageOrNotWorkflow,
 	workflowChangeAnnotation,
@@ -126,12 +126,6 @@ function handleParentTaskUpdateTransaction(
 	) {
 		const inProgressStatuses =
 			plugin.settings.taskStatuses.inProgress.split("|") || ["/"];
-		// Prevent updating parent if the trigger was an auto-complete itself
-		console.log(
-			isAutoCompleteAnnotation,
-			anySiblingsWithStatus,
-			tr.changes
-		);
 		if (!isAutoCompleteAnnotation) {
 			return markParentAsInProgress(
 				tr,

@@ -35,6 +35,16 @@ export class App {
 				openFile: function () {},
 			};
 		},
+
+		getActiveFile: function () {
+			return {
+				path: "mockFile.md",
+				// Add other TFile properties if necessary for the tests
+				name: "mockFile.md",
+				basename: "mockFile",
+				extension: "md",
+			};
+		},
 	};
 
 	fileManager = {

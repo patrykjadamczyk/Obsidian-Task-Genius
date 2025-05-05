@@ -11,7 +11,7 @@ import {
 	MarkdownFileInfo,
 	moment,
 } from "obsidian";
-import TaskProgressBarPlugin from "..";
+import TaskProgressBarPlugin from "../index";
 import { buildIndentString, getTabSize } from "../utils";
 import { t } from "../translations/helper";
 

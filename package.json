@@ -29,8 +29,8 @@
 	"devDependencies": {
 		"@codemirror/language": "https://github.com/lishid/cm-language",
 		"@codemirror/search": "^6.0.0",
-		"@codemirror/state": "^6.0.0",
-		"@codemirror/view": "^6.0.0",
+		"@codemirror/state": "^6.5.2",
+		"@codemirror/view": "^6.36.7",
 		"@datastructures-js/queue": "^4.2.3",
 		"@types/jest": "^29.5.0",
 		"@types/node": "^16.11.6",

@@ -1,4 +1,4 @@
-import TaskProgressBarPlugin from "..";
+import TaskProgressBarPlugin from "../index";
 import {
 	Component,
 	debounce,
@@ -12,7 +12,7 @@ import {
 	checkIfParentElementHasGoalFormat,
 	extractTaskAndGoalInfoReadMode,
 	getCustomTotalGoalReadMode,
-} from "src/utils/goal/readMode";
+} from "../utils/goal/readMode";
 
 interface GroupElement {
 	parentElement: HTMLElement;

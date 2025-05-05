@@ -16,7 +16,7 @@ importers:
         version: 1.10.0
       obsidian-daily-notes-interface:
         specifier: ^0.9.4
-        version: 0.9.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+        version: 0.9.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.7)
     devDependencies:
       '@codemirror/language':
         specifier: https://github.com/lishid/cm-language
@@ -25,11 +25,11 @@ importers:
         specifier: ^6.0.0
         version: 6.5.10
       '@codemirror/state':
-        specifier: ^6.0.0
+        specifier: ^6.5.2
         version: 6.5.2
       '@codemirror/view':
-        specifier: ^6.0.0
-        version: 6.36.5
+        specifier: ^6.36.7
+        version: 6.36.7
       '@datastructures-js/queue':
         specifier: ^4.2.3
         version: 4.2.3
@@ -71,7 +71,7 @@ importers:
         version: 3.0.0
       obsidian:
         specifier: ^1.8.7
-        version: 1.8.7(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+        version: 1.8.7(@codemirror/state@6.5.2)(@codemirror/view@6.36.7)
       regexp-match-indices:
         specifier: ^1.0.2
         version: 1.0.2
@@ -277,14 +277,20 @@ packages:
   '@codemirror/state@6.5.2':
     resolution: {integrity: sha512-FVqsPqtPWKVVL3dPSxy8wEF/ymIEuVzF1PK3VbUgrxXpJUSHQWWZz4JMToquRxnkw+36LTamCZG2iua2Ptq0fA==}
 
-  '@codemirror/view@6.36.5':
-    resolution: {integrity: sha512-cd+FZEUlu3GQCYnguYm3EkhJ8KJVisqqUsCOKedBoAt/d9c76JUUap6U0UrpElln5k6VyrEOYliMuDAKIeDQLg==}
+  '@codemirror/view@6.36.7':
+    resolution: {integrity: sha512-kCWGW/chWGPgZqfZ36Um9Iz0X2IVpmCjg1P/qY6B6a2ecXtWRRAigmpJ6YgUQ5lTWXMyyVdfmpzhLZmsZQMbtg==}
 
   '@datastructures-js/queue@4.2.3':
     resolution: {integrity: sha512-GWVMorC/xi2V2ta+Z/CPgPGHL2ZJozcj48g7y2nIX5GIGZGRrbShSHgvMViJwHJurUzJYOdIdRZnWDRrROFwJA==}
 
   '@eslint-community/eslint-utils@4.6.1':
     resolution: {integrity: sha512-KTsJMmobmbrFLe3LDh0PC2FXpcSYJt/MLjlkh/9LEnmKYLSYmT/0EW9JWANjeoemiuZrmogti0tW5Ch+qNUYDw==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
+
+  '@eslint-community/eslint-utils@4.7.0':
+    resolution: {integrity: sha512-dyybb3AcajC7uha6CvhdVRJqaKyn7w2YKqKyAN37NKYgZT36w+iRb0Dymmc5qEJ549c/S31cMMSFd75bteCpCw==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
@@ -2263,20 +2269,20 @@ snapshots:
     dependencies:
       '@codemirror/language': 6.10.8
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       '@lezer/common': 1.2.3
 
   '@codemirror/commands@6.8.1':
     dependencies:
       '@codemirror/language': 6.10.8
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       '@lezer/common': 1.2.3
 
   '@codemirror/language@6.10.8':
     dependencies:
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       '@lezer/common': 1.2.3
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
@@ -2285,7 +2291,7 @@ snapshots:
   '@codemirror/language@https://codeload.github.com/lishid/cm-language/tar.gz/6c1c5f5b677f6f6503d1ca2ec47f62f6406cda67':
     dependencies:
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       '@lezer/common': 1.2.3
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2
@@ -2294,20 +2300,20 @@ snapshots:
   '@codemirror/lint@6.8.5':
     dependencies:
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       crelt: 1.0.6
 
   '@codemirror/search@6.5.10':
     dependencies:
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       crelt: 1.0.6
 
   '@codemirror/state@6.5.2':
     dependencies:
       '@marijn/find-cluster-break': 1.0.2
 
-  '@codemirror/view@6.36.5':
+  '@codemirror/view@6.36.7':
     dependencies:
       '@codemirror/state': 6.5.2
       style-mod: 4.1.2
@@ -2316,6 +2322,11 @@ snapshots:
   '@datastructures-js/queue@4.2.3': {}
 
   '@eslint-community/eslint-utils@4.6.1(eslint@8.57.1)':
+    dependencies:
+      eslint: 8.57.1
+      eslint-visitor-keys: 3.4.3
+
+  '@eslint-community/eslint-utils@4.7.0(eslint@8.57.1)':
     dependencies:
       eslint: 8.57.1
       eslint-visitor-keys: 3.4.3
@@ -2921,7 +2932,7 @@ snapshots:
       '@codemirror/lint': 6.8.5
       '@codemirror/search': 6.5.10
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
 
   collect-v8-coverage@1.0.2: {}
 
@@ -3155,7 +3166,7 @@ snapshots:
 
   eslint@8.57.1:
     dependencies:
-      '@eslint-community/eslint-utils': 4.6.1(eslint@8.57.1)
+      '@eslint-community/eslint-utils': 4.7.0(eslint@8.57.1)
       '@eslint-community/regexpp': 4.12.1
       '@eslint/eslintrc': 2.1.4
       '@eslint/js': 8.57.1
@@ -3993,25 +4004,25 @@ snapshots:
 
   nwsapi@2.2.20: {}
 
-  obsidian-daily-notes-interface@0.9.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.5):
+  obsidian-daily-notes-interface@0.9.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.7):
     dependencies:
-      obsidian: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a(@codemirror/state@6.5.2)(@codemirror/view@6.36.5)
+      obsidian: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a(@codemirror/state@6.5.2)(@codemirror/view@6.36.7)
       tslib: 2.1.0
     transitivePeerDependencies:
       - '@codemirror/state'
       - '@codemirror/view'
 
-  obsidian@1.8.7(@codemirror/state@6.5.2)(@codemirror/view@6.36.5):
+  obsidian@1.8.7(@codemirror/state@6.5.2)(@codemirror/view@6.36.7):
     dependencies:
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       '@types/codemirror': 5.60.8
       moment: 2.29.4
 
-  obsidian@https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a(@codemirror/state@6.5.2)(@codemirror/view@6.36.5):
+  obsidian@https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a(@codemirror/state@6.5.2)(@codemirror/view@6.36.7):
     dependencies:
       '@codemirror/state': 6.5.2
-      '@codemirror/view': 6.36.5
+      '@codemirror/view': 6.36.7
       '@types/codemirror': 5.60.8
       moment: 2.29.4
 

@@ -1,8 +1,8 @@
 import { Component, Notice, setIcon } from "obsidian";
-import { DailyHabitProps } from "src/types/habit-card";
+import { DailyHabitProps } from "../../../types/habit-card";
 import { HabitCard } from "./habitcard";
-import { t } from "src/translations/helper";
-import TaskProgressBarPlugin from "src/index";
+import { t } from "../../../translations/helper";
+import TaskProgressBarPlugin from "../../../index";
 
 export class DailyHabitCard extends HabitCard {
 	constructor(

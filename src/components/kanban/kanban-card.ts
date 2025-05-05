@@ -1,5 +1,5 @@
 import { App, Component, MarkdownRenderer, Menu, TFile } from "obsidian";
-import { Task } from "src/utils/types/TaskIndex"; // Adjust path
+import { Task } from "../../utils/types/TaskIndex"; // Adjust path
 import { MarkdownRendererComponent } from "../MarkdownRenderer"; // Adjust path
 import TaskProgressBarPlugin from "../../index"; // Adjust path
 import { KanbanSpecificConfig } from "../../common/setting-definition";

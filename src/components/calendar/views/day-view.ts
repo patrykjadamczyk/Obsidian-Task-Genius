@@ -1,9 +1,6 @@
-import { App, Component, debounce, moment } from "obsidian";
-import { CalendarEvent } from "..";
-import {
-	renderCalendarEvent,
-	EventViewType,
-} from "../rendering/event-renderer";
+import { App, Component, moment } from "obsidian";
+import { CalendarEvent } from "../index";
+import { renderCalendarEvent } from "../rendering/event-renderer";
 import { CalendarViewComponent, CalendarViewOptions } from "./base-view";
 import TaskProgressBarPlugin from "../../../index";
 

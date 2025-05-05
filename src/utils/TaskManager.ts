@@ -15,7 +15,7 @@ import {
 import { TaskIndexer } from "./import/TaskIndexer";
 import { TaskWorkerManager } from "./workers/TaskWorkerManager";
 import { LocalStorageCache } from "./persister";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../index";
 import { RRule, RRuleSet, rrulestr } from "rrule";
 
 /**
@@ -1515,37 +1515,70 @@ export class TaskManager extends Component {
 
 		// Start with current due date or today if no due date
 		const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+		// Ensure baseDate is at the beginning of the day for date-based recurrence
+		baseDate.setHours(0, 0, 0, 0);
 
 		try {
-			// Parse different recurrence formats
-			// Tasks plugin style: "every day", "every 2 weeks", etc.
-			const recurrence = task.recurrence.trim().toLowerCase();
+			// Attempt to parse using rrule first
+			try {
+				// Use the task's recurrence string directly if it's a valid RRULE string
+				// Provide dtstart to rrulestr for context, especially for rules that might depend on the start date.
+				const rule = rrulestr(task.recurrence, { dtstart: baseDate });
 
-			// Default to adding 1 day if we can't parse the recurrence
-			let nextDate = new Date(baseDate);
-			nextDate.setDate(nextDate.getDate() + 1);
+				// We want the first occurrence strictly *after* the baseDate.
+				// Adding a small time offset ensures we get the next instance even if baseDate itself is an occurrence.
+				const afterDate = new Date(baseDate.getTime() + 1000); // 1 second after baseDate
+				const nextOccurrence = rule.after(afterDate); // Find the first occurrence after this adjusted date
+
+				if (nextOccurrence) {
+					// Set time to start of day, assuming date-only recurrence for now
+					nextOccurrence.setHours(0, 0, 0, 0);
+					this.log(
+						`Calculated next date using rrule for '${
+							task.recurrence
+						}': ${nextOccurrence.toISOString()}`
+					);
+					return nextOccurrence.getTime();
+				} else {
+					// No next occurrence found by rrule (e.g., rule has COUNT and finished)
+					this.log(
+						`[TaskManager] rrule couldn't find next occurrence for rule: ${task.recurrence}. Falling back.`
+					);
+					// Fall through to simple logic below
+				}
+			} catch (e) {
+				// rrulestr failed, likely not a standard RRULE format. Fall back to simple parsing.
+				if (e instanceof Error) {
+					this.log(
+						`[TaskManager] Failed to parse recurrence '${task.recurrence}' with rrule. Falling back to simple logic. Error: ${e.message}`
+					);
+				} else {
+					this.log(
+						`[TaskManager] Failed to parse recurrence '${task.recurrence}' with rrule. Falling back to simple logic. Unknown error.`
+					);
+				}
+			}
+
+			// --- Fallback Simple Parsing Logic ---
+			this.log(
+				`[TaskManager] Using fallback logic for recurrence: ${task.recurrence}`
+			);
+			const recurrence = task.recurrence.trim().toLowerCase();
+			let nextDate = new Date(baseDate); // Start calculation from the base date
 
 			// Parse "every X days/weeks/months/years" format
 			if (recurrence.startsWith("every")) {
 				const parts = recurrence.split(" ");
-
-				// Handle "every day/week/month/year"
 				if (parts.length >= 2) {
 					let interval = 1;
 					let unit = parts[1];
-
-					// Check if there's a number after "every"
 					if (parts.length >= 3 && !isNaN(parseInt(parts[1]))) {
 						interval = parseInt(parts[1]);
 						unit = parts[2];
 					}
-
-					// Make unit singular for matching
 					if (unit.endsWith("s")) {
 						unit = unit.substring(0, unit.length - 1);
 					}
-
-					// Calculate next date based on unit
 					switch (unit) {
 						case "day":
 							nextDate.setDate(baseDate.getDate() + interval);
@@ -1562,9 +1595,17 @@ export class TaskManager extends Component {
 							);
 							break;
 						default:
-							// For unknown units, default to days
-							nextDate.setDate(baseDate.getDate() + interval);
+							this.log(
+								`[TaskManager] Unknown unit in recurrence '${recurrence}'. Defaulting to days.`
+							);
+							nextDate.setDate(baseDate.getDate() + interval); // Default to days
 					}
+				} else {
+					// Malformed "every" rule, fallback to +1 day from baseDate
+					this.log(
+						`[TaskManager] Malformed 'every' rule '${recurrence}'. Defaulting to next day.`
+					);
+					nextDate.setDate(baseDate.getDate() + 1);
 				}
 			}
 			// Handle specific weekday recurrences like "every Monday"
@@ -1577,7 +1618,7 @@ export class TaskManager extends Component {
 				recurrence.includes("saturday") ||
 				recurrence.includes("sunday")
 			) {
-				const weekdays = {
+				const weekdays: { [key: string]: number } = {
 					sunday: 0,
 					monday: 1,
 					tuesday: 2,
@@ -1586,8 +1627,6 @@ export class TaskManager extends Component {
 					friday: 5,
 					saturday: 6,
 				};
-
-				// Find which weekday is mentioned
 				let targetDay = -1;
 				for (const [day, value] of Object.entries(weekdays)) {
 					if (recurrence.includes(day)) {
@@ -1595,25 +1634,53 @@ export class TaskManager extends Component {
 						break;
 					}
 				}
-
 				if (targetDay >= 0) {
-					// Start from tomorrow to avoid repeating on the same day
+					// Start calculation from the day *after* the baseDate
 					nextDate.setDate(baseDate.getDate() + 1);
-
-					// Find the next occurrence of the target day
 					while (nextDate.getDay() !== targetDay) {
 						nextDate.setDate(nextDate.getDate() + 1);
 					}
+				} else {
+					// Malformed weekday rule, fallback to +1 day from baseDate
+					this.log(
+						`[TaskManager] Malformed weekday rule '${recurrence}'. Defaulting to next day.`
+					);
+					nextDate.setDate(baseDate.getDate() + 1);
 				}
+			} else {
+				// Unknown format, fallback to +1 day from baseDate
+				this.log(
+					`[TaskManager] Unknown recurrence format '${recurrence}'. Defaulting to next day.`
+				);
+				nextDate.setDate(baseDate.getDate() + 1);
 			}
 
+			// Ensure the calculated date is at the start of the day
+			nextDate.setHours(0, 0, 0, 0);
+			this.log(
+				`Calculated next date using simple logic for '${
+					task.recurrence
+				}': ${nextDate.toISOString()}`
+			);
 			return nextDate.getTime();
 		} catch (error) {
 			console.error("Error calculating next due date:", error);
-			// Default fallback: add one day
-			const tomorrow = new Date(baseDate);
-			tomorrow.setDate(tomorrow.getDate() + 1);
-			return tomorrow.getTime();
+			// Default fallback: add one day to baseDate
+			const fallbackDate = new Date(baseDate);
+			fallbackDate.setDate(fallbackDate.getDate() + 1);
+			fallbackDate.setHours(0, 0, 0, 0);
+			if (task.recurrence) {
+				this.log(
+					`Error calculating next due date for '${
+						task.recurrence
+					}'. Defaulting to ${fallbackDate.toISOString()}`
+				);
+			} else {
+				this.log(
+					`Error calculating next due date for task without recurrence. Defaulting to ${fallbackDate.toISOString()}`
+				);
+			}
+			return fallbackDate.getTime();
 		}
 	}
 

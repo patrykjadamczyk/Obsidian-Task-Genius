@@ -1,6 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import { RewardItem } from "../common/setting-definition";
-import { t } from "src/translations/helper";
+import { t } from "../translations/helper";
 import "../styles/reward.css";
 
 export class RewardModal extends Modal {

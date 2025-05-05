@@ -1,6 +1,6 @@
 import { ExtraButtonComponent, Menu } from "obsidian";
 import { Component } from "obsidian";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../index";
 import { Task } from "../utils/types/TaskIndex";
 import { createTaskCheckbox } from "./task-view/details";
 import { getStatusText } from "./task-view/details";

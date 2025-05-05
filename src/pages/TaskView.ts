@@ -37,7 +37,7 @@ import { CalendarComponent, CalendarEvent } from "../components/calendar";
 import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
-import { Habit } from "src/components/habit/habit";
+import { Habit } from "../components/habit/habit";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 

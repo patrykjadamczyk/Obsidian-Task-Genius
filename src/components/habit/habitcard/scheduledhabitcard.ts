@@ -5,10 +5,10 @@ import {
 	setIcon,
 	Setting,
 } from "obsidian";
-import { ScheduledHabitProps } from "src/types/habit-card";
+import { ScheduledHabitProps } from "../../../types/habit-card";
 import { HabitCard } from "./habitcard";
-import TaskProgressBarPlugin from "src";
-import { t } from "src/translations/helper";
+import TaskProgressBarPlugin from "../../../index";
+import { t } from "../../../translations/helper";
 import { EventDetailModal } from "../habit";
 
 function renderPieDotSVG(completed: number, total: number): string {

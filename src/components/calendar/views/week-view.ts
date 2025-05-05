@@ -1,10 +1,5 @@
 import { App, Component, debounce, moment } from "obsidian";
-import { CalendarEvent } from "..";
-import {
-	calculateEventLayout,
-	determineEventColor,
-	EventLayout,
-} from "../algorithm"; // Import layout functions
+import { CalendarEvent } from "../index";
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Use new renderer
 import {
 	CalendarSpecificConfig,

@@ -5,11 +5,11 @@ import {
 	Transaction,
 	TransactionSpec,
 } from "@codemirror/state";
-import TaskProgressBarPlugin from "..";
+import TaskProgressBarPlugin from "../index";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import { getTasksAPI } from "../utils";
 import { priorityChangeAnnotation } from "./priorityPicker";
-import { parseTaskLine } from "src/utils/taskUtil";
+import { parseTaskLine } from "../utils/taskUtil";
 /**
  * Creates an editor extension that cycles through task statuses when a user clicks on a task marker
  * @param app The Obsidian app instance
@@ -279,8 +279,6 @@ export function findTaskStatusChanges(
 					isTaskChange = true;
 				}
 
-				console.log(newLineText, insertedText);
-
 				if (
 					tasksPluginLoaded &&
 					newLineText === insertedText &&
@@ -295,14 +293,6 @@ export function findTaskStatusChanges(
 				) {
 					triggerByTasks = true;
 				}
-
-				console.log({
-					triggerByTasks,
-					wasCompleteTask,
-					isTaskChange,
-					changedPosition,
-					currentMark,
-				});
 
 				if (
 					changedPosition !== null &&

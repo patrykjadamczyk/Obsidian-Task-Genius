@@ -9,7 +9,7 @@ import { Task } from "../../utils/types/TaskIndex";
 import { t } from "../../translations/helper";
 import "../../styles/project-view.css";
 import { TaskListRendererComponent } from "./TaskList";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../../index";
 
 interface SelectedProjects {
 	projects: string[];

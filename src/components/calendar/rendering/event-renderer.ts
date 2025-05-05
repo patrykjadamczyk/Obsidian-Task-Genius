@@ -1,16 +1,10 @@
-import {
-	App,
-	Component,
-	debounce,
-	moment,
-	MarkdownRenderer as ObsidianMarkdownRenderer,
-} from "obsidian";
-import { CalendarEvent } from ".."; // Adjust path as needed
+import { App, Component, debounce, moment } from "obsidian";
+import { CalendarEvent } from "../index"; // Adjust path as needed
 import { EventLayout, determineEventColor } from "../algorithm"; // Adjust path as needed
 import {
 	clearAllMarks,
 	MarkdownRendererComponent,
-} from "src/components/MarkdownRenderer";
+} from "../../MarkdownRenderer";
 import { createTaskCheckbox } from "../../task-view/details";
 
 export type EventViewType =

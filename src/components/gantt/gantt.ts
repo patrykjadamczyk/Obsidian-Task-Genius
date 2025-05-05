@@ -13,11 +13,11 @@ import { DateHelper } from "../../utils/DateHelper";
 import { TimelineHeaderComponent } from "./timeline-header";
 import { GridBackgroundComponent } from "./grid-background";
 import { TaskRendererComponent } from "./task-renderer";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../../index";
 import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
 import { ActiveFilter, FilterCategory } from "../filter/filter-type";
 import { ScrollToDateButton } from "../filter/custom/scroll-to-date-button";
-import { PRIORITY_MAP } from "src/common/default-symbol";
+import { PRIORITY_MAP } from "../../common/default-symbol";
 
 // Define the PRIORITY_MAP here as well, or import it if moved to a shared location
 // This is needed to convert filter value (icon/text) back to number for comparison

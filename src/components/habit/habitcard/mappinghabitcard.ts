@@ -6,9 +6,9 @@ import {
 	Setting,
 	SliderComponent,
 } from "obsidian";
-import { MappingHabitProps } from "src/types/habit-card";
+import { MappingHabitProps } from "../../../types/habit-card";
 import { HabitCard } from "./habitcard";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../../../index";
 
 export class MappingHabitCard extends HabitCard {
 	constructor(

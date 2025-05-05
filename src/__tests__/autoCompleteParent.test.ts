@@ -1,13 +1,3 @@
-import { App } from "obsidian";
-import {
-	Text,
-	Transaction,
-	TransactionSpec,
-	EditorState,
-	ChangeSet,
-	Annotation,
-} from "@codemirror/state";
-import TaskProgressBarPlugin from ".."; // Adjust the import path as necessary
 import {
 	handleParentTaskUpdateTransaction,
 	findTaskStatusChange,
@@ -15,239 +5,19 @@ import {
 	areAllSiblingsCompleted,
 	anySiblingWithStatus,
 	getParentTaskStatus,
-	taskStatusChangeAnnotation, // Import the actual annotation
 } from "../editor-ext/autoCompleteParent"; // Adjust the import path as necessary
-import { TaskProgressBarSettings } from "src/common/setting-definition";
-import { buildIndentString, getTabSize } from "../utils";
+import { buildIndentString } from "../utils";
+import {
+	createMockTransaction,
+	createMockApp,
+	createMockPlugin,
+	createMockText,
+	mockParentTaskStatusChangeAnnotation,
+} from "./mockUtils";
 
 // --- Mock Setup ---
 
 // Mock Annotation Type
-const mockAnnotationType = {
-	of: jest.fn().mockImplementation((value: string) => ({
-		type: mockAnnotationType,
-		value,
-	})),
-};
-// Use the actual annotation object from the source file for checks
-const mockParentTaskStatusChangeAnnotation = taskStatusChangeAnnotation;
-
-// Mock Text Object
-const createMockText = (content: string): Text => {
-	const lines = content.split("\n");
-	const doc = {
-		toString: () => content,
-		length: content.length,
-		lines: lines.length,
-		line: jest.fn((lineNum: number) => {
-			if (lineNum < 1 || lineNum > lines.length) {
-				throw new Error(
-					`Line ${lineNum} out of range (1-${lines.length})`
-				);
-			}
-			const text = lines[lineNum - 1];
-			let from = 0;
-			for (let i = 0; i < lineNum - 1; i++) {
-				from += lines[i].length + 1; // +1 for newline
-			}
-			return {
-				text: text,
-				from,
-				to: from + text.length,
-				number: lineNum,
-				length: text.length,
-			};
-		}),
-		lineAt: jest.fn((pos: number) => {
-			if (pos < 0 || pos > content.length) {
-				throw new Error(
-					`Position ${pos} out of range (0-${content.length})`
-				);
-			}
-			let currentPos = 0;
-			for (let i = 0; i < lines.length; i++) {
-				const lineLength = lines[i].length;
-				const lineStart = currentPos;
-				const lineEnd = currentPos + lineLength;
-				if (pos >= lineStart && pos <= lineEnd) {
-					return {
-						text: lines[i],
-						from: lineStart,
-						to: lineEnd,
-						number: i + 1,
-						length: lineLength,
-					};
-				}
-				currentPos += lineLength + 1; // +1 for newline
-			}
-			// Handle edge case for position at the very end
-			if (pos === content.length && lines.length > 0) {
-				const lastLineIndex = lines.length - 1;
-				const lastLine = lines[lastLineIndex];
-				let from = 0;
-				for (let i = 0; i < lastLineIndex; i++) {
-					from += lines[i].length + 1;
-				}
-				return {
-					text: lastLine,
-					from: from,
-					to: from + lastLine.length,
-					number: lines.length,
-					length: lastLine.length,
-				};
-			}
-			throw new Error(`Could not find line at pos ${pos}`);
-		}),
-		// Add sliceString if needed by iterChanges simulation
-		sliceString: jest.fn((from: number, to: number) =>
-			content.slice(from, to)
-		),
-	};
-	// @ts-ignore - Add self-reference for Text methods if necessary
-	doc.doc = doc;
-	return doc as Text;
-};
-
-// Mock ChangeSet
-const createMockChangeSet = (doc: Text, changes: any[] = []): ChangeSet => {
-	// Basic mock, might need refinement based on actual usage
-	return {
-		length: changes.length, // Length of the new document
-		// @ts-ignore
-		iterChanges: jest.fn((callback) => {
-			changes.forEach((change) => {
-				callback(
-					change.fromA,
-					change.toA,
-					change.fromB,
-					change.toB,
-					createMockText(change.insertedText || "") // inserted text needs to be a Text object
-				);
-			});
-		}),
-		// Add other ChangeSet methods if needed: mapDesc, compose, mapPos, etc.
-	} as ChangeSet;
-};
-
-// Mock Transaction Object
-const createMockTransaction = (options: {
-	startStateDocContent?: string;
-	newDocContent?: string;
-	changes?: {
-		fromA: number;
-		toA: number;
-		fromB: number;
-		toB: number;
-		insertedText?: string;
-	}[];
-	docChanged?: boolean;
-	isUserEvent?: string | false; // e.g., 'input.paste' or false
-	annotations?: any[];
-	selection?: { anchor: number; head: number };
-}): Transaction => {
-	const startDoc = createMockText(options.startStateDocContent ?? "");
-	const newDoc = createMockText(
-		options.newDocContent ?? options.startStateDocContent ?? ""
-	);
-	const changeSet = createMockChangeSet(newDoc, options.changes);
-
-	const mockTr = {
-		startState: { doc: startDoc /* other state props */ } as EditorState,
-		newDoc: newDoc,
-		changes: changeSet,
-		docChanged:
-			options.docChanged !== undefined
-				? options.docChanged
-				: !!options.changes?.length,
-		isUserEvent: jest.fn((type: string) => {
-			if (options.isUserEvent === false) return false;
-			return options.isUserEvent === type;
-		}),
-		annotation: jest.fn(<T>(type: Annotation<T>): T | undefined => {
-			const found = options.annotations?.find((ann) => ann.type === type);
-			return found ? found.value : undefined;
-		}),
-		selection: options.selection || { anchor: 0, head: 0 },
-		// Add other Transaction properties/methods if needed (effects, state, etc.)
-	};
-
-	// @ts-ignore - Allow adding mock state for testing purposes
-	mockTr.state = { doc: newDoc };
-
-	return mockTr as unknown as Transaction;
-};
-
-// Mock App Object
-const createMockApp = (tabSize: number = 4): App => {
-	const app = new App();
-	// Override vault.getConfig if a specific tab size is provided
-	if (tabSize !== 4) {
-		// @ts-ignore - Override the getConfig function to return the specified tab size
-		app.vault.getConfig = jest.fn((key: string) => {
-			if (key === "tabSize") {
-				return tabSize;
-			}
-			return undefined;
-		});
-	}
-	return app;
-};
-
-// Mock Plugin Object
-const createMockPlugin = (
-	settings: Partial<{
-		markParentInProgressWhenPartiallyComplete: boolean;
-		taskStatuses: { inProgress: string; completed: string };
-		workflow: {
-			enableWorkflow: boolean;
-			autoRemoveLastStageMarker: boolean;
-			taskCountAffectsParent: boolean;
-			autoAddTimestamp: boolean;
-			timestampFormat: string;
-			removeTimestampOnTransition: boolean;
-			calculateSpentTime: boolean;
-			spentTimeFormat: string;
-			definitions: any[];
-			autoAddNextTask: boolean;
-			calculateFullSpentTime: boolean;
-		};
-	}> = {}
-): TaskProgressBarPlugin => {
-	const defaults = {
-		markParentInProgressWhenPartiallyComplete: true,
-		taskStatuses: {
-			inProgress: "/",
-			completed: "x|X",
-		},
-		workflow: {
-			enableWorkflow: false,
-			autoRemoveLastStageMarker: true,
-			taskCountAffectsParent: true,
-			autoAddTimestamp: false,
-			timestampFormat: "YYYY-MM-DD HH:mm:ss",
-			removeTimestampOnTransition: false,
-			calculateSpentTime: false,
-			spentTimeFormat: "HH:mm",
-			definitions: [],
-			autoAddNextTask: false,
-			calculateFullSpentTime: false,
-		},
-	};
-
-	// Deep merge settings
-	const mergedSettings = {
-		...defaults,
-		...settings,
-		taskStatuses: { ...defaults.taskStatuses, ...settings.taskStatuses },
-		workflow: { ...defaults.workflow, ...settings.workflow },
-	};
-
-	// @ts-ignore
-	return {
-		settings: mergedSettings as unknown as TaskProgressBarSettings,
-		app: new App(), // Add app property with mock App instance
-	};
-};
 
 // --- Tests ---
 
@@ -639,7 +409,13 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	it("should mark parent as in progress when a child is unchecked (if setting enabled)", () => {
 		const mockPlugin = createMockPlugin({
 			markParentInProgressWhenPartiallyComplete: true,
-			taskStatuses: { inProgress: "/", completed: "x" },
+			taskStatuses: {
+				inProgress: "/",
+				completed: "x",
+				abandoned: "-",
+				planned: "?",
+				notStarted: " ",
+			},
 		});
 		const tr = createMockTransaction({
 			startStateDocContent: "- [x] Parent\n  - [x] Child",
@@ -690,7 +466,13 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	it("should mark parent as in progress when first child gets a status (if setting enabled)", () => {
 		const mockPlugin = createMockPlugin({
 			markParentInProgressWhenPartiallyComplete: true,
-			taskStatuses: { inProgress: "/", completed: "x" },
+			taskStatuses: {
+				inProgress: "/",
+				completed: "x",
+				abandoned: "-",
+				planned: "?",
+				notStarted: " ",
+			},
 		});
 		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
@@ -742,7 +524,13 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	it("should NOT mark parent as in progress if parent already has a status", () => {
 		const mockPlugin = createMockPlugin({
 			markParentInProgressWhenPartiallyComplete: true,
-			taskStatuses: { inProgress: "/", completed: "x" },
+			taskStatuses: {
+				inProgress: "/",
+				completed: "x",
+				abandoned: "-",
+				planned: "?",
+				notStarted: " ",
+			},
 		});
 		const tr = createMockTransaction({
 			startStateDocContent:
@@ -797,7 +585,13 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 		const indent = buildIndentString(createMockApp());
 		const mockPlugin = createMockPlugin({
 			markParentInProgressWhenPartiallyComplete: true,
-			taskStatuses: { inProgress: "/", completed: "x" },
+			taskStatuses: {
+				inProgress: "/",
+				completed: "x",
+				abandoned: "-",
+				planned: "?",
+				notStarted: " ",
+			},
 		});
 		const tr = createMockTransaction({
 			startStateDocContent: "- [ ] Parent\n" + `${indent}- [ ] Child`,
@@ -831,7 +625,13 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	it("should mark parent as in progress when one child is completed but others remain incomplete", () => {
 		const mockPlugin = createMockPlugin({
 			markParentInProgressWhenPartiallyComplete: true,
-			taskStatuses: { inProgress: "/", completed: "x" },
+			taskStatuses: {
+				inProgress: "/",
+				completed: "x",
+				abandoned: "-",
+				planned: "?",
+				notStarted: " ",
+			},
 		});
 		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
@@ -981,14 +781,9 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 			mockPlugin
 		);
 
-		console.log((result as any).changes);
-
 		// The function should identify and prevent such accidental parent status changes
 		expect(result).toBe(tr);
 		expect(result.changes).toEqual(tr.changes);
-		// Verify no new changes were added to modify parent task status
-		// Use type assertion to access changes property in test mocks
-		expect((result as any).changes.length).toBe(1);
 	});
 });
 

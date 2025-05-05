@@ -1,4 +1,4 @@
-import { PRIORITY_MAP } from "src/common/default-symbol";
+import { PRIORITY_MAP } from "../common/default-symbol";
 import { parseLocalDate } from "./dateUtil";
 import { Task } from "./types/TaskIndex";
 import {

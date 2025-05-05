@@ -7,7 +7,7 @@ import {
 	moment,
 	setIcon,
 } from "obsidian";
-import { Task } from "src/utils/types/TaskIndex"; // Assuming Task type exists here
+import { Task } from "../../utils/types/TaskIndex"; // Assuming Task type exists here
 // Removed: import { renderCalendarEvent } from "./event";
 import "../../styles/calendar/view.css"; // Import the CSS file
 import "../../styles/calendar/event.css"; // Import the CSS file
@@ -19,7 +19,7 @@ import { WeekView } from "./views/week-view";
 import { DayView } from "./views/day-view";
 import { AgendaView } from "./views/agenda-view";
 import { YearView } from "./views/year-view";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../../index";
 import { QuickCaptureModal } from "../QuickCaptureModal";
 // Import algorithm functions (optional for now, could be used within views)
 // import { calculateEventLayout, determineEventColor } from './algorithm';

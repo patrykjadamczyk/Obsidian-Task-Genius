@@ -1,21 +1,12 @@
-import { ChangeSpec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { Task as IndexerTask } from "../utils/types/TaskIndex"; // Import Task type from worker definitions
-import { parseLocalDate } from "../utils/dateUtil";
-import {
-	TASK_REGEX,
-	EMOJI_PRIORITY_REGEX,
-	EMOJI_DUE_DATE_REGEX,
-	DV_PRIORITY_REGEX,
-	DV_DUE_DATE_REGEX,
-} from "../common/regex-define";
-import { PRIORITY_MAP } from "../common/default-symbol";
-import TaskProgressBarPlugin from ".."; // Import the plugin class
-import { TaskProgressBarSettings } from "../common/setting-definition"; // Import settings type
-import { TFile, App, MetadataCache, Notice } from "obsidian"; // Added Notice
+import { Notice } from "obsidian";
+import { parseTaskLine, MetadataFormat } from "../utils/taskUtil";
+import { Task as IndexerTask } from "../utils/types/TaskIndex";
+import TaskProgressBarPlugin from "../index";
+import { TaskProgressBarSettings } from "../common/setting-definition";
 
 // Task statuses (aligned with common usage and sorting needs)
-enum SortableTaskStatus {
+export enum SortableTaskStatus {
 	Overdue = "overdue", // Calculated, not a raw status
 	DueSoon = "due_soon", // Calculated, not a raw status - Placeholder
 	InProgress = "/",
@@ -30,14 +21,18 @@ enum SortableTaskStatus {
 
 // Interface for tasks used within the sorting command, closely matching IndexerTask
 // We add calculated fields needed for sorting
-interface SortableTask extends Omit<IndexerTask, "id" | "children" | "parent"> {
-	id: string; // Keep ID for potential mapping/diffing
-	lineNumber: number; // Original line number (0-based)
-	indentation: number; // Calculated indentation level
-	children: SortableTask[]; // Children of the same type
-	parent?: SortableTask; // Parent reference
-	calculatedStatus: SortableTaskStatus | string; // Status used for sorting (can include 'overdue')
-	// Inherited from IndexerTask:
+export interface SortableTask
+	extends Omit<
+		IndexerTask,
+		"id" | "children" | "parent" | "filePath" | "line"
+	> {
+	id: string; // Use generated ID like line-${lineNumber} or keep parsed one? Let's keep parsed one.
+	lineNumber: number; // 0-based, relative to document start
+	indentation: number;
+	children: SortableTask[];
+	parent?: SortableTask;
+	calculatedStatus: SortableTaskStatus | string; // Status used for sorting
+	// Fields mapped from parsed Task
 	originalMarkdown: string;
 	status: string;
 	completed: boolean;
@@ -46,7 +41,14 @@ interface SortableTask extends Omit<IndexerTask, "id" | "children" | "parent"> {
 	dueDate?: number;
 	startDate?: number;
 	scheduledDate?: number;
-	// Add other inherited fields if needed by sorting or parsing
+	tags: string[]; // Changed from tags? to tags to match base Task interface
+	// Add any other fields from IndexerTask if needed by sorting criteria
+	// createdDate?: number;
+	// completedDate?: number;
+	// recurrence?: string;
+	// project?: string;
+	// context?: string;
+	// tags?: string[]; // Keep tags if needed for sorting/filtering later? Not currently used.
 }
 
 // Sorting criteria
@@ -69,122 +71,86 @@ function getIndentationLevel(line: string): number {
 	return match[1].length;
 }
 
-// Modified: Parses tasks from a text block with a line offset
+// --- Refactored Task Parsing using taskUtil ---
 function parseTasksForSorting(
 	blockText: string,
-	lineOffset: number = 0
+	lineOffset: number = 0,
+	filePath: string, // Added filePath
+	format: MetadataFormat // Added format
 ): SortableTask[] {
 	const lines = blockText.split("\n");
 	const tasks: SortableTask[] = [];
+	// taskMap uses the absolute line number as key
 	const taskMap: { [lineNumber: number]: SortableTask } = {};
 	let currentParentStack: SortableTask[] = [];
 
 	lines.forEach((line, index) => {
-		const match = line.match(TASK_REGEX);
-		if (match) {
-			const indentationStr = match[1];
-			const status = match[3];
-			let contentWithMetadata = match[4];
-			const lineNumber = lineOffset + index; // Calculate absolute line number
+		const lineNumber = lineOffset + index; // Calculate absolute line number (0-based)
 
+		// Use the robust parser from taskUtil
+		// Note: parseTaskLine expects 1-based line number for ID generation, pass lineNumber + 1
+		const parsedTask = parseTaskLine(
+			filePath,
+			line,
+			lineNumber + 1,
+			format
+		); // Pass 1-based line number
+
+		if (parsedTask) {
+			// We have a valid task line, now map it to SortableTask
 			const indentation = getIndentationLevel(line);
 
-			const newTask: Partial<SortableTask> = {
-				id: `line-${lineNumber}`,
-				lineNumber: lineNumber,
-				originalMarkdown: line, // Store original line from the block
-				status: status,
-				completed: status.toLowerCase() === "x",
-				indentation: indentation,
-				children: [],
-			};
-
-			// --- Metadata Extraction (Simplified) ---
-			let remainingContent = contentWithMetadata;
-			let priorityValue: number | undefined = undefined;
-			let priorityMatch = remainingContent.match(DV_PRIORITY_REGEX);
-			if (priorityMatch?.[1]) {
-				const prioStr = priorityMatch[1].trim().toLowerCase();
-				priorityValue = PRIORITY_MAP[prioStr] ?? parseInt(prioStr, 10);
-				if (!isNaN(priorityValue)) {
-					remainingContent = remainingContent.replace(
-						priorityMatch[0],
-						""
-					);
-				} else {
-					priorityValue = undefined;
-				}
-			}
-			if (priorityValue === undefined) {
-				priorityMatch = remainingContent.match(EMOJI_PRIORITY_REGEX);
-				if (priorityMatch?.[1]) {
-					priorityValue = PRIORITY_MAP[priorityMatch[1]];
-					if (priorityValue !== undefined) {
-						remainingContent = remainingContent.replace(
-							priorityMatch[0],
-							""
-						);
-					}
-				}
-			}
-			newTask.priority = priorityValue;
-
-			let dueDateTimestamp: number | undefined = undefined;
-			let dateMatch = remainingContent.match(DV_DUE_DATE_REGEX);
-			if (dateMatch?.[1]) {
-				dueDateTimestamp = parseLocalDate(dateMatch[1]);
-				if (dueDateTimestamp !== undefined) {
-					remainingContent = remainingContent.replace(
-						dateMatch[0],
-						""
-					);
-				}
-			}
-			if (dueDateTimestamp === undefined) {
-				dateMatch = remainingContent.match(EMOJI_DUE_DATE_REGEX);
-				if (dateMatch?.[1]) {
-					dueDateTimestamp = parseLocalDate(dateMatch[1]);
-					if (dueDateTimestamp !== undefined) {
-						remainingContent = remainingContent.replace(
-							dateMatch[0],
-							""
-						);
-					}
-				}
-			}
-			newTask.dueDate = dueDateTimestamp;
-
-			// --- Calculated Status ---
-			let calculatedStatus: SortableTaskStatus | string = status;
+			// --- Calculate Sortable Status ---
+			let calculatedStatus: SortableTaskStatus | string =
+				parsedTask.status;
 			const now = new Date();
 			now.setHours(0, 0, 0, 0);
 			const todayTimestamp = now.getTime();
 
 			if (
-				!newTask.completed &&
-				status !== SortableTaskStatus.Cancelled && // Use enum value
-				newTask.dueDate &&
-				newTask.dueDate < todayTimestamp
+				!parsedTask.completed &&
+				parsedTask.status !== SortableTaskStatus.Cancelled && // Compare against enum
+				parsedTask.dueDate &&
+				parsedTask.dueDate < todayTimestamp
 			) {
-				calculatedStatus = SortableTaskStatus.Overdue; // Use enum value
+				calculatedStatus = SortableTaskStatus.Overdue; // Use enum
 			} else {
+				// Ensure the original status maps to the enum if possible
 				calculatedStatus = Object.values(SortableTaskStatus).includes(
-					status as SortableTaskStatus
+					parsedTask.status as SortableTaskStatus
 				)
-					? (status as SortableTaskStatus)
-					: status;
+					? (parsedTask.status as SortableTaskStatus)
+					: parsedTask.status;
 			}
-			newTask.calculatedStatus = calculatedStatus;
 
-			newTask.content = remainingContent.replace(/\s{2,}/g, " ").trim();
+			// --- Create SortableTask ---
+			const sortableTask: SortableTask = {
+				// Map fields from parsedTask
+				id: parsedTask.id, // Use ID from parser
+				originalMarkdown: parsedTask.originalMarkdown,
+				status: parsedTask.status,
+				completed: parsedTask.completed,
+				content: parsedTask.content,
+				priority: parsedTask.priority,
+				dueDate: parsedTask.dueDate,
+				startDate: parsedTask.startDate,
+				scheduledDate: parsedTask.scheduledDate,
+				tags: parsedTask.tags || [], // Map tags, default to empty array
+				// Fields specific to SortableTask / required for sorting logic
+				lineNumber: lineNumber, // Keep 0-based line number for sorting stability
+				indentation: indentation,
+				children: [],
+				calculatedStatus: calculatedStatus,
+				// parent will be set below
+			};
 
-			// --- Build Hierarchy (relative to the parsed block) ---
-			const completeTask = newTask as SortableTask;
-			taskMap[lineNumber] = completeTask; // Use absolute line number for mapping
+			// --- Build Hierarchy ---
+			taskMap[lineNumber] = sortableTask; // Use 0-based absolute line number
 
+			// Find parent based on indentation
 			while (
 				currentParentStack.length > 0 &&
-				indentation <=
+				indentation <= // Child must have greater indentation than parent
 					currentParentStack[currentParentStack.length - 1]
 						.indentation
 			) {
@@ -194,16 +160,16 @@ function parseTasksForSorting(
 			if (currentParentStack.length > 0) {
 				const parent =
 					currentParentStack[currentParentStack.length - 1];
-				parent.children.push(completeTask);
-				completeTask.parent = parent;
+				parent.children.push(sortableTask);
+				sortableTask.parent = parent;
 			} else {
-				tasks.push(completeTask); // Top-level task within the block
+				tasks.push(sortableTask); // Add as top-level task within the block
 			}
 
-			currentParentStack.push(completeTask);
+			currentParentStack.push(sortableTask); // Push current task onto stack
 		} else {
-			// Non-task line in the block
-			// currentParentStack = []; // Resetting might be too aggressive here
+			// Non-task line encountered
+			// Keep the stack, assuming tasks under a non-task might still be related hierarchically.
 		}
 	});
 
@@ -298,7 +264,6 @@ function getDynamicStatusOrder(settings: TaskProgressBarSettings): {
 	if (!(" " in order)) order[" "] = order[" "] ?? 10; // Default incomplete reasonably high
 	if (!("x" in order)) order["x"] = order["x"] ?? 98; // Default complete towards end
 
-	console.debug("Generated Status Order:", order); // For debugging
 	return order;
 }
 
@@ -312,6 +277,12 @@ function compareTasks(
 	// Generate status order dynamically for this comparison run
 	const statusOrder = getDynamicStatusOrder(settings);
 
+	// First, completed tasks always come last
+	if (taskA.completed !== taskB.completed) {
+		return taskA.completed ? 1 : -1;
+	}
+
+	// If both are completed or both incomplete, sort by original criteria
 	for (const criterion of criteria) {
 		let valA: any;
 		let valB: any;
@@ -319,73 +290,169 @@ function compareTasks(
 
 		switch (criterion.field) {
 			case "status":
-				valA = statusOrder[taskA.calculatedStatus] ?? 1000; // Unknown goes last
+				// Status comparison logic (relies on statusOrder having numbers)
+				valA = statusOrder[taskA.calculatedStatus] ?? 1000; // Assign a high number for unknown statuses
 				valB = statusOrder[taskB.calculatedStatus] ?? 1000;
-				comparison = valA - valB;
+				if (typeof valA === "number" && typeof valB === "number") {
+					comparison = valA - valB; // Lower number means higher rank in status order
+				} else {
+					// Fallback if statusOrder contains non-numbers (shouldn't happen ideally)
+					console.warn(
+						`Non-numeric status order values detected: ${valA}, ${valB}`
+					);
+					comparison = 0; // Treat as equal if non-numeric
+				}
 				break;
 			case "priority":
-				valA = taskA.priority ?? Infinity; // Tasks without priority go last
-				valB = taskB.priority ?? Infinity;
-				comparison = valA - valB;
+				// Assuming numerical mapping where HIGHER number means HIGHER priority (e.g., High=3, Medium=2, Low=1)
+				valA = taskA.priority; // Use undefined/null directly
+				valB = taskB.priority;
+				const aHasPriority = valA !== undefined && valA !== null;
+				const bHasPriority = valB !== undefined && valB !== null;
+
+				if (!aHasPriority && !bHasPriority) {
+					comparison = 0; // Both lack priority
+				} else if (!aHasPriority) {
+					// A lacks priority. 'asc' means High->Low->None. None is last (+1).
+					comparison = 1;
+				} else if (!bHasPriority) {
+					// B lacks priority. 'asc' means High->Low->None. None is last. B is last, so A is first (-1).
+					comparison = -1;
+				} else {
+					// Both have numeric priorities.
+					// Compare numerically: A - B.
+					// Example: High(3) vs Low(1) => comparison = 3 - 1 = 2
+					comparison = valA - valB;
+				}
+				// Direction adjustment is handled after the switch
 				break;
 			case "dueDate":
 			case "startDate":
 			case "scheduledDate":
-				valA = taskA[criterion.field] ?? Infinity; // No date goes last
-				valB = taskB[criterion.field] ?? Infinity;
-				if (valA === Infinity && valB !== Infinity) comparison = 1;
-				else if (valA !== Infinity && valB === Infinity)
+				valA = taskA[criterion.field]; // Use undefined/null directly
+				valB = taskB[criterion.field];
+				const aHasDate = valA !== undefined && valA !== null;
+				const bHasDate = valB !== undefined && valB !== null;
+
+				if (!aHasDate && !bHasDate) {
+					comparison = 0; // Both lack date
+				} else if (!aHasDate) {
+					// A lacks date. 'asc' means Dates->None. None is last (+1).
+					comparison = 1;
+				} else if (!bHasDate) {
+					// B lacks date. 'asc' means Dates->None. None is last. B is last, so A is first (-1).
 					comparison = -1;
-				else comparison = valA - valB;
+				} else {
+					// Both have numeric dates (timestamps)
+					// Compare numerically: A - B. Earlier date first.
+					comparison = valA - valB;
+				}
+				// Direction adjustment is handled after the switch
 				break;
 			case "content":
 				valA = taskA.content.toLowerCase();
 				valB = taskB.content.toLowerCase();
 				comparison = valA.localeCompare(valB);
+				// Direction adjustment is handled after the switch
 				break;
-		}
+		} // End switch
 
+		// Apply sort order direction (asc/desc)
 		if (comparison !== 0) {
-			return criterion.order === "asc" ? comparison : -comparison;
-		}
-	}
+			// Special handling for priority: 'asc' means HIGHER numeric value first.
+			if (criterion.field === "priority") {
+				// If 'asc' (High first), comparison = A - B. High(3) - Low(1) = 2. We need negative result -> return -comparison.
+				// If 'desc' (Low first), comparison = A - B. High(3) - Low(1) = 2. We need positive result -> return comparison.
+				return criterion.order === "asc" ? -comparison : comparison;
+			} else {
+				// For other fields (status, dates, content): 'asc' means LOWER numeric/alphabetic value first.
+				// Comparison = A - B or localeCompare(A, B).
+				// If 'asc', a negative comparison means A is first -> return comparison.
+				// If 'desc', flip the sign -> return -comparison.
+				return criterion.order === "asc" ? comparison : -comparison;
+			}
+		} // End if comparison !== 0
+	} // End for loop
 
 	// Maintain original relative order if all criteria are equal
 	return taskA.lineNumber - taskB.lineNumber;
 }
 
-// Recursively sorts a list of tasks and their children using settings
-function sortTaskList(
-	tasks: SortableTask[],
-	criteria: SortCriterion[],
-	settings: TaskProgressBarSettings // Pass settings here
-): SortableTask[] {
-	// Sort tasks at the current level
-	tasks.sort((a, b) => compareTasks(a, b, criteria, settings)); // Pass settings
+// Find continuous task blocks (including subtasks)
+export function findContinuousTaskBlocks(
+	tasks: SortableTask[]
+): SortableTask[][] {
+	if (tasks.length === 0) return [];
 
-	// Recursively sort children
-	tasks.forEach((task) => {
-		if (task.children && task.children.length > 0) {
-			// Pass settings down recursively
-			sortTaskList(task.children, criteria, settings);
+	// Sort by line number
+	const sortedTasks = [...tasks].sort((a, b) => a.lineNumber - b.lineNumber);
+
+	// Task blocks array
+	const blocks: SortableTask[][] = [];
+	let currentBlock: SortableTask[] = [sortedTasks[0]];
+
+	// Recursively find the maximum line number of a task and all its children
+	function getMaxLineNumberWithChildren(task: SortableTask): number {
+		if (!task.children || task.children.length === 0)
+			return task.lineNumber;
+
+		let maxLine = task.lineNumber;
+		for (const child of task.children) {
+			const childMaxLine = getMaxLineNumberWithChildren(child);
+			maxLine = Math.max(maxLine, childMaxLine);
 		}
-	});
 
-	return tasks; // Return the sorted list (though modification is in-place)
+		return maxLine;
+	}
+
+	// Check all tasks, group into continuous blocks
+	for (let i = 1; i < sortedTasks.length; i++) {
+		const prevTask = sortedTasks[i - 1];
+		const currentTask = sortedTasks[i];
+
+		// Check the maximum line number of the previous task (including all subtasks)
+		const prevMaxLine = getMaxLineNumberWithChildren(prevTask);
+
+		// If the current task line number is the next line after the previous task or its subtasks, it belongs to the same block
+		if (currentTask.lineNumber <= prevMaxLine + 1) {
+			currentBlock.push(currentTask);
+		} else {
+			// Otherwise start a new block
+			blocks.push([...currentBlock]);
+			currentBlock = [currentTask];
+		}
+	}
+
+	// Add the last block
+	if (currentBlock.length > 0) {
+		blocks.push(currentBlock);
+	}
+
+	return blocks;
 }
 
-// --- 4. Generate Codemirror Changes (Modified) ---
+// Recursively sort tasks and their subtasks
+function sortTasksRecursively(
+	tasks: SortableTask[],
+	criteria: SortCriterion[],
+	settings: TaskProgressBarSettings
+): SortableTask[] {
+	// Sort tasks at the current level
+	tasks.sort((a, b) => compareTasks(a, b, criteria, settings));
 
-// Flattens a task tree back into text lines using originalMarkdown
-function flattenTasksToText(tasks: SortableTask[]): string {
-	let lines: string[] = [];
-	tasks.forEach((task) => {
-		lines.push(task.originalMarkdown); // Preserves original formatting/indent
+	// Recursively sort each task's subtasks
+	for (const task of tasks) {
 		if (task.children && task.children.length > 0) {
-			lines.push(flattenTasksToText(task.children));
+			// Ensure sorted subtasks are saved back to task.children
+			task.children = sortTasksRecursively(
+				task.children,
+				criteria,
+				settings
+			);
 		}
-	});
-	return lines.join("\n");
+	}
+
+	return tasks; // Return the sorted task array
 }
 
 // Main function: Parses, sorts, and generates Codemirror changes
@@ -394,13 +461,14 @@ export function sortTasksInDocument(
 	plugin: TaskProgressBarPlugin,
 	sortCriteria: SortCriterion[],
 	fullDocument: boolean = false // Keep parameter
-): ChangeSpec[] | null {
+): string | null {
 	const app = plugin.app;
 	const activeFile = app.workspace.getActiveFile(); // Assume command runs on active file
 	if (!activeFile) {
 		new Notice("Sort Tasks: No active file found.");
 		return null;
 	}
+	const filePath = activeFile.path; // Get file path
 	const cache = app.metadataCache.getFileCache(activeFile);
 	if (!cache) {
 		new Notice("Sort Tasks: Metadata cache not available.");
@@ -409,6 +477,7 @@ export function sortTasksInDocument(
 
 	const doc = view.state.doc;
 	const settings = plugin.settings;
+	const metadataFormat: MetadataFormat = plugin.settings.preferMetadataFormat;
 
 	let startLine = 0;
 	let endLine = doc.lines - 1;
@@ -465,9 +534,6 @@ export function sortTasksInDocument(
 	const toOffsetOriginal = doc.line(endLine + 1).to;
 	// Ensure offsets are valid
 	if (fromOffsetOriginal > toOffsetOriginal) {
-		console.log(
-			`Sort Tasks: Invalid range calculated (startLine: ${startLine}, endLine: ${endLine}). Aborting.`
-		);
 		new Notice(`Sort Tasks: Invalid range calculated for ${scopeMessage}.`);
 		return null;
 	}
@@ -476,111 +542,142 @@ export function sortTasksInDocument(
 		toOffsetOriginal
 	);
 
-	// 1. Parse tasks *only* within the determined block, providing the offset
-	const blockTasks = parseTasksForSorting(originalBlockText, startLine);
+	// 1. Parse tasks *using the new function*, providing offset, path, and format
+	const blockTasks = parseTasksForSorting(
+		originalBlockText,
+		startLine,
+		filePath,
+		metadataFormat // Pass determined format
+	);
 	if (blockTasks.length === 0) {
 		const noticeMsg = `Sort Tasks: No tasks found in the ${scopeMessage} (Lines ${
 			startLine + 1
 		}-${endLine + 1}) to sort.`;
-		console.log(noticeMsg);
 		new Notice(noticeMsg);
 		return null;
 	}
-	console.log("blockTasks", blockTasks);
 
-	// 2. Sort the tasks parsed from the block using plugin settings
-	// sortTaskList modifies the array in-place and sorts children recursively
-	const sortedBlockTasks = sortTaskList(
-		[...blockTasks],
-		sortCriteria,
-		settings
-	); // Pass settings, sort a copy
+	// Find continuous task blocks
+	const taskBlocks = findContinuousTaskBlocks(blockTasks);
 
-	// 3. Flatten the *sorted* task structure back to text lines
-	// This text contains only the task lines, in their new sorted order,
-	// maintaining original markdown (including indentation).
-	const newSortedTasksOnlyText = flattenTasksToText(sortedBlockTasks);
-
-	// 4. Reconstruct the block text, preserving non-task lines
-	const originalBlockLines = originalBlockText.split("\n");
-	const sortedTaskLines = newSortedTasksOnlyText.split("\n"); // Individual sorted task lines
-
-	// Create a map from original document line number -> original task object
-	// This helps identify which original lines were tasks.
-	const originalTaskMap = new Map<number, SortableTask>();
-	function populateOriginalTaskMap(tasks: SortableTask[]) {
-		tasks.forEach((task) => {
-			originalTaskMap.set(task.lineNumber, task);
-			if (task.children) populateOriginalTaskMap(task.children);
-		});
+	// 2. Sort each continuous block separately
+	for (let i = 0; i < taskBlocks.length; i++) {
+		// Replace tasks in the original block with sorted tasks
+		taskBlocks[i] = sortTasksRecursively(
+			taskBlocks[i],
+			sortCriteria,
+			settings
+		);
 	}
-	populateOriginalTaskMap(blockTasks); // Use tasks before sorting
 
-	// Create a map from original document line number -> its *new* sorted line content
-	// This maps where each original task line should end up in the sorted output.
-	const sortedLineContentMap = new Map<number, string>();
-	let sortedLineIdx = 0;
-	function buildSortedLineContentMap(sortedTasks: SortableTask[]) {
-		sortedTasks.forEach((task) => {
-			if (sortedLineIdx < sortedTaskLines.length) {
-				// Map the task's original line number to the corresponding line
-				// from the flattened sorted text.
-				sortedLineContentMap.set(
-					task.lineNumber,
-					sortedTaskLines[sortedLineIdx++]
-				);
-			}
-			if (task.children) buildSortedLineContentMap(task.children);
-		});
-	}
-	buildSortedLineContentMap(sortedBlockTasks); // Use the sorted task structure
+	// 3. Update the original blockTasks to reflect sorting results
+	// Clear the original blockTasks
+	blockTasks.length = 0;
 
-	let newBlockLines: string[] = [];
-	for (let i = 0; i < originalBlockLines.length; i++) {
-		const currentOriginalDocLineNumber = startLine + i;
-		// Check if the line number in the original block corresponded to a task
-		if (originalTaskMap.has(currentOriginalDocLineNumber)) {
-			// It was a task. Get its new content from the sorted map.
-			const newContent = sortedLineContentMap.get(
-				currentOriginalDocLineNumber
-			);
-			if (newContent !== undefined) {
-				newBlockLines.push(newContent);
-			} else {
-				// This case indicates a mismatch between parsed tasks and sorted lines, potentially
-				// due to issues in flattening or mapping complex hierarchies. Fallback safely.
-				console.warn(
-					`Sort Tasks: Missing sorted content for task at original line ${currentOriginalDocLineNumber}. Keeping original line.`
-				);
-				newBlockLines.push(originalBlockLines[i]); // Keep original if lookup fails
-			}
-		} else {
-			// It was not a task line, keep the original line
-			newBlockLines.push(originalBlockLines[i]);
+	// Merge all sorted blocks back into blockTasks
+	for (const block of taskBlocks) {
+		for (const task of block) {
+			blockTasks.push(task);
 		}
 	}
-	const newBlockText = newBlockLines.join("\n");
 
-	// 5. Calculate changes only if the block text has actually changed
+	// 4. Rebuild text directly from sorted blockTasks
+	const originalBlockLines = originalBlockText.split("\n");
+	let newBlockLines: string[] = [...originalBlockLines]; // Copy original lines
+	const processedLineIndices = new Set<number>(); // Track processed line indices
+
+	// Find indices of all task lines
+	const taskLineIndices = new Set<number>();
+	for (const task of blockTasks) {
+		// Convert to index relative to block
+		const relativeIndex = task.lineNumber - startLine;
+		if (relativeIndex >= 0 && relativeIndex < originalBlockLines.length) {
+			taskLineIndices.add(relativeIndex);
+		}
+	}
+
+	// For each task block, find its starting position and sort tasks at that position
+	for (const block of taskBlocks) {
+		// Find the minimum line number (relative to block)
+		let minRelativeLineIndex = Number.MAX_SAFE_INTEGER;
+		for (const task of block) {
+			const relativeIndex = task.lineNumber - startLine;
+			if (
+				relativeIndex >= 0 &&
+				relativeIndex < originalBlockLines.length &&
+				relativeIndex < minRelativeLineIndex
+			) {
+				minRelativeLineIndex = relativeIndex;
+			}
+		}
+
+		if (minRelativeLineIndex === Number.MAX_SAFE_INTEGER) {
+			continue; // Skip invalid blocks
+		}
+
+		// Collect all task line content in this block
+		const blockContent: string[] = [];
+
+		// Recursively add tasks and their subtasks
+		function addSortedTaskContent(task: SortableTask) {
+			blockContent.push(task.originalMarkdown);
+
+			// Mark this line as processed
+			const relativeIndex = task.lineNumber - startLine;
+			if (
+				relativeIndex >= 0 &&
+				relativeIndex < originalBlockLines.length
+			) {
+				processedLineIndices.add(relativeIndex);
+			}
+
+			// Process subtasks
+			if (task.children && task.children.length > 0) {
+				for (const child of task.children) {
+					addSortedTaskContent(child);
+				}
+			}
+		}
+
+		// Only process top-level tasks
+		for (const task of block) {
+			if (!task.parent) {
+				// Only process top-level tasks
+				addSortedTaskContent(task);
+			}
+		}
+
+		// Replace content at original position
+		let currentLine = minRelativeLineIndex;
+		for (const line of blockContent) {
+			newBlockLines[currentLine++] = line;
+		}
+	}
+
+	// Remove processed lines (replaced task lines)
+	const finalLines: string[] = [];
+	for (let i = 0; i < newBlockLines.length; i++) {
+		if (!taskLineIndices.has(i) || processedLineIndices.has(i)) {
+			finalLines.push(newBlockLines[i]);
+		}
+	}
+
+	const newBlockText = finalLines.join("\n");
+
+	// 5. Only return new text if the block actually changed
 	if (originalBlockText === newBlockText) {
 		const noticeMsg = `Sort Tasks: Tasks are already sorted in the ${scopeMessage} (Lines ${
 			startLine + 1
 		}-${endLine + 1}).`;
-		console.log(noticeMsg);
 		new Notice(noticeMsg);
 		return null;
 	}
 
-	const changes: ChangeSpec = {
-		from: fromOffsetOriginal,
-		to: toOffsetOriginal,
-		insert: newBlockText,
-	};
-
 	const noticeMsg = `Sort Tasks: Sorted tasks in the ${scopeMessage} (Lines ${
 		startLine + 1
 	}-${endLine + 1}).`;
-	console.log(noticeMsg);
 	new Notice(noticeMsg);
-	return [changes];
+
+	// Directly return the changed text
+	return newBlockText;
 }

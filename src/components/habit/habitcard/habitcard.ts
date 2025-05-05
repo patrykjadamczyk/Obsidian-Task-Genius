@@ -3,8 +3,8 @@ import {
 	DailyHabitProps,
 	HabitProps,
 	MappingHabitProps,
-} from "src/types/habit-card";
-import TaskProgressBarPlugin from "src/index";
+} from "../../../types/habit-card";
+import TaskProgressBarPlugin from "../../../index";
 
 function getDatesInRange(startDate: string, endDate: string): string[] {
 	const dates = [];

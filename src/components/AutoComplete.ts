@@ -1,5 +1,5 @@
 import { AbstractInputSuggest, App, prepareFuzzySearch, TFile } from "obsidian";
-import TaskProgressBarPlugin from "src";
+import TaskProgressBarPlugin from "../index";
 
 abstract class BaseSuggest<T> extends AbstractInputSuggest<T> {
 	constructor(app: App, public inputEl: HTMLInputElement) {

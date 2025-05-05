@@ -1,6 +1,6 @@
 import { App, editorInfoField } from "obsidian";
 import { EditorState, Transaction, Text } from "@codemirror/state";
-import TaskProgressBarPlugin from ".."; // Adjust path if needed
+import TaskProgressBarPlugin from "../index"; // Adjust path if needed
 import { parseTaskLine } from "../utils/taskUtil"; // Adjust path if needed
 
 /**
@@ -33,7 +33,6 @@ function handleMonitorTaskCompletionTransaction(
 	app: App,
 	plugin: TaskProgressBarPlugin
 ) {
-	console.log("handleMonitorTaskCompletionTransaction");
 	// Only process transactions that change the document
 	if (!tr.docChanged) {
 		return;

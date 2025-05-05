@@ -10,7 +10,7 @@ import {
 	MarkdownView,
 	MarkdownFileInfo,
 } from "obsidian";
-import TaskProgressBarPlugin from "..";
+import TaskProgressBarPlugin from "../index";
 import { buildIndentString } from "../utils";
 import { t } from "../translations/helper";
 

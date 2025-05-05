@@ -466,7 +466,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 				const changes = sortTasksInDocument(editorView, this, criteria);
 
 				if (changes) {
-					editorView.dispatch({ changes });
+					const info = editorView.state.field(editorInfoField);
+					if (!info || !info.file) return;
+					this.app.vault.process(info.file, (data) => {
+						return changes;
+					});
 				} else {
 					new Notice("Tasks already sorted or no tasks found.");
 				}

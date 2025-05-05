@@ -7,7 +7,7 @@ import {
 	Text,
 } from "@codemirror/state";
 import { Annotation } from "@codemirror/state";
-import TaskProgressBarPlugin from "..";
+import TaskProgressBarPlugin from "../index";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 import { priorityChangeAnnotation } from "./priorityPicker";
 import { buildIndentString, getTabSize } from "../utils";

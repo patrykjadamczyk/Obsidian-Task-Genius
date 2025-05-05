@@ -8,7 +8,7 @@ import {
 	ViewMode,
 	getViewSettingOrDefault,
 } from "../../common/setting-definition";
-import { TASK_SPECIFIC_VIEW_TYPE } from "src/pages/TaskSpecificView";
+import { TASK_SPECIFIC_VIEW_TYPE } from "../../pages/TaskSpecificView";
 import { ViewConfigModal } from "../ViewConfigModal";
 
 // Remove the enum if it exists, use ViewMode type directly
