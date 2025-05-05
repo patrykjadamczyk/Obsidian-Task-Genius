@@ -268,31 +268,61 @@ export function filterTasks(
 	// --- Apply `hasDueDate` Filter ---
 	if (filterRules.hasDueDate) {
 		filtered = filtered.filter((task) => task.dueDate);
+	} else if (
+		typeof filterRules.hasDueDate === "boolean" &&
+		filterRules.hasDueDate === false
+	) {
+		filtered = filtered.filter((task) => !task.dueDate);
 	}
 
 	// --- Apply `hasStartDate` Filter ---
 	if (filterRules.hasStartDate) {
 		filtered = filtered.filter((task) => task.startDate);
+	} else if (
+		typeof filterRules.hasStartDate === "boolean" &&
+		filterRules.hasStartDate === false
+	) {
+		filtered = filtered.filter((task) => !task.startDate);
 	}
 
 	// --- Apply `hasScheduledDate` Filter ---
 	if (filterRules.hasScheduledDate) {
 		filtered = filtered.filter((task) => task.scheduledDate);
+	} else if (
+		typeof filterRules.hasScheduledDate === "boolean" &&
+		filterRules.hasDueDate === false
+	) {
+		filtered = filtered.filter((task) => !task.scheduledDate);
 	}
 
 	// --- Apply `hasCompletedDate` Filter ---
 	if (filterRules.hasCompletedDate) {
 		filtered = filtered.filter((task) => task.completedDate);
+	} else if (
+		typeof filterRules.hasCompletedDate === "boolean" &&
+		filterRules.hasCompletedDate === false
+	) {
+		filtered = filtered.filter((task) => !task.completedDate);
 	}
 
 	// --- Apply `hasRecurrence` Filter ---
 	if (filterRules.hasRecurrence) {
 		filtered = filtered.filter((task) => task.recurrence);
+	} else if (
+		typeof filterRules.hasRecurrence === "boolean" &&
+		filterRules.hasRecurrence === false
+	) {
+		filtered = filtered.filter((task) => !task.recurrence);
 	}
 
 	// --- Apply `hasCreatedDate` Filter ---
 	if (filterRules.hasCreatedDate) {
 		filtered = filtered.filter((task) => task.createdDate);
+	} else if (
+		typeof filterRules.hasCreatedDate === "boolean" &&
+		filterRules.hasCreatedDate === false
+	) {
+		filtered = filtered.filter((task) => !task.createdDate);
 	}
 
 	// Note: Sorting is NOT done here. It should be handled by the component

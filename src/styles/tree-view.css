@@ -70,7 +70,7 @@
 }
 
 /* Task checkbox */
-.task-checkbox {
+.task-item.tree-task-item .task-checkbox {
 	cursor: pointer;
 	flex-shrink: 0;
 	color: var(--text-muted);
@@ -81,11 +81,11 @@
 	justify-content: center;
 }
 
-.task-checkbox:hover {
+.task-item.tree-task-item .task-checkbox:hover {
 	color: var(--text-accent);
 }
 
-.task-checkbox.checked {
+.task-item.tree-task-item .task-checkbox.checked {
 	color: var(--text-accent);
 }
 
@@ -118,11 +118,10 @@
 	font-weight: bold;
 }
 
-.task-project {
+.task-item.tree-task-item .task-project {
 	display: inline-block;
 	padding: 1px 6px;
 	border-radius: 4px;
-	background-color: var(--background-modifier-border);
 }
 
 .task-priority.priority-3 {
