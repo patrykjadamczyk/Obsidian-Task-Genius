@@ -72,7 +72,7 @@ export class ViewConfigModal extends Modal {
 			const newId = `custom_${Date.now()}`;
 			this.viewConfig = {
 				id: newId,
-				name: t("New Custom View"),
+				name: t("New custom view"),
 				icon: "list-plus",
 				type: "custom",
 				visible: true,
@@ -100,10 +100,56 @@ export class ViewConfigModal extends Modal {
 		contentEl.empty();
 		this.modalEl.toggleClass("task-genius-view-config-modal", true);
 
+		const days = [
+			{ value: -1, name: t("Locale Default") }, // Use -1 or undefined as sentinel
+			{
+				value: 0,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 1)),
+			}, // Monday
+			{
+				value: 1,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 2)),
+			}, // Tuesday
+			{
+				value: 2,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 3)),
+			}, // Wednesday
+			{
+				value: 3,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 4)),
+			}, // Thursday
+			{
+				value: 4,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 5)),
+			}, // Friday
+			{
+				value: 5,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 6)),
+			}, // Saturday
+			{
+				value: 6,
+				name: new Intl.DateTimeFormat(window.navigator.language, {
+					weekday: "long",
+				}).format(new Date(2024, 0, 7)),
+			}, // Sunday
+		];
+
 		this.titleEl.setText(
 			this.isCreate
-				? t("Create Custom View")
-				: t("Edit View: ") + this.viewConfig.name
+				? t("Create custom view")
+				: t("Edit view: ") + this.viewConfig.name
 		);
 
 		// --- Basic View Settings ---
@@ -116,7 +162,7 @@ export class ViewConfigModal extends Modal {
 		});
 
 		new Setting(contentEl)
-			.setName(t("Icon Name"))
+			.setName(t("Icon name"))
 			.setDesc(
 				t(
 					"Enter any Lucide icon name (e.g., list-checks, filter, inbox)"
@@ -152,7 +198,7 @@ export class ViewConfigModal extends Modal {
 
 		if (this.viewConfig.id === "calendar") {
 			new Setting(contentEl)
-				.setName(t("First Day of Week"))
+				.setName(t("First day of week"))
 				.setDesc(t("Overrides the locale default for calendar views."))
 				.addDropdown((dropdown) => {
 					days.forEach((day) => {
@@ -231,12 +277,12 @@ export class ViewConfigModal extends Modal {
 			// For new views, add a "View Type" dropdown
 			if (this.isCreate) {
 				new Setting(contentEl)
-					.setName(t("View Type"))
+					.setName(t("View type"))
 					.setDesc(t("Select the type of view to create"))
 					.addDropdown((dropdown) => {
 						dropdown
-							.addOption("standard", t("Standard View"))
-							.addOption("twocolumn", t("Two Column View"))
+							.addOption("standard", t("Standard view"))
+							.addOption("twocolumn", t("Two column view"))
 							.setValue("standard")
 							.onChange((value) => {
 								if (value === "twocolumn") {
@@ -264,12 +310,12 @@ export class ViewConfigModal extends Modal {
 			// Only show TwoColumn specific settings if the view type is twocolumn
 			if (this.viewConfig.specificConfig?.viewType === "twocolumn") {
 				new Setting(contentEl)
-					.setName(t("Two Column View Settings"))
+					.setName(t("Two column view settings"))
 					.setHeading();
 
 				// Task Property Key selector
 				new Setting(contentEl)
-					.setName(t("Group by Task Property"))
+					.setName(t("Group by task property"))
 					.setDesc(
 						t(
 							"Select which task property to use for left column grouping"
@@ -350,7 +396,7 @@ export class ViewConfigModal extends Modal {
 
 				// Left Column Title
 				new Setting(contentEl)
-					.setName(t("Left Column Title"))
+					.setName(t("Left column title"))
 					.setDesc(t("Title for the left column (items list)"))
 					.addText((text) => {
 						this.leftColumnTitleInput = text;
@@ -376,7 +422,7 @@ export class ViewConfigModal extends Modal {
 
 				// Right Column Title
 				new Setting(contentEl)
-					.setName(t("Right Column Title"))
+					.setName(t("Right column title"))
 					.setDesc(
 						t("Default title for the right column (tasks list)")
 					)
@@ -430,7 +476,7 @@ export class ViewConfigModal extends Modal {
 
 				// Empty State Text
 				new Setting(contentEl)
-					.setName(t("Empty State Text"))
+					.setName(t("Empty state text"))
 					.setDesc(t("Text to show when no items are selected"))
 					.addText((text) => {
 						this.emptyStateTextInput = text;
@@ -460,7 +506,7 @@ export class ViewConfigModal extends Modal {
 		new Setting(contentEl).setName(t("Filter Rules")).setHeading();
 
 		new Setting(contentEl)
-			.setName(t("Hide Completed and Abandoned Tasks"))
+			.setName(t("Hide completed and abandoned tasks"))
 			.setDesc(t("Hide completed and abandoned tasks in this view."))
 			.addToggle((toggle) => {
 				toggle.setValue(this.viewConfig.hideCompletedAndAbandonedTasks);
@@ -471,7 +517,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Filter Blanks"))
+			.setName(t("Filter blanks"))
 			.setDesc(t("Filter out blank tasks in this view."))
 			.addToggle((toggle) => {
 				toggle.setValue(this.viewConfig.filterBlanks);
@@ -482,7 +528,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Text Contains"))
+			.setName(t("Text contains"))
 			.setDesc(
 				t(
 					"Filter tasks whose content includes this text (case-insensitive)."
@@ -495,7 +541,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Tags Include"))
+			.setName(t("Tags include"))
 			.setDesc(t("Task must include ALL these tags (comma-separated)."))
 			.addText((text) => {
 				this.tagsIncludeInput = text;
@@ -506,7 +552,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Tags Exclude"))
+			.setName(t("Tags exclude"))
 			.setDesc(
 				t("Task must NOT include ANY of these tags (comma-separated).")
 			)
@@ -519,7 +565,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Project Is"))
+			.setName(t("Project is"))
 			.setDesc(t("Task must belong to this project (exact match)."))
 			.addText((text) => {
 				this.projectInput = text;
@@ -528,7 +574,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Priority Is"))
+			.setName(t("Priority is"))
 			.setDesc(t("Task must have this priority (e.g., 1, 2, 3)."))
 			.addText((text) => {
 				this.priorityInput = text;
@@ -543,7 +589,7 @@ export class ViewConfigModal extends Modal {
 
 		// --- Status Filters (Potentially complex, using simple text for now) ---
 		new Setting(contentEl)
-			.setName(t("Status Include"))
+			.setName(t("Status include"))
 			.setDesc(
 				t(
 					"Task status must be one of these (comma-separated markers, e.g., /,>)."
@@ -558,7 +604,7 @@ export class ViewConfigModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName(t("Status Exclude"))
+			.setName(t("Status exclude"))
 			.setDesc(
 				t(
 					"Task status must NOT be one of these (comma-separated markers, e.g., -,x)."
@@ -578,7 +624,7 @@ export class ViewConfigModal extends Modal {
 			"Use YYYY-MM-DD or relative terms like 'today', 'tomorrow', 'next week', 'last month'."
 		);
 		new Setting(contentEl)
-			.setName(t("Due Date Is"))
+			.setName(t("Due date is"))
 			.setDesc(dateDesc)
 			.addText((text) => {
 				this.dueDateInput = text;
@@ -586,7 +632,7 @@ export class ViewConfigModal extends Modal {
 				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
-			.setName(t("Start Date Is"))
+			.setName(t("Start date is"))
 			.setDesc(dateDesc)
 			.addText((text) => {
 				this.startDateInput = text;
@@ -594,7 +640,7 @@ export class ViewConfigModal extends Modal {
 				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
-			.setName(t("Scheduled Date Is"))
+			.setName(t("Scheduled date is"))
 			.setDesc(dateDesc)
 			.addText((text) => {
 				this.scheduledDateInput = text;
@@ -604,7 +650,7 @@ export class ViewConfigModal extends Modal {
 
 		// --- Path Filters ---
 		new Setting(contentEl)
-			.setName(t("Path Includes"))
+			.setName(t("Path includes"))
 			.setDesc(
 				t(
 					"Task must contain this path (case-insensitive). Separate multiple paths with commas."
@@ -617,7 +663,7 @@ export class ViewConfigModal extends Modal {
 				text.onChange(() => this.checkForChanges());
 			});
 		new Setting(contentEl)
-			.setName(t("Path Excludes"))
+			.setName(t("Path excludes"))
 			.setDesc(
 				t(
 					"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas."
@@ -630,17 +676,75 @@ export class ViewConfigModal extends Modal {
 				text.onChange(() => this.checkForChanges());
 			});
 
+		new Setting(contentEl).setName(t("Special date filters")).setHeading();
+
+		new Setting(contentEl)
+			.setName(t("Has due date"))
+			.setDesc(t("Only show tasks that have a due date."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewFilterRule.hasDueDate || false);
+				toggle.onChange((value) => {
+					this.viewFilterRule.hasDueDate = value;
+					this.checkForChanges();
+				});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Has start date"))
+			.setDesc(t("Only show tasks that have a start date."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewFilterRule.hasStartDate || false);
+				toggle.onChange((value) => {
+					this.viewFilterRule.hasStartDate = value;
+					this.checkForChanges();
+				});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Has scheduled date"))
+			.setDesc(t("Only show tasks that have a scheduled date."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewFilterRule.hasScheduledDate || false);
+				toggle.onChange((value) => {
+					this.viewFilterRule.hasScheduledDate = value;
+					this.checkForChanges();
+				});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Has created date"))
+			.setDesc(t("Only show tasks that have a created date."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewFilterRule.hasCreatedDate || false);
+				toggle.onChange((value) => {
+					this.viewFilterRule.hasCreatedDate = value;
+					this.checkForChanges();
+				});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Has completed date"))
+			.setDesc(t("Only show tasks that have a completed date."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewFilterRule.hasCompletedDate || false);
+				toggle.onChange((value) => {
+					this.viewFilterRule.hasCompletedDate = value;
+					this.checkForChanges();
+				});
+			});
+
+		new Setting(contentEl)
+			.setName(t("Has recurrence"))
+			.setDesc(t("Only show tasks that have a recurrence pattern."))
+			.addToggle((toggle) => {
+				toggle.setValue(this.viewFilterRule.hasRecurrence || false);
+				toggle.onChange((value) => {
+					this.viewFilterRule.hasRecurrence = value;
+					this.checkForChanges();
+				});
+			});
+
 		// --- First Day of Week ---
-		const days = [
-			{ value: -1, name: t("Locale Default") }, // Use -1 or undefined as sentinel
-			{ value: 0, name: moment.weekdays(true)[0] }, // Monday
-			{ value: 1, name: moment.weekdays(true)[1] }, // Tuesday
-			{ value: 2, name: moment.weekdays(true)[2] }, // Wednesday
-			{ value: 3, name: moment.weekdays(true)[3] }, // Thursday
-			{ value: 4, name: moment.weekdays(true)[4] }, // Friday
-			{ value: 5, name: moment.weekdays(true)[5] }, // Saturday
-			{ value: 6, name: moment.weekdays(true)[6] }, // Sunday
-		];
 
 		// --- Action Buttons ---
 		new Setting(contentEl)
@@ -719,6 +823,14 @@ export class ViewConfigModal extends Modal {
 
 		const scheduledDate = this.scheduledDateInput?.getValue()?.trim();
 		if (scheduledDate) rules.scheduledDate = scheduledDate;
+
+		// 保留日期存在性筛选设置
+		if (this.viewFilterRule.hasDueDate) rules.hasDueDate = true;
+		if (this.viewFilterRule.hasStartDate) rules.hasStartDate = true;
+		if (this.viewFilterRule.hasScheduledDate) rules.hasScheduledDate = true;
+		if (this.viewFilterRule.hasCreatedDate) rules.hasCreatedDate = true;
+		if (this.viewFilterRule.hasCompletedDate) rules.hasCompletedDate = true;
+		if (this.viewFilterRule.hasRecurrence) rules.hasRecurrence = true;
 
 		const pathIncludes = this.pathIncludesInput?.getValue()?.trim();
 		if (pathIncludes) rules.pathIncludes = pathIncludes;
