@@ -6,6 +6,10 @@
 	margin-bottom: 1px;
 }
 
+.no-progress-bar .cm-task-progress-bar {
+	display: none !important;
+}
+
 .HyperMD-header .cm-task-progress-bar {
 	display: inline-block;
 	position: relative;

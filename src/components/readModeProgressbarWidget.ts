@@ -154,6 +154,46 @@ export function updateProgressBarInElement({
 		return;
 	}
 
+	// 检查是否需要根据heading显示progress bar
+	if (plugin.settings.showProgressBarBasedOnHeading?.trim()) {
+		const sectionInfo = ctx.getSectionInfo(element);
+		console.log(sectionInfo);
+		if (sectionInfo) {
+			// Read the original text to get the content of the current section
+			const lines = sectionInfo.text.split("\n");
+
+			// Find the nearest heading above the section start line
+			let nearestHeadingText = null;
+			let nearestHeadingPos = -1;
+
+			// Find the nearest heading above the section start line
+			for (let i = sectionInfo.lineStart; i >= 0; i--) {
+				const line = lines[i];
+				const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+				if (headingMatch) {
+					nearestHeadingText = line.trim();
+					nearestHeadingPos = i;
+					break;
+				}
+			}
+
+			// If there is a heading, check if it is in the showProgressBarBasedOnHeading list
+			if (nearestHeadingText) {
+				const allowedHeadings =
+					plugin.settings.showProgressBarBasedOnHeading
+						.split(",")
+						.map((h) => h.trim());
+				if (!allowedHeadings.includes(nearestHeadingText)) {
+					// Not in the allowed heading list, add no-progress-bar class
+					element.addClass("no-progress-bar");
+					return;
+				}
+			} else {
+				element.addClass("no-progress-bar");
+			}
+		}
+	}
+
 	// Handle heading elements directly
 	if (
 		plugin.settings.addTaskProgressBarToHeading &&
@@ -204,6 +244,19 @@ export function updateProgressBarInElement({
 				}
 
 				sectionLines.push(line);
+			}
+
+			// 如果开启了showProgressBarBasedOnHeading设置，检查heading是否在设置列表中
+			if (plugin.settings.showProgressBarBasedOnHeading?.trim()) {
+				const allowedHeadings =
+					plugin.settings.showProgressBarBasedOnHeading
+						.split(",")
+						.map((h) => h.trim());
+				if (!allowedHeadings.includes(headingText.trim())) {
+					// 不在允许的heading列表中，添加no-progress-bar类
+					element.addClass("no-progress-bar");
+					return;
+				}
 			}
 
 			// Filter for task lines
