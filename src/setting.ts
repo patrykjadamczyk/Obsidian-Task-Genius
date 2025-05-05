@@ -2901,6 +2901,21 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 		}
 
+		new Setting(containerEl)
+			.setName(t("Use relative time for date"))
+			.setDesc(
+				t(
+					"Use relative time for date in task list item, e.g. 'yesterday', 'today', 'tomorrow', 'in 2 days', '3 months ago', etc."
+				)
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.useRelativeTimeForDate);
+				toggle.onChange((value) => {
+					this.plugin.settings.useRelativeTimeForDate = value;
+					this.applySettingsUpdate();
+				});
+			});
+
 		if (!this.plugin.settings.enableView) return;
 
 		// --- New View Management Section ---

@@ -36,9 +36,18 @@ export interface ViewFilterRule {
 	statusExclude?: string[];
 	project?: string;
 	priority?: number;
+	hasDueDate?: boolean;
 	dueDate?: string; // e.g., 'today', 'next-week', 'yyyy-mm-dd'
+	hasStartDate?: boolean;
 	startDate?: string;
+	hasScheduledDate?: boolean;
 	scheduledDate?: string;
+	hasCreatedDate?: boolean;
+	createdDate?: string;
+	hasCompletedDate?: boolean;
+	completedDate?: string;
+	hasRecurrence?: boolean;
+	recurrence?: string;
 	textContains?: string;
 	pathIncludes?: string;
 	pathExcludes?: string;
@@ -291,6 +300,9 @@ export interface TaskProgressBarSettings {
 	dailyNotePath: string;
 	preferMetadataFormat: "dataview" | "tasks";
 
+	// Date Settings
+	useRelativeTimeForDate: boolean;
+
 	// View Settings (Updated Structure)
 	enableView: boolean;
 	viewConfiguration: ViewConfig[]; // Manages order, visibility, basic info, AND filter rules
@@ -475,6 +487,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	dailyNotePath: "",
 	preferMetadataFormat: "tasks",
 
+	// Date Settings
+	useRelativeTimeForDate: false,
 	// View Defaults (Updated Structure)
 	enableView: true,
 	viewConfiguration: [

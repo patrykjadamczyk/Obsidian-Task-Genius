@@ -73,3 +73,35 @@ export function parseLocalDate(dateString: string): number | undefined {
 	console.warn(`Worker: Invalid date values after parsing: ${dateString}`);
 	return undefined;
 }
+
+/**
+ * Convert a date to a relative time string, such as
+ * "yesterday", "today", "tomorrow", etc.
+ * using Intl.RelativeTimeFormat
+ */
+export function getRelativeTimeString(
+	date: Date | number,
+	lang = navigator.language
+): string {
+	// 允许传入日期对象或时间戳
+	const timeMs = typeof date === "number" ? date : date.getTime();
+
+	// 获取当前日期（去除时分秒）
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+
+	// 获取传入日期（去除时分秒）
+	const targetDate = new Date(timeMs);
+	targetDate.setHours(0, 0, 0, 0);
+
+	// 计算日期差（以天为单位）
+	const deltaDays = Math.round(
+		(targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+	);
+
+	// 创建相对时间格式化器
+	const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+
+	// 返回格式化后的相对时间字符串
+	return rtf.format(deltaDays, "day");
+}

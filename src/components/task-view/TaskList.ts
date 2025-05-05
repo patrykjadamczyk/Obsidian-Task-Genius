@@ -86,7 +86,8 @@ export class TaskListRendererComponent extends Component {
 			const taskComponent = new TaskListItemComponent(
 				task,
 				this.context,
-				this.app
+				this.app,
+				this.plugin
 			);
 
 			// Set up event handlers

@@ -255,7 +255,8 @@ export class ContentComponent extends Component {
 			const taskComponent = new TaskListItemComponent(
 				task,
 				this.currentViewId, // Pass currentViewId
-				this.app
+				this.app,
+				this.plugin
 			);
 
 			// Attach event handlers
