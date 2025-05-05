@@ -22,6 +22,7 @@ import {
 import TaskProgressBarPlugin from "../index";
 import { FolderSuggest } from "./AutoComplete";
 import { attachIconMenu } from "./IconMenu";
+import { ConfirmModal } from "./ConfirmModal";
 
 export class ViewConfigModal extends Modal {
 	private viewConfig: ViewConfig;
@@ -748,17 +749,27 @@ export class ViewConfigModal extends Modal {
 		new Notice(t("View configuration saved."));
 	}
 
-	onClose() {
+	close() {
 		if (this.hasChanges) {
-			const confirmed = confirm(
-				t("You have unsaved changes. Save before closing?")
-			);
-			if (confirmed) {
-				this.saveChanges();
-				return;
-			}
+			new ConfirmModal(this.plugin, {
+				title: t("Unsaved Changes"),
+				message: t("You have unsaved changes. Save before closing?"),
+				confirmText: t("Save"),
+				cancelText: t("Cancel"),
+				onConfirm: (confirmed: boolean) => {
+					if (confirmed) {
+						this.saveChanges();
+						return;
+					}
+					super.close();
+				},
+			}).open();
+		} else {
+			super.close();
 		}
+	}
 
+	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
 	}
