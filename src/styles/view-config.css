@@ -8,7 +8,9 @@
 	margin-bottom: 15px;
 }
 
-.task-genius-view-config-modal .setting-item-info {
+.task-genius-view-config-modal
+	.setting-item:not(.setting-item-heading)
+	.setting-item-info {
 	/* Ensure labels are aligned well */
 	width: 120px;
 }

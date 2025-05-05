@@ -265,6 +265,36 @@ export function filterTasks(
 		);
 	}
 
+	// --- Apply `hasDueDate` Filter ---
+	if (filterRules.hasDueDate) {
+		filtered = filtered.filter((task) => task.dueDate);
+	}
+
+	// --- Apply `hasStartDate` Filter ---
+	if (filterRules.hasStartDate) {
+		filtered = filtered.filter((task) => task.startDate);
+	}
+
+	// --- Apply `hasScheduledDate` Filter ---
+	if (filterRules.hasScheduledDate) {
+		filtered = filtered.filter((task) => task.scheduledDate);
+	}
+
+	// --- Apply `hasCompletedDate` Filter ---
+	if (filterRules.hasCompletedDate) {
+		filtered = filtered.filter((task) => task.completedDate);
+	}
+
+	// --- Apply `hasRecurrence` Filter ---
+	if (filterRules.hasRecurrence) {
+		filtered = filtered.filter((task) => task.recurrence);
+	}
+
+	// --- Apply `hasCreatedDate` Filter ---
+	if (filterRules.hasCreatedDate) {
+		filtered = filtered.filter((task) => task.createdDate);
+	}
+
 	// Note: Sorting is NOT done here. It should be handled by the component
 	// after receiving the filtered list, as sorting might be view-specific.
 
