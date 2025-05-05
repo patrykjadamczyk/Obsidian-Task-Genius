@@ -272,7 +272,7 @@ export class ReviewComponent extends Component {
 		setting: null,
 	};
 	private showAllTasks: boolean = false; // Default to filtered view
-
+	private allTasksMap: Map<string, Task> = new Map();
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
@@ -850,11 +850,15 @@ export class ReviewComponent extends Component {
 		);
 
 		// --- Render Tasks using Renderer ---
-		// Review view doesn't currently support tree view, so pass false
+
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
+
 		this.taskRenderer.renderTasks(
 			this.selectedProject.tasks,
 			false, // isTreeView = false
-			undefined, // allTasksMap (not needed for list view)
+			this.allTasksMap,
 			t("No tasks found for this project.") // emptyMessage
 		);
 	}
@@ -1073,11 +1077,16 @@ export class ReviewComponent extends Component {
 				),
 			});
 		}
+
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
+
 		// Use the renderer to show the empty state message in the task list area
 		this.taskRenderer.renderTasks(
 			[], // No tasks
 			false, // Not tree view
-			undefined, // allTasksMap (not needed)
+			this.allTasksMap,
 			message // The specific empty message
 		);
 	}

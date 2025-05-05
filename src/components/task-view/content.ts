@@ -300,7 +300,8 @@ export class ContentComponent extends Component {
 				this.app,
 				0,
 				childTasks,
-				taskMap
+				taskMap,
+				this.plugin.settings
 			);
 
 			// Attach event handlers

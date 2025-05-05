@@ -74,6 +74,8 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
 		() => {};
 
+	protected allTasksMap: Map<string, Task> = new Map();
+
 	constructor(
 		protected parentEl: HTMLElement,
 		protected app: App,
@@ -249,23 +251,23 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 	protected abstract renderItemsList(): void;
 
 	/**
-	 * 处理项目选择
-	 * @param item 选中的项目
-	 * @param isCtrlPressed 是否按下Ctrl键（多选）
+	 * Handle item selection
+	 * @param item Selected item
+	 * @param isCtrlPressed Whether Ctrl key is pressed (multi-select)
 	 */
 	protected handleItemSelection(item: T, isCtrlPressed: boolean) {
 		if (this.selectedItems.isMultiSelect || isCtrlPressed) {
-			// 多选模式
+			// Multi-select mode
 			const index = this.selectedItems.items.indexOf(item);
 			if (index === -1) {
-				// 添加选择
+				// Add selection
 				this.selectedItems.items.push(item);
 			} else {
-				// 移除选择
+				// Remove selection
 				this.selectedItems.items.splice(index, 1);
 			}
 
-			// 如果没有选择项目并且不在多选模式下，重置视图
+			// If no items selected and not in multi-select mode, reset view
 			if (
 				this.selectedItems.items.length === 0 &&
 				!this.selectedItems.isMultiSelect
@@ -275,21 +277,21 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 				return;
 			}
 		} else {
-			// 单选模式
+			// Single-select mode
 			this.selectedItems.items = [item];
 		}
 
-		// 更新基于选择的任务
+		// Update tasks based on selection
 		this.updateSelectedTasks();
 
-		// 移动端选择后隐藏侧边栏
+		// Hide sidebar after selection on mobile
 		if (Platform.isPhone) {
 			this.toggleLeftColumnVisibility(false);
 		}
 	}
 
 	/**
-	 * 切换多选模式
+	 * Toggle multi-select mode
 	 */
 	protected toggleMultiSelect() {
 		this.selectedItems.isMultiSelect = !this.selectedItems.isMultiSelect;
@@ -300,7 +302,7 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 		} else {
 			this.containerEl.classList.remove("multi-select-mode");
 
-			// 如果没有选中项目，重置视图
+			// If no items selected, reset view
 			if (this.selectedItems.items.length === 0) {
 				this.cleanupRenderers();
 				this.renderEmptyTaskList(t(this.config.emptyStateText));
@@ -309,12 +311,12 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 	}
 
 	/**
-	 * 切换视图模式（列表/树）
+	 * Toggle view mode (list/tree)
 	 */
 	protected toggleViewMode() {
 		this.isTreeView = !this.isTreeView;
 
-		// 更新切换按钮图标
+		// Update toggle button icon
 		const viewToggleBtn = this.rightColumnEl.querySelector(
 			".view-toggle-btn"
 		) as HTMLElement;
@@ -327,13 +329,13 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 	}
 
 	/**
-	 * 更新选中项相关的任务
-	 * 子类需要实现此方法，基于所选项过滤任务
+	 * Update tasks related to selected items
+	 * Subclasses need to implement this method to filter tasks based on selected items
 	 */
 	protected abstract updateSelectedTasks(): void;
 
 	/**
-	 * 更新任务列表标题
+	 * Update task list header
 	 */
 	protected updateTaskListHeader(title: string, countText: string) {
 		const taskHeaderEl = this.rightColumnEl.querySelector(
@@ -352,20 +354,20 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 	}
 
 	/**
-	 * 清理渲染器
+	 * Clean up renderers
 	 */
 	protected cleanupRenderers() {
 		if (this.taskRenderer) {
-			// 简单重置而不是完全删除，以便重用
+			// Simple reset instead of full deletion to reuse
 			this.taskListContainerEl.empty();
 		}
 	}
 
 	/**
-	 * 渲染任务列表
+	 * Render task list
 	 */
 	protected renderTaskList() {
-		// 更新标题
+		// Update title
 		let title = t(this.config.rightColumnDefaultTitle);
 		if (this.selectedItems.items.length === 1) {
 			title = String(this.selectedItems.items[0]);
@@ -377,11 +379,16 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 		const countText = `${this.filteredTasks.length} ${t("tasks")}`;
 		this.updateTaskListHeader(title, countText);
 
-		// 使用渲染器显示任务
+		console.log("filteredTasks", this.filteredTasks, this.isTreeView);
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
+		// Use renderer to display tasks
 		if (this.taskRenderer) {
 			this.taskRenderer.renderTasks(
 				this.filteredTasks,
 				this.isTreeView,
+				this.allTasksMap,
 				t("No tasks in the selected items")
 			);
 		}

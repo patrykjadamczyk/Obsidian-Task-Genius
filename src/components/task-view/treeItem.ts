@@ -4,6 +4,9 @@ import { formatDate } from "../../utils/dateUtil";
 import "../../styles/tree-view.css";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import { createTaskCheckbox } from "./details";
+import { TaskProgressBarSettings } from "../../common/setting-definition";
+import { getRelativeTimeString } from "../../utils/dateUtil";
+import { t } from "../../translations/helper";
 
 export class TaskTreeItemComponent extends Component {
 	public element: HTMLElement;
@@ -35,7 +38,8 @@ export class TaskTreeItemComponent extends Component {
 		private app: App,
 		indentLevel: number = 0,
 		private childTasks: Task[] = [],
-		taskMap: Map<string, Task>
+		taskMap: Map<string, Task>,
+		private settings: TaskProgressBarSettings
 	) {
 		super();
 		this.task = task;
@@ -196,13 +200,22 @@ export class TaskTreeItemComponent extends Component {
 				// Format date
 				let dateText = "";
 				if (dueDate.getTime() < today.getTime()) {
-					dateText = "Overdue";
+					dateText =
+						t("Overdue") +
+						(this.settings?.useRelativeTimeForDate
+							? " | " + getRelativeTimeString(dueDate)
+							: "");
 					dueEl.classList.add("task-overdue");
 				} else if (dueDate.getTime() === today.getTime()) {
-					dateText = "Today";
+					dateText = this.settings?.useRelativeTimeForDate
+						? getRelativeTimeString(dueDate) || "Today"
+						: "Today";
 					dueEl.classList.add("task-due-today");
 				} else if (dueDate.getTime() === tomorrow.getTime()) {
-					dateText = "Tomorrow";
+					dateText = this.settings?.useRelativeTimeForDate
+						? getRelativeTimeString(dueDate) || "Tomorrow"
+						: "Tomorrow";
+					dueEl.classList.add("task-due-tomorrow");
 				} else {
 					dateText = dueDate.toLocaleDateString("en-US", {
 						year: "numeric",
@@ -222,14 +235,13 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const scheduledDate = new Date(this.task.scheduledDate);
 
-				scheduledEl.textContent = scheduledDate.toLocaleDateString(
-					"en-US",
-					{
-						year: "numeric",
-						month: "long",
-						day: "numeric",
-					}
-				);
+				scheduledEl.textContent = this.settings?.useRelativeTimeForDate
+					? getRelativeTimeString(scheduledDate)
+					: scheduledDate.toLocaleDateString("en-US", {
+							year: "numeric",
+							month: "long",
+							day: "numeric",
+					  });
 				scheduledEl.setAttribute(
 					"aria-label",
 					scheduledDate.toLocaleDateString()
@@ -243,11 +255,13 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const startDate = new Date(this.task.startDate);
 
-				startEl.textContent = startDate.toLocaleDateString("en-US", {
-					year: "numeric",
-					month: "long",
-					day: "numeric",
-				});
+				startEl.textContent = this.settings?.useRelativeTimeForDate
+					? getRelativeTimeString(startDate)
+					: startDate.toLocaleDateString("en-US", {
+							year: "numeric",
+							month: "long",
+							day: "numeric",
+					  });
 				startEl.setAttribute(
 					"aria-label",
 					startDate.toLocaleDateString()
@@ -269,14 +283,13 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const completedDate = new Date(this.task.completedDate);
 
-				completedEl.textContent = completedDate.toLocaleDateString(
-					"en-US",
-					{
-						year: "numeric",
-						month: "long",
-						day: "numeric",
-					}
-				);
+				completedEl.textContent = this.settings?.useRelativeTimeForDate
+					? getRelativeTimeString(completedDate)
+					: completedDate.toLocaleDateString("en-US", {
+							year: "numeric",
+							month: "long",
+							day: "numeric",
+					  });
 				completedEl.setAttribute(
 					"aria-label",
 					completedDate.toLocaleDateString()
@@ -290,14 +303,13 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const createdDate = new Date(this.task.createdDate);
 
-				createdEl.textContent = createdDate.toLocaleDateString(
-					"en-US",
-					{
-						year: "numeric",
-						month: "long",
-						day: "numeric",
-					}
-				);
+				createdEl.textContent = this.settings?.useRelativeTimeForDate
+					? getRelativeTimeString(createdDate)
+					: createdDate.toLocaleDateString("en-US", {
+							year: "numeric",
+							month: "long",
+							day: "numeric",
+					  });
 				createdEl.setAttribute(
 					"aria-label",
 					createdDate.toLocaleDateString()
@@ -312,6 +324,21 @@ export class TaskTreeItemComponent extends Component {
 			});
 			projectEl.textContent =
 				this.task.project.split("/").pop() || this.task.project;
+		}
+
+		if (this.task.tags && this.task.tags.length > 0) {
+			const tagsContainer = metadataEl.createEl("div", {
+				cls: "task-tags-container",
+			});
+
+			this.task.tags
+				.filter((tag) => !tag.startsWith("#project"))
+				.forEach((tag) => {
+					const tagEl = tagsContainer.createEl("span", {
+						cls: "task-tag",
+						text: tag.startsWith("#") ? tag : `#${tag}`,
+					});
+				});
 		}
 
 		// Priority indicator if available
@@ -378,7 +405,8 @@ export class TaskTreeItemComponent extends Component {
 				this.app,
 				this.indentLevel + 1,
 				grandchildren, // Pass the correctly found grandchildren
-				this.taskMap // Pass the map down recursively
+				this.taskMap, // Pass the map down recursively
+				this.settings // Pass the settings down
 			);
 
 			// Pass up events

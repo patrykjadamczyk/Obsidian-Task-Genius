@@ -52,7 +52,7 @@ export class TagsComponent extends Component {
 	};
 	private allTagsMap: Map<string, Set<string>> = new Map(); // tag -> taskIds
 	private isTreeView: boolean = false;
-
+	private allTasksMap: Map<string, Task> = new Map();
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
@@ -204,6 +204,9 @@ export class TagsComponent extends Component {
 
 	public setTasks(tasks: Task[]) {
 		this.allTasks = tasks;
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
 		this.buildTagsIndex();
 		this.renderTagsList();
 
@@ -651,6 +654,7 @@ export class TagsComponent extends Component {
 			this.mainTaskRenderer.renderTasks(
 				this.filteredTasks,
 				this.isTreeView,
+				this.allTasksMap,
 				// Empty message handled above, so this shouldn't be shown
 				t("No tasks found.")
 			);
@@ -700,7 +704,12 @@ export class TagsComponent extends Component {
 					this.params.onTaskContextMenu);
 
 			// Render tasks for this section (always list view within sections)
-			section.renderer.renderTasks(section.tasks, false);
+			section.renderer.renderTasks(
+				section.tasks,
+				this.isTreeView,
+				this.allTasksMap,
+				t("No tasks found for this tag.")
+			);
 
 			// Register toggle event
 			this.registerDomEvent(headerEl, "click", () => {

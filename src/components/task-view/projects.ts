@@ -41,7 +41,7 @@ export class ProjectsComponent extends Component {
 	};
 	private allProjectsMap: Map<string, Set<string>> = new Map();
 	private isTreeView: boolean = false;
-
+	private allTasksMap: Map<string, Task> = new Map();
 	constructor(
 		private parentEl: HTMLElement,
 		private app: App,
@@ -214,6 +214,9 @@ export class ProjectsComponent extends Component {
 
 	public setTasks(tasks: Task[]) {
 		this.allTasks = tasks;
+		this.allTasksMap = new Map(
+			this.allTasks.map((task) => [task.id, task])
+		);
 		this.buildProjectsIndex();
 		this.renderProjectsList();
 
@@ -224,6 +227,7 @@ export class ProjectsComponent extends Component {
 			this.taskRenderer.renderTasks(
 				[],
 				this.isTreeView,
+				this.allTasksMap,
 				t("Select a project to see related tasks")
 			);
 			this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
@@ -326,6 +330,7 @@ export class ProjectsComponent extends Component {
 				this.taskRenderer.renderTasks(
 					[],
 					this.isTreeView,
+					this.allTasksMap,
 					t("Select a project to see related tasks")
 				);
 				this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
@@ -370,6 +375,7 @@ export class ProjectsComponent extends Component {
 				this.taskRenderer.renderTasks(
 					[],
 					this.isTreeView,
+					this.allTasksMap,
 					t("Select a project to see related tasks")
 				);
 				this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
@@ -397,6 +403,7 @@ export class ProjectsComponent extends Component {
 			this.taskRenderer.renderTasks(
 				[],
 				this.isTreeView,
+				this.allTasksMap,
 				t("Select a project to see related tasks")
 			);
 			this.updateTaskListHeader(t("Tasks"), `0 ${t("tasks")}`);
@@ -476,6 +483,7 @@ export class ProjectsComponent extends Component {
 		this.taskRenderer.renderTasks(
 			this.filteredTasks,
 			this.isTreeView,
+			this.allTasksMap,
 			t("No tasks in the selected projects")
 		);
 	}

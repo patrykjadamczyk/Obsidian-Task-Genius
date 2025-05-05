@@ -357,7 +357,12 @@ export class TagViewComponent extends TwoColumnViewBase<string> {
 			section.renderer.onTaskContextMenu = this.onTaskContextMenu;
 
 			// 渲染此分区的任务（分区内始终使用列表视图）
-			section.renderer.renderTasks(section.tasks, false);
+			section.renderer.renderTasks(
+				section.tasks,
+				this.isTreeView,
+				this.allTasksMap,
+				t("No tasks found for this tag.")
+			);
 
 			// 注册切换事件
 			this.registerDomEvent(headerEl, "click", () => {

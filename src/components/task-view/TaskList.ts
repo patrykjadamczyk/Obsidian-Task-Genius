@@ -40,10 +40,18 @@ export class TaskListRendererComponent extends Component {
 	public renderTasks(
 		tasks: Task[],
 		isTreeView: boolean,
-		allTasksMap?: Map<string, Task>, // Make it optional but required for tree view
+		allTasksMap: Map<string, Task>, // Make it optional but required for tree view
 		emptyMessage: string = t("No tasks found."),
 		append: boolean = false
 	) {
+		console.log(
+			"renderTasks",
+			tasks,
+			isTreeView,
+			allTasksMap,
+			emptyMessage,
+			append
+		);
 		if (!append) {
 			this.cleanupComponents();
 			this.containerEl.empty();
@@ -190,7 +198,8 @@ export class TaskListRendererComponent extends Component {
 				this.app,
 				0, // Root level is 0
 				directChildren, // Pass the actual children from the full map
-				allTasksMap // Pass the full map for recursive building
+				allTasksMap, // Pass the full map for recursive building
+				this.plugin.settings
 			);
 
 			// Set up event handlers

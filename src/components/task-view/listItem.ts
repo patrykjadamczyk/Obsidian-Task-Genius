@@ -250,12 +250,14 @@ export class TaskListItemComponent extends Component {
 				cls: "task-tags-container",
 			});
 
-			this.task.tags.forEach((tag) => {
-				const tagEl = tagsContainer.createEl("span", {
-					cls: "task-tag",
-					text: tag.startsWith("#") ? tag : `#${tag}`,
+			this.task.tags
+				.filter((tag) => !tag.startsWith("#project"))
+				.forEach((tag) => {
+					const tagEl = tagsContainer.createEl("span", {
+						cls: "task-tag",
+						text: tag.startsWith("#") ? tag : `#${tag}`,
+					});
 				});
-			});
 		}
 
 		// Priority indicator if available
