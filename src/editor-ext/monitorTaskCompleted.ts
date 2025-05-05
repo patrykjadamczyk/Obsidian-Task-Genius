@@ -38,6 +38,14 @@ function handleMonitorTaskCompletionTransaction(
 		return;
 	}
 
+	if (tr.isUserEvent("set") && tr.changes.length > 1) {
+		return tr;
+	}
+
+	if (tr.isUserEvent("input.paste")) {
+		return tr;
+	}
+
 	// Regex to identify a completed task line
 	const completedTaskRegex = /^[\s|\t]*([-*+]|\d+\.)\s+\[[xX]\]/;
 	// Regex to identify any task line (to check the previous state)

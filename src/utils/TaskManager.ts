@@ -992,6 +992,10 @@ export class TaskManager extends Component {
 			// Dataview Priority
 			updatedLine = updatedLine.replace(/\[priority::\s*\w+\]/gi, ""); // Assuming priority value is a word like high, medium, etc. or number
 
+			updatedLine = updatedLine.replace(
+				new RegExp("🔁" + "\\s*" + updatedTask.recurrence),
+				""
+			);
 			// Emoji Recurrence
 			updatedLine = updatedLine.replace(/🔁\s*[^\s]+/g, "");
 			// Dataview Recurrence
@@ -1545,6 +1549,8 @@ export class TaskManager extends Component {
 	private calculateNextDueDate(task: Task): number | undefined {
 		if (!task.recurrence) return undefined;
 
+		console.log(task);
+
 		// Start with current due date or today if no due date
 		const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
 		// Ensure baseDate is at the beginning of the day for date-based recurrence
@@ -1613,13 +1619,27 @@ export class TaskManager extends Component {
 					}
 					switch (unit) {
 						case "day":
-							nextDate.setDate(baseDate.getDate() + interval);
+							const dayBasedNextDate = new Date(
+								baseDate.getTime()
+							);
+							dayBasedNextDate.setDate(
+								dayBasedNextDate.getDate() + interval
+							);
+							nextDate = dayBasedNextDate;
 							break;
 						case "week":
 							nextDate.setDate(baseDate.getDate() + interval * 7);
 							break;
 						case "month":
-							nextDate.setMonth(baseDate.getMonth() + interval);
+							const monthBasedNextDate = new Date(
+								baseDate.getTime()
+							);
+							monthBasedNextDate.setMonth(
+								monthBasedNextDate.getMonth() + interval
+							);
+
+							// Check if the date has changed
+							nextDate = monthBasedNextDate;
 							break;
 						case "year":
 							nextDate.setFullYear(
@@ -1630,14 +1650,23 @@ export class TaskManager extends Component {
 							this.log(
 								`[TaskManager] Unknown unit in recurrence '${recurrence}'. Defaulting to days.`
 							);
-							nextDate.setDate(baseDate.getDate() + interval); // Default to days
+							// 同样使用克隆日期对象进行计算
+							const defaultNextDate = new Date(
+								baseDate.getTime()
+							);
+							defaultNextDate.setDate(
+								defaultNextDate.getDate() + interval
+							);
+							nextDate = defaultNextDate;
 					}
 				} else {
 					// Malformed "every" rule, fallback to +1 day from baseDate
 					this.log(
 						`[TaskManager] Malformed 'every' rule '${recurrence}'. Defaulting to next day.`
 					);
-					nextDate.setDate(baseDate.getDate() + 1);
+					const fallbackNextDate = new Date(baseDate.getTime());
+					fallbackNextDate.setDate(fallbackNextDate.getDate() + 1);
+					nextDate = fallbackNextDate;
 				}
 			}
 			// Handle specific weekday recurrences like "every Monday"
