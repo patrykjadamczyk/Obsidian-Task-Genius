@@ -10,7 +10,8 @@ import {
 	IndexerCommand,
 	TaskParseResult,
 	ErrorResult,
-	BatchIndexResult, // Keep if batch processing is still used
+	BatchIndexResult,
+	TaskWorkerSettings, // Keep if batch processing is still used
 } from "./TaskIndexWorkerMessage";
 import { parse } from "date-fns/parse";
 import { parseLocalDate } from "../dateUtil";
@@ -439,16 +440,77 @@ function extractTags(
 function parseTasksFromContent(
 	filePath: string,
 	content: string,
-	format: MetadataFormat
+	format: MetadataFormat,
+	ignoreHeading: string,
+	focusHeading: string
 ): Task[] {
 	const lines = content.split(/\r?\n/);
 	const tasks: Task[] = [];
 
+	// 保存当前的标题层级
+	const headings: string[] = [];
+
+	// 将ignoreHeading和focusHeading解析为数组
+	const ignoreHeadings = ignoreHeading
+		? ignoreHeading.split(",").map((h) => h.trim())
+		: [];
+	const focusHeadings = focusHeading
+		? focusHeading.split(",").map((h) => h.trim())
+		: [];
+
+	// 检查当前标题是否应该被过滤
+	const shouldFilterHeading = () => {
+		// 如果focusHeading不为空，只保留在focusHeading列表中的标题
+		if (focusHeadings.length > 0) {
+			return !headings.some((h) =>
+				focusHeadings.some((fh) => h.includes(fh))
+			);
+		}
+
+		// 如果ignoreHeading不为空，忽略在ignoreHeading列表中的标题
+		if (ignoreHeadings.length > 0) {
+			return headings.some((h) =>
+				ignoreHeadings.some((ih) => h.includes(ih))
+			);
+		}
+
+		// 两者都为空，不过滤
+		return false;
+	};
+
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
+
+		// 检查是否是标题行
+		const headingMatch = line.match(/^(#{1,6})\s+(.*?)(?:\s+#+)?$/);
+		if (headingMatch) {
+			const [_, headingMarkers, headingText] = headingMatch;
+			const level = headingMarkers.length;
+
+			// 更新标题栈，移除所有级别大于等于当前级别的标题
+			while (headings.length > 0) {
+				const lastHeadingLevel = (
+					headings[headings.length - 1].match(/^(#{1,6})/)?.[1] || ""
+				).length;
+				if (lastHeadingLevel >= level) {
+					headings.pop();
+				} else {
+					break;
+				}
+			}
+
+			// 添加当前标题到栈
+			headings.push(`${headingMarkers} ${headingText.trim()}`);
+		}
+
 		const taskMatch = line.match(TASK_REGEX);
 
 		if (taskMatch) {
+			// 如果当前标题应该被过滤，则跳过此任务
+			if (shouldFilterHeading()) {
+				continue;
+			}
+
 			const [fullMatch, , , , status, contentWithMetadata] = taskMatch;
 			if (status === undefined || contentWithMetadata === undefined)
 				continue;
@@ -475,6 +537,7 @@ function parseTasksFromContent(
 				recurrence: undefined,
 				project: undefined,
 				context: undefined,
+				heading: [...headings], // 复制当前标题层级
 			};
 
 			// Extract metadata in order
@@ -498,6 +561,7 @@ function parseTasksFromContent(
 	buildTaskHierarchy(tasks); // Call hierarchy builder if needed
 	return tasks;
 }
+
 /**
  * Extract date from file path
  */
@@ -555,20 +619,16 @@ function processFile(
 	filePath: string,
 	content: string,
 	stats: FileStats,
-	settings: {
-		preferMetadataFormat: MetadataFormat;
-		useDailyNotePathAsDate: boolean;
-		dailyNoteFormat: string;
-		useAsDateType: "due" | "start" | "scheduled";
-		dailyNotePath: string;
-	}
+	settings: TaskWorkerSettings
 ): TaskParseResult {
 	const startTime = performance.now();
 	try {
 		const tasks = parseTasksFromContent(
 			filePath,
 			content,
-			settings.preferMetadataFormat
+			settings.preferMetadataFormat,
+			settings.ignoreHeading,
+			settings.focusHeading
 		);
 		const completedTasks = tasks.filter((t) => t.completed).length;
 		try {
@@ -628,13 +688,7 @@ function processFile(
 // --- Batch processing function remains largely the same, but calls updated processFile ---
 function processBatch(
 	files: { path: string; content: string; stats: FileStats }[],
-	settings: {
-		preferMetadataFormat: MetadataFormat;
-		useDailyNotePathAsDate: boolean;
-		dailyNoteFormat: string;
-		useAsDateType: "due" | "start" | "scheduled";
-		dailyNotePath: string;
-	}
+	settings: TaskWorkerSettings
 ): BatchIndexResult {
 	// Ensure return type matches definition
 	const startTime = performance.now();
@@ -689,6 +743,8 @@ self.onmessage = async (event) => {
 			dailyNoteFormat: "yyyy-MM-dd",
 			useAsDateType: "due",
 			dailyNotePath: "",
+			ignoreHeading: "",
+			focusHeading: "",
 		};
 
 		// Using 'as any' here because I cannot modify IndexerCommand type directly,
