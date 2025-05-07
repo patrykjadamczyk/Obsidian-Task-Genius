@@ -20,7 +20,8 @@ import { RegExpCursor } from "./regexp-cursor";
 import { App, Modal, Menu, Platform, MenuItem } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
 import TaskProgressBarPlugin from "../index";
-import { TaskDetailsComponent } from "../components/task-view/details";
+import { TaskDetailsModal } from "../components/task-edit/TaskDetailsModal";
+import { TaskDetailsPopover } from "../components/task-edit/TaskDetailsPopover";
 import { TaskParser } from "../utils/import/TaskParser";
 
 // 扩展TaskProgressBarPlugin类型
@@ -75,57 +76,6 @@ class TaskGutterMarker extends GutterMarker {
 const taskMarker = new TaskGutterMarker();
 
 /**
- * 任务详情弹出窗口
- */
-class TaskDetailsModal extends Modal {
-	private task: Task;
-	private plugin: TaskProgressBarPlugin;
-	private detailsComponent: TaskDetailsComponent;
-
-	constructor(app: App, task: Task, plugin: TaskProgressBarPlugin) {
-		super(app);
-		this.task = task;
-		this.plugin = plugin;
-	}
-
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.empty();
-		contentEl.addClass("task-details-modal");
-
-		this.detailsComponent = new TaskDetailsComponent(
-			contentEl,
-			this.app,
-			this.plugin
-		);
-
-		this.detailsComponent.onload();
-		this.detailsComponent.showTaskDetails(this.task);
-
-		// 任务更新回调
-		this.detailsComponent.onTaskUpdate = async (task, updatedTask) => {
-			// 更新任务
-			if (this.plugin.taskManager) {
-				await this.plugin.taskManager.updateTask(updatedTask);
-			}
-		};
-
-		// 关闭弹窗按钮
-		this.detailsComponent.toggleDetailsVisibility = (visible) => {
-			if (!visible) this.close();
-		};
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		if (this.detailsComponent) {
-			this.detailsComponent.onunload();
-		}
-		contentEl.empty();
-	}
-}
-
-/**
  * 显示任务详情
  * 根据平台类型决定显示Popover还是Modal
  */
@@ -136,41 +86,25 @@ const showTaskDetails = (
 	task: Task,
 	event: MouseEvent
 ) => {
+	// 任务更新回调函数
+	const onTaskUpdated = async (updatedTask: Task) => {
+		if (plugin.taskManager) {
+			await plugin.taskManager.updateTask(updatedTask);
+		}
+	};
+
 	if (Platform.isDesktop) {
 		// 桌面环境 - 显示Popover
-		const menu = new Menu();
-
-		// 创建任务内容容器
-		const contentEl = createDiv({ cls: "task-popover-content" });
-
-		const detailsComponent = new TaskDetailsComponent(
-			contentEl,
+		const popover = new TaskDetailsPopover(
 			app,
-			plugin
+			plugin,
+			task,
+			onTaskUpdated
 		);
-
-		detailsComponent.onload();
-		detailsComponent.showTaskDetails(task);
-
-		// 任务更新回调
-		detailsComponent.onTaskUpdate = async (task, updatedTask) => {
-			if (plugin.taskManager) {
-				await plugin.taskManager.updateTask(updatedTask);
-			}
-		};
-
-		// 将内容添加到菜单
-		menu.addItem((item: MenuItem) => {
-			item.setTitle("任务详情");
-			const itemEl = item.dom as HTMLElement;
-			itemEl.appendChild(contentEl);
-		});
-
-		// 在点击位置显示菜单
-		menu.showAtPosition({ x: event.clientX, y: event.clientY });
+		popover.showAtPosition({ x: event.clientX, y: event.clientY });
 	} else {
 		// 移动环境 - 显示Modal
-		const modal = new TaskDetailsModal(app, task, plugin);
+		const modal = new TaskDetailsModal(app, plugin, task, onTaskUpdated);
 		modal.open();
 	}
 };
@@ -293,6 +227,45 @@ export function taskGutterExtension(
 				maxWidth: "300px",
 				maxHeight: "400px",
 				overflow: "auto",
+			},
+			".task-metadata-editor": {
+				display: "flex",
+				flexDirection: "column",
+				gap: "8px",
+				padding: "4px",
+			},
+			".task-content-preview": {
+				fontSize: "0.9em",
+				padding: "4px",
+				borderBottom: "1px solid var(--background-modifier-border)",
+				marginBottom: "8px",
+				whiteSpace: "nowrap",
+				overflow: "hidden",
+				textOverflow: "ellipsis",
+				maxWidth: "280px",
+			},
+			".field-container": {
+				display: "flex",
+				flexDirection: "column",
+				marginBottom: "4px",
+			},
+			".field-label": {
+				fontSize: "0.8em",
+				fontWeight: "bold",
+				marginBottom: "2px",
+				color: "var(--text-muted)",
+			},
+			".action-buttons": {
+				display: "flex",
+				justifyContent: "space-between",
+				marginTop: "8px",
+				gap: "8px",
+			},
+			".action-button": {
+				padding: "4px 8px",
+				fontSize: "0.8em",
+				borderRadius: "4px",
+				cursor: "pointer",
 			},
 		}),
 	];
