@@ -179,7 +179,6 @@ export class RewardManager extends Component {
 	 * @param reward The reward item to display.
 	 */
 	private showRewardModal(reward: RewardItem): void {
-		console.log("showRewardModal", this.settings.showRewardType);
 		// Check if showRewardType is set to notice
 		if (this.settings.showRewardType === "notice") {
 			// Show a notice that automatically accepts the reward

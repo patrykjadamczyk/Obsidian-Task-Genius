@@ -1,11 +1,21 @@
 /**
- * 任务元数据编辑组件
- * 提供任务元数据的展示和编辑功能
+ * Task Metadata Editor Component
+ * Provides functionality to display and edit task metadata.
  */
 
-import { App, Component, setIcon } from "obsidian";
+import {
+	App,
+	Component,
+	setIcon,
+	TextComponent,
+	DropdownComponent,
+	TextAreaComponent,
+} from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import TaskProgressBarPlugin from "../../index";
+import { t } from "../../translations/helper";
+import { ProjectSuggest, TagSuggest, ContextSuggest } from "../AutoComplete";
+import { StatusComponent } from "../StatusComponent";
 
 export interface MetadataChangeEvent {
 	field: string;
@@ -36,109 +46,93 @@ export class TaskMetadataEditor extends Component {
 	}
 
 	/**
-	 * 显示任务元数据编辑界面
+	 * Displays the task metadata editing interface.
 	 */
 	showTask(task: Task): void {
 		this.task = task;
 		this.container.empty();
 		this.container.addClass("task-metadata-editor");
 
-		if (this.isCompactMode) {
-			this.createCompactView();
-		} else {
-			this.createFullView();
-		}
+		this.createFullView();
 	}
 
 	/**
-	 * 创建紧凑视图 (用于Popover)
+	 * Creates the compact view (for Popover).
 	 */
 	private createCompactView(): void {
-		// 创建任务内容预览
-		this.createContentPreview();
-
-		// 创建状态编辑器
+		// Create status editor
 		this.createStatusEditor();
 
-		// 创建基本元数据编辑器 (优先级、日期等)
+		// Create basic metadata editor (priority, dates, etc.)
 		const metadataContainer = this.container.createDiv({
 			cls: "metadata-basic-container",
 		});
 
-		// 优先级编辑
+		// Priority editor
 		this.createPriorityEditor(metadataContainer);
 
-		// 日期编辑 (截止日期)
+		// Date editor (due date)
 		this.createDateEditor(
 			metadataContainer,
-			"截止日期",
+			t("Due Date"),
 			"dueDate",
 			this.getDateString(this.task.dueDate)
 		);
-
-		// 底部操作按钮
-		this.createActionButtons();
 	}
 
 	/**
-	 * 创建完整视图 (用于Modal)
+	 * Creates the full view (for Modal).
 	 */
 	private createFullView(): void {
-		// 创建可编辑的内容区域
-		this.createContentEditor();
-
-		// 创建状态编辑器
+		// Create status editor
 		this.createStatusEditor();
 
-		// 创建完整的元数据编辑区域
+		// Create full metadata editing area
 		const metadataContainer = this.container.createDiv({
 			cls: "metadata-full-container",
 		});
 
-		// 项目编辑
+		// Project editor
 		this.createProjectEditor(metadataContainer);
 
-		// 标签编辑
+		// Tags editor
 		this.createTagsEditor(metadataContainer);
 
-		// 上下文编辑
+		// Context editor
 		this.createContextEditor(metadataContainer);
 
-		// 优先级编辑
+		// Priority editor
 		this.createPriorityEditor(metadataContainer);
 
-		// 日期编辑 (所有日期类型)
+		// Date editor (all date types)
 		const datesContainer = metadataContainer.createDiv({
 			cls: "dates-container",
 		});
 		this.createDateEditor(
 			datesContainer,
-			"截止日期",
+			t("Due Date"),
 			"dueDate",
 			this.getDateString(this.task.dueDate)
 		);
 		this.createDateEditor(
 			datesContainer,
-			"开始日期",
+			t("Start Date"),
 			"startDate",
 			this.getDateString(this.task.startDate)
 		);
 		this.createDateEditor(
 			datesContainer,
-			"计划日期",
+			t("Scheduled Date"),
 			"scheduledDate",
 			this.getDateString(this.task.scheduledDate)
 		);
 
-		// 重复规则编辑
+		// Recurrence rule editor
 		this.createRecurrenceEditor(metadataContainer);
-
-		// 底部操作按钮
-		this.createActionButtons();
 	}
 
 	/**
-	 * 将日期值转换为字符串
+	 * Converts a date value to a string.
 	 */
 	private getDateString(dateValue: string | number | undefined): string {
 		if (dateValue === undefined) return "";
@@ -149,110 +143,51 @@ export class TaskMetadataEditor extends Component {
 	}
 
 	/**
-	 * 创建任务内容预览 (只读)
-	 */
-	private createContentPreview(): void {
-		const contentEl = this.container.createDiv({
-			cls: "task-content-preview",
-		});
-		contentEl.setText(this.task.content);
-	}
-
-	/**
-	 * 创建可编辑的任务内容
-	 */
-	private createContentEditor(): void {
-		const contentContainer = this.container.createDiv({
-			cls: "task-content-editor",
-		});
-		const contentLabel = contentContainer.createDiv({ cls: "field-label" });
-		contentLabel.setText("内容");
-
-		const contentInput = contentContainer.createEl("textarea", {
-			cls: "task-content-input",
-		});
-		contentInput.value = this.task.content;
-		contentInput.rows = 3;
-
-		contentInput.addEventListener("change", () => {
-			this.notifyMetadataChange("content", contentInput.value);
-		});
-	}
-
-	/**
-	 * 创建状态编辑器
+	 * Creates a status editor.
 	 */
 	private createStatusEditor(): void {
 		const statusContainer = this.container.createDiv({
 			cls: "task-status-editor",
 		});
-		const statusLabel = statusContainer.createDiv({ cls: "field-label" });
-		statusLabel.setText("状态");
 
-		// 这里应该集成现有的StatusComponent或创建一个简化版本
-		const statusSelect = statusContainer.createEl("select", {
-			cls: "task-status-select",
-		});
-
-		// 添加状态选项 (应该从StatusComponent中获取可用状态)
-		const statuses = ["todo", "done", "inprogress", "cancelled"];
-		statuses.forEach((status) => {
-			const option = statusSelect.createEl("option", { value: status });
-			option.text =
-				status === "todo"
-					? "待办"
-					: status === "done"
-					? "完成"
-					: status === "inprogress"
-					? "进行中"
-					: "取消";
-			if (this.task.status === status) {
-				option.selected = true;
-			}
-		});
-
-		statusSelect.addEventListener("change", () => {
-			this.notifyMetadataChange("status", statusSelect.value);
+		new StatusComponent(this.plugin, statusContainer, this.task, {
+			type: "quick-capture",
+			onTaskUpdate: async (task, updatedTask) => {
+				this.notifyMetadataChange("status", updatedTask.status);
+			},
+			onTaskStatusSelected: (status) => {
+				this.notifyMetadataChange("status", status);
+			},
 		});
 	}
 
 	/**
-	 * 创建优先级编辑器
+	 * Creates a priority editor.
 	 */
 	private createPriorityEditor(container: HTMLElement): void {
 		const fieldContainer = container.createDiv({
 			cls: "field-container priority-container",
 		});
 		const fieldLabel = fieldContainer.createDiv({ cls: "field-label" });
-		fieldLabel.setText("优先级");
+		fieldLabel.setText(t("Priority"));
 
-		const select = fieldContainer.createEl("select", {
-			cls: "priority-select",
-		});
-		const priorities = [
-			{ value: "", label: "无" },
-			{ value: "high", label: "高" },
-			{ value: "medium", label: "中" },
-			{ value: "low", label: "低" },
-		];
+		const priorityDropdown = new DropdownComponent(fieldContainer)
+			.addOption("", t("None"))
+			.addOption("high", t("High"))
+			.addOption("medium", t("Medium"))
+			.addOption("low", t("Low"))
+			.onChange((value) => {
+				this.notifyMetadataChange("priority", value);
+			});
 
-		priorities.forEach((priority) => {
-			const option = select.createEl("option", { value: priority.value });
-			option.text = priority.label;
-			// 优先级的字符串比较
-			const taskPriority = this.getPriorityString(this.task.priority);
-			if (taskPriority === priority.value) {
-				option.selected = true;
-			}
-		});
+		priorityDropdown.selectEl.addClass("priority-select");
 
-		select.addEventListener("change", () => {
-			this.notifyMetadataChange("priority", select.value);
-		});
+		const taskPriority = this.getPriorityString(this.task.priority);
+		priorityDropdown.setValue(taskPriority || "");
 	}
 
 	/**
-	 * 将优先级值转换为字符串
+	 * Converts a priority value to a string.
 	 */
 	private getPriorityString(priority: string | number | undefined): string {
 		if (priority === undefined) return "";
@@ -260,11 +195,11 @@ export class TaskMetadataEditor extends Component {
 	}
 
 	/**
-	 * 创建日期编辑器
+	 * Creates a date editor.
 	 */
 	private createDateEditor(
 		container: HTMLElement,
-		label: string,
+		label: string, // Already wrapped with t() where called
 		field: string,
 		value: string
 	): void {
@@ -280,13 +215,13 @@ export class TaskMetadataEditor extends Component {
 		});
 
 		if (value) {
-			// 日期格式转换 (应匹配插件中使用的日期格式)
+			// Date format conversion (should match date format used in the plugin)
 			try {
 				const date = new Date(value);
 				const formattedDate = date.toISOString().split("T")[0];
 				dateInput.value = formattedDate;
 			} catch (e) {
-				console.error(`无法解析日期: ${value}`, e);
+				console.error(`Cannot parse date: ${value}`, e);
 			}
 		}
 
@@ -296,152 +231,107 @@ export class TaskMetadataEditor extends Component {
 	}
 
 	/**
-	 * 创建项目编辑器
+	 * Creates a project editor.
 	 */
 	private createProjectEditor(container: HTMLElement): void {
 		const fieldContainer = container.createDiv({
 			cls: "field-container project-container",
 		});
 		const fieldLabel = fieldContainer.createDiv({ cls: "field-label" });
-		fieldLabel.setText("项目");
+		fieldLabel.setText(t("Project"));
 
-		const projectInput = fieldContainer.createEl("input", {
-			cls: "project-input",
-			type: "text",
-			value: this.task.project || "",
-		});
+		const projectInput = new TextComponent(fieldContainer)
+			.setPlaceholder(t("Project name"))
+			.setValue(this.task.project || "")
+			.onChange((value) => {
+				this.notifyMetadataChange("project", value);
+			});
+		projectInput.inputEl.addClass("project-input");
+		projectInput.inputEl.type = "text";
 
-		// 应添加项目建议功能 (类似ProjectSuggest)
-
-		projectInput.addEventListener("change", () => {
-			this.notifyMetadataChange("project", projectInput.value);
-		});
+		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
 	}
 
 	/**
-	 * 创建标签编辑器
+	 * Creates a tags editor.
 	 */
 	private createTagsEditor(container: HTMLElement): void {
 		const fieldContainer = container.createDiv({
 			cls: "field-container tags-container",
 		});
 		const fieldLabel = fieldContainer.createDiv({ cls: "field-label" });
-		fieldLabel.setText("标签");
+		fieldLabel.setText(t("Tags"));
 
-		const tagsInput = fieldContainer.createEl("input", {
-			cls: "tags-input",
-			type: "text",
-			value: Array.isArray(this.task.tags)
-				? this.task.tags.join(", ")
-				: "",
-		});
+		const tagsInput = new TextComponent(fieldContainer)
+			.setPlaceholder(t("e.g. #tag1, #tag2"))
+			.setValue(
+				Array.isArray(this.task.tags) ? this.task.tags.join(", ") : ""
+			)
+			.onChange((value) => {
+				const tags = value
+					.split(",")
+					.map((tag) => tag.trim())
+					.filter((tag) => tag);
+				this.notifyMetadataChange("tags", tags);
+			});
+		tagsInput.inputEl.addClass("tags-input");
+		tagsInput.inputEl.type = "text";
 
-		// 应添加标签建议功能 (类似TagSuggest)
-
-		tagsInput.addEventListener("change", () => {
-			const tags = tagsInput.value
-				.split(",")
-				.map((tag) => tag.trim())
-				.filter((tag) => tag);
-			this.notifyMetadataChange("tags", tags);
-		});
+		new TagSuggest(this.app, tagsInput.inputEl, this.plugin);
 	}
 
 	/**
-	 * 创建上下文编辑器
+	 * Creates a context editor.
 	 */
 	private createContextEditor(container: HTMLElement): void {
 		const fieldContainer = container.createDiv({
 			cls: "field-container context-container",
 		});
 		const fieldLabel = fieldContainer.createDiv({ cls: "field-label" });
-		fieldLabel.setText("上下文");
+		fieldLabel.setText(t("Context"));
 
-		const contextInput = fieldContainer.createEl("input", {
-			cls: "context-input",
-			type: "text",
-			value: Array.isArray(this.task.context)
-				? this.task.context.join(", ")
-				: "",
-		});
+		const contextInput = new TextComponent(fieldContainer)
+			.setPlaceholder(t("e.g. @home, @work"))
+			.setValue(
+				Array.isArray(this.task.context)
+					? this.task.context.join(", ")
+					: ""
+			)
+			.onChange((value) => {
+				const contexts = value
+					.split(",")
+					.map((ctx) => ctx.trim())
+					.filter((ctx) => ctx);
+				this.notifyMetadataChange("context", contexts);
+			});
+		contextInput.inputEl.addClass("context-input");
+		contextInput.inputEl.type = "text";
 
-		// 应添加上下文建议功能 (类似ContextSuggest)
-
-		contextInput.addEventListener("change", () => {
-			const contexts = contextInput.value
-				.split(",")
-				.map((ctx) => ctx.trim())
-				.filter((ctx) => ctx);
-			this.notifyMetadataChange("context", contexts);
-		});
+		new ContextSuggest(this.app, contextInput.inputEl, this.plugin);
 	}
 
 	/**
-	 * 创建重复规则编辑器
+	 * Creates a recurrence rule editor.
 	 */
 	private createRecurrenceEditor(container: HTMLElement): void {
 		const fieldContainer = container.createDiv({
 			cls: "field-container recurrence-container",
 		});
 		const fieldLabel = fieldContainer.createDiv({ cls: "field-label" });
-		fieldLabel.setText("重复规则");
+		fieldLabel.setText(t("Recurrence Rule"));
 
-		const recurrenceInput = fieldContainer.createEl("input", {
-			cls: "recurrence-input",
-			type: "text",
-			value: this.task.recurrence || "",
-		});
-
-		recurrenceInput.addEventListener("change", () => {
-			this.notifyMetadataChange("recurrence", recurrenceInput.value);
-		});
+		const recurrenceInput = new TextComponent(fieldContainer)
+			.setPlaceholder(t("e.g. every day, every week"))
+			.setValue(this.task.recurrence || "")
+			.onChange((value) => {
+				this.notifyMetadataChange("recurrence", value);
+			});
+		recurrenceInput.inputEl.addClass("recurrence-input");
+		recurrenceInput.inputEl.type = "text";
 	}
 
 	/**
-	 * 创建操作按钮
-	 */
-	private createActionButtons(): void {
-		const buttonsContainer = this.container.createDiv({
-			cls: "action-buttons",
-		});
-
-		// 保存按钮 (仅在Modal中显示)
-		if (!this.isCompactMode) {
-			const saveButton = buttonsContainer.createEl("button", {
-				cls: "action-button save-button",
-				text: "保存",
-			});
-
-			saveButton.addEventListener("click", () => {
-				// 触发保存事件 (会由外部处理)
-				this.notifyMetadataChange("save", true);
-			});
-		}
-
-		// 在文件中编辑按钮
-		const editInFileButton = buttonsContainer.createEl("button", {
-			cls: "action-button edit-in-file-button",
-			text: "在文件中编辑",
-		});
-
-		editInFileButton.addEventListener("click", () => {
-			this.notifyMetadataChange("editInFile", true);
-		});
-
-		// 切换完成状态按钮
-		const toggleStatusButton = buttonsContainer.createEl("button", {
-			cls: "action-button toggle-status-button",
-			text: this.task.status === "done" ? "标记为未完成" : "标记为完成",
-		});
-
-		toggleStatusButton.addEventListener("click", () => {
-			const newStatus = this.task.status === "done" ? "todo" : "done";
-			this.notifyMetadataChange("status", newStatus);
-		});
-	}
-
-	/**
-	 * 通知元数据变更
+	 * Notifies about metadata changes.
 	 */
 	private notifyMetadataChange(field: string, value: any): void {
 		if (this.onMetadataChange) {

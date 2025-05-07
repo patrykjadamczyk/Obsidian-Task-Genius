@@ -1563,12 +1563,15 @@ export class TaskManager extends Component {
 		// But I think it's better to use the current date as the base date
 		// because the due date and scheduled date are not always available
 		// And next recurrence date that is calculated will be the next occurrence of the task
-		// const baseDate = task.dueDate
-		// 	? new Date(task.dueDate)
-		// 	: task.scheduledDate
-		// 	? new Date(task.scheduledDate)
-		// 	: new Date();
-		const baseDate = new Date();
+		let baseDate = task.dueDate
+			? new Date(task.dueDate)
+			: task.scheduledDate
+			? new Date(task.scheduledDate)
+			: new Date();
+		if (baseDate.getTime() < new Date().getTime()) {
+			baseDate = new Date();
+		}
+		// const baseDate = new Date();
 		// Ensure baseDate is at the beginning of the day for date-based recurrence
 		baseDate.setHours(0, 0, 0, 0);
 

@@ -1,0 +1,71 @@
+.task-details-popover.tg-menu {
+	z-index: 1000;
+}
+
+.task-gutter {
+	width: 26px;
+}
+
+.task-gutter-marker {
+	cursor: pointer;
+	font-size: var(--font-smaller);
+	opacity: 0.6;
+	transition: opacity 0.2s ease;
+}
+
+.task-gutter-marker:hover {
+	opacity: 1;
+}
+
+.task-popover-content {
+	padding: var(--size-4-3);
+	max-width: 300px;
+	max-height: 400px;
+	overflow: auto;
+}
+
+.task-metadata-editor {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2);
+}
+
+.field-container {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: var(--size-2-2);
+}
+
+.field-label {
+	font-size: var(--font-smallest);
+	font-weight: var(--font-bold);
+	margin-bottom: var(--size-2-1);
+	color: var(--text-muted);
+}
+
+.action-buttons {
+	display: flex;
+	justify-content: space-between;
+	margin-top: var(--size-4-2);
+	gap: var(--size-4-2);
+}
+
+.action-button {
+	padding: var(--size-2-2) var(--size-4-2);
+	font-size: var(--font-smallest);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.task-gutter-marker.clickable-icon {
+	width: 24px;
+	padding: var(--size-2-1);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.task-metadata-editor {
+	height: 100%;
+}
