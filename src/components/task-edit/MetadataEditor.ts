@@ -274,7 +274,7 @@ export class TaskMetadataEditor extends Component {
 			.addOption("4", "⏫ " + t("High"))
 			.addOption("5", "🔺 " + t("Highest"))
 			.onChange((value) => {
-				this.notifyMetadataChange("priority", value);
+				this.notifyMetadataChange("priority", parseInt(value));
 			});
 
 		priorityDropdown.selectEl.addClass("priority-select");

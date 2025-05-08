@@ -1,5 +1,11 @@
+.cm-gutters.task-gutter {
+	margin-inline-end: 0 !important;
+	margin-inline-start: var(--file-folding-offset);
+}
+
 .task-details-popover.tg-menu {
 	z-index: 20;
+	position: fixed;
 	background-color: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
@@ -14,7 +20,7 @@
 .task-gutter-marker {
 	cursor: pointer;
 	font-size: var(--font-smaller);
-	opacity: 0.6;
+	opacity: 0.2;
 	transition: opacity 0.2s ease;
 }
 

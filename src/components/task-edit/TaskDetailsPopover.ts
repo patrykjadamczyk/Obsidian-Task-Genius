@@ -69,8 +69,6 @@ export class TaskDetailsPopover {
 				id: `${this.task.filePath}-L${this.task.line - 1}`,
 			};
 
-			console.log(event, updatedTask);
-
 			// Only update completed status and completedDate if the status field is changing to a completed state
 			if (
 				event.field === "status" &&
@@ -154,6 +152,19 @@ export class TaskDetailsPopover {
 		let top = position.y;
 		let left = position.x;
 
+		// First check if there's enough space to the right
+		if (left + menuWidth > viewportWidth - 20) {
+			// Not enough space to the right, try positioning to the left of the click
+			// But don't move all the way to the left edge (20px)
+			console.log(position.x - menuWidth);
+			left = Math.max(position.x - menuWidth, 20);
+
+			// If we're still off the right edge somehow, just align to the right edge
+			if (left + menuWidth > viewportWidth - 20) {
+				left = viewportWidth - menuWidth - 20;
+			}
+		}
+
 		// Adjust if popover goes off bottom edge
 		if (top + menuHeight > viewportHeight - 20) {
 			// 20px buffer
@@ -166,23 +177,10 @@ export class TaskDetailsPopover {
 			top = 20;
 		}
 
-		// Adjust if popover goes off right edge
-		if (left + menuWidth > viewportWidth - 20) {
-			// 20px buffer
-			left = viewportWidth - menuWidth - 20;
-		}
-
-		// Adjust if popover goes off left edge
-		if (left < 20) {
-			// 20px buffer
-			left = 20;
-		}
-
 		this.popoverRef.style.position = "fixed";
 		this.popoverRef.style.top = `${top}px`;
 		this.popoverRef.style.left = `${left}px`;
 	}
-
 	/**
 	 * Closes the popover.
 	 */

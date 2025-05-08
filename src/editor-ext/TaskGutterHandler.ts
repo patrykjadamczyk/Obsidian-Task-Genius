@@ -3,20 +3,9 @@
  * Displays a marker in front of task lines; clicking it shows task details.
  */
 
-import {
-	EditorView,
-	gutter,
-	GutterMarker,
-	Decoration,
-	WidgetType,
-} from "@codemirror/view";
-import {
-	StateField,
-	StateEffect,
-	RangeSet,
-	Extension,
-} from "@codemirror/state";
-import { RegExpCursor } from "./regexp-cursor";
+import { EditorView } from "@codemirror/view";
+import { gutter, GutterMarker } from "./patchedGutter";
+import { Extension } from "@codemirror/state";
 import {
 	App,
 	Modal,
@@ -30,10 +19,11 @@ import TaskProgressBarPlugin from "../index";
 import { TaskDetailsModal } from "../components/task-edit/TaskDetailsModal";
 import { TaskDetailsPopover } from "../components/task-edit/TaskDetailsPopover";
 import { TaskParser } from "../utils/import/TaskParser";
-import { t } from "../translations/helper";
+// @ts-ignore - This import is necessary but TypeScript can't find it
+import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import "../styles/task-gutter.css";
 
-const taskRegex = /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s*(.*)$/m;
+const taskRegex = /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s+(.*)$/m;
 
 // Task icon marker
 class TaskGutterMarker extends GutterMarker {
@@ -67,6 +57,23 @@ class TaskGutterMarker extends GutterMarker {
 				const file = this.app.workspace.getActiveFile();
 
 				if (!file || !taskRegex.test(lineText)) return false;
+
+				// Check if the line is in a codeblock or frontmatter
+				const line = this.view.state.doc.line(this.lineNum);
+				const syntaxNode = syntaxTree(this.view.state).resolveInner(
+					line.from + 1
+				);
+				const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
+
+				if (nodeProps) {
+					const props = nodeProps.split(" ");
+					if (
+						props.includes("hmd-codeblock") ||
+						props.includes("hmd-frontmatter")
+					) {
+						return false;
+					}
+				}
 
 				const lineNum = this.view.state.doc.line(this.lineNum).number;
 				const task = getTaskFromLine(
@@ -168,16 +175,33 @@ export function taskGutterExtension(
 			lineMarker(view, line) {
 				const lineText = view.state.doc.lineAt(line.from).text;
 				const lineNumber = view.state.doc.lineAt(line.from).number;
-				if (taskRegex.test(lineText)) {
-					return new TaskGutterMarker(
-						lineText,
-						lineNumber,
-						view,
-						app,
-						plugin
-					);
+
+				// Skip if not a task
+				if (!taskRegex.test(lineText)) return null;
+
+				// Check if the line is in a codeblock or frontmatter
+				const syntaxNode = syntaxTree(view.state).resolveInner(
+					line.from + 1
+				);
+				const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
+
+				if (nodeProps) {
+					const props = nodeProps.split(" ");
+					if (
+						props.includes("hmd-codeblock") ||
+						props.includes("hmd-frontmatter")
+					) {
+						return null;
+					}
 				}
-				return null;
+
+				return new TaskGutterMarker(
+					lineText,
+					lineNumber,
+					view,
+					app,
+					plugin
+				);
 			},
 		}),
 	];
