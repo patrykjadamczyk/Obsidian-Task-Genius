@@ -63,13 +63,12 @@ class TaskGutterMarker extends GutterMarker {
 		const button = new ExtraButtonComponent(markerEl)
 			.setIcon("calendar-check")
 			.onClick(() => {
-				const lineText = this.view.state.doc.lineAt(this.lineNum).text;
+				const lineText = this.view.state.doc.line(this.lineNum).text;
 				const file = this.app.workspace.getActiveFile();
 
 				if (!file || !taskRegex.test(lineText)) return false;
 
-				const lineNum =
-					this.view.state.doc.lineAt(this.lineNum).number - 1;
+				const lineNum = this.view.state.doc.line(this.lineNum).number;
 				const task = getTaskFromLine(
 					this.plugin,
 					file.path,
@@ -116,12 +115,7 @@ const showTaskDetails = (
 
 	if (Platform.isDesktop) {
 		// Desktop environment - show Popover
-		const popover = new TaskDetailsPopover(
-			app,
-			plugin,
-			task,
-			onTaskUpdated
-		);
+		const popover = new TaskDetailsPopover(app, plugin, task);
 		const rect = extraSettingsEl.getBoundingClientRect();
 		popover.showAtPosition({
 			x: rect.left,

@@ -3,7 +3,7 @@
  * Used in desktop environments to display task details in a menu popover.
  */
 
-import { App, MarkdownView, TFile } from "obsidian";
+import { App, debounce, MarkdownView, TFile } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import TaskProgressBarPlugin from "../../index";
 import { TaskMetadataEditor } from "./MetadataEditor";
@@ -15,20 +15,13 @@ export class TaskDetailsPopover {
 	private app: App;
 	private popoverRef: HTMLDivElement | null = null;
 	private metadataEditor: TaskMetadataEditor;
-	private onTaskUpdated: (task: Task) => Promise<void>;
 	private win: Window;
 	private scrollParent: HTMLElement | Window;
 
-	constructor(
-		app: App,
-		plugin: TaskProgressBarPlugin,
-		task: Task,
-		onTaskUpdated?: (task: Task) => Promise<void>
-	) {
+	constructor(app: App, plugin: TaskProgressBarPlugin, task: Task) {
 		this.app = app;
 		this.plugin = plugin;
 		this.task = task;
-		this.onTaskUpdated = onTaskUpdated || (async () => {});
 		this.win = app.workspace.containerEl.win || window;
 		// Determine a reasonable scroll parent.
 		const scrollEl = app.workspace.containerEl.closest(".cm-scroller");
@@ -38,6 +31,10 @@ export class TaskDetailsPopover {
 			this.scrollParent = this.win;
 		}
 	}
+
+	debounceUpdateTask = debounce(async (task: Task) => {
+		await this.plugin.taskManager.updateTask(task);
+	}, 200);
 
 	/**
 	 * Shows the task details popover at the given position.
@@ -64,12 +61,31 @@ export class TaskDetailsPopover {
 
 		// Listen for metadata change events
 		this.metadataEditor.onMetadataChange = async (event) => {
-			this.plugin.taskManager.updateTask({
+			// Create a base task object with the updated field
+			const updatedTask = {
 				...this.task,
-				line: this.task.line,
-				id: `${this.task.filePath}-L${this.task.line}`,
 				[event.field]: event.value,
-			});
+				line: this.task.line - 1,
+				id: `${this.task.filePath}-L${this.task.line - 1}`,
+			};
+
+			console.log(event, updatedTask);
+
+			// Only update completed status and completedDate if the status field is changing to a completed state
+			if (
+				event.field === "status" &&
+				(event.value === "x" || event.value === "X")
+			) {
+				updatedTask.completed = true;
+				updatedTask.completedDate = Date.now();
+			} else if (event.field === "status") {
+				// If status is changing to something else, mark as not completed
+				updatedTask.completed = false;
+				updatedTask.completedDate = undefined;
+			}
+
+			// Update the task with all changes
+			this.debounceUpdateTask(updatedTask);
 		};
 
 		// Create the popover
@@ -106,8 +122,20 @@ export class TaskDetailsPopover {
 		}
 	};
 
-	private scrollHandler = () => {
+	private scrollHandler = (e: Event) => {
 		if (this.popoverRef) {
+			if (
+				e.target instanceof Node &&
+				this.popoverRef.contains(e.target)
+			) {
+				const targetElement = e.target as HTMLElement;
+				if (
+					targetElement.scrollHeight > targetElement.clientHeight ||
+					targetElement.scrollWidth > targetElement.clientWidth
+				) {
+					return;
+				}
+			}
 			this.close();
 		}
 	};
@@ -153,41 +181,6 @@ export class TaskDetailsPopover {
 		this.popoverRef.style.position = "fixed";
 		this.popoverRef.style.top = `${top}px`;
 		this.popoverRef.style.left = `${left}px`;
-	}
-
-	/**
-	 * Updates a task field.
-	 */
-	private updateTaskField(field: string, value: any) {
-		if (field in this.task) {
-			(this.task as any)[field] = value;
-		}
-	}
-
-	/**
-	 * Navigates to the task's location in the file.
-	 */
-	private async navigateToTaskInFile() {
-		const { filePath, line } = this.task;
-		if (!filePath) return;
-
-		// Open the file
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		if (!(file instanceof TFile)) return;
-
-		const leaf = this.app.workspace.getLeaf();
-		await leaf.openFile(file);
-
-		// If there's a line number, navigate to that line
-		if (line !== undefined) {
-			const activeView =
-				this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (activeView && activeView.editor) {
-				const pos = { line: line, ch: 0 };
-				activeView.editor.setCursor(pos);
-				activeView.editor.scrollIntoView({ from: pos, to: pos }, true);
-			}
-		}
 	}
 
 	/**

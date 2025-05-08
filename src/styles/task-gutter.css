@@ -1,5 +1,10 @@
 .task-details-popover.tg-menu {
-	z-index: 1000;
+	z-index: 20;
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-3);
+	box-shadow: var(--shadow-l);
 }
 
 .task-gutter {
@@ -29,6 +34,7 @@
 	flex-direction: column;
 	gap: var(--size-4-2);
 	padding: var(--size-2-2);
+	height: 100%;
 }
 
 .field-container {
@@ -66,6 +72,67 @@
 	align-items: center;
 }
 
-.task-metadata-editor {
-	height: 100%;
+/* Tabbed Interface Styles */
+.task-details-popover .tabs-main-container {
+	display: flex;
+	flex-direction: column;
+	width: 100%; /* Ensure it takes available width */
+}
+
+.task-details-popover .tabs-navigation {
+	display: flex;
+	margin-bottom: var(--size-4-2);
+	gap: var(--size-4-2);
+}
+
+.task-details-popover .tab-button {
+	padding: var(--size-2-2) var(--size-4-2);
+	cursor: pointer;
+	border: none;
+	background: none;
+	font-size: var(--font-ui-small); /* Adjusted for consistency */
+	color: var(--text-muted);
+	margin-bottom: -1px; /* Align with parent border */
+	transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.task-details-popover .tab-button:hover {
+	color: var(--text-normal);
+}
+
+.task-details-popover .tab-button.active {
+	color: var(--text-on-accent);
+	font-weight: var(--font-bold);
+	background-color: var(--interactive-accent);
+}
+
+.task-details-popover .tab-pane {
+	display: none; /* Hide inactive panes by default */
+	flex-direction: column; /* Ensure content within pane flows vertically */
+	gap: var(--size-4-2); /* Add some gap between elements in the pane */
+}
+
+.task-details-popover .tab-pane.active {
+	display: flex; /* Show active pane */
+}
+
+.task-details-popover .details-status-selector {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+
+	margin-bottom: var(--size-4-2);
+	margin-top: var(--size-4-2);
+}
+
+.task-details-popover .quick-capture-status-selector {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+
+	gap: var(--size-4-3);
+}
+
+.task-details-popover .quick-capture-status-selector-label {
+	display: none;
 }

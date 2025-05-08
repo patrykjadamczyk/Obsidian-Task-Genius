@@ -293,61 +293,100 @@ function extractTags(
 		);
 	}
 
-	// Exclude links (both wiki and markdown) from tag processing
-	const wikiLinkRegex = /\[\[(?!.+?:)([^\]\[]+)\|([^\]\[]+)\]\]/g;
-	const markdownLinkRegex = /\[([^\[\]]*)\]\((.*?)\)/g; // Final attempt at correctly escaped regex for [text](link)
-	const links: { text: string; start: number; end: number }[] = [];
-	let linkMatch: RegExpExecArray | null; // Explicit type for linkMatch
+	// Exclude links (both wiki and markdown) and inline code from tag processing
+	const generalWikiLinkRegex = /\[\[([^\]\[\]]+)\]\]/g; // Matches [[content]]
+	const aliasedWikiLinkRegex = /\[\[(?!.+?:)([^\]\[\]]+)\|([^\]\[\]]+)\]\]/g; // Matches [[link|alias]]
+	const markdownLinkRegex = /\[([^\[\]]*)\]\((.*?)\)/g;
+	const inlineCodeRegex = /`([^`]+?)`/g; // Matches `code`
+
+	const exclusions: { text: string; start: number; end: number }[] = [];
+	let match: RegExpExecArray | null;
 	let processedContent = remainingContent;
 
-	// Find all wiki links and their positions
-	wikiLinkRegex.lastIndex = 0; // Reset regex state
-	while ((linkMatch = wikiLinkRegex.exec(remainingContent)) !== null) {
-		links.push({
-			text: linkMatch[0],
-			start: linkMatch.index,
-			end: linkMatch.index + linkMatch[0].length,
+	// Find all general wiki links and their positions
+	generalWikiLinkRegex.lastIndex = 0;
+	while ((match = generalWikiLinkRegex.exec(remainingContent)) !== null) {
+		exclusions.push({
+			text: match[0],
+			start: match.index,
+			end: match.index + match[0].length,
 		});
 	}
 
-	// Find all markdown links and their positions
-	markdownLinkRegex.lastIndex = 0; // Reset regex state
-	while ((linkMatch = markdownLinkRegex.exec(remainingContent)) !== null) {
-		// Avoid adding if it overlaps with an existing wiki link (though unlikely)
-		const overlaps = links.some(
-			(l) =>
-				Math.max(l.start, linkMatch!.index) < // Use non-null assertion
-				Math.min(l.end, linkMatch!.index + linkMatch![0].length) // Use non-null assertion
+	// Find all aliased wiki links
+	aliasedWikiLinkRegex.lastIndex = 0;
+	while ((match = aliasedWikiLinkRegex.exec(remainingContent)) !== null) {
+		const overlaps = exclusions.some(
+			(ex) =>
+				Math.max(ex.start, match!.index) <
+				Math.min(ex.end, match!.index + match![0].length)
 		);
 		if (!overlaps) {
-			links.push({
-				text: linkMatch![0], // Use non-null assertion
-				start: linkMatch!.index, // Use non-null assertion
-				end: linkMatch!.index + linkMatch![0].length, // Use non-null assertion
+			exclusions.push({
+				text: match![0],
+				start: match!.index,
+				end: match!.index + match![0].length,
 			});
 		}
 	}
 
-	// Sort links by start position to process them correctly
-	links.sort((a, b) => a.start - b.start);
-
-	// Temporarily replace links with placeholders
-	if (links.length > 0) {
-		let offset = 0;
-		for (const link of links) {
-			const adjustedStart = link.start - offset;
-			// Ensure adjustedStart is not negative (can happen with overlapping regex logic, though we try to avoid it)
-			if (adjustedStart < 0) continue;
-			const placeholder = "".padStart(link.text.length, " "); // Replace with spaces
-			processedContent =
-				processedContent.substring(0, adjustedStart) +
-				placeholder +
-				processedContent.substring(adjustedStart + link.text.length);
-			// Offset doesn't change because placeholder length matches link text length
+	// Find all markdown links
+	markdownLinkRegex.lastIndex = 0;
+	while ((match = markdownLinkRegex.exec(remainingContent)) !== null) {
+		const overlaps = exclusions.some(
+			(ex) =>
+				Math.max(ex.start, match!.index) <
+				Math.min(ex.end, match!.index + match![0].length)
+		);
+		if (!overlaps) {
+			exclusions.push({
+				text: match![0],
+				start: match!.index,
+				end: match!.index + match![0].length,
+			});
 		}
 	}
 
-	// Find all #tags in the content with links replaced by placeholders
+	// Find all inline code blocks
+	inlineCodeRegex.lastIndex = 0;
+	while ((match = inlineCodeRegex.exec(remainingContent)) !== null) {
+		// Check for overlaps with existing exclusions (e.g. a code block inside a link, though unlikely for tags)
+		const overlaps = exclusions.some(
+			(ex) =>
+				Math.max(ex.start, match!.index) <
+				Math.min(ex.end, match!.index + match![0].length)
+		);
+		if (!overlaps) {
+			exclusions.push({
+				text: match![0], // Store the full match `code`
+				start: match!.index,
+				end: match!.index + match![0].length,
+			});
+		}
+	}
+
+	// Sort exclusions by start position to process them correctly
+	exclusions.sort((a, b) => a.start - b.start);
+
+	// Temporarily replace excluded segments (links, inline code) with placeholders
+	if (exclusions.length > 0) {
+		let offset = 0; // This offset logic needs care if lengths change.
+		// Using spaces as placeholders maintains original string length and indices for subsequent operations.
+		let tempProcessedContent = processedContent.split("");
+
+		for (const ex of exclusions) {
+			// Replace the content of the exclusion with spaces
+			for (let i = ex.start; i < ex.end; i++) {
+				// Check boundary condition for tempProcessedContent
+				if (i < tempProcessedContent.length) {
+					tempProcessedContent[i] = " ";
+				}
+			}
+		}
+		processedContent = tempProcessedContent.join("");
+	}
+
+	// Find all #tags in the content with links and inline code replaced by placeholders
 	const tagMatches = processedContent.match(EMOJI_TAG_REGEX) || [];
 	task.tags = tagMatches.map((tag) => tag.trim());
 
@@ -374,27 +413,8 @@ function extractTags(
 	for (const tag of task.tags) {
 		// Ensure the tag is not empty or just '#' before creating regex
 		if (tag && tag !== "#") {
-			// Use word boundaries (or start/end of string/space) to avoid partial matches within links if tags are not fully removed initially
-			// Regex: (?:^|\s)TAG(?=\s|$)
-			// Need to escape the tag content properly.
-			const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-			// Match tag optionally preceded by whitespace, followed by whitespace or end of line.
-			// The negative lookbehind (?<!...) might be useful but JS support varies. Using simpler approach.
-			// Simpler approach: Replace ` TAG` or `TAG ` or `TAG` (at end). This is tricky.
-			// Let's try replacing ` TAG` and `TAG ` first, then handle start/end cases.
-			// Even simpler: replace the tag if surrounded by whitespace or at start/end.
-			// Use a regex that captures the tag with potential surrounding whitespace/boundaries
-			const tagRegex = new RegExp(
-				// `(^|\\s)` // Start of string or whitespace
-				`\\s?` + // Optional preceding space (handles beginning of line implicitly sometimes)
-					escapedTag +
-					// `(?=\\s|$)` // Followed by whitespace or end of string
-					`(?=\\s|$)`, // Lookahead for space or end of string
-				"g"
-			);
-			// Replace the match (space + tag) with an empty string or just a space if needed?
-			// Replacing with empty string might collapse words. Let's try replacing with space if preceded by space.
-			// This is getting complex. Let's stick to removing the tag and potentially adjacent space carefully.
+			const escapedTag = tag.replace(/[.*+?^${}()|[\\\]]/g, "\\$&");
+			const tagRegex = new RegExp(`\s?` + escapedTag + `(?=\s|$)`, "g");
 			contentWithoutTagsOrContext = contentWithoutTagsOrContext.replace(
 				tagRegex,
 				""
@@ -402,30 +422,36 @@ function extractTags(
 		}
 	}
 
-	// Also remove any remaining @context tags, making sure not to remove them from within links
+	// Also remove any remaining @context tags, making sure not to remove them from within links or inline code
+	// We need to re-use the `exclusions` logic for this.
 	let finalContent = "";
 	let lastIndex = 0;
-	processedContent = contentWithoutTagsOrContext; // Start with content that had tags removed
+	// Use the original `remainingContent` that has had tags removed but not context yet,
+	// but for context removal, we refer to `exclusions` based on the *original* content.
+	let contentForContextRemoval = contentWithoutTagsOrContext;
 
-	// Sort links again just in case order matters for reconstruction
-	links.sort((a, b) => a.start - b.start);
-
-	if (links.length > 0) {
-		// Process content segments between links
-		for (const link of links) {
-			const segment = processedContent.substring(lastIndex, link.start);
-			// Remove @context from the segment
-			finalContent += segment.replace(/@[\w-]+/g, "").trim();
-			// Add the original link back
-			finalContent += link.text;
-			lastIndex = link.end;
+	if (exclusions.length > 0) {
+		// Process content segments between exclusions
+		for (const ex of exclusions) {
+			// Segment before the current exclusion
+			const segment = contentForContextRemoval.substring(
+				lastIndex,
+				ex.start
+			);
+			// Remove @context from this segment
+			finalContent += segment.replace(EMOJI_CONTEXT_REGEX, "").trim(); // Using global regex here
+			// Add the original excluded text (link or code) back
+			finalContent += ex.text; // Add the original link/code text back
+			lastIndex = ex.end;
 		}
-		// Process the remaining segment after the last link
-		const lastSegment = processedContent.substring(lastIndex);
-		finalContent += lastSegment.replace(/@[\w-]+/g, "").trim();
+		// Process the remaining segment after the last exclusion
+		const lastSegment = contentForContextRemoval.substring(lastIndex);
+		finalContent += lastSegment.replace(EMOJI_CONTEXT_REGEX, "").trim(); // Global regex
 	} else {
-		// No links, safe to remove @context directly from the whole content
-		finalContent = processedContent.replace(/@[\w-]+/g, "").trim();
+		// No exclusions, safe to remove @context directly from the whole content
+		finalContent = contentForContextRemoval
+			.replace(EMOJI_CONTEXT_REGEX, "")
+			.trim(); // Global regex
 	}
 
 	// Clean up extra spaces that might result from replacements
@@ -446,6 +472,7 @@ function parseTasksFromContent(
 ): Task[] {
 	const lines = content.split(/\r?\n/);
 	const tasks: Task[] = [];
+	let inCodeBlock = false; // Flag to track if currently inside a code block
 
 	// 保存当前的标题层级
 	const headings: string[] = [];
@@ -481,6 +508,16 @@ function parseTasksFromContent(
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 
+		// Check for code block fences
+		if (line.trim().startsWith("```") || line.trim().startsWith("~~~")) {
+			inCodeBlock = !inCodeBlock;
+			continue; // Skip fence line from task processing
+		}
+
+		if (inCodeBlock) {
+			continue; // Skip lines inside code blocks
+		}
+
 		// 检查是否是标题行
 		const headingMatch = line.match(/^(#{1,6})\s+(.*?)(?:\s+#+)?$/);
 		if (headingMatch) {
@@ -514,6 +551,16 @@ function parseTasksFromContent(
 			const [fullMatch, , , , status, contentWithMetadata] = taskMatch;
 			if (status === undefined || contentWithMetadata === undefined)
 				continue;
+
+			// Validate task status character to prevent misinterpretation of markdown links (e.g., [队](...))
+			// Allowed status characters: x, X, space, /, -, >, <, ?, !, *, etc.
+			// This is a workaround; ideally, TASK_REGEX itself should be more restrictive.
+			const validStatusChars = /^[xX\s\/\-><\?!\*]$/;
+			if (!validStatusChars.test(status)) {
+				// If the status is not a typical task marker, assume it's not a task
+				// This helps avoid matching things like `[队](link.md)`
+				continue;
+			}
 
 			const completed = status.toLowerCase() === "x";
 			const id = `${filePath}-L${i}`;

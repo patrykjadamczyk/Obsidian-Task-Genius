@@ -29,6 +29,7 @@ export class TaskMetadataEditor extends Component {
 	private plugin: TaskProgressBarPlugin;
 	private app: App;
 	private isCompactMode: boolean;
+	private activeTab: string = "overview"; // Default active tab
 
 	onMetadataChange: (event: MetadataChangeEvent) => void;
 
@@ -53,31 +54,118 @@ export class TaskMetadataEditor extends Component {
 		this.container.empty();
 		this.container.addClass("task-metadata-editor");
 
-		this.createFullView();
+		if (this.isCompactMode) {
+			this.createTabbedView();
+		} else {
+			this.createFullView();
+		}
 	}
 
 	/**
-	 * Creates the compact view (for Popover).
+	 * Creates the tabbed view (for Popover - compact mode).
 	 */
-	private createCompactView(): void {
-		// Create status editor
+	private createTabbedView(): void {
+		// Create status editor (at the top, outside tabs)
 		this.createStatusEditor();
 
-		// Create basic metadata editor (priority, dates, etc.)
-		const metadataContainer = this.container.createDiv({
-			cls: "metadata-basic-container",
+		const tabsContainer = this.container.createDiv({
+			cls: "tabs-main-container",
+		});
+		const nav = tabsContainer.createEl("nav", { cls: "tabs-navigation" });
+		const content = tabsContainer.createDiv({ cls: "tabs-content" });
+
+		const tabs = [
+			{
+				id: "overview",
+				label: t("Overview"),
+				populateFn: this.populateOverviewTabContent.bind(this),
+			},
+			{
+				id: "dates",
+				label: t("Dates"),
+				populateFn: this.populateDatesTabContent.bind(this),
+			},
+			{
+				id: "details",
+				label: t("Details"),
+				populateFn: this.populateDetailsTabContent.bind(this),
+			},
+		];
+
+		const tabButtons: { [key: string]: HTMLButtonElement } = {};
+		const tabPanes: { [key: string]: HTMLDivElement } = {};
+
+		tabs.forEach((tabInfo) => {
+			const button = nav.createEl("button", {
+				text: tabInfo.label,
+				cls: "tab-button",
+			});
+			button.dataset.tab = tabInfo.id;
+			tabButtons[tabInfo.id] = button;
+
+			const pane = content.createDiv({
+				cls: "tab-pane",
+			});
+			pane.id = `tab-pane-${tabInfo.id}`;
+			tabPanes[tabInfo.id] = pane;
+
+			tabInfo.populateFn(pane); // Populate content immediately
+
+			button.addEventListener("click", () => {
+				this.activeTab = tabInfo.id;
+				this.updateActiveTab(tabButtons, tabPanes);
+			});
 		});
 
-		// Priority editor
-		this.createPriorityEditor(metadataContainer);
+		// Set initial active tab
+		this.updateActiveTab(tabButtons, tabPanes);
+	}
 
-		// Date editor (due date)
+	private updateActiveTab(
+		tabButtons: { [key: string]: HTMLButtonElement },
+		tabPanes: { [key: string]: HTMLDivElement }
+	): void {
+		for (const id in tabButtons) {
+			if (id === this.activeTab) {
+				tabButtons[id].addClass("active");
+				tabPanes[id].addClass("active");
+			} else {
+				tabButtons[id].removeClass("active");
+				tabPanes[id].removeClass("active");
+			}
+		}
+	}
+
+	private populateOverviewTabContent(pane: HTMLElement): void {
+		this.createPriorityEditor(pane);
 		this.createDateEditor(
-			metadataContainer,
+			pane,
 			t("Due Date"),
 			"dueDate",
 			this.getDateString(this.task.dueDate)
 		);
+	}
+
+	private populateDatesTabContent(pane: HTMLElement): void {
+		this.createDateEditor(
+			pane,
+			t("Start Date"),
+			"startDate",
+			this.getDateString(this.task.startDate)
+		);
+		this.createDateEditor(
+			pane,
+			t("Scheduled Date"),
+			"scheduledDate",
+			this.getDateString(this.task.scheduledDate)
+		);
+		this.createRecurrenceEditor(pane);
+	}
+
+	private populateDetailsTabContent(pane: HTMLElement): void {
+		this.createProjectEditor(pane);
+		this.createTagsEditor(pane);
+		this.createContextEditor(pane);
 	}
 
 	/**
@@ -150,15 +238,22 @@ export class TaskMetadataEditor extends Component {
 			cls: "task-status-editor",
 		});
 
-		new StatusComponent(this.plugin, statusContainer, this.task, {
-			type: "quick-capture",
-			onTaskUpdate: async (task, updatedTask) => {
-				this.notifyMetadataChange("status", updatedTask.status);
-			},
-			onTaskStatusSelected: (status) => {
-				this.notifyMetadataChange("status", status);
-			},
-		});
+		const statusComponent = new StatusComponent(
+			this.plugin,
+			statusContainer,
+			this.task,
+			{
+				type: "quick-capture",
+				onTaskUpdate: async (task, updatedTask) => {
+					this.notifyMetadataChange("status", updatedTask.status);
+				},
+				onTaskStatusSelected: (status) => {
+					this.notifyMetadataChange("status", status);
+				},
+			}
+		);
+
+		statusComponent.onload();
 	}
 
 	/**
@@ -173,9 +268,11 @@ export class TaskMetadataEditor extends Component {
 
 		const priorityDropdown = new DropdownComponent(fieldContainer)
 			.addOption("", t("None"))
-			.addOption("high", t("High"))
-			.addOption("medium", t("Medium"))
-			.addOption("low", t("Low"))
+			.addOption("1", "⏬️ " + t("Lowest"))
+			.addOption("2", "🔽 " + t("Low"))
+			.addOption("3", "🔼 " + t("Medium"))
+			.addOption("4", "⏫ " + t("High"))
+			.addOption("5", "🔺 " + t("Highest"))
 			.onChange((value) => {
 				this.notifyMetadataChange("priority", value);
 			});
@@ -246,8 +343,10 @@ export class TaskMetadataEditor extends Component {
 			.onChange((value) => {
 				this.notifyMetadataChange("project", value);
 			});
-		projectInput.inputEl.addClass("project-input");
-		projectInput.inputEl.type = "text";
+
+		this.registerDomEvent(projectInput.inputEl, "blur", () => {
+			this.notifyMetadataChange("project", projectInput.inputEl.value);
+		});
 
 		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
 	}
@@ -266,16 +365,15 @@ export class TaskMetadataEditor extends Component {
 			.setPlaceholder(t("e.g. #tag1, #tag2"))
 			.setValue(
 				Array.isArray(this.task.tags) ? this.task.tags.join(", ") : ""
-			)
-			.onChange((value) => {
-				const tags = value
-					.split(",")
-					.map((tag) => tag.trim())
-					.filter((tag) => tag);
-				this.notifyMetadataChange("tags", tags);
-			});
-		tagsInput.inputEl.addClass("tags-input");
-		tagsInput.inputEl.type = "text";
+			);
+
+		this.registerDomEvent(tagsInput.inputEl, "blur", () => {
+			const tags = tagsInput.inputEl.value
+				.split(",")
+				.map((tag) => tag.trim())
+				.filter((tag) => tag);
+			this.notifyMetadataChange("tags", tags);
+		});
 
 		new TagSuggest(this.app, tagsInput.inputEl, this.plugin);
 	}
@@ -296,16 +394,15 @@ export class TaskMetadataEditor extends Component {
 				Array.isArray(this.task.context)
 					? this.task.context.join(", ")
 					: ""
-			)
-			.onChange((value) => {
-				const contexts = value
-					.split(",")
-					.map((ctx) => ctx.trim())
-					.filter((ctx) => ctx);
-				this.notifyMetadataChange("context", contexts);
-			});
-		contextInput.inputEl.addClass("context-input");
-		contextInput.inputEl.type = "text";
+			);
+
+		this.registerDomEvent(contextInput.inputEl, "blur", () => {
+			const contexts = contextInput.inputEl.value
+				.split(",")
+				.map((ctx) => ctx.trim())
+				.filter((ctx) => ctx);
+			this.notifyMetadataChange("context", contexts);
+		});
 
 		new ContextSuggest(this.app, contextInput.inputEl, this.plugin);
 	}
@@ -326,8 +423,13 @@ export class TaskMetadataEditor extends Component {
 			.onChange((value) => {
 				this.notifyMetadataChange("recurrence", value);
 			});
-		recurrenceInput.inputEl.addClass("recurrence-input");
-		recurrenceInput.inputEl.type = "text";
+
+		this.registerDomEvent(recurrenceInput.inputEl, "blur", () => {
+			this.notifyMetadataChange(
+				"recurrence",
+				recurrenceInput.inputEl.value
+			);
+		});
 	}
 
 	/**

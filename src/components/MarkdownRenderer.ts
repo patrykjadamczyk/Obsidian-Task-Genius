@@ -25,7 +25,7 @@ export function clearAllMarks(markdown: string): string {
 	symbolsToRemove.forEach((symbol) => {
 		if (!symbol) return; // Should be redundant due to filter, but safe
 		// Escape the symbol for use in regex
-		const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		const escapedSymbol = symbol.replace(/[.*+?^${}()|[\\\]]/g, "\\$&");
 		const regex = new RegExp(
 			`${escapedSymbol}\\uFE0F? *\\d{4}-\\d{2}-\\d{2}`, // Use escaped symbol
 			"gu"
@@ -43,12 +43,12 @@ export function clearAllMarks(markdown: string): string {
 	if (DEFAULT_SYMBOLS.recurrenceSymbol) {
 		const escapedRecurrenceSymbol =
 			DEFAULT_SYMBOLS.recurrenceSymbol.replace(
-				/[.*+?^${}()|[\]\\]/g,
+				/[.*+?^${}()|[\\\]]/g,
 				"\\$&"
 			);
 		// Create a string of escaped date/completion symbols for the lookahead
 		const escapedOtherSymbols = symbolsToRemove
-			.map((s) => s!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+			.map((s) => s!.replace(/[.*+?^${}()|[\\\]]/g, "\\$&"))
 			.join("");
 
 		const recurrenceRegex = new RegExp(
@@ -68,94 +68,114 @@ export function clearAllMarks(markdown: string): string {
 	);
 
 	// --- General Cleaning ---
-	// Process tags and context tags while preserving links (both wiki and markdown)
+	// Process tags and context tags while preserving links (both wiki and markdown) and inline code
 
-	interface LinkInfo {
+	interface PreservedSegment {
 		text: string;
-		index: number; // Use index instead of start for clarity matching original logic
+		index: number;
 		length: number;
 	}
 
-	const links: LinkInfo[] = [];
+	const preservedSegments: PreservedSegment[] = [];
+	const inlineCodeRegex = /`([^`]+?)`/g; // Matches `code`
 	const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
 	const markdownLinkRegex = /\[([^\[\]]*)\]\((.*?)\)/g; // Regex for [text](link)
-	let linkMatch: RegExpExecArray | null;
+	let match: RegExpExecArray | null;
 
-	// Find all wiki links
-	wikiLinkRegex.lastIndex = 0;
-	while ((linkMatch = wikiLinkRegex.exec(cleanedMarkdown)) !== null) {
-		links.push({
-			text: linkMatch[0],
-			index: linkMatch.index,
-			length: linkMatch[0].length,
+	// Find all inline code blocks first
+	inlineCodeRegex.lastIndex = 0;
+	while ((match = inlineCodeRegex.exec(cleanedMarkdown)) !== null) {
+		preservedSegments.push({
+			text: match[0],
+			index: match.index,
+			length: match[0].length,
 		});
 	}
 
-	// Find all markdown links (avoid overlaps)
-	markdownLinkRegex.lastIndex = 0;
-	while ((linkMatch = markdownLinkRegex.exec(cleanedMarkdown)) !== null) {
-		const currentStart = linkMatch.index;
-		const currentEnd = currentStart + linkMatch[0].length;
-		const overlaps = links.some(
-			(l) =>
-				Math.max(l.index, currentStart) <
-				Math.min(l.index + l.length, currentEnd)
+	// Find all wiki links (avoid overlaps with already found segments like inline code)
+	wikiLinkRegex.lastIndex = 0;
+	while ((match = wikiLinkRegex.exec(cleanedMarkdown)) !== null) {
+		const currentStart = match.index;
+		const currentEnd = currentStart + match[0].length;
+		const overlaps = preservedSegments.some(
+			(ps) =>
+				Math.max(ps.index, currentStart) <
+				Math.min(ps.index + ps.length, currentEnd)
 		);
 		if (!overlaps) {
-			links.push({
-				text: linkMatch[0],
+			preservedSegments.push({
+				text: match[0],
 				index: currentStart,
-				length: linkMatch[0].length,
+				length: match[0].length,
 			});
 		}
 	}
 
-	// Create a temporary version of markdown with all links replaced by placeholders
-	let tempMarkdown = cleanedMarkdown;
-	if (links.length > 0) {
-		// Sort links by index in descending order to process from end to beginning
-		// This prevents indices from shifting when replacing
-		links.sort((a, b) => b.index - a.index);
-
-		for (const link of links) {
-			// Use a non-space placeholder to avoid tag merging issues
-			const placeholder = "█".repeat(link.length);
-			tempMarkdown =
-				tempMarkdown.substring(0, link.index) +
-				placeholder +
-				tempMarkdown.substring(link.index + link.length);
+	// Find all markdown links (avoid overlaps with existing segments)
+	markdownLinkRegex.lastIndex = 0;
+	while ((match = markdownLinkRegex.exec(cleanedMarkdown)) !== null) {
+		const currentStart = match.index;
+		const currentEnd = currentStart + match[0].length;
+		const overlaps = preservedSegments.some(
+			(ps) =>
+				Math.max(ps.index, currentStart) <
+				Math.min(ps.index + ps.length, currentEnd)
+		);
+		if (!overlaps) {
+			preservedSegments.push({
+				text: match[0],
+				index: currentStart,
+				length: match[0].length,
+			});
 		}
 	}
 
-	// Remove tags from temporary markdown (where links are placeholders)
+	// Create a temporary version of markdown with all preserved segments replaced by placeholders
+	let tempMarkdown = cleanedMarkdown;
+	if (preservedSegments.length > 0) {
+		// Sort segments by index in descending order to process from end to beginning
+		// This prevents indices from shifting when replacing
+		preservedSegments.sort((a, b) => b.index - a.index);
+
+		for (const segment of preservedSegments) {
+			// Use a non-space placeholder to avoid tag merging issues
+			const placeholder = "█".repeat(segment.length);
+			tempMarkdown =
+				tempMarkdown.substring(0, segment.index) +
+				placeholder +
+				tempMarkdown.substring(segment.index + segment.length);
+		}
+	}
+
+	// Remove tags from temporary markdown (where links/code are placeholders)
 	tempMarkdown = tempMarkdown.replace(TAG_REGEX, "");
 	// Remove context tags from temporary markdown
 	tempMarkdown = tempMarkdown.replace(/@([\w-]+)/g, ""); // Use non-capturing group for potentially better performance if needed
 
-	// Now restore the links in the cleaned version
-	if (links.length > 0) {
-		// Process links in original order (ascending by index) for reconstruction
-		links.sort((a, b) => a.index - b.index);
+	// Now restore the preserved segments in the cleaned version
+	if (preservedSegments.length > 0) {
+		// Process segments in original order (ascending by index) for reconstruction
+		preservedSegments.sort((a, b) => a.index - b.index);
 
 		let resultMarkdown = "";
 		let lastIndex = 0;
 
-		for (const link of links) {
-			// Add cleaned content (from tempMarkdown) up to this link
-			resultMarkdown += tempMarkdown.substring(lastIndex, link.index);
-			// Add the original link text
-			resultMarkdown += link.text;
-			// Update lastIndex (using link.length now)
-			lastIndex = link.index + link.length;
+		for (const segment of preservedSegments) {
+			// Add cleaned content (from tempMarkdown) up to this segment
+			resultMarkdown += tempMarkdown.substring(lastIndex, segment.index);
+			// Add the original segment text
+			resultMarkdown += segment.text;
+			// Update lastIndex
+			lastIndex = segment.index + segment.length;
 		}
 
-		// Add any remaining content after the last link
+		// Add any remaining content after the last segment
 		resultMarkdown += tempMarkdown.substring(lastIndex);
 		// Assign the reconstructed string back to tempMarkdown for final processing
 		tempMarkdown = resultMarkdown;
 	}
 
-	// Task marker and final cleaning (applied to the string with links restored)
+	// Task marker and final cleaning (applied to the string with links/code restored)
 	tempMarkdown = tempMarkdown.replace(
 		/^([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\]\s*/,
 		""

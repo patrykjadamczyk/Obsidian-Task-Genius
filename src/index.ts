@@ -70,7 +70,7 @@ import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
 import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
 import { sortTasksInDocument } from "./commands/sortTaskCommands";
-import { taskGutterExtension } from "./editor-ext/TaskGutterHandler";
+import { taskGutterExtension } from "./editor-ext/taskGutterHandler";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;

@@ -1,4 +1,11 @@
-import { Component, App, Modal, Setting, Notice } from "obsidian";
+import {
+	Component,
+	App,
+	Modal,
+	Setting,
+	Notice,
+	ButtonComponent,
+} from "obsidian";
 import {
 	HabitProps,
 	DailyHabitProps,
@@ -74,6 +81,15 @@ export class Habit extends Component {
 		emptyDiv.createEl("p", {
 			text: t("Click the open habit button to create a new habit."),
 		}); // Adjust text based on UI
+		emptyDiv.createEl("br");
+		new ButtonComponent(emptyDiv)
+			.setButtonText("Open Habit")
+			.onClick(() => {
+				this.plugin.app.setting.open();
+				this.plugin.app.setting.openTabById(this.plugin.manifest.id);
+
+				this.plugin.settingTab.openTab("habit");
+			});
 	}
 
 	renderHabitList(habits: HabitProps[]) {

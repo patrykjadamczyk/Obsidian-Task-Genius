@@ -134,16 +134,27 @@ export function filterTasks(
 	}
 	if (filterRules.tagsInclude && filterRules.tagsInclude.length > 0) {
 		filtered = filtered.filter((task) =>
-			filterRules.tagsInclude!.some((tag) => task.tags.includes(tag))
+			filterRules.tagsInclude?.some((tag) => task.tags.includes(tag))
 		);
 	}
 	if (filterRules.tagsExclude && filterRules.tagsExclude.length > 0) {
-		filtered = filtered.filter(
-			(task) =>
-				!filterRules.tagsExclude!.some((tag) =>
-					task.tags.includes(tag.toLowerCase())
-				)
-		);
+		filtered = filtered.filter((task) => {
+			if (!task.tags || task.tags.length === 0) {
+				return true; // Keep tasks with no tags
+			}
+
+			// Convert task tags to lowercase for case-insensitive comparison
+			const taskTagsLower = task.tags.map((tag) => tag.toLowerCase());
+
+			// Check if any excluded tag is in the task's tags
+			return !filterRules.tagsExclude!.some((excludeTag) => {
+				const tagLower = excludeTag.toLowerCase();
+				return (
+					taskTagsLower.includes(tagLower) ||
+					taskTagsLower.includes("#" + tagLower)
+				);
+			});
+		});
 	}
 	if (filterRules.project) {
 		filtered = filtered.filter(
@@ -180,12 +191,12 @@ export function filterTasks(
 			.split(",")
 			.filter((p) => p.trim() !== "")
 			.map((p) => p.trim().toLocaleLowerCase());
-		filtered = filtered.filter(
-			(task) =>
-				!query.some((q) =>
-					task.filePath.toLocaleLowerCase().includes(q)
-				)
-		);
+		filtered = filtered.filter((task) => {
+			// Only exclude if ALL exclusion patterns are not found in the path
+			return !query.some((q) =>
+				task.filePath.toLocaleLowerCase().includes(q)
+			);
+		});
 	}
 
 	// --- Apply Date Filters from rules ---
