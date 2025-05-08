@@ -3,7 +3,7 @@
  * Used in mobile environments to display the full task details and editing interface.
  */
 
-import { App, Modal, TFile, MarkdownView } from "obsidian";
+import { App, Modal, TFile, MarkdownView, ButtonComponent } from "obsidian";
 import { Task } from "../../utils/types/TaskIndex";
 import TaskProgressBarPlugin from "../../index";
 import { TaskMetadataEditor } from "./MetadataEditor";
@@ -47,23 +47,38 @@ export class TaskDetailsModal extends Modal {
 		this.metadataEditor.onload();
 		this.metadataEditor.showTask(this.task);
 
-		// Listen for metadata change events
-		this.metadataEditor.onMetadataChange = async (event) => {
-			// Handle special operations
-			if (event.field === "save") {
+		new ButtonComponent(this.contentEl)
+			.setIcon("check")
+			.setTooltip(t("Save"))
+			.onClick(async () => {
 				await this.onTaskUpdated(this.task);
 				this.close();
-				return;
+			});
+
+		// Listen for metadata change events
+		this.metadataEditor.onMetadataChange = async (event) => {
+			// Create a base task object with the updated field
+			const updatedTask = {
+				...this.task,
+				[event.field]: event.value,
+				line: this.task.line - 1,
+				id: `${this.task.filePath}-L${this.task.line - 1}`,
+			};
+
+			// Only update completed status and completedDate if the status field is changing to a completed state
+			if (
+				event.field === "status" &&
+				(event.value === "x" || event.value === "X")
+			) {
+				updatedTask.completed = true;
+				updatedTask.completedDate = Date.now();
+			} else if (event.field === "status") {
+				// If status is changing to something else, mark as not completed
+				updatedTask.completed = false;
+				updatedTask.completedDate = undefined;
 			}
 
-			if (event.field === "editInFile") {
-				this.navigateToTaskInFile();
-				this.close();
-				return;
-			}
-
-			// Update task data
-			this.updateTaskField(event.field, event.value);
+			this.task = updatedTask;
 		};
 	}
 
@@ -81,31 +96,6 @@ export class TaskDetailsModal extends Modal {
 	private updateTaskField(field: string, value: any) {
 		if (field in this.task) {
 			(this.task as any)[field] = value;
-		}
-	}
-
-	/**
-	 * Navigates to the task's location in the file.
-	 */
-	private async navigateToTaskInFile() {
-		const { filePath, line } = this.task;
-		if (!filePath) return;
-
-		// Open the file
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		if (!(file instanceof TFile)) return;
-
-		const leaf = this.app.workspace.getLeaf();
-		await leaf.openFile(file);
-
-		// If there's a line number, navigate to that line
-		if (line !== undefined) {
-			const view = leaf.view;
-			if (view instanceof MarkdownView && view.editor) {
-				const pos = { line: line, ch: 0 };
-				view.editor.setCursor(pos);
-				view.editor.scrollIntoView({ from: pos, to: pos }, true);
-			}
 		}
 	}
 }

@@ -676,7 +676,8 @@ export default class TaskProgressBarPlugin extends Plugin {
 		this.registerEditorExtension([
 			taskProgressBarExtension(this.app, this),
 		]);
-		this.registerEditorExtension([taskGutterExtension(this.app, this)]);
+		this.settings.taskGutter.enableTaskGutter &&
+			this.registerEditorExtension([taskGutterExtension(this.app, this)]);
 		this.settings.enableTaskStatusSwitcher &&
 			this.settings.enableCustomTaskMarks &&
 			this.registerEditorExtension([

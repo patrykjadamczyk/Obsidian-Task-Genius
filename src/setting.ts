@@ -2416,6 +2416,24 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	}
 
 	private displayTaskHandlerSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Task Gutter"))
+			.setDesc(t("Configure the task gutter."))
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable task gutter"))
+			.setDesc(t("Toggle this to enable the task gutter."))
+			.addToggle((toggle) => {
+				toggle.setValue(
+					this.plugin.settings.taskGutter.enableTaskGutter
+				);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.taskGutter.enableTaskGutter = value;
+					this.applySettingsUpdate();
+				});
+			});
+
 		// Add Completed Task Mover settings
 		new Setting(containerEl)
 			.setName(t("Completed Task Mover"))
@@ -3235,7 +3253,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 			});
 	}
-
 
 	// START: New Reward Settings Section
 	private displayRewardSettings(containerEl: HTMLElement): void {
