@@ -16,6 +16,7 @@ import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
 import { ProjectSuggest, TagSuggest, ContextSuggest } from "../AutoComplete";
 import { StatusComponent } from "../StatusComponent";
+import { format } from "date-fns";
 
 export interface MetadataChangeEvent {
 	field: string;
@@ -225,7 +226,7 @@ export class TaskMetadataEditor extends Component {
 	private getDateString(dateValue: string | number | undefined): string {
 		if (dateValue === undefined) return "";
 		if (typeof dateValue === "number") {
-			return new Date(dateValue).toISOString().split("T")[0];
+			return format(new Date(dateValue), "yyyy-MM-dd");
 		}
 		return dateValue;
 	}

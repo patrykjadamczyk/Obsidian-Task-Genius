@@ -59,6 +59,8 @@ export class TaskDetailsPopover {
 		this.metadataEditor.onload();
 		this.metadataEditor.showTask(this.task);
 
+		console.log(this.task);
+
 		// Listen for metadata change events
 		this.metadataEditor.onMetadataChange = async (event) => {
 			// Create a base task object with the updated field
@@ -68,6 +70,8 @@ export class TaskDetailsPopover {
 				line: this.task.line - 1,
 				id: `${this.task.filePath}-L${this.task.line - 1}`,
 			};
+
+			// Update the internal task reference
 
 			// Only update completed status and completedDate if the status field is changing to a completed state
 			if (
@@ -81,6 +85,13 @@ export class TaskDetailsPopover {
 				updatedTask.completed = false;
 				updatedTask.completedDate = undefined;
 			}
+
+			this.task = {
+				...this.task,
+				[event.field]: event.value,
+				completed: updatedTask.completed,
+				completedDate: updatedTask.completedDate,
+			};
 
 			// Update the task with all changes
 			this.debounceUpdateTask(updatedTask);
