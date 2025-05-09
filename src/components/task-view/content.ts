@@ -246,7 +246,7 @@ export class ContentComponent extends Component {
 		// Render based on view mode
 		if (this.isTreeView) {
 			const taskMap = new Map<string, Task>();
-			// 将所有非过滤任务添加到 taskMap 中，确保支持多层级任务结构
+			// Add all non-filtered tasks to the taskMap
 			this.notFilteredTasks.forEach((task) => taskMap.set(task.id, task));
 			this.rootTasks = tasksToTree(this.filteredTasks); // Calculate root tasks
 			this.loadRootTaskBatch(taskMap); // Load the first batch

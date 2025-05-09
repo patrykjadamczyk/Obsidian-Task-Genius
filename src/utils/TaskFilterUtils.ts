@@ -125,6 +125,14 @@ export function filterTasks(
 	const viewConfig = getViewSettingOrDefault(plugin, viewId);
 	const filterRules = viewConfig.filterRules || {};
 
+	if (viewConfig.hideCompletedAndAbandonedTasks) {
+		filtered = filtered.filter((task) => !task.completed);
+	}
+
+	if (viewConfig.filterBlanks) {
+		filtered = filtered.filter((task) => task.content.trim() !== "");
+	}
+
 	// --- Apply Filter Rules defined in ViewConfig ---
 	if (filterRules.textContains) {
 		const query = filterRules.textContains.toLowerCase();
