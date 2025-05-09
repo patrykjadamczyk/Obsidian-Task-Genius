@@ -3275,7 +3275,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.rewards.enableRewards = value;
 						this.applySettingsUpdate();
-						this.displayRewardSettings(containerEl); // Re-render to show/hide sections
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					})
 			);
 
@@ -3395,7 +3397,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						newLevel
 					);
 					this.applySettingsUpdate();
-					this.displayRewardSettings(containerEl);
+					setTimeout(() => {
+						this.display();
+					}, 200);
 				})
 		);
 
@@ -3493,7 +3497,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 								1
 							);
 							this.applySettingsUpdate();
-							this.displayRewardSettings(containerEl); // Re-render
+							setTimeout(() => {
+								this.display();
+							}, 200);
 						})
 				);
 			// Add some spacing or dividers if needed visually
@@ -3526,7 +3532,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					};
 					this.plugin.settings.rewards.rewardItems.push(newItem);
 					this.applySettingsUpdate();
-					this.displayRewardSettings(containerEl); // Re-render
+					setTimeout(() => {
+						this.display();
+					}, 200);
 				})
 		);
 	}
