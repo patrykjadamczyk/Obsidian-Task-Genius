@@ -1345,7 +1345,11 @@ export class TaskManager extends Component {
 			// If original task only had scheduled date, update scheduled date
 			newTask.scheduledDate = nextDate;
 			newTask.dueDate = undefined; // Make sure due date is not set
+		} else {
+			newTask.dueDate = nextDate;
 		}
+
+		console.log(newTask);
 
 		// Format dates for task markdown
 		const formattedDueDate = newTask.dueDate
@@ -1547,6 +1551,8 @@ export class TaskManager extends Component {
 		if (metadata.length > 0) {
 			newTaskLine = `${newTaskLine} ${metadata.join(" ")}`;
 		}
+
+		console.log(newTaskLine);
 
 		return newTaskLine;
 	}
