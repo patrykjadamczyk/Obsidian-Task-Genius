@@ -14,9 +14,12 @@ import { TimelineHeaderComponent } from "./timeline-header";
 import { GridBackgroundComponent } from "./grid-background";
 import { TaskRendererComponent } from "./task-renderer";
 import TaskProgressBarPlugin from "../../index";
-import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
-import { ActiveFilter, FilterCategory } from "../filter/filter-type";
-import { ScrollToDateButton } from "../filter/custom/scroll-to-date-button";
+import {
+	FilterComponent,
+	buildFilterOptionsFromTasks,
+} from "../view-filter/filter";
+import { ActiveFilter, FilterCategory } from "../view-filter/filter-type";
+import { ScrollToDateButton } from "../view-filter/custom/scroll-to-date-button";
 import { PRIORITY_MAP } from "../../common/default-symbol";
 
 // Define the PRIORITY_MAP here as well, or import it if moved to a shared location

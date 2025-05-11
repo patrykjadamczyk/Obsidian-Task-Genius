@@ -5,8 +5,11 @@ import { KanbanColumnComponent } from "./kanban-column";
 import { DragManager, DragMoveEvent, DragEndEvent } from "../DragManager";
 import "../../styles/kanban/kanban.css";
 import { t } from "../../translations/helper"; // Added import for t
-import { FilterComponent, buildFilterOptionsFromTasks } from "../filter/filter";
-import { ActiveFilter } from "../filter/filter-type";
+import {
+	FilterComponent,
+	buildFilterOptionsFromTasks,
+} from "../view-filter/filter";
+import { ActiveFilter } from "../view-filter/filter-type";
 
 // CSS classes for drop indicators
 const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";

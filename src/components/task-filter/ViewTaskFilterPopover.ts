@@ -1,53 +1,27 @@
-/**
- * Task Details Popover Component
- * Used in desktop environments to display task details in a menu popover.
- */
-
-import {
-	App,
-	debounce,
-	MarkdownView,
-	TFile,
-	Component,
-	CloseableComponent,
-} from "obsidian";
+import { App } from "obsidian";
+import { CloseableComponent, Component } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
-import { Task } from "../../utils/types/TaskIndex";
-import TaskProgressBarPlugin from "../../index";
-import { TaskMetadataEditor } from "./MetadataEditor";
+import { TaskFilterComponent } from "./ViewTaskFilter";
 import { t } from "../../translations/helper";
 
-export class TaskDetailsPopover
+export class ViewTaskFilterPopover
 	extends Component
 	implements CloseableComponent
 {
-	private task: Task;
-	private plugin: TaskProgressBarPlugin;
 	private app: App;
 	private popoverRef: HTMLDivElement | null = null;
-	private metadataEditor: TaskMetadataEditor;
+	private taskFilterComponent: TaskFilterComponent;
 	private win: Window;
 	private scrollParent: HTMLElement | Window;
 	private popperInstance: PopperInstance | null = null;
 
-	constructor(app: App, plugin: TaskProgressBarPlugin, task: Task) {
+	constructor(app: App) {
 		super();
 		this.app = app;
-		this.plugin = plugin;
-		this.task = task;
 		this.win = app.workspace.containerEl.win || window;
-		// Determine a reasonable scroll parent.
-		const scrollEl = app.workspace.containerEl.closest(".cm-scroller");
-		if (scrollEl instanceof HTMLElement) {
-			this.scrollParent = scrollEl;
-		} else {
-			this.scrollParent = this.win;
-		}
-	}
 
-	debounceUpdateTask = debounce(async (task: Task) => {
-		await this.plugin.taskManager.updateTask(task);
-	}, 200);
+		this.scrollParent = this.win;
+	}
 
 	/**
 	 * Shows the task details popover at the given position.
@@ -61,66 +35,16 @@ export class TaskDetailsPopover
 		const contentEl = createDiv({ cls: "task-popover-content" });
 
 		// Create metadata editor, use compact mode
-		this.metadataEditor = new TaskMetadataEditor(
-			contentEl,
-			this.app,
-			this.plugin,
-			true // Compact mode
-		);
+		this.taskFilterComponent = new TaskFilterComponent(contentEl, this.app);
 
 		// Initialize editor and display task
-		this.metadataEditor.onload();
-		this.metadataEditor.showTask(this.task);
-
-		// Listen for metadata change events
-		this.metadataEditor.onMetadataChange = async (event) => {
-			// Create a base task object with the updated field
-			const updatedTask = {
-				...this.task,
-				[event.field]: event.value,
-				line: this.task.line - 1,
-				id: `${this.task.filePath}-L${this.task.line - 1}`,
-			};
-
-			// Update the internal task reference
-
-			// Only update completed status and completedDate if the status field is changing to a completed state
-			if (
-				event.field === "status" &&
-				(event.value === "x" || event.value === "X")
-			) {
-				updatedTask.completed = true;
-				updatedTask.completedDate = Date.now();
-			} else if (event.field === "status") {
-				// If status is changing to something else, mark as not completed
-				updatedTask.completed = false;
-				updatedTask.completedDate = undefined;
-			}
-
-			this.task = {
-				...this.task,
-				[event.field]: event.value,
-				completed: updatedTask.completed,
-				completedDate: updatedTask.completedDate,
-			};
-
-			// Update the task with all changes
-			this.debounceUpdateTask(updatedTask);
-		};
+		this.taskFilterComponent.onload();
 
 		// Create the popover
 		this.popoverRef = this.app.workspace.containerEl.createDiv({
-			cls: "task-details-popover tg-menu bm-menu", // Borrowing some classes from IconMenu
+			cls: "filter-menu tg-menu bm-menu", // Borrowing some classes from IconMenu
 		});
 		this.popoverRef.appendChild(contentEl);
-
-		// Add a title bar to the popover
-		const titleBar = this.popoverRef.createDiv({
-			cls: "tg-popover-titlebar",
-			text: t("Task Details"),
-		});
-		// Prepend titleBar to popoverRef so it's at the top
-		this.popoverRef.insertBefore(titleBar, this.popoverRef.firstChild);
 
 		document.body.appendChild(this.popoverRef);
 
@@ -151,7 +75,7 @@ export class TaskDetailsPopover
 						{
 							name: "offset",
 							options: {
-								offset: [0, 8], // Offset the popover slightly
+								offset: [0, 8], // Offset the popover slightly from the reference
 							},
 						},
 						{
@@ -204,12 +128,9 @@ export class TaskDetailsPopover
 					targetElement.scrollHeight > targetElement.clientHeight ||
 					targetElement.scrollWidth > targetElement.clientWidth
 				) {
-					// If the scroll event is within the popover and the popover itself is scrollable,
-					// do not close it. This allows scrolling within the popover content.
 					return;
 				}
 			}
-			// For other scroll events (e.g., scrolling the main window), close the popover.
 			this.close();
 		}
 	};
@@ -235,8 +156,8 @@ export class TaskDetailsPopover
 			true
 		);
 
-		if (this.metadataEditor) {
-			this.metadataEditor.onunload();
+		if (this.taskFilterComponent) {
+			this.taskFilterComponent.onunload();
 		}
 	}
 }

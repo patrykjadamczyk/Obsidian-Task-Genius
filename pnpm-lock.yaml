@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@popperjs/core':
+        specifier: ^2.11.8
+        version: 2.11.8
+      '@types/sortablejs':
+        specifier: ^1.15.8
+        version: 1.15.8
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -17,6 +23,9 @@ importers:
       obsidian-daily-notes-interface:
         specifier: ^0.9.4
         version: 0.9.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.7)
+      sortablejs:
+        specifier: ^1.15.6
+        version: 1.15.6
     devDependencies:
       '@codemirror/language':
         specifier: https://github.com/lishid/cm-language
@@ -436,6 +445,9 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
+  '@popperjs/core@2.11.8':
+    resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
+
   '@sinclair/typebox@0.27.8':
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
 
@@ -493,6 +505,9 @@ packages:
 
   '@types/semver@7.7.0':
     resolution: {integrity: sha512-k107IF4+Xr7UHjwDc7Cfd6PRQfbdkiRabXGRjo07b4WyPahFBZCZ1sE+BNxYIJPPg73UkfOsVOLwqVc/6ETrIA==}
+
+  '@types/sortablejs@1.15.8':
+    resolution: {integrity: sha512-b79830lW+RZfwaztgs1aVPgbasJ8e7AXtZYHTELNXZPsERt4ymJdjV4OccDbHQAvHrCcFpbF78jkm0R6h/pZVg==}
 
   '@types/stack-utils@2.0.3':
     resolution: {integrity: sha512-9aEbYZ3TbYMznPdcdr3SmIrLXwC/AKZXQeCf9Pgao5CKb8CyHuEX5jzWPTkvregvhRJHcpRO6BFoGW9ycaOkYw==}
@@ -1627,8 +1642,8 @@ packages:
       '@codemirror/state': ^6.0.0
       '@codemirror/view': ^6.0.0
 
-  obsidian@https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a:
-    resolution: {tarball: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a}
+  obsidian@https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/103ff76a0712a02dd0da28646b5a6b0ba6686d66:
+    resolution: {tarball: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/103ff76a0712a02dd0da28646b5a6b0ba6686d66}
     version: 1.8.7
     peerDependencies:
       '@codemirror/state': ^6.0.0
@@ -1824,6 +1839,9 @@ packages:
   slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
+
+  sortablejs@1.15.6:
+    resolution: {integrity: sha512-aNfiuwMEpfBM/CN6LY0ibyhxPfPbyFeBTYJKCvzkJ2GkUpazIt3H+QIPAMHwqQ7tMKaHz1Qj+rJJCqljnf4p3A==}
 
   source-map-support@0.5.13:
     resolution: {integrity: sha512-SHSKFHadjVA5oR4PPqhtAVdcBWwRYVd6g6cAXnIbRiIwc2EhPrTuKUBdSLvlEKyIP3GCf89fltvcZiP9MMFA1w==}
@@ -2574,6 +2592,8 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
 
+  '@popperjs/core@2.11.8': {}
+
   '@sinclair/typebox@0.27.8': {}
 
   '@sinonjs/commons@3.0.1':
@@ -2643,6 +2663,8 @@ snapshots:
   '@types/node@16.18.126': {}
 
   '@types/semver@7.7.0': {}
+
+  '@types/sortablejs@1.15.8': {}
 
   '@types/stack-utils@2.0.3': {}
 
@@ -4006,7 +4028,7 @@ snapshots:
 
   obsidian-daily-notes-interface@0.9.4(@codemirror/state@6.5.2)(@codemirror/view@6.36.7):
     dependencies:
-      obsidian: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a(@codemirror/state@6.5.2)(@codemirror/view@6.36.7)
+      obsidian: https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/103ff76a0712a02dd0da28646b5a6b0ba6686d66(@codemirror/state@6.5.2)(@codemirror/view@6.36.7)
       tslib: 2.1.0
     transitivePeerDependencies:
       - '@codemirror/state'
@@ -4019,7 +4041,7 @@ snapshots:
       '@types/codemirror': 5.60.8
       moment: 2.29.4
 
-  obsidian@https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/9ab497e64afeac291a2546d2faeded6a7bed626a(@codemirror/state@6.5.2)(@codemirror/view@6.36.7):
+  obsidian@https://codeload.github.com/obsidianmd/obsidian-api/tar.gz/103ff76a0712a02dd0da28646b5a6b0ba6686d66(@codemirror/state@6.5.2)(@codemirror/view@6.36.7):
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.36.7
@@ -4184,6 +4206,8 @@ snapshots:
   sisteransi@1.0.5: {}
 
   slash@3.0.0: {}
+
+  sortablejs@1.15.6: {}
 
   source-map-support@0.5.13:
     dependencies:

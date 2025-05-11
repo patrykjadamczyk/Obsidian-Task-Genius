@@ -9,6 +9,7 @@ import {
 	Menu,
 	Scope,
 	Notice,
+	Platform,
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
@@ -38,7 +39,11 @@ import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
 import { Habit } from "../components/habit/habit";
-import { ConfirmModal } from "src/components/ConfirmModal";
+import { ConfirmModal } from "../components/ConfirmModal";
+import {
+	ViewTaskFilterPopover,
+	ViewTaskFilterModal,
+} from "../components/task-filter";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -463,6 +468,16 @@ export class TaskView extends ItemView {
 				true
 			);
 			modal.open();
+		});
+
+		this.addAction("filter", t("Filter"), (e) => {
+			if (Platform.isDesktop) {
+				const popover = new ViewTaskFilterPopover(this.plugin.app);
+				popover.showAtPosition({ x: e.clientX, y: e.clientY });
+			} else {
+				const modal = new ViewTaskFilterModal(this.plugin.app);
+				modal.open();
+			}
 		});
 	}
 
