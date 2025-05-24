@@ -1119,11 +1119,6 @@ export class TaskManager extends Component {
 					metadata.push(`[project:: ${updatedTask.project}]`);
 				} else {
 					const projectTag = `#project/${updatedTask.project}`;
-					// Only add to tags array if not already present
-					if (!updatedTask.tags) updatedTask.tags = [];
-					if (!updatedTask.tags.includes(projectTag)) {
-						updatedTask.tags.push(projectTag);
-					}
 					// Only add to metadata if not already added before
 					if (!metadata.includes(projectTag)) {
 						metadata.push(projectTag);
@@ -1433,15 +1428,10 @@ export class TaskManager extends Component {
 			if (useDataviewFormat) {
 				metadata.push(`[project:: ${completedTask.project}]`);
 			} else {
-				// Only add project tag if it's not already in the existing project tags
-				if (!existingProjectTags.has(completedTask.project)) {
-					metadata.push(`#project/${completedTask.project}`);
-				} else {
-					// Project already in tags, ensure it's added to the tag list
-					const projectTag = `#project/${completedTask.project}`;
-					if (!metadata.includes(projectTag)) {
-						metadata.push(projectTag);
-					}
+				const projectTag = `#project/${completedTask.project}`;
+				// Only add project tag if it's not already added in the tags section
+				if (!metadata.includes(projectTag)) {
+					metadata.push(projectTag);
 				}
 			}
 		}
@@ -1565,19 +1555,25 @@ export class TaskManager extends Component {
 
 		console.log(task);
 
-		// Start with due date if available, then scheduled date, then today
-		// But I think it's better to use the current date as the base date
-		// because the due date and scheduled date are not always available
-		// And next recurrence date that is calculated will be the next occurrence of the task
-		let baseDate = task.dueDate
-			? new Date(task.dueDate)
-			: task.scheduledDate
-			? new Date(task.scheduledDate)
-			: new Date();
-		if (baseDate.getTime() < new Date().getTime()) {
+		// Determine base date based on user settings
+		let baseDate: Date;
+		const recurrenceDateBase =
+			this.plugin.settings.recurrenceDateBase || "due";
+
+		if (recurrenceDateBase === "current") {
+			// Always use current date
+			baseDate = new Date();
+		} else if (recurrenceDateBase === "scheduled" && task.scheduledDate) {
+			// Use scheduled date if available
+			baseDate = new Date(task.scheduledDate);
+		} else if (recurrenceDateBase === "due" && task.dueDate) {
+			// Use due date if available (default behavior)
+			baseDate = new Date(task.dueDate);
+		} else {
+			// Fallback to current date if the specified date type is not available
 			baseDate = new Date();
 		}
-		// const baseDate = new Date();
+
 		// Ensure baseDate is at the beginning of the day for date-based recurrence
 		baseDate.setHours(0, 0, 0, 0);
 

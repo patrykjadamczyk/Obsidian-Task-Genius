@@ -296,6 +296,7 @@ export interface TaskProgressBarSettings {
 	enablePriorityKeyboardShortcuts: boolean;
 	enableDatePicker: boolean;
 	dateMark: string;
+	recurrenceDateBase: "due" | "scheduled" | "current"; // Base date for calculating next recurrence
 
 	// Task Filter Settings
 	taskFilter: TaskFilterSettings;
@@ -412,6 +413,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	enablePriorityKeyboardShortcuts: true,
 	enableDatePicker: true,
 	dateMark: "📅",
+	recurrenceDateBase: "due",
 
 	// Task Filter Defaults
 	taskFilter: {
