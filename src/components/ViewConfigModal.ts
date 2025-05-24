@@ -20,6 +20,7 @@ import {
 	ViewMode,
 	ForecastSpecificConfig,
 	DateExistType,
+	PropertyExistType,
 	DEFAULT_SETTINGS,
 	SortCriterion,
 } from "../common/setting-definition";
@@ -1021,7 +1022,12 @@ export class ViewConfigModal extends Modal {
 					.addOption("hasProperty", t("Has property"))
 					.addOption("noProperty", t("No property"))
 					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasRecurrence || "any");
+					.setValue(this.viewFilterRule.hasRecurrence || "any")
+					.onChange((value) => {
+						this.viewFilterRule.hasRecurrence =
+							value as PropertyExistType;
+						this.checkForChanges();
+					});
 			});
 
 		// --- First Day of Week ---
