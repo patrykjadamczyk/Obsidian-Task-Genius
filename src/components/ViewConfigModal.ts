@@ -106,6 +106,10 @@ export class ViewConfigModal extends Modal {
 	}
 
 	onOpen() {
+		this.display();
+	}
+
+	private display() {
 		const { contentEl } = this;
 		contentEl.empty();
 		this.modalEl.toggleClass("task-genius-view-config-modal", true);
@@ -337,7 +341,12 @@ export class ViewConfigModal extends Modal {
 						dropdown
 							.addOption("standard", t("Standard view"))
 							.addOption("twocolumn", t("Two column view"))
-							.setValue("standard")
+							.setValue(
+								this.viewConfig.specificConfig?.viewType ===
+									"twocolumn"
+									? "twocolumn"
+									: "standard"
+							)
 							.onChange((value) => {
 								if (value === "twocolumn") {
 									// Create a new TwoColumnSpecificConfig
@@ -356,7 +365,7 @@ export class ViewConfigModal extends Modal {
 								this.checkForChanges();
 
 								// Refresh the modal to show/hide the two column specific settings
-								this.onOpen();
+								this.display();
 							});
 					});
 			}

@@ -80,7 +80,7 @@ class TaskGutterMarker extends GutterMarker {
 					this.plugin,
 					file.path,
 					lineText,
-					lineNum
+					lineNum - 1
 				);
 
 				if (task) {

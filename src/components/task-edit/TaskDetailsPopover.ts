@@ -78,8 +78,6 @@ export class TaskDetailsPopover
 			const updatedTask = {
 				...this.task,
 				[event.field]: event.value,
-				line: this.task.line - 1,
-				id: `${this.task.filePath}-L${this.task.line - 1}`,
 			};
 
 			// Update the internal task reference

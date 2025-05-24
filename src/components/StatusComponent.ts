@@ -96,13 +96,26 @@ export class StatusComponent extends Component {
 				.setIcon("ellipsis")
 				.onClick(() => {
 					const menu = new Menu();
-					for (const status of Object.keys(
-						this.plugin.settings.taskStatusMarks
-					)) {
+
+					// Get unique statuses from taskStatusMarks
+					const statusMarks = this.plugin.settings.taskStatusMarks;
+					const uniqueStatuses = new Map<string, string>();
+
+					// Build a map of unique mark -> status name to avoid duplicates
+					for (const status of Object.keys(statusMarks)) {
 						const mark =
-							this.plugin.settings.taskStatusMarks[
-								status as keyof typeof this.plugin.settings.taskStatusMarks
-							];
+							statusMarks[status as keyof typeof statusMarks];
+						// If this mark is not already in the map, add it
+						// This ensures each mark appears only once in the menu
+						if (
+							!Array.from(uniqueStatuses.values()).includes(mark)
+						) {
+							uniqueStatuses.set(status, mark);
+						}
+					}
+
+					// Create menu items from unique statuses
+					for (const [status, mark] of uniqueStatuses) {
 						menu.addItem((item) => {
 							item.titleEl.createEl(
 								"span",
