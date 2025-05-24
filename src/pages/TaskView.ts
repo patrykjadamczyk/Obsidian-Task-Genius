@@ -10,6 +10,7 @@ import {
 	Scope,
 	Notice,
 	Platform,
+	debounce,
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
@@ -44,6 +45,11 @@ import {
 	ViewTaskFilterPopover,
 	ViewTaskFilterModal,
 } from "../components/task-filter";
+import {
+	Filter,
+	FilterGroup,
+	RootFilterState,
+} from "../components/task-filter/ViewTaskFilter";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -80,6 +86,13 @@ export class TaskView extends ItemView {
 
 	// Data management
 	tasks: Task[] = [];
+
+	private currentFilterState: RootFilterState | null = null;
+
+	// 创建防抖的过滤器应用函数
+	private debouncedApplyFilter = debounce(() => {
+		this.applyCurrentFilter();
+	}, 300);
 
 	constructor(leaf: WorkspaceLeaf, private plugin: TaskProgressBarPlugin) {
 		super(leaf);
@@ -120,6 +133,22 @@ export class TaskView extends ItemView {
 			cls: "task-genius-container",
 		});
 
+		// 首先加载缓存的过滤状态
+		const savedFilterState = this.app.loadLocalStorage(
+			"task-genius-view-filter"
+		) as RootFilterState;
+		if (
+			savedFilterState &&
+			typeof savedFilterState.rootCondition === "string" &&
+			Array.isArray(savedFilterState.filterGroups)
+		) {
+			console.log("已加载保存的过滤器状态");
+			this.currentFilterState = savedFilterState;
+		} else {
+			console.log("没有找到保存的过滤器状态或状态无效");
+			this.currentFilterState = null;
+		}
+
 		this.initializeComponents();
 
 		const savedViewId = this.app.loadLocalStorage(
@@ -159,7 +188,7 @@ export class TaskView extends ItemView {
 			},
 			(el: HTMLElement) => {
 				new ExtraButtonComponent(el)
-					.setIcon("check-square")
+					.setIcon("notebook-pen")
 					.setTooltip(t("Capture"))
 					.onClick(() => {
 						const modal = new QuickCaptureModal(
@@ -177,6 +206,7 @@ export class TaskView extends ItemView {
 			this.tabActionButton.detach();
 		});
 
+		// 确保任务加载发生在筛选器状态加载之后
 		this.tasks = this.plugin.preloadedTasks;
 		this.triggerViewUpdate();
 
@@ -188,6 +218,20 @@ export class TaskView extends ItemView {
 					"task-genius:task-cache-updated",
 					async () => {
 						await this.loadTasks();
+					}
+				)
+			);
+
+			// 监听过滤器变更事件
+			this.registerEvent(
+				this.app.workspace.on(
+					"task-genius:filter-changed",
+					(filterState: RootFilterState) => {
+						console.log("过滤器实时变更:", filterState);
+						// 更新当前过滤器状态
+						this.currentFilterState = filterState;
+						// 使用防抖函数应用过滤器，避免频繁更新
+						this.debouncedApplyFilter();
 					}
 				)
 			);
@@ -230,6 +274,9 @@ export class TaskView extends ItemView {
 				},
 			});
 		});
+
+		// 确保重置筛选器按钮正确显示
+		this.updateActionButtons();
 	}
 
 	onResize(): void {
@@ -460,7 +507,7 @@ export class TaskView extends ItemView {
 		this.detailsToggleBtn.toggleClass("panel-toggle-btn", true);
 		this.detailsToggleBtn.toggleClass("is-active", this.isDetailsVisible);
 
-		this.addAction("check-square", t("Capture"), () => {
+		this.addAction("notebook-pen", t("Capture"), () => {
 			const modal = new QuickCaptureModal(
 				this.plugin.app,
 				this.plugin,
@@ -473,15 +520,85 @@ export class TaskView extends ItemView {
 		this.addAction("filter", t("Filter"), (e) => {
 			if (Platform.isDesktop) {
 				const popover = new ViewTaskFilterPopover(this.plugin.app);
+
+				// 设置关闭回调 - 现在主要用于处理取消操作
+				popover.onClose = (filterState) => {
+					// 由于使用了实时事件监听，这里不需要再手动更新状态
+					// 可以用于处理特殊的关闭逻辑，如果需要的话
+				};
+
+				// 当打开时，设置初始过滤器状态
+				this.app.workspace.onLayoutReady(() => {
+					setTimeout(() => {
+						if (
+							this.currentFilterState &&
+							popover.taskFilterComponent
+						) {
+							// 使用类型断言解决非空问题
+							const filterState = this
+								.currentFilterState as RootFilterState;
+							popover.taskFilterComponent.loadFilterState(
+								filterState
+							);
+						}
+					}, 100);
+				});
+
 				popover.showAtPosition({ x: e.clientX, y: e.clientY });
 			} else {
 				const modal = new ViewTaskFilterModal(this.plugin.app);
+
+				// 设置关闭回调 - 现在主要用于处理取消操作
+				modal.filterCloseCallback = (filterState) => {
+					// 由于使用了实时事件监听，这里不需要再手动更新状态
+					// 可以用于处理特殊的关闭逻辑，如果需要的话
+				};
+
 				modal.open();
+
+				// 设置初始过滤器状态
+				if (this.currentFilterState && modal.taskFilterComponent) {
+					setTimeout(() => {
+						// 使用类型断言解决非空问题
+						const filterState = this
+							.currentFilterState as RootFilterState;
+						modal.taskFilterComponent.loadFilterState(filterState);
+					}, 100);
+				}
 			}
 		});
+
+		// 重置筛选器按钮的逻辑移到updateActionButtons方法中
+		this.updateActionButtons();
+	}
+
+	// 添加应用当前过滤器状态的方法
+	private applyCurrentFilter() {
+		console.log(
+			"应用当前过滤状态:",
+			this.currentFilterState ? "有筛选器" : "无筛选器"
+		);
+		// 通过triggerViewUpdate重新加载任务
+		this.triggerViewUpdate();
 	}
 
 	onPaneMenu(menu: Menu) {
+		// 如果有活跃的筛选器，添加重置选项
+		if (
+			this.currentFilterState &&
+			this.currentFilterState.filterGroups &&
+			this.currentFilterState.filterGroups.length > 0
+		) {
+			menu.addItem((item) => {
+				item.setTitle(t("Reset Filter"));
+				item.setIcon("reset");
+				item.onClick(() => {
+					this.resetCurrentFilter();
+				});
+			});
+			menu.addSeparator();
+		}
+
 		menu.addItem((item) => {
 			item.setTitle(t("Settings"));
 			item.setIcon("gear");
@@ -684,8 +801,22 @@ export class TaskView extends ItemView {
 			);
 			targetComponent.containerEl.show();
 			if (typeof targetComponent.setTasks === "function") {
+				// 使用高级过滤器状态，确保传递有效的过滤器
+				const filterOptions: {
+					advancedFilter?: RootFilterState;
+					textQuery?: string;
+				} = {};
+				if (
+					this.currentFilterState &&
+					this.currentFilterState.filterGroups &&
+					this.currentFilterState.filterGroups.length > 0
+				) {
+					console.log("应用高级筛选器到视图:", viewId);
+					filterOptions.advancedFilter = this.currentFilterState;
+				}
+
 				targetComponent.setTasks(
-					filterTasks(this.tasks, viewId, this.plugin),
+					filterTasks(this.tasks, viewId, this.plugin, filterOptions),
 					this.tasks
 				);
 			}
@@ -703,11 +834,25 @@ export class TaskView extends ItemView {
 					typeof component.setTasks === "function" &&
 					component.getViewId() === viewId
 				) {
+					// 使用高级过滤器状态，确保传递有效的过滤器
+					const filterOptions: {
+						advancedFilter?: RootFilterState;
+						textQuery?: string;
+					} = {};
+					if (
+						this.currentFilterState &&
+						this.currentFilterState.filterGroups &&
+						this.currentFilterState.filterGroups.length > 0
+					) {
+						filterOptions.advancedFilter = this.currentFilterState;
+					}
+
 					component.setTasks(
 						filterTasks(
 							this.tasks,
 							component.getViewId(),
-							this.plugin
+							this.plugin,
+							filterOptions
 						)
 					);
 				}
@@ -845,9 +990,32 @@ export class TaskView extends ItemView {
 	}
 
 	public async triggerViewUpdate() {
-		// Update tasks in all TwoColumnView components
-
+		// 直接使用当前的过滤器状态重新加载当前视图
 		this.switchView(this.currentViewId);
+
+		// 更新操作按钮，确保重置筛选器按钮根据最新状态显示
+		this.updateActionButtons();
+	}
+
+	private updateActionButtons() {
+		// 移除过滤器重置按钮（如果存在）
+		const resetButton = this.leaf.view.containerEl.querySelector(
+			".view-action.task-filter-reset"
+		);
+		if (resetButton) {
+			resetButton.remove();
+		}
+
+		// 如果有高级筛选器，添加重置按钮
+		if (
+			this.currentFilterState &&
+			this.currentFilterState.filterGroups &&
+			this.currentFilterState.filterGroups.length > 0
+		) {
+			this.addAction("reset", t("Reset Filter"), () => {
+				this.resetCurrentFilter();
+			}).addClass("task-filter-reset");
+		}
 	}
 
 	private async toggleTaskCompletion(task: Task) {
@@ -995,4 +1163,13 @@ export class TaskView extends ItemView {
 			);
 		}
 	};
+
+	// 添加重置筛选器的方法
+	public resetCurrentFilter() {
+		console.log("重置当前筛选器");
+		this.currentFilterState = null;
+		this.app.saveLocalStorage("task-genius-view-filter", null);
+		this.applyCurrentFilter();
+		this.updateActionButtons();
+	}
 }

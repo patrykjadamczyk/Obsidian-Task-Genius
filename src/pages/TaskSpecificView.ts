@@ -411,7 +411,7 @@ export class TaskSpecificView extends ItemView {
 		this.detailsToggleBtn.toggleClass("is-active", this.isDetailsVisible);
 
 		// Keep quick capture button
-		this.addAction("check-square", t("Capture"), () => {
+		this.addAction("notebook-pen", t("Capture"), () => {
 			const modal = new QuickCaptureModal(
 				this.plugin.app,
 				this.plugin,

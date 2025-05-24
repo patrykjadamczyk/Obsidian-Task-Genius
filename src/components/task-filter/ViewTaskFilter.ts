@@ -13,20 +13,20 @@ import "../../styles/global-filter.css";
 
 // --- Interfaces (from focus.md and example HTML) ---
 // (Using 'any' for property types for now, will refine based on focus.md property list)
-interface Filter {
+export interface Filter {
 	id: string;
 	property: string; // e.g., 'content', 'dueDate', 'priority'
 	condition: string; // e.g., 'isSet', 'equals', 'contains'
 	value?: any;
 }
 
-interface FilterGroup {
+export interface FilterGroup {
 	id: string;
 	groupCondition: "all" | "any" | "none"; // How filters within this group are combined
 	filters: Filter[];
 }
 
-interface RootFilterState {
+export interface RootFilterState {
 	rootCondition: "all" | "any" | "none"; // How filter groups are combined
 	filterGroups: FilterGroup[];
 }
@@ -84,11 +84,15 @@ export class TaskFilterComponent extends Component {
 				rootCondition: "any",
 				filterGroups: [],
 			};
-			// Add a default group and filter, which will also trigger a save via addFilterGroup.
-			this.addFilterGroup();
 		}
 
+		// Render first to initialize DOM elements
 		this.render();
+
+		// Add a default group and filter only if no groups exist
+		if (this.rootFilterState.filterGroups.length === 0) {
+			this.addFilterGroup();
+		}
 	}
 
 	onunload() {
@@ -395,6 +399,14 @@ export class TaskFilterComponent extends Component {
 		groupDataToClone: FilterGroup | null = null,
 		insertAfterElement: HTMLElement | null = null
 	): void {
+		// Ensure the container is initialized
+		if (!this.filterGroupsContainerEl) {
+			console.warn(
+				"TaskFilterComponent: filterGroupsContainerEl not initialized yet"
+			);
+			return;
+		}
+
 		const newGroupId = groupDataToClone
 			? groupDataToClone.id
 			: this.generateId();
@@ -1013,23 +1025,24 @@ export class TaskFilterComponent extends Component {
 		this.render();
 	}
 
-	private saveStateToLocalStorage(): void {
-		if (!this.app || !this.rootFilterState) {
-			console.warn(
-				"TaskFilter: Attempted to save state before app or rootFilterState is ready."
-			);
-			return;
-		}
-		try {
+	// --- Local Storage Management ---
+	private saveStateToLocalStorage(
+		triggerRealtimeUpdate: boolean = true
+	): void {
+		if (this.app) {
 			this.app.saveLocalStorage(
 				"task-genius-view-filter",
-				this.rootFilterState
+				JSON.stringify(this.rootFilterState)
 			);
-		} catch (error) {
-			console.error(
-				"TaskFilter: Failed to save state to local storage",
-				error
-			);
+
+			// 只有在需要实时更新时才触发事件
+			if (triggerRealtimeUpdate) {
+				// 触发过滤器变更事件，传递当前的过滤器状态
+				this.app.workspace.trigger(
+					"task-genius:filter-changed",
+					this.rootFilterState
+				);
+			}
 		}
 	}
 }

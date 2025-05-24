@@ -6,6 +6,13 @@ import {
 } from "../common/setting-definition";
 import TaskProgressBarPlugin from "../index";
 import { sortTasks } from "../commands/sortTaskCommands";
+import {
+	Filter,
+	FilterGroup,
+	RootFilterState,
+} from "../components/task-filter/ViewTaskFilter";
+
+// 从ViewTaskFilter.ts导入相关接口
 
 interface FilterOptions {
 	textQuery?: string;
@@ -19,6 +26,9 @@ interface FilterOptions {
 		dailyNoteFormat: string;
 		useAsDateType: "due" | "start" | "scheduled";
 	};
+
+	// 添加高级过滤器选项
+	advancedFilter?: RootFilterState;
 }
 
 /**
@@ -112,6 +122,332 @@ export function isBlank(
 }
 
 /**
+ * 从RootFilterState应用过滤条件到任务列表
+ * @param task 要过滤的任务
+ * @param filterState 过滤状态
+ * @returns 如果任务满足过滤条件则返回true
+ */
+export function applyAdvancedFilter(
+	task: Task,
+	filterState: RootFilterState
+): boolean {
+	// 如果没有过滤器组或过滤器组为空，返回所有任务
+	if (!filterState.filterGroups || filterState.filterGroups.length === 0) {
+		return true;
+	}
+
+	// 根据根条件确定如何组合过滤组
+	const groupResults = filterState.filterGroups.map((group) => {
+		return applyFilterGroup(task, group);
+	});
+
+	// 根据根条件组合结果
+	if (filterState.rootCondition === "all") {
+		return groupResults.every((result) => result);
+	} else if (filterState.rootCondition === "any") {
+		return groupResults.some((result) => result);
+	} else if (filterState.rootCondition === "none") {
+		return !groupResults.some((result) => result);
+	}
+
+	return true;
+}
+
+/**
+ * 将过滤组应用于任务
+ * @param task 要过滤的任务
+ * @param group 过滤组
+ * @returns 如果任务满足组条件则返回true
+ */
+function applyFilterGroup(task: Task, group: FilterGroup): boolean {
+	// 如果过滤器为空，返回所有任务
+	if (!group.filters || group.filters.length === 0) {
+		return true;
+	}
+
+	const filterResults = group.filters.map((filter) => {
+		return applyFilter(task, filter);
+	});
+
+	// 根据组条件组合结果
+	if (group.groupCondition === "all") {
+		return filterResults.every((result) => result);
+	} else if (group.groupCondition === "any") {
+		return filterResults.some((result) => result);
+	} else if (group.groupCondition === "none") {
+		return !filterResults.some((result) => result);
+	}
+
+	return true;
+}
+
+/**
+ * 将单个过滤器应用于任务
+ * @param task 要过滤的任务
+ * @param filter 过滤器
+ * @returns 如果任务满足过滤条件则返回true
+ */
+function applyFilter(task: Task, filter: Filter): boolean {
+	const { property, condition, value } = filter;
+
+	// 对于空条件，始终返回true
+	if (!condition) {
+		return true;
+	}
+
+	switch (property) {
+		case "content":
+			return applyContentFilter(task.content, condition, value);
+		case "status":
+			return applyStatusFilter(task.status, condition, value);
+		case "priority":
+			return applyPriorityFilter(task.priority, condition, value);
+		case "dueDate":
+			return applyDateFilter(task.dueDate, condition, value);
+		case "startDate":
+			return applyDateFilter(task.startDate, condition, value);
+		case "scheduledDate":
+			return applyDateFilter(task.scheduledDate, condition, value);
+		case "tags":
+			return applyTagsFilter(task.tags, condition, value);
+		case "filePath":
+			return applyFilePathFilter(task.filePath, condition, value);
+		case "completed":
+			return applyCompletedFilter(task.completed, condition);
+		default:
+			// 处理其他属性
+			return true;
+	}
+}
+
+/**
+ * 内容过滤器实现
+ */
+function applyContentFilter(
+	content: string,
+	condition: string,
+	value?: string
+): boolean {
+	if (!content) content = "";
+	if (!value) value = "";
+
+	switch (condition) {
+		case "contains":
+			return content.toLowerCase().includes(value.toLowerCase());
+		case "doesNotContain":
+			return !content.toLowerCase().includes(value.toLowerCase());
+		case "is":
+			return content.toLowerCase() === value.toLowerCase();
+		case "isNot":
+			return content.toLowerCase() !== value.toLowerCase();
+		case "startsWith":
+			return content.toLowerCase().startsWith(value.toLowerCase());
+		case "endsWith":
+			return content.toLowerCase().endsWith(value.toLowerCase());
+		case "isEmpty":
+			return content.trim() === "";
+		case "isNotEmpty":
+			return content.trim() !== "";
+		default:
+			return true;
+	}
+}
+
+/**
+ * 状态过滤器实现
+ */
+function applyStatusFilter(
+	status: string,
+	condition: string,
+	value?: string
+): boolean {
+	if (!status) status = "";
+	if (!value) value = "";
+
+	switch (condition) {
+		case "contains":
+			return status.toLowerCase().includes(value.toLowerCase());
+		case "doesNotContain":
+			return !status.toLowerCase().includes(value.toLowerCase());
+		case "is":
+			return status.toLowerCase() === value.toLowerCase();
+		case "isNot":
+			return status.toLowerCase() !== value.toLowerCase();
+		case "isEmpty":
+			return status.trim() === "";
+		case "isNotEmpty":
+			return status.trim() !== "";
+		default:
+			return true;
+	}
+}
+
+/**
+ * 优先级过滤器实现
+ */
+function applyPriorityFilter(
+	priority: number | undefined,
+	condition: string,
+	value?: string
+): boolean {
+	// 如果没有设置优先级，将其视为0
+	const taskPriority = typeof priority === "number" ? priority : 0;
+
+	// 对于空值条件
+	switch (condition) {
+		case "isEmpty":
+			return priority === undefined;
+		case "isNotEmpty":
+			return priority !== undefined;
+	}
+
+	if (!value) return true;
+
+	// 尝试将值转换为数字
+	let numValue: number;
+	try {
+		numValue = parseInt(value);
+		if (isNaN(numValue)) numValue = 0;
+	} catch {
+		numValue = 0;
+	}
+
+	switch (condition) {
+		case "is":
+			return taskPriority === numValue;
+		case "isNot":
+			return taskPriority !== numValue;
+		default:
+			return true;
+	}
+}
+
+/**
+ * 日期过滤器实现
+ */
+function applyDateFilter(
+	date: number | undefined,
+	condition: string,
+	value?: string
+): boolean {
+	// 处理空值条件
+	switch (condition) {
+		case "isEmpty":
+			return date === undefined;
+		case "isNotEmpty":
+			return date !== undefined;
+	}
+
+	// 如果任务没有日期或过滤值为空，则匹配条件很特殊
+	if (date === undefined || !value) {
+		// 对于需要日期的条件，如果没有日期则不匹配
+		if (["is", "isNot", ">", "<", ">=", "<="].includes(condition)) {
+			return false;
+		}
+		return true;
+	}
+
+	// 解析日期
+	const taskDate = moment(date).startOf("day");
+	const filterDate = moment(value, "YYYY-MM-DD").startOf("day");
+
+	if (!taskDate.isValid() || !filterDate.isValid()) {
+		return false;
+	}
+
+	switch (condition) {
+		case "is":
+			return taskDate.isSame(filterDate, "day");
+		case "isNot":
+			return !taskDate.isSame(filterDate, "day");
+		case ">":
+			return taskDate.isAfter(filterDate, "day");
+		case "<":
+			return taskDate.isBefore(filterDate, "day");
+		case ">=":
+			return taskDate.isSameOrAfter(filterDate, "day");
+		case "<=":
+			return taskDate.isSameOrBefore(filterDate, "day");
+		default:
+			return true;
+	}
+}
+
+/**
+ * 标签过滤器实现
+ */
+function applyTagsFilter(
+	tags: string[],
+	condition: string,
+	value?: string
+): boolean {
+	if (!tags) tags = [];
+	if (!value) value = "";
+
+	const lowerValue = value.toLowerCase();
+
+	switch (condition) {
+		case "contains":
+			return tags.some((tag) => tag.toLowerCase().includes(lowerValue));
+		case "doesNotContain":
+			return !tags.some((tag) => tag.toLowerCase().includes(lowerValue));
+		case "isEmpty":
+			return tags.length === 0;
+		case "isNotEmpty":
+			return tags.length > 0;
+		default:
+			return true;
+	}
+}
+
+/**
+ * 文件路径过滤器实现
+ */
+function applyFilePathFilter(
+	filePath: string,
+	condition: string,
+	value?: string
+): boolean {
+	if (!filePath) filePath = "";
+	if (!value) value = "";
+
+	switch (condition) {
+		case "contains":
+			return filePath.toLowerCase().includes(value.toLowerCase());
+		case "doesNotContain":
+			return !filePath.toLowerCase().includes(value.toLowerCase());
+		case "is":
+			return filePath.toLowerCase() === value.toLowerCase();
+		case "isNot":
+			return filePath.toLowerCase() !== value.toLowerCase();
+		case "startsWith":
+			return filePath.toLowerCase().startsWith(value.toLowerCase());
+		case "endsWith":
+			return filePath.toLowerCase().endsWith(value.toLowerCase());
+		case "isEmpty":
+			return filePath.trim() === "";
+		case "isNotEmpty":
+			return filePath.trim() !== "";
+		default:
+			return true;
+	}
+}
+
+/**
+ * 完成状态过滤器实现
+ */
+function applyCompletedFilter(completed: boolean, condition: string): boolean {
+	switch (condition) {
+		case "isTrue":
+			return completed === true;
+		case "isFalse":
+			return completed === false;
+		default:
+			return true;
+	}
+}
+
+/**
  * Centralized function to filter tasks based on view configuration and options.
  * Includes completion status filtering.
  */
@@ -125,6 +461,8 @@ export function filterTasks(
 	const viewConfig = getViewSettingOrDefault(plugin, viewId);
 	const filterRules = viewConfig.filterRules || {};
 
+	// --- 基本筛选：隐藏已完成和空白任务 ---
+	// 注意：这些是基础过滤条件，即使有高级过滤器也会应用
 	if (viewConfig.hideCompletedAndAbandonedTasks) {
 		filtered = filtered.filter((task) => !task.completed);
 	}
@@ -132,6 +470,46 @@ export function filterTasks(
 	if (viewConfig.filterBlanks) {
 		filtered = filtered.filter((task) => task.content.trim() !== "");
 	}
+
+	// --- 应用高级过滤器（优先级高于默认规则） ---
+	if (
+		options.advancedFilter &&
+		Object.keys(options.advancedFilter.filterGroups || {}).length > 0
+	) {
+		filtered = filtered.filter((task) =>
+			applyAdvancedFilter(task, options.advancedFilter!)
+		);
+
+		// 有高级过滤器时可以选择跳过默认视图规则，但我们仍然应用某些基本规则
+		// 完成标准，空白任务等过滤会保留
+
+		// 应用 isNotCompleted 过滤器（基于视图配置的 hideCompletedAndAbandonedTasks）
+		filtered = filtered.filter((task) =>
+			isNotCompleted(plugin, task, viewId)
+		);
+
+		// 应用 isBlank 过滤器（基于视图配置的 filterBlanks）
+		filtered = filtered.filter((task) => isBlank(plugin, task, viewId));
+
+		// 应用通用文本搜索（来自选项）
+		if (options.textQuery) {
+			const textFilter = options.textQuery.toLowerCase();
+			filtered = filtered.filter(
+				(task) =>
+					task.content.toLowerCase().includes(textFilter) ||
+					task.project?.toLowerCase().includes(textFilter) ||
+					task.context?.toLowerCase().includes(textFilter) ||
+					task.tags?.some((tag) =>
+						tag.toLowerCase().includes(textFilter)
+					)
+			);
+		}
+
+		// 有高级过滤器时，跳过应用默认视图逻辑和默认过滤规则
+		return filtered;
+	}
+
+	// --- 以下是无高级过滤器时的默认行为 ---
 
 	// --- Apply Filter Rules defined in ViewConfig ---
 	if (filterRules.textContains) {

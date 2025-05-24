@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { CloseableComponent, Component } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
-import { TaskFilterComponent } from "./ViewTaskFilter";
+import { TaskFilterComponent, RootFilterState } from "./ViewTaskFilter";
 import { t } from "../../translations/helper";
 
 export class ViewTaskFilterPopover
@@ -9,11 +9,12 @@ export class ViewTaskFilterPopover
 	implements CloseableComponent
 {
 	private app: App;
-	private popoverRef: HTMLDivElement | null = null;
-	private taskFilterComponent: TaskFilterComponent;
+	public popoverRef: HTMLDivElement | null = null;
+	public taskFilterComponent: TaskFilterComponent;
 	private win: Window;
 	private scrollParent: HTMLElement | Window;
 	private popperInstance: PopperInstance | null = null;
+	public onClose: ((filterState?: RootFilterState) => void) | null = null;
 
 	constructor(app: App) {
 		super();
@@ -144,6 +145,16 @@ export class ViewTaskFilterPopover
 			this.popperInstance = null;
 		}
 
+		// 在关闭前获取过滤状态并触发回调
+		let filterState: RootFilterState | undefined = undefined;
+		if (this.taskFilterComponent) {
+			try {
+				filterState = this.taskFilterComponent.getFilterState();
+			} catch (error) {
+				console.error("Failed to get filter state before close", error);
+			}
+		}
+
 		if (this.popoverRef) {
 			this.popoverRef.remove();
 			this.popoverRef = null;
@@ -158,6 +169,15 @@ export class ViewTaskFilterPopover
 
 		if (this.taskFilterComponent) {
 			this.taskFilterComponent.onunload();
+		}
+
+		// 调用关闭回调
+		if (this.onClose) {
+			try {
+				this.onClose(filterState);
+			} catch (error) {
+				console.error("Error in onClose callback", error);
+			}
 		}
 	}
 }

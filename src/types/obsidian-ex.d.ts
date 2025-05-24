@@ -12,6 +12,7 @@ import {
 } from "obsidian";
 import { Component } from "obsidian";
 import { HabitProps } from "./habit-card";
+import { RootFilterState } from "../components/task-filter/ViewTaskFilter";
 
 interface Token extends EditorRange {
 	/** @todo Documentation incomplete. */
@@ -380,6 +381,10 @@ declare module "obsidian" {
 			event: "task-genius:habit-index-updated",
 			callback: (habits: HabitProps[]) => void
 		): EventRef;
+		on(
+			event: "task-genius:filter-changed",
+			callback: (filterState: RootFilterState) => void
+		): EventRef;
 
 		trigger(event: "task-genius:task-completed", task: Task): void;
 		trigger(event: "task-genius:task-added", task: Task): void;
@@ -392,6 +397,10 @@ declare module "obsidian" {
 		trigger(
 			event: "task-genius:habit-index-updated",
 			habits: HabitProps[]
+		): void;
+		trigger(
+			event: "task-genius:filter-changed",
+			filterState: RootFilterState
 		): void;
 	}
 
