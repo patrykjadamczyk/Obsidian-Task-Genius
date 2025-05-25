@@ -475,6 +475,7 @@ export class TaskManager extends Component {
 			// Use the worker to process the file
 			const tasks = await this.workerManager.processFile(file);
 
+			console.log("tasks", tasks, file.path);
 			// Update the index with the tasks
 			this.indexer.updateIndexWithTasks(file.path, tasks);
 

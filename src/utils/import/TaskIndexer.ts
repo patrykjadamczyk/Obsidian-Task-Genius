@@ -238,6 +238,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 			// Update all indexes
 			this.updateIndexMaps(task);
 		}
+		console.log("fileTaskIds", tasks, filePath);
 
 		// Update file index
 		this.taskCache.files.set(filePath, fileTaskIds);

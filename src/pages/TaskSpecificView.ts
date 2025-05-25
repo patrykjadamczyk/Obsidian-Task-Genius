@@ -94,7 +94,8 @@ export class TaskSpecificView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, private plugin: TaskProgressBarPlugin) {
 		super(leaf);
 
-		this.tasks = this.plugin.preloadedTasks;
+		// 使用预加载的任务进行快速初始显示
+		this.tasks = this.plugin.preloadedTasks || [];
 
 		this.scope = new Scope(this.app.scope);
 
@@ -169,20 +170,44 @@ export class TaskSpecificView extends ItemView {
 			cls: "task-genius-container no-sidebar",
 		});
 
-		// Load tasks first
-		this.tasks = this.plugin.preloadedTasks;
+		// 1. 首先注册事件监听器，确保不会错过任何更新
+		this.registerEvent(
+			this.app.workspace.on(
+				"task-genius:task-cache-updated",
+				async () => {
+					await this.loadTasks();
+				}
+			)
+		);
 
+		this.registerEvent(
+			this.app.workspace.on(
+				"task-genius:filter-changed",
+				(filterState: RootFilterState, leafId?: string) => {
+					if (leafId === this.leaf.id) {
+						this.currentFilterState = filterState;
+						this.debouncedApplyFilter();
+					}
+				}
+			)
+		);
+
+		// 2. 初始化组件（但先不传入数据）
 		this.initializeComponents();
 
-		// Retrieve initial view state
+		// 3. 获取初始视图状态
 		const state = this.leaf.getViewState().state as any;
 		const specificState = state as unknown as TaskSpecificViewState;
 		console.log("TaskSpecificView initial state:", specificState);
 		this.currentViewId = specificState?.viewId || "inbox"; // Fallback if state is missing
 		this.currentProject = specificState?.project;
+		this.currentFilterState = specificState?.filterState || null;
 
-		// Initial view switch based on state
+		// 4. 先使用预加载的数据快速显示
 		this.switchView(this.currentViewId, this.currentProject);
+
+		// 5. 异步加载最新数据（不阻塞初始显示）
+		this.loadTasks().catch(console.error);
 
 		this.toggleDetailsVisibility(false);
 
@@ -220,39 +245,11 @@ export class TaskSpecificView extends ItemView {
 				this.tabActionButton.detach();
 			});
 		}
-
-		this.triggerViewUpdate(); // Load tasks into the active view
-
-		// No sidebar check needed
-		// this.checkAndCollapseSidebar();
-
-		this.app.workspace.onLayoutReady(() => {
-			this.registerEvent(
-				this.app.workspace.on(
-					"task-genius:task-cache-updated",
-					async () => {
-						await this.loadTasks();
-					}
-				)
-			);
-		});
-
-		this.registerEvent(
-			this.app.workspace.on(
-				"task-genius:filter-changed",
-				(filterState: RootFilterState, leafId?: string) => {
-					if (leafId === this.leaf.id) {
-						this.currentFilterState = filterState;
-						this.debouncedApplyFilter();
-					}
-				}
-			)
-		);
 	}
 
 	private debouncedApplyFilter = debounce(() => {
-		this.loadTasks();
-	}, 500);
+		this.applyCurrentFilter();
+	}, 100);
 
 	// Removed onResize and checkAndCollapseSidebar methods
 
@@ -363,7 +360,7 @@ export class TaskSpecificView extends ItemView {
 			this.plugin.app,
 			this.plugin,
 			this.rootContainerEl,
-			this.tasks,
+			this.tasks, // 使用预加载的任务数据
 			{
 				onTaskSelected: (task: Task | null) => {
 					this.handleTaskSelection(task);
@@ -385,7 +382,7 @@ export class TaskSpecificView extends ItemView {
 			this.app,
 			this.plugin,
 			this.rootContainerEl,
-			this.tasks || [],
+			this.tasks, // 使用预加载的任务数据
 			{
 				onTaskStatusUpdate:
 					this.handleKanbanTaskStatusUpdate.bind(this),
@@ -888,28 +885,47 @@ export class TaskSpecificView extends ItemView {
 		const taskManager = this.plugin.taskManager;
 		if (!taskManager) return;
 
-		this.tasks = taskManager.getAllTasks();
-		await this.triggerViewUpdate();
+		const newTasks = taskManager.getAllTasks();
+		console.log(`TaskSpecificView loaded ${newTasks.length} tasks`);
+
+		// 检查任务数量是否有变化（简单的优化，可以根据需要改进比较逻辑）
+		const hasChanged = this.tasks.length !== newTasks.length;
+
+		this.tasks = newTasks;
+
+		// 只有在数据有变化时才更新视图
+		if (hasChanged) {
+			// 直接切换到当前视图
+			if (this.currentViewId) {
+				this.switchView(this.currentViewId, this.currentProject);
+			}
+
+			// 更新操作按钮
+			this.updateActionButtons();
+		}
 	}
 
 	// 添加应用当前过滤器状态的方法
 	private applyCurrentFilter() {
-		// 通过triggerViewUpdate重新加载任务
-		this.triggerViewUpdate();
+		console.log(
+			"应用当前过滤状态:",
+			this.currentFilterState ? "有筛选器" : "无筛选器"
+		);
+		// 通过 loadTasks 重新加载任务
+		this.loadTasks();
 	}
 
 	public async triggerViewUpdate() {
-		// Simplified: just switch to the current view again to refresh tasks
+		// 直接切换到当前视图以刷新任务
 		if (this.currentViewId) {
 			this.switchView(this.currentViewId, this.currentProject);
+			// 更新操作按钮
+			this.updateActionButtons();
 		} else {
 			console.warn(
 				"TaskSpecificView: Cannot trigger update, currentViewId is not set."
 			);
 		}
-
-		// Update action buttons
-		this.updateActionButtons();
 	}
 
 	private updateActionButtons() {
@@ -992,8 +1008,10 @@ export class TaskSpecificView extends ItemView {
 				this.detailsComponent.showTaskDetails(updatedTask);
 			}
 
-			// Re-filter and update the current view component
-			this.triggerViewUpdate();
+			// 直接更新当前视图
+			if (this.currentViewId) {
+				this.switchView(this.currentViewId, this.currentProject);
+			}
 
 			return updatedTask;
 		} catch (error) {

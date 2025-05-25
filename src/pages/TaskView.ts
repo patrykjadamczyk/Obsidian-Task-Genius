@@ -92,12 +92,15 @@ export class TaskView extends ItemView {
 	// 创建防抖的过滤器应用函数
 	private debouncedApplyFilter = debounce(() => {
 		this.applyCurrentFilter();
-	}, 300);
+	}, 100);
 
 	constructor(leaf: WorkspaceLeaf, private plugin: TaskProgressBarPlugin) {
 		super(leaf);
 
-		this.tasks = this.plugin.preloadedTasks;
+		// 使用预加载的任务进行快速初始显示
+		this.tasks = this.plugin.preloadedTasks || [];
+
+		console.log("tasks", this.tasks);
 
 		this.scope = new Scope(this.app.scope);
 
@@ -133,7 +136,31 @@ export class TaskView extends ItemView {
 			cls: "task-genius-container",
 		});
 
-		// 首先加载缓存的过滤状态
+		// 1. 首先注册事件监听器，确保不会错过任何更新
+		this.registerEvent(
+			this.app.workspace.on(
+				"task-genius:task-cache-updated",
+				async () => {
+					await this.loadTasks();
+				}
+			)
+		);
+
+		// 监听过滤器变更事件
+		this.registerEvent(
+			this.app.workspace.on(
+				"task-genius:filter-changed",
+				(filterState: RootFilterState) => {
+					console.log("过滤器实时变更:", filterState);
+					// 更新当前过滤器状态
+					this.currentFilterState = filterState;
+					// 使用防抖函数应用过滤器，避免频繁更新
+					this.debouncedApplyFilter();
+				}
+			)
+		);
+
+		// 2. 加载缓存的过滤状态
 		const savedFilterState = this.app.loadLocalStorage(
 			"task-genius-view-filter"
 		) as RootFilterState;
@@ -149,8 +176,10 @@ export class TaskView extends ItemView {
 			this.currentFilterState = null;
 		}
 
+		// 3. 初始化组件（但先不传入数据）
 		this.initializeComponents();
 
+		// 4. 获取初始视图ID
 		const savedViewId = this.app.loadLocalStorage(
 			"task-genius:view-mode"
 		) as ViewMode;
@@ -163,7 +192,12 @@ export class TaskView extends ItemView {
 
 		this.currentViewId = initialViewId;
 		this.sidebarComponent.setViewMode(this.currentViewId);
+
+		// 5. 先使用预加载的数据快速显示
 		this.switchView(this.currentViewId);
+
+		// 6. 异步加载最新数据（不阻塞初始显示）
+		this.loadTasks().catch(console.error);
 
 		this.toggleDetailsVisibility(false);
 
@@ -206,44 +240,9 @@ export class TaskView extends ItemView {
 			this.tabActionButton.detach();
 		});
 
-		// 确保任务加载发生在筛选器状态加载之后
-		this.tasks = this.plugin.preloadedTasks;
-		this.triggerViewUpdate();
-
 		this.checkAndCollapseSidebar();
 
-		this.app.workspace.onLayoutReady(() => {
-			this.registerEvent(
-				this.app.workspace.on(
-					"task-genius:task-cache-updated",
-					async () => {
-						await this.loadTasks();
-					}
-				)
-			);
-
-			// 监听过滤器变更事件
-			this.registerEvent(
-				this.app.workspace.on(
-					"task-genius:filter-changed",
-					(filterState: RootFilterState) => {
-						console.log("过滤器实时变更:", filterState);
-						// 更新当前过滤器状态
-						this.currentFilterState = filterState;
-						// 使用防抖函数应用过滤器，避免频繁更新
-						this.debouncedApplyFilter();
-					}
-				)
-			);
-		});
-
-		// Load initial tasks into components that need them immediately
-		if (this.tasks && this.tasks.length > 0) {
-			this.calendarComponent?.updateTasks(this.tasks);
-			this.ganttComponent?.setTasks(this.tasks);
-			// KanbanComponent will receive tasks via switchView initially
-		}
-
+		// 添加视图切换命令
 		this.plugin.settings.viewConfiguration.forEach((view) => {
 			this.plugin.addCommand({
 				id: `switch-view-${view.id}`,
@@ -430,7 +429,7 @@ export class TaskView extends ItemView {
 			this.app,
 			this.plugin,
 			this.rootContainerEl,
-			this.tasks || [],
+			this.tasks,
 			{
 				onTaskStatusUpdate:
 					this.handleKanbanTaskStatusUpdate.bind(this),
@@ -996,6 +995,10 @@ export class TaskView extends ItemView {
 		if (!taskManager) return;
 
 		this.tasks = taskManager.getAllTasks();
+		console.log(
+			"tasks",
+			this.tasks.find((i) => i.content.startsWith("Launch"))?.content
+		);
 		console.log(`TaskView loaded ${this.tasks.length} tasks`);
 		await this.triggerViewUpdate();
 	}
@@ -1068,6 +1071,7 @@ export class TaskView extends ItemView {
 			await taskManager.updateTask(updatedTask);
 			console.log(`Task ${updatedTask.id} updated successfully.`);
 
+			// 立即更新本地任务列表
 			const index = this.tasks.findIndex((t) => t.id === originalTask.id);
 			if (index !== -1) {
 				this.tasks[index] = updatedTask;
@@ -1076,6 +1080,9 @@ export class TaskView extends ItemView {
 					"Updated task not found in local list, might reload."
 				);
 			}
+
+			// 如果任务在当前视图中，立即更新视图
+			this.switchView(this.currentViewId);
 
 			if (this.currentSelectedTaskId === updatedTask.id) {
 				this.detailsComponent.showTaskDetails(updatedTask);

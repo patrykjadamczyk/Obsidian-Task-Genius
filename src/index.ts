@@ -179,7 +179,7 @@ export default class TaskProgressBarPlugin extends Plugin {
 				this,
 				{
 					useWorkers: true,
-					debug: false, // Set to true for debugging
+					debug: true, // Set to true for debugging
 				}
 			);
 

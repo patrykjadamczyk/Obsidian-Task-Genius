@@ -296,6 +296,8 @@ export class TaskListItemComponent extends Component {
 		);
 		this.addChild(this.markdownRenderer);
 
+		console.log("renderMarkdown", this.task.originalMarkdown);
+
 		// Render the markdown content
 		this.markdownRenderer.render(this.task.originalMarkdown);
 	}
