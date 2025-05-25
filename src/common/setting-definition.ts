@@ -382,8 +382,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	showProgressBarBasedOnHeading: "",
 
 	// Task Status Defaults
-	autoCompleteParent: true,
-	markParentInProgressWhenPartiallyComplete: true,
+	autoCompleteParent: false,
+	markParentInProgressWhenPartiallyComplete: false,
 	taskStatuses: {
 		completed: "x|X",
 		inProgress: ">|/",
@@ -395,10 +395,10 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	excludeTaskMarks: "",
 	useOnlyCountMarks: false,
 	onlyCountTaskMarks: "x|X|>|/", // Default example
-	enableTaskStatusSwitcher: true,
-	enableCustomTaskMarks: true,
-	enableTextMarkInSourceMode: true,
-	enableCycleCompleteStatus: true,
+	enableTaskStatusSwitcher: false,
+	enableCustomTaskMarks: false,
+	enableTextMarkInSourceMode: false,
+	enableCycleCompleteStatus: false,
 	taskStatusCycle: [
 		"Not Started",
 		"In Progress",
@@ -416,9 +416,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	excludeMarksFromCycle: [],
 
 	// Priority & Date Defaults
-	enablePriorityPicker: true,
-	enablePriorityKeyboardShortcuts: true,
-	enableDatePicker: true,
+	enablePriorityPicker: false,
+	enablePriorityKeyboardShortcuts: false,
+	enableDatePicker: false,
 	dateMark: "📅",
 	recurrenceDateBase: "due",
 
