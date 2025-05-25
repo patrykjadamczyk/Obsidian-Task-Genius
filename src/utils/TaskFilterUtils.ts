@@ -548,9 +548,17 @@ export function filterTasks(
 		);
 	}
 	if (filterRules.priority !== undefined) {
-		filtered = filtered.filter(
-			(task) => (task.priority || 0) === filterRules.priority
-		);
+		filtered = filtered.filter((task) => {
+			if (filterRules.priority === "none") {
+				return task.priority === undefined;
+			} else if (filterRules.priority?.includes(",")) {
+				return filterRules.priority
+					.split(",")
+					.includes(String(task.priority ?? 0));
+			} else {
+				return task.priority === parseInt(filterRules.priority ?? "0");
+			}
+		});
 	}
 	if (filterRules.statusInclude && filterRules.statusInclude.length > 0) {
 		filtered = filtered.filter((task) =>

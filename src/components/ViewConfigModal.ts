@@ -639,15 +639,19 @@ export class ViewConfigModal extends Modal {
 
 		new Setting(contentEl)
 			.setName(t("Priority is"))
-			.setDesc(t("Task must have this priority (e.g., 1, 2, 3)."))
+			.setDesc(
+				t(
+					"Task must have this priority (e.g., 1, 2, 3). You can also use 'none' to filter out tasks without a priority."
+				)
+			)
 			.addText((text) => {
 				this.priorityInput = text;
-				text.inputEl.type = "number"; // Set input type to number
 				text.setValue(
 					this.viewFilterRule.priority !== undefined
 						? String(this.viewFilterRule.priority)
 						: ""
 				);
+				text.setPlaceholder("1, 2, 3 or none");
 				text.onChange(() => this.checkForChanges());
 			});
 
@@ -1094,12 +1098,7 @@ export class ViewConfigModal extends Modal {
 		if (project) rules.project = project;
 
 		const priorityStr = this.priorityInput?.getValue()?.trim();
-		if (priorityStr) {
-			const priorityNum = parseInt(priorityStr, 10);
-			if (!isNaN(priorityNum)) {
-				rules.priority = priorityNum;
-			}
-		}
+		if (priorityStr) rules.priority = priorityStr;
 
 		const dueDate = this.dueDateInput?.getValue()?.trim();
 		if (dueDate) rules.dueDate = dueDate;

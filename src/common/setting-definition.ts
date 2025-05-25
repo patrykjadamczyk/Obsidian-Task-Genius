@@ -38,7 +38,7 @@ export interface ViewFilterRule {
 	statusInclude?: string[];
 	statusExclude?: string[];
 	project?: string;
-	priority?: number;
+	priority?: string;
 	hasDueDate?: DateExistType;
 	dueDate?: string; // e.g., 'today', 'next-week', 'yyyy-mm-dd'
 	hasStartDate?: DateExistType;

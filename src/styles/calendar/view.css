@@ -129,7 +129,13 @@
 }
 
 .full-calendar-container .calendar-day-cell.is-today {
-	background-color: var(--background-secondary-alt);
+	background-color: var(--background-secondary-alt) !important;
+	border: 1px solid
+		hsl(var(--accent-h), var(--accent-s), var(--accent-l), 0.5);
+}
+
+.full-calendar-container .calendar-day-cell.is-today .calendar-day-number {
+	color: hsl(var(--accent-h), var(--accent-s), var(--accent-l), 1);
 }
 
 .full-calendar-container .calendar-day-cell:not(.is-today) {

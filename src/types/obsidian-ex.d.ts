@@ -383,7 +383,7 @@ declare module "obsidian" {
 		): EventRef;
 		on(
 			event: "task-genius:filter-changed",
-			callback: (filterState: RootFilterState) => void
+			callback: (filterState: RootFilterState, leafId?: string) => void
 		): EventRef;
 
 		trigger(event: "task-genius:task-completed", task: Task): void;
@@ -400,11 +400,13 @@ declare module "obsidian" {
 		): void;
 		trigger(
 			event: "task-genius:filter-changed",
-			filterState: RootFilterState
+			filterState: RootFilterState,
+			leafId?: string
 		): void;
 	}
 
 	interface WorkspaceLeaf {
+		id: string;
 		tabHeaderStatusContainerEl: HTMLElement;
 		tabHeaderEl: HTMLElement;
 		width: number;

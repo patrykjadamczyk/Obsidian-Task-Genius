@@ -56,14 +56,18 @@ export class TaskFilterComponent extends Component {
 	// Sortable instances
 	private groupsSortable?: Sortable;
 
-	constructor(hostEl: HTMLElement, app: App) {
+	constructor(hostEl: HTMLElement, app: App, private leafId?: string) {
 		super();
 		this.hostEl = hostEl;
 		this.app = app;
 	}
 
 	onload() {
-		const savedState = this.app.loadLocalStorage("task-genius-view-filter");
+		const savedState = this.leafId
+			? this.app.loadLocalStorage(
+					`task-genius-view-filter-${this.leafId}`
+			  )
+			: this.app.loadLocalStorage("task-genius-view-filter");
 
 		if (
 			savedState &&
@@ -1031,7 +1035,9 @@ export class TaskFilterComponent extends Component {
 	): void {
 		if (this.app) {
 			this.app.saveLocalStorage(
-				"task-genius-view-filter",
+				this.leafId
+					? `task-genius-view-filter-${this.leafId}`
+					: "task-genius-view-filter",
 				JSON.stringify(this.rootFilterState)
 			);
 
@@ -1040,7 +1046,8 @@ export class TaskFilterComponent extends Component {
 				// 触发过滤器变更事件，传递当前的过滤器状态
 				this.app.workspace.trigger(
 					"task-genius:filter-changed",
-					this.rootFilterState
+					this.rootFilterState,
+					this.leafId
 				);
 			}
 		}

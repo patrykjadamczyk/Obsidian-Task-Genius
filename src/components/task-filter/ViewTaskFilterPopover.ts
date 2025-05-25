@@ -16,7 +16,7 @@ export class ViewTaskFilterPopover
 	private popperInstance: PopperInstance | null = null;
 	public onClose: ((filterState?: RootFilterState) => void) | null = null;
 
-	constructor(app: App) {
+	constructor(app: App, private leafId?: string) {
 		super();
 		this.app = app;
 		this.win = app.workspace.containerEl.win || window;
@@ -36,7 +36,11 @@ export class ViewTaskFilterPopover
 		const contentEl = createDiv({ cls: "task-popover-content" });
 
 		// Create metadata editor, use compact mode
-		this.taskFilterComponent = new TaskFilterComponent(contentEl, this.app);
+		this.taskFilterComponent = new TaskFilterComponent(
+			contentEl,
+			this.app,
+			this.leafId
+		);
 
 		// Initialize editor and display task
 		this.taskFilterComponent.onload();

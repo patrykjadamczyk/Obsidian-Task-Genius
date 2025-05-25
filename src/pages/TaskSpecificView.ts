@@ -8,6 +8,7 @@ import {
 	ButtonComponent,
 	Menu,
 	Scope,
+	debounce,
 	// FrontmatterCache,
 } from "obsidian";
 import { Task } from "../utils/types/TaskIndex";
@@ -37,12 +38,23 @@ import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
 import { Habit as HabitsComponent } from "../components/habit/habit";
+import { Platform } from "obsidian";
+import {
+	ViewTaskFilterPopover,
+	ViewTaskFilterModal,
+} from "../components/task-filter";
+import {
+	Filter,
+	FilterGroup,
+	RootFilterState,
+} from "../components/task-filter/ViewTaskFilter";
 
 export const TASK_SPECIFIC_VIEW_TYPE = "task-genius-specific-view";
 
 interface TaskSpecificViewState {
 	viewId: ViewMode;
 	project?: string | null;
+	filterState?: RootFilterState | null;
 }
 
 export class TaskSpecificView extends ItemView {
@@ -74,6 +86,8 @@ export class TaskSpecificView extends ItemView {
 
 	private tabActionButton: HTMLElement;
 
+	private currentFilterState: RootFilterState | null = null;
+
 	// Data management
 	tasks: Task[] = [];
 
@@ -97,6 +111,7 @@ export class TaskSpecificView extends ItemView {
 			...state,
 			viewId: this.currentViewId,
 			project: this.currentProject,
+			filterState: this.currentFilterState,
 		};
 	}
 
@@ -108,6 +123,7 @@ export class TaskSpecificView extends ItemView {
 
 			this.currentViewId = specificState?.viewId || "inbox";
 			this.currentProject = specificState?.project;
+			this.currentFilterState = specificState?.filterState || null;
 			console.log("TaskSpecificView setState:", specificState);
 
 			if (!this.rootContainerEl) {
@@ -221,8 +237,22 @@ export class TaskSpecificView extends ItemView {
 			);
 		});
 
-		// No command registration needed as this view is opened programmatically
+		this.registerEvent(
+			this.app.workspace.on(
+				"task-genius:filter-changed",
+				(filterState: RootFilterState, leafId?: string) => {
+					if (leafId === this.leaf.id) {
+						this.currentFilterState = filterState;
+						this.debouncedApplyFilter();
+					}
+				}
+			)
+		);
 	}
+
+	private debouncedApplyFilter = debounce(() => {
+		this.loadTasks();
+	}, 500);
 
 	// Removed onResize and checkAndCollapseSidebar methods
 
@@ -420,9 +450,80 @@ export class TaskSpecificView extends ItemView {
 			);
 			modal.open();
 		});
+
+		this.addAction("filter", t("Filter"), (e) => {
+			if (Platform.isDesktop) {
+				const popover = new ViewTaskFilterPopover(
+					this.plugin.app,
+					this.leaf.id
+				);
+
+				// 设置关闭回调 - 现在主要用于处理取消操作
+				popover.onClose = (filterState) => {
+					// 由于使用了实时事件监听，这里不需要再手动更新状态
+					// 可以用于处理特殊的关闭逻辑，如果需要的话
+				};
+
+				// 当打开时，设置初始过滤器状态
+				this.app.workspace.onLayoutReady(() => {
+					setTimeout(() => {
+						if (
+							this.currentFilterState &&
+							popover.taskFilterComponent
+						) {
+							// 使用类型断言解决非空问题
+							const filterState = this
+								.currentFilterState as RootFilterState;
+							popover.taskFilterComponent.loadFilterState(
+								filterState
+							);
+						}
+					}, 100);
+				});
+
+				popover.showAtPosition({ x: e.clientX, y: e.clientY });
+			} else {
+				const modal = new ViewTaskFilterModal(
+					this.plugin.app,
+					this.leaf.id
+				);
+
+				// 设置关闭回调 - 现在主要用于处理取消操作
+				modal.filterCloseCallback = (filterState) => {
+					// 由于使用了实时事件监听，这里不需要再手动更新状态
+					// 可以用于处理特殊的关闭逻辑，如果需要的话
+				};
+
+				modal.open();
+
+				// 设置初始过滤器状态
+				if (this.currentFilterState && modal.taskFilterComponent) {
+					setTimeout(() => {
+						// 使用类型断言解决非空问题
+						const filterState = this
+							.currentFilterState as RootFilterState;
+						modal.taskFilterComponent.loadFilterState(filterState);
+					}, 100);
+				}
+			}
+		});
 	}
 
 	onPaneMenu(menu: Menu) {
+		if (
+			this.currentFilterState &&
+			this.currentFilterState.filterGroups &&
+			this.currentFilterState.filterGroups.length > 0
+		) {
+			menu.addItem((item) => {
+				item.setTitle(t("Reset Filter"));
+				item.setIcon("reset");
+				item.onClick(() => {
+					this.resetCurrentFilter();
+				});
+			});
+			menu.addSeparator();
+		}
 		// Keep settings item
 		menu.addItem((item) => {
 			item.setTitle(t("Settings"));
@@ -578,7 +679,24 @@ export class TaskSpecificView extends ItemView {
 			targetComponent.containerEl.show();
 
 			// Ensure tasks are loaded/filtered for the specific view
-			const filteredTasks = filterTasks(this.tasks, viewId, this.plugin);
+			const filterOptions: {
+				advancedFilter?: RootFilterState;
+				textQuery?: string;
+			} = {};
+			if (
+				this.currentFilterState &&
+				this.currentFilterState.filterGroups &&
+				this.currentFilterState.filterGroups.length > 0
+			) {
+				filterOptions.advancedFilter = this.currentFilterState;
+			}
+
+			const filteredTasks = filterTasks(
+				this.tasks,
+				viewId,
+				this.plugin,
+				filterOptions
+			);
 			if (typeof targetComponent.setTasks === "function") {
 				targetComponent.setTasks(filteredTasks);
 			}
@@ -597,6 +715,18 @@ export class TaskSpecificView extends ItemView {
 					component &&
 					typeof component.setTasks === "function"
 				) {
+					const filterOptions: {
+						advancedFilter?: RootFilterState;
+						textQuery?: string;
+					} = {};
+					if (
+						this.currentFilterState &&
+						this.currentFilterState.filterGroups &&
+						this.currentFilterState.filterGroups.length > 0
+					) {
+						filterOptions.advancedFilter = this.currentFilterState;
+					}
+
 					component.setTasks(
 						filterTasks(
 							this.tasks,
@@ -759,8 +889,13 @@ export class TaskSpecificView extends ItemView {
 		if (!taskManager) return;
 
 		this.tasks = taskManager.getAllTasks();
-		console.log(`TaskSpecificView loaded ${this.tasks.length} tasks`);
 		await this.triggerViewUpdate();
+	}
+
+	// 添加应用当前过滤器状态的方法
+	private applyCurrentFilter() {
+		// 通过triggerViewUpdate重新加载任务
+		this.triggerViewUpdate();
 	}
 
 	public async triggerViewUpdate() {
@@ -771,6 +906,30 @@ export class TaskSpecificView extends ItemView {
 			console.warn(
 				"TaskSpecificView: Cannot trigger update, currentViewId is not set."
 			);
+		}
+
+		// Update action buttons
+		this.updateActionButtons();
+	}
+
+	private updateActionButtons() {
+		// 移除过滤器重置按钮（如果存在）
+		const resetButton = this.leaf.view.containerEl.querySelector(
+			".view-action.task-filter-reset"
+		);
+		if (resetButton) {
+			resetButton.remove();
+		}
+
+		// 如果有高级筛选器，添加重置按钮
+		if (
+			this.currentFilterState &&
+			this.currentFilterState.filterGroups &&
+			this.currentFilterState.filterGroups.length > 0
+		) {
+			this.addAction("reset", t("Reset Filter"), () => {
+				this.resetCurrentFilter();
+			}).addClass("task-filter-reset");
 		}
 	}
 
@@ -940,4 +1099,15 @@ export class TaskSpecificView extends ItemView {
 			);
 		}
 	};
+
+	// 添加重置筛选器的方法
+	public resetCurrentFilter() {
+		this.currentFilterState = null;
+		this.app.saveLocalStorage(
+			`task-genius-view-filter-${this.leaf.id}`,
+			null
+		);
+		this.applyCurrentFilter();
+		this.updateActionButtons();
+	}
 }

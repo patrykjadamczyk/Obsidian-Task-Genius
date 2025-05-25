@@ -8,7 +8,7 @@ export class ViewTaskFilterModal extends Modal {
 		| ((filterState?: RootFilterState) => void)
 		| null = null;
 
-	constructor(app: App) {
+	constructor(app: App, private leafId?: string) {
 		super(app);
 	}
 
@@ -18,7 +18,8 @@ export class ViewTaskFilterModal extends Modal {
 
 		this.taskFilterComponent = new TaskFilterComponent(
 			this.contentEl,
-			this.app
+			this.app,
+			this.leafId
 		);
 	}
 

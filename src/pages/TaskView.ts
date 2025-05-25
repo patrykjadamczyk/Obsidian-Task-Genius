@@ -546,7 +546,10 @@ export class TaskView extends ItemView {
 
 				popover.showAtPosition({ x: e.clientX, y: e.clientY });
 			} else {
-				const modal = new ViewTaskFilterModal(this.plugin.app);
+				const modal = new ViewTaskFilterModal(
+					this.plugin.app,
+					this.leaf.id
+				);
 
 				// 设置关闭回调 - 现在主要用于处理取消操作
 				modal.filterCloseCallback = (filterState) => {
@@ -583,7 +586,6 @@ export class TaskView extends ItemView {
 	}
 
 	onPaneMenu(menu: Menu) {
-		// 如果有活跃的筛选器，添加重置选项
 		if (
 			this.currentFilterState &&
 			this.currentFilterState.filterGroups &&
@@ -834,7 +836,6 @@ export class TaskView extends ItemView {
 					typeof component.setTasks === "function" &&
 					component.getViewId() === viewId
 				) {
-					// 使用高级过滤器状态，确保传递有效的过滤器
 					const filterOptions: {
 						advancedFilter?: RootFilterState;
 						textQuery?: string;
