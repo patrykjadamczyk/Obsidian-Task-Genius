@@ -191,7 +191,7 @@ export class TaskListRendererComponent extends Component {
 				0, // Root level is 0
 				directChildren, // Pass the actual children from the full map
 				allTasksMap, // Pass the full map for recursive building
-				this.plugin.settings
+				this.plugin
 			);
 
 			// Set up event handlers

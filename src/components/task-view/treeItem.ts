@@ -4,9 +4,14 @@ import { formatDate } from "../../utils/dateUtil";
 import "../../styles/tree-view.css";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import { createTaskCheckbox } from "./details";
-import { TaskProgressBarSettings } from "../../common/setting-definition";
+import {
+	TaskProgressBarSettings,
+	getViewSettingOrDefault,
+	ViewMode,
+} from "../../common/setting-definition";
 import { getRelativeTimeString } from "../../utils/dateUtil";
 import { t } from "../../translations/helper";
+import TaskProgressBarPlugin from "../../index";
 
 export class TaskTreeItemComponent extends Component {
 	public element: HTMLElement;
@@ -39,7 +44,7 @@ export class TaskTreeItemComponent extends Component {
 		indentLevel: number = 0,
 		private childTasks: Task[] = [],
 		taskMap: Map<string, Task>,
-		private settings: TaskProgressBarSettings
+		private plugin: TaskProgressBarPlugin
 	) {
 		super();
 		this.task = task;
@@ -202,17 +207,17 @@ export class TaskTreeItemComponent extends Component {
 				if (dueDate.getTime() < today.getTime()) {
 					dateText =
 						t("Overdue") +
-						(this.settings?.useRelativeTimeForDate
+						(this.plugin.settings?.useRelativeTimeForDate
 							? " | " + getRelativeTimeString(dueDate)
 							: "");
 					dueEl.classList.add("task-overdue");
 				} else if (dueDate.getTime() === today.getTime()) {
-					dateText = this.settings?.useRelativeTimeForDate
+					dateText = this.plugin.settings?.useRelativeTimeForDate
 						? getRelativeTimeString(dueDate) || "Today"
 						: "Today";
 					dueEl.classList.add("task-due-today");
 				} else if (dueDate.getTime() === tomorrow.getTime()) {
-					dateText = this.settings?.useRelativeTimeForDate
+					dateText = this.plugin.settings?.useRelativeTimeForDate
 						? getRelativeTimeString(dueDate) || "Tomorrow"
 						: "Tomorrow";
 					dueEl.classList.add("task-due-tomorrow");
@@ -235,7 +240,8 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const scheduledDate = new Date(this.task.scheduledDate);
 
-				scheduledEl.textContent = this.settings?.useRelativeTimeForDate
+				scheduledEl.textContent = this.plugin.settings
+					?.useRelativeTimeForDate
 					? getRelativeTimeString(scheduledDate)
 					: scheduledDate.toLocaleDateString("en-US", {
 							year: "numeric",
@@ -255,7 +261,8 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const startDate = new Date(this.task.startDate);
 
-				startEl.textContent = this.settings?.useRelativeTimeForDate
+				startEl.textContent = this.plugin.settings
+					?.useRelativeTimeForDate
 					? getRelativeTimeString(startDate)
 					: startDate.toLocaleDateString("en-US", {
 							year: "numeric",
@@ -283,7 +290,8 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const completedDate = new Date(this.task.completedDate);
 
-				completedEl.textContent = this.settings?.useRelativeTimeForDate
+				completedEl.textContent = this.plugin.settings
+					?.useRelativeTimeForDate
 					? getRelativeTimeString(completedDate)
 					: completedDate.toLocaleDateString("en-US", {
 							year: "numeric",
@@ -303,7 +311,8 @@ export class TaskTreeItemComponent extends Component {
 				});
 				const createdDate = new Date(this.task.createdDate);
 
-				createdEl.textContent = this.settings?.useRelativeTimeForDate
+				createdEl.textContent = this.plugin.settings
+					?.useRelativeTimeForDate
 					? getRelativeTimeString(createdDate)
 					: createdDate.toLocaleDateString("en-US", {
 							year: "numeric",
@@ -389,8 +398,30 @@ export class TaskTreeItemComponent extends Component {
 			? this.childrenContainer.show()
 			: this.childrenContainer.hide();
 
-		// Render each direct child task passed via constructor
-		this.childTasks.forEach((childTask) => {
+		// Get view configuration to check if we should hide completed and abandoned tasks
+		const viewConfig = getViewSettingOrDefault(
+			this.plugin,
+			this.viewMode as ViewMode
+		);
+		const abandonedStatus =
+			this.plugin.settings.taskStatuses.abandoned.split("|");
+		const completedStatus =
+			this.plugin.settings.taskStatuses.completed.split("|");
+
+		// Filter child tasks based on view configuration
+		let tasksToRender = this.childTasks;
+		if (viewConfig.hideCompletedAndAbandonedTasks) {
+			tasksToRender = this.childTasks.filter((task) => {
+				return (
+					!task.completed &&
+					!abandonedStatus.includes(task.status.toLowerCase()) &&
+					!completedStatus.includes(task.status.toLowerCase())
+				);
+			});
+		}
+
+		// Render each filtered child task
+		tasksToRender.forEach((childTask) => {
 			// Find *grandchildren* by looking up children of the current childTask in the *full* taskMap
 			const grandchildren: Task[] = [];
 			this.taskMap.forEach((potentialGrandchild) => {
@@ -406,7 +437,7 @@ export class TaskTreeItemComponent extends Component {
 				this.indentLevel + 1,
 				grandchildren, // Pass the correctly found grandchildren
 				this.taskMap, // Pass the map down recursively
-				this.settings // Pass the settings down
+				this.plugin // Pass the plugin down
 			);
 
 			// Pass up events

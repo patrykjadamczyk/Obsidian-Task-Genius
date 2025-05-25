@@ -322,7 +322,7 @@ export class ContentComponent extends Component {
 				0,
 				childTasks,
 				taskMap,
-				this.plugin.settings
+				this.plugin
 			);
 
 			// Attach event handlers
