@@ -2628,6 +2628,149 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 		}
 
+		// Add Incomplete Task Mover settings
+		new Setting(containerEl)
+			.setName(t("Incomplete Task Mover"))
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable incomplete task mover"))
+			.setDesc(
+				t(
+					"Toggle this to enable commands for moving incomplete tasks to another file."
+				)
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.completedTaskMover
+							.enableIncompletedTaskMover
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.completedTaskMover.enableIncompletedTaskMover =
+							value;
+						this.applySettingsUpdate();
+					})
+			);
+
+		if (
+			this.plugin.settings.completedTaskMover.enableIncompletedTaskMover
+		) {
+			new Setting(containerEl)
+				.setName(t("Incomplete task marker type"))
+				.setDesc(
+					t(
+						"Choose what type of marker to add to moved incomplete tasks"
+					)
+				)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("version", "Version marker")
+						.addOption("date", "Date marker")
+						.addOption("custom", "Custom marker")
+						.setValue(
+							this.plugin.settings.completedTaskMover
+								.incompletedTaskMarkerType
+						)
+						.onChange(
+							async (value: "version" | "date" | "custom") => {
+								this.plugin.settings.completedTaskMover.incompletedTaskMarkerType =
+									value;
+								this.applySettingsUpdate();
+							}
+						);
+				});
+
+			// Show specific settings based on marker type
+			const incompletedMarkerType =
+				this.plugin.settings.completedTaskMover
+					.incompletedTaskMarkerType;
+
+			if (incompletedMarkerType === "version") {
+				new Setting(containerEl)
+					.setName(t("Incomplete version marker text"))
+					.setDesc(
+						t(
+							"Text to append to incomplete tasks when moved (e.g., 'version 1.0')"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("version 1.0")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.incompletedVersionMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.incompletedVersionMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			} else if (incompletedMarkerType === "date") {
+				new Setting(containerEl)
+					.setName(t("Incomplete date marker text"))
+					.setDesc(
+						t(
+							"Text to append to incomplete tasks when moved (e.g., 'moved on 2023-12-31')"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("moved on {{date}}")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.incompletedDateMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.incompletedDateMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			} else if (incompletedMarkerType === "custom") {
+				new Setting(containerEl)
+					.setName(t("Incomplete custom marker text"))
+					.setDesc(
+						t(
+							"Use {{DATE:format}} for date formatting (e.g., {{DATE:YYYY-MM-DD}}"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("moved {{DATE:YYYY-MM-DD HH:mm}}")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.incompletedCustomMarker
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.incompletedCustomMarker =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+			}
+
+			new Setting(containerEl)
+				.setName(t("With current file link for incomplete tasks"))
+				.setDesc(
+					t(
+						"A link to the current file will be added to the parent task of the moved incomplete tasks."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.withCurrentFileLinkForIncompleted
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.withCurrentFileLinkForIncompleted =
+							value;
+						this.applySettingsUpdate();
+					});
+				});
+		}
+
 		// --- Task Sorting Settings ---
 		new Setting(containerEl)
 			.setName(t("Task Sorting"))

@@ -38,7 +38,10 @@ import {
 	cycleTaskStatusBackward,
 } from "./commands/taskCycleCommands";
 import { moveTaskCommand } from "./commands/taskMover";
-import { moveCompletedTasksCommand } from "./commands/completedTaskMover";
+import {
+	moveCompletedTasksCommand,
+	moveIncompletedTasksCommand,
+} from "./commands/completedTaskMover";
 import { datePickerExtension } from "./editor-ext/datePicker";
 import {
 	quickCaptureExtension,
@@ -641,6 +644,39 @@ export default class TaskProgressBarPlugin extends Plugin {
 						ctx,
 						this,
 						"all"
+					);
+				},
+			});
+		}
+
+		// Add commands for moving incomplete tasks
+		if (this.settings.completedTaskMover.enableIncompletedTaskMover) {
+			// Command for moving all incomplete subtasks and their children
+			this.addCommand({
+				id: "move-incompleted-subtasks-to-file",
+				name: t("Move all incomplete subtasks to another file"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return moveIncompletedTasksCommand(
+						checking,
+						editor,
+						ctx,
+						this,
+						"allIncompleted"
+					);
+				},
+			});
+
+			// Command for moving direct incomplete children
+			this.addCommand({
+				id: "move-direct-incompleted-subtasks-to-file",
+				name: t("Move direct incomplete subtasks to another file"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return moveIncompletedTasksCommand(
+						checking,
+						editor,
+						ctx,
+						this,
+						"directIncompletedChildren"
 					);
 				},
 			});

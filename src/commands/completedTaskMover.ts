@@ -32,6 +32,9 @@ export class TaskUtils {
 
 	// Process custom marker with date variables
 	static processCustomMarker(marker: string): string {
+		// Return empty string if marker is undefined or null
+		if (!marker) return "";
+
 		// Replace {{DATE:format}} with formatted date
 		return marker.replace(/\{\{DATE:([^}]+)\}\}/g, (match, format) => {
 			return moment().format(format);
@@ -40,6 +43,9 @@ export class TaskUtils {
 
 	// Process date marker with {{date}} placeholder
 	static processDateMarker(marker: string): string {
+		// Return empty string if marker is undefined or null
+		if (!marker) return "";
+
 		return marker.replace(/\{\{date\}\}/g, () => {
 			return moment().format("YYYY-MM-DD");
 		});
@@ -73,23 +79,29 @@ export class TaskUtils {
 
 		// Basic check to ensure the task line doesn't already have this marker
 		if (
-			!mainContent.includes(versionMarker) &&
-			!mainContent.includes(dateMarker) &&
+			!(versionMarker && mainContent.includes(versionMarker)) &&
+			!(dateMarker && mainContent.includes(dateMarker)) &&
 			!mainContent.includes(this.processCustomMarker(customMarker))
 		) {
 			switch (taskMarkerType) {
 				case "version":
-					markedTaskLine = `${mainContent} ${versionMarker}`;
+					if (versionMarker) {
+						markedTaskLine = `${mainContent} ${versionMarker}`;
+					}
 					break;
 				case "date":
-					markedTaskLine = `${mainContent} ${this.processDateMarker(
-						dateMarker
-					)}`;
+					const processedDateMarker =
+						this.processDateMarker(dateMarker);
+					if (processedDateMarker) {
+						markedTaskLine = `${mainContent} ${processedDateMarker}`;
+					}
 					break;
 				case "custom":
-					markedTaskLine = `${mainContent} ${this.processCustomMarker(
-						customMarker
-					)}`;
+					const processedCustomMarker =
+						this.processCustomMarker(customMarker);
+					if (processedCustomMarker) {
+						markedTaskLine = `${mainContent} ${processedCustomMarker}`;
+					}
 					break;
 				default:
 					markedTaskLine = mainContent;
@@ -98,6 +110,90 @@ export class TaskUtils {
 
 		// Add link to the current file if setting is enabled and this is a root task
 		if (withCurrentFileLink && isRoot) {
+			const link = app.fileManager.generateMarkdownLink(
+				currentFile,
+				currentFile.path
+			);
+			markedTaskLine = `${markedTaskLine} from ${link}`;
+		}
+
+		// Add back the blockid if it exists
+		if (blockid) {
+			markedTaskLine = `${markedTaskLine} ${blockid}`;
+		}
+
+		return markedTaskLine;
+	}
+
+	// Add marker to incomplete task (version, date, or custom)
+	static addMarkerToIncompletedTask(
+		taskLine: string,
+		settings: any,
+		currentFile: TFile,
+		app: App,
+		isRoot = false
+	): string {
+		const {
+			incompletedTaskMarkerType,
+			incompletedVersionMarker,
+			incompletedDateMarker,
+			incompletedCustomMarker,
+			withCurrentFileLinkForIncompleted,
+		} = settings.completedTaskMover;
+
+		// Extract blockid if exists
+		const blockidMatch = taskLine.match(/^(.*?)(?:\s+^[a-zA-Z0-9]{6}$)?$/);
+		if (!blockidMatch) return taskLine;
+
+		const mainContent = blockidMatch[1].trimEnd();
+		const blockid = blockidMatch[2]?.trim();
+
+		// Create base task line with marker
+		let markedTaskLine = mainContent;
+
+		// Basic check to ensure the task line doesn't already have this marker
+		if (
+			!(
+				incompletedVersionMarker &&
+				mainContent.includes(incompletedVersionMarker)
+			) &&
+			!(
+				incompletedDateMarker &&
+				mainContent.includes(incompletedDateMarker)
+			) &&
+			!mainContent.includes(
+				this.processCustomMarker(incompletedCustomMarker)
+			)
+		) {
+			switch (incompletedTaskMarkerType) {
+				case "version":
+					if (incompletedVersionMarker) {
+						markedTaskLine = `${mainContent} ${incompletedVersionMarker}`;
+					}
+					break;
+				case "date":
+					const processedDateMarker = this.processDateMarker(
+						incompletedDateMarker
+					);
+					if (processedDateMarker) {
+						markedTaskLine = `${mainContent} ${processedDateMarker}`;
+					}
+					break;
+				case "custom":
+					const processedCustomMarker = this.processCustomMarker(
+						incompletedCustomMarker
+					);
+					if (processedCustomMarker) {
+						markedTaskLine = `${mainContent} ${processedCustomMarker}`;
+					}
+					break;
+				default:
+					markedTaskLine = mainContent;
+			}
+		}
+
+		// Add link to the current file if setting is enabled and this is a root task
+		if (withCurrentFileLinkForIncompleted && isRoot) {
 			const link = app.fileManager.generateMarkdownLink(
 				currentFile,
 				currentFile.path
@@ -131,6 +227,25 @@ export class TaskUtils {
 		}
 
 		return completedMarks.includes(mark);
+	}
+
+	// Check if a task mark represents an incomplete task
+	static isIncompletedTaskMark(mark: string, settings: any): boolean {
+		const completedMarks = settings.taskStatuses.completed?.split("|") || [
+			"x",
+			"X",
+		];
+
+		// If treatAbandonedAsCompleted is enabled, also consider abandoned tasks as completed
+		let abandonedMarks: string[] = [];
+		if (settings.completedTaskMover.treatAbandonedAsCompleted) {
+			abandonedMarks = settings.taskStatuses.abandoned?.split("|") || [
+				"-",
+			];
+		}
+
+		// A task is incomplete if it's not completed and not abandoned (when treated as completed)
+		return !completedMarks.includes(mark) && !abandonedMarks.includes(mark);
 	}
 
 	// Complete tasks if the setting is enabled
@@ -256,7 +371,12 @@ export class TaskUtils {
 	static processSelectedTasks(
 		editor: Editor,
 		taskLines: number[],
-		moveMode: "allCompleted" | "directChildren" | "all",
+		moveMode:
+			| "allCompleted"
+			| "directChildren"
+			| "all"
+			| "allIncompleted"
+			| "directIncompletedChildren",
 		settings: any,
 		currentFile: TFile,
 		app: App,
@@ -361,7 +481,12 @@ export class TaskUtils {
 	static processSingleSelectedTask(
 		editor: Editor,
 		taskLine: number,
-		moveMode: "allCompleted" | "directChildren" | "all",
+		moveMode:
+			| "allCompleted"
+			| "directChildren"
+			| "all"
+			| "allIncompleted"
+			| "directIncompletedChildren",
 		settings: any,
 		currentFile: TFile,
 		app: App,
@@ -383,20 +508,33 @@ export class TaskUtils {
 		const parentTaskMatch = currentLine.match(/\[(.)]/);
 		const parentTaskMark = parentTaskMatch ? parentTaskMatch[1] : "";
 
-		// Clone parent task with marker
-		let parentTaskWithMarker = this.addMarkerToTask(
-			currentLine,
-			settings,
-			currentFile,
-			app,
-			true
-		);
-
-		// Complete parent task if setting is enabled
-		parentTaskWithMarker = this.completeTaskIfNeeded(
-			parentTaskWithMarker,
-			settings
-		);
+		// Clone parent task with marker based on move mode
+		let parentTaskWithMarker: string;
+		if (
+			moveMode === "allIncompleted" ||
+			moveMode === "directIncompletedChildren"
+		) {
+			parentTaskWithMarker = this.addMarkerToIncompletedTask(
+				currentLine,
+				settings,
+				currentFile,
+				app,
+				true
+			);
+		} else {
+			parentTaskWithMarker = this.addMarkerToTask(
+				currentLine,
+				settings,
+				currentFile,
+				app,
+				true
+			);
+			// Complete parent task if setting is enabled (only for completed task modes)
+			parentTaskWithMarker = this.completeTaskIfNeeded(
+				parentTaskWithMarker,
+				settings
+			);
+		}
 
 		// Include the current line and completed child tasks
 		resultLines.push(parentTaskWithMarker);
@@ -427,6 +565,7 @@ export class TaskUtils {
 				index: number;
 				indent: number;
 				isCompleted: boolean;
+				isIncompleted: boolean;
 			}[] = [];
 
 			for (let i = taskLine + 1; i < lines.length; i++) {
@@ -446,12 +585,17 @@ export class TaskUtils {
 						taskMark,
 						settings
 					);
+					const isIncompleted = this.isIncompletedTaskMark(
+						taskMark,
+						settings
+					);
 
 					childTasks.push({
 						line,
 						index: i,
 						indent: lineIndent,
 						isCompleted,
+						isIncompleted,
 					});
 				} else {
 					// Non-task lines should be included with their related task
@@ -460,6 +604,7 @@ export class TaskUtils {
 						index: i,
 						indent: lineIndent,
 						isCompleted: false, // Non-task lines aren't completed
+						isIncompleted: false, // Non-task lines aren't incomplete either
 					});
 				}
 			}
@@ -627,6 +772,160 @@ export class TaskUtils {
 				if (this.isCompletedTaskMark(parentTaskMark, settings)) {
 					linesToRemove.push(taskLine);
 				}
+			} else if (moveMode === "allIncompleted") {
+				// Only include incomplete tasks (and their children)
+				const incompletedTasks = new Set<number>();
+				const tasksToInclude = new Set<number>();
+				const parentTasksToPreserve = new Set<number>();
+
+				// First identify all incomplete tasks
+				childTasks.forEach((task) => {
+					if (task.isIncompleted) {
+						incompletedTasks.add(task.index);
+						tasksToInclude.add(task.index);
+
+						// Add all parent tasks up to the root task
+						let currentTask = task;
+						let parentIndex = this.findParentTaskIndex(
+							currentTask.index,
+							currentTask.indent,
+							childTasks
+						);
+
+						while (parentIndex !== -1) {
+							tasksToInclude.add(parentIndex);
+							// Only mark parent tasks for removal if they're incomplete
+							const parentTask = childTasks.find(
+								(t) => t.index === parentIndex
+							);
+							if (!parentTask) break;
+
+							if (!parentTask.isIncompleted) {
+								parentTasksToPreserve.add(parentIndex);
+							}
+
+							parentIndex = this.findParentTaskIndex(
+								parentTask.index,
+								parentTask.indent,
+								childTasks
+							);
+						}
+					}
+				});
+
+				// Then include all children of incomplete tasks
+				childTasks.forEach((task) => {
+					const parentIndex = this.findParentTaskIndex(
+						task.index,
+						task.indent,
+						childTasks
+					);
+					if (
+						parentIndex !== -1 &&
+						incompletedTasks.has(parentIndex)
+					) {
+						tasksToInclude.add(task.index);
+					}
+				});
+
+				// Add the selected items to results, sorting by index to maintain order
+				const tasksByIndex = [...tasksToInclude].sort((a, b) => a - b);
+
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add child tasks in order
+				for (const taskIndex of tasksByIndex) {
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					// Add marker to parent tasks that are preserved
+					if (parentTasksToPreserve.has(taskIndex)) {
+						let taskLine = this.addMarkerToIncompletedTask(
+							task.line,
+							settings,
+							currentFile,
+							app,
+							false
+						);
+						resultLines.push(taskLine);
+					} else {
+						// Keep the task as is (don't complete it)
+						resultLines.push(task.line);
+					}
+
+					// Only add to linesToRemove if it's incomplete or a child of incomplete
+					if (!parentTasksToPreserve.has(taskIndex)) {
+						linesToRemove.push(taskIndex);
+					}
+				}
+
+				// If parent task is incomplete, add it to lines to remove
+				if (this.isIncompletedTaskMark(parentTaskMark, settings)) {
+					linesToRemove.push(taskLine);
+				}
+			} else if (moveMode === "directIncompletedChildren") {
+				// Only include direct children that are incomplete
+				const incompletedDirectChildren = new Set<number>();
+
+				// Determine the minimum indentation level of direct children
+				let minChildIndent = Number.MAX_SAFE_INTEGER;
+				for (const task of childTasks) {
+					if (
+						task.indent > currentIndent &&
+						task.indent < minChildIndent
+					) {
+						minChildIndent = task.indent;
+					}
+				}
+
+				// Now identify all direct children using the calculated indentation
+				for (const task of childTasks) {
+					const isDirectChild = task.indent === minChildIndent;
+					if (isDirectChild && task.isIncompleted) {
+						incompletedDirectChildren.add(task.index);
+					}
+				}
+
+				// Include all identified direct incomplete children and their subtasks
+				resultLines.length = 0; // Clear resultLines before rebuilding
+
+				// Add parent task with marker
+				resultLines.push(parentTaskWithMarker);
+
+				// Add direct incomplete children in order
+				const sortedChildIndices = [...incompletedDirectChildren].sort(
+					(a, b) => a - b
+				);
+				for (const taskIndex of sortedChildIndices) {
+					// Add the direct incomplete child
+					const task = childTasks.find((t) => t.index === taskIndex);
+					if (!task) continue;
+
+					resultLines.push(task.line);
+					linesToRemove.push(taskIndex);
+
+					// Add all its subtasks (regardless of completion status)
+					let i =
+						childTasks.findIndex((t) => t.index === taskIndex) + 1;
+					const taskIndent = task.indent;
+
+					while (i < childTasks.length) {
+						const subtask = childTasks[i];
+						if (subtask.indent <= taskIndent) break; // Exit if we're back at same or lower indent level
+
+						resultLines.push(subtask.line);
+						linesToRemove.push(subtask.index);
+						i++;
+					}
+				}
+
+				// If parent task is incomplete, add it to lines to remove
+				if (this.isIncompletedTaskMark(parentTaskMark, settings)) {
+					linesToRemove.push(taskLine);
+				}
 			}
 		}
 
@@ -683,7 +982,12 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 	editor: Editor;
 	currentFile: TFile;
 	taskLines: number[];
-	moveMode: "allCompleted" | "directChildren" | "all";
+	moveMode:
+		| "allCompleted"
+		| "directChildren"
+		| "all"
+		| "allIncompleted"
+		| "directIncompletedChildren";
 
 	constructor(
 		app: App,
@@ -691,7 +995,12 @@ export class CompletedTaskFileSelectionModal extends FuzzySuggestModal<
 		editor: Editor,
 		currentFile: TFile,
 		taskLines: number[],
-		moveMode: "allCompleted" | "directChildren" | "all"
+		moveMode:
+			| "allCompleted"
+			| "directChildren"
+			| "all"
+			| "allIncompleted"
+			| "directIncompletedChildren"
 	) {
 		super(app);
 		this.plugin = plugin;
@@ -842,7 +1151,12 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 	targetFile: TFile;
 	taskLines: number[];
 	metadataCache: MetadataCache;
-	moveMode: "allCompleted" | "directChildren" | "all";
+	moveMode:
+		| "allCompleted"
+		| "directChildren"
+		| "all"
+		| "allIncompleted"
+		| "directIncompletedChildren";
 
 	constructor(
 		app: App,
@@ -851,7 +1165,12 @@ export class CompletedTaskBlockSelectionModal extends SuggestModal<{
 		sourceFile: TFile,
 		targetFile: TFile,
 		taskLines: number[],
-		moveMode: "allCompleted" | "directChildren" | "all"
+		moveMode:
+			| "allCompleted"
+			| "directChildren"
+			| "all"
+			| "allIncompleted"
+			| "directIncompletedChildren"
 	) {
 		super(app);
 		this.plugin = plugin;
@@ -1026,7 +1345,78 @@ export function moveCompletedTasksCommand(
 	editor: Editor,
 	ctx: MarkdownView | MarkdownFileInfo,
 	plugin: TaskProgressBarPlugin,
-	moveMode: "allCompleted" | "directChildren" | "all"
+	moveMode:
+		| "allCompleted"
+		| "directChildren"
+		| "all"
+		| "allIncompleted"
+		| "directIncompletedChildren"
+): boolean {
+	// Get the current file
+	const currentFile = ctx.file;
+
+	if (checking) {
+		// If checking, return true if we're in a markdown file and cursor is on a task line
+		if (!currentFile || currentFile.extension !== "md") {
+			return false;
+		}
+
+		const selection = editor.getSelection();
+		if (selection.length === 0) {
+			const cursor = editor.getCursor();
+			const line = editor.getLine(cursor.line);
+			// Check if line is a task with any of the supported list markers (-, 1., *)
+			return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
+		}
+		return true;
+	}
+
+	// Execute the command
+	if (!currentFile) {
+		new Notice(t("No active file found"));
+		return false;
+	}
+
+	// Get all selections to support multi-line selection
+	const selections = editor.listSelections();
+
+	// Extract all selected lines from the selections
+	const selectedLinesSet = new Set<number>();
+	selections.forEach((selection) => {
+		// Get the start and end lines (accounting for selection direction)
+		const startLine = Math.min(selection.anchor.line, selection.head.line);
+		const endLine = Math.max(selection.anchor.line, selection.head.line);
+
+		// Add all lines in this selection range
+		for (let line = startLine; line <= endLine; line++) {
+			selectedLinesSet.add(line);
+		}
+	});
+
+	// Convert Set to Array for further processing
+	const selectedLines = Array.from(selectedLinesSet);
+
+	new CompletedTaskFileSelectionModal(
+		plugin.app,
+		plugin,
+		editor,
+		currentFile,
+		selectedLines,
+		moveMode
+	).open();
+
+	return true;
+}
+
+/**
+ * Command to move the incomplete tasks to another file
+ */
+export function moveIncompletedTasksCommand(
+	checking: boolean,
+	editor: Editor,
+	ctx: MarkdownView | MarkdownFileInfo,
+	plugin: TaskProgressBarPlugin,
+	moveMode: "allIncompleted" | "directIncompletedChildren"
 ): boolean {
 	// Get the current file
 	const currentFile = ctx.file;

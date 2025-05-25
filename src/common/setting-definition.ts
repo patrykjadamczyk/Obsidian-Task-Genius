@@ -159,6 +159,13 @@ export interface CompletedTaskMoverSettings {
 	treatAbandonedAsCompleted: boolean;
 	completeAllMovedTasks: boolean;
 	withCurrentFileLink: boolean;
+	// Settings for incomplete task mover
+	enableIncompletedTaskMover: boolean;
+	incompletedTaskMarkerType: "version" | "date" | "custom";
+	incompletedVersionMarker: string;
+	incompletedDateMarker: string;
+	incompletedCustomMarker: string;
+	withCurrentFileLinkForIncompleted: boolean;
 }
 
 /** Define the structure for quick capture settings */
@@ -436,6 +443,13 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		treatAbandonedAsCompleted: false,
 		completeAllMovedTasks: true,
 		withCurrentFileLink: true,
+		// Incomplete Task Mover Defaults
+		enableIncompletedTaskMover: true,
+		incompletedTaskMarkerType: "date",
+		incompletedVersionMarker: "version 1.0",
+		incompletedDateMarker: t("moved on") + " {{date}}",
+		incompletedCustomMarker: t("moved") + " {{DATE:YYYY-MM-DD HH:mm}}",
+		withCurrentFileLinkForIncompleted: true,
 	},
 
 	// Quick Capture Defaults
