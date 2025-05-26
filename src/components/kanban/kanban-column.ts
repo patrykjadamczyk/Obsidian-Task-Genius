@@ -202,6 +202,11 @@ export class KanbanColumnComponent extends Component {
 		}
 	}
 
+	// Public getter for the content element (for SortableJS)
+	getContentElement(): HTMLElement {
+		return this.contentEl;
+	}
+
 	private setupIntersectionObserver(): void {
 		if (!this.sentinelEl) return;
 

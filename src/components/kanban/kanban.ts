@@ -1,8 +1,9 @@
-import { App, Component, WorkspaceLeaf } from "obsidian";
+import { App, Component, Platform, WorkspaceLeaf } from "obsidian";
 import TaskProgressBarPlugin from "../../index"; // Adjust path as needed
 import { Task } from "../../utils/types/TaskIndex"; // Adjust path as needed
 import { KanbanColumnComponent } from "./kanban-column";
-import { DragManager, DragMoveEvent, DragEndEvent } from "../DragManager";
+// import { DragManager, DragMoveEvent, DragEndEvent } from "../DragManager";
+import Sortable from "sortablejs";
 import "../../styles/kanban/kanban.css";
 import { t } from "../../translations/helper"; // Added import for t
 import {
@@ -23,7 +24,8 @@ export class KanbanComponent extends Component {
 	public containerEl: HTMLElement;
 	private columns: KanbanColumnComponent[] = [];
 	private columnContainerEl: HTMLElement;
-	private dragManager: DragManager;
+	// private dragManager: DragManager;
+	private sortableInstances: Sortable[] = [];
 	private tasks: Task[] = [];
 	private allTasks: Task[] = [];
 	private params: {
@@ -77,7 +79,6 @@ export class KanbanComponent extends Component {
 			cls: "tg-kanban-column-container",
 		});
 
-		this.initializeDragManager();
 		this.renderColumns();
 		console.log("KanbanComponent loaded.");
 	}
@@ -85,7 +86,7 @@ export class KanbanComponent extends Component {
 	override onunload() {
 		super.onunload();
 		this.columns.forEach((col) => col.unload());
-		this.dragManager?.unload();
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.columns = [];
 		this.containerEl.empty();
 		console.log("KanbanComponent unloaded.");
@@ -245,8 +246,8 @@ export class KanbanComponent extends Component {
 			this.columns.push(column);
 		});
 
-		// Re-initialize drag manager after columns are rendered
-		this.initializeDragManager();
+		// Re-initialize sortable instances after columns are rendered
+		this.initializeSortableInstances();
 	}
 
 	private getTasksForStatus(statusName: string): Task[] {
@@ -273,152 +274,45 @@ export class KanbanComponent extends Component {
 		return tasksForStatus;
 	}
 
-	private initializeDragManager() {
-		if (this.dragManager) {
-			this.removeChild(this.dragManager);
-		}
+	private initializeSortableInstances() {
+		this.sortableInstances.forEach((instance) => instance.destroy());
+		this.sortableInstances = [];
 
-		this.dragManager = new DragManager({
-			container: this.columnContainerEl,
-			draggableSelector: ".tg-kanban-card",
-			dropZoneSelector: ".tg-kanban-column-content",
-			cloneElement: true,
-			dragClass: "tg-kanban-card-dragging",
-			ghostClass: "tg-kanban-card-ghost",
-			onDragStart: (data) => {
-				console.log("Drag Start:", data.element.dataset.taskId);
-				this.columnContainerEl
-					.querySelectorAll(".tg-kanban-column-content")
-					.forEach((el) => {
-						el.classList.add("tg-kanban-drop-target-active");
-					});
-				return true;
-			},
-			onDragMove: (data) => {
-				this.handleDragMove(data);
-			},
-			onDragEnd: async (data) => {
-				this.handleDragEnd(data);
-			},
+		// Detect if we're on a mobile device
+		const isMobile =
+			!Platform.isDesktop ||
+			"ontouchstart" in window ||
+			navigator.maxTouchPoints > 0;
+
+		this.columns.forEach((col) => {
+			const columnContent = col.getContentElement();
+			const instance = Sortable.create(columnContent, {
+				group: "kanban-group",
+				animation: 150,
+				ghostClass: "tg-kanban-card-ghost",
+				dragClass: "tg-kanban-card-dragging",
+				// Mobile-specific optimizations
+				delay: isMobile ? 150 : 0, // Longer delay on mobile to distinguish from scroll
+				touchStartThreshold: isMobile ? 5 : 3, // More threshold on mobile
+				forceFallback: false, // Use native HTML5 drag when possible
+				fallbackOnBody: true, // Append ghost to body for better mobile performance
+				// Scroll settings for mobile
+				scroll: true, // Enable auto-scrolling
+				scrollSensitivity: isMobile ? 50 : 30, // Higher sensitivity on mobile
+				scrollSpeed: isMobile ? 15 : 10, // Faster scroll on mobile
+				bubbleScroll: true, // Enable bubble scrolling for nested containers
+				onEnd: (event) => {
+					this.handleSortEnd(event);
+				},
+			});
+			this.sortableInstances.push(instance);
 		});
-		this.addChild(this.dragManager);
 	}
 
-	private clearDropIndicators() {
-		this.columnContainerEl
-			.querySelectorAll(
-				`.${DROP_INDICATOR_BEFORE_CLASS}, .${DROP_INDICATOR_AFTER_CLASS}`
-			)
-			.forEach((el) => {
-				el.classList.remove(
-					DROP_INDICATOR_BEFORE_CLASS,
-					DROP_INDICATOR_AFTER_CLASS
-				);
-			});
-		this.columnContainerEl
-			.querySelectorAll(`.${DROP_INDICATOR_EMPTY_CLASS}`)
-			.forEach((el) => el.classList.remove(DROP_INDICATOR_EMPTY_CLASS));
-	}
-
-	private handleDragMove(data: DragMoveEvent) {
-		// Clear previous indicators first
-		this.clearDropIndicators();
-
-		// Temporarily hide the ghost element to find element underneath
-		let elementUnderPointer: Element | null = null;
-		const ghostElement = data.element; // This is the clone
-		const originalDisplay = ghostElement.style.display;
-		ghostElement.style.display = "none";
-		try {
-			elementUnderPointer = document.elementFromPoint(
-				data.currentX,
-				data.currentY
-			);
-		} finally {
-			ghostElement.style.display = originalDisplay; // Restore display
-		}
-
-		if (!elementUnderPointer) return;
-
-		const dropZone = elementUnderPointer.closest(
-			".tg-kanban-column-content"
-		) as HTMLElement;
-
-		if (dropZone) {
-			const cards = Array.from(
-				dropZone.querySelectorAll<HTMLElement>(".tg-kanban-card")
-			).filter((card) => card !== data.originalElement); // Exclude the original dragged card if it's still technically in the DOM
-
-			if (cards.length === 0) {
-				// Add indicator for empty column
-				dropZone.classList.add(DROP_INDICATOR_EMPTY_CLASS);
-				return;
-			}
-
-			let targetCard: HTMLElement | null = null;
-			let insertBefore = false;
-
-			// Find the card to insert before/after based on Y position
-			for (const card of cards) {
-				const rect = card.getBoundingClientRect();
-				const midY = rect.top + rect.height / 2;
-
-				if (data.currentY < midY) {
-					targetCard = card;
-					insertBefore = true;
-					break;
-				}
-			}
-
-			if (targetCard) {
-				if (insertBefore) {
-					targetCard.classList.add(DROP_INDICATOR_BEFORE_CLASS);
-				} else {
-					// If loop finished without finding a card to insert before,
-					// it means we should insert after the last card.
-					// Check if targetCard was set in the loop (should always be unless Y is below all cards)
-					const lastCard = cards[cards.length - 1];
-					if (lastCard) {
-						lastCard.classList.add(DROP_INDICATOR_AFTER_CLASS);
-					}
-				}
-			} else {
-				// If no targetCard found (e.g., dragging below all cards),
-				// add indicator after the last card
-				const lastCard = cards[cards.length - 1];
-				if (lastCard) {
-					lastCard.classList.add(DROP_INDICATOR_AFTER_CLASS);
-				}
-			}
-		} else {
-			// If not over a drop zone, ensure all indicators are cleared
-			// (already done at the start of the function)
-		}
-	}
-
-	private async handleDragEnd(data: DragEndEvent) {
-		console.log(
-			"Drag End:",
-			data.originalElement.dataset.taskId, // Use originalElement
-			"Dropped on:",
-			data.dropTarget
-		);
-
-		// Clear visual cues regardless of drop success
-		this.clearDropIndicators();
-		this.columnContainerEl
-			.querySelectorAll(
-				".tg-kanban-drop-target-active, .tg-kanban-drop-target-hover"
-			)
-			.forEach((el) => {
-				el.classList.remove(
-					"tg-kanban-drop-target-active",
-					"tg-kanban-drop-target-hover"
-				);
-			});
-
-		const taskId = data.originalElement.dataset.taskId; // Use originalElement
-		const dropTargetColumnContent = data.dropTarget;
+	private async handleSortEnd(event: Sortable.SortableEvent) {
+		console.log("Kanban sort end:", event.oldIndex, event.newIndex);
+		const taskId = event.item.dataset.taskId;
+		const dropTargetColumnContent = event.to;
 
 		if (taskId && dropTargetColumnContent) {
 			const targetColumnEl =

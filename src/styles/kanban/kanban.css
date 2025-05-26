@@ -37,6 +37,11 @@
 	padding: 10px;
 	gap: 10px; /* Space between columns */
 	height: 100%; /* Needed for children height */
+
+	/* Mobile scrolling improvements */
+	-webkit-overflow-scrolling: touch; /* Smooth horizontal scrolling on iOS */
+	overscroll-behavior-x: contain; /* Prevent horizontal scroll chaining */
+	scroll-snap-type: x proximity; /* Optional: snap to columns on mobile */
 }
 
 .tg-kanban-column {
@@ -50,6 +55,9 @@
 	overflow: hidden; /* Hide overflow within the column */
 
 	border: 1px solid var(--background-modifier-border);
+
+	/* Mobile scroll snap */
+	scroll-snap-align: start; /* Snap to start of column */
 }
 
 .tg-kanban-column-header {
@@ -69,13 +77,16 @@
 }
 
 .tg-kanban-column-content {
-	flex-grow: 1; /* Take remaining space in the column */
-	overflow-y: scroll; /* Allow vertical scrolling for cards */
+	flex-grow: 1;
+	overflow-y: auto;
 	padding: 8px;
 	display: flex;
 	flex-direction: column;
-	gap: 8px; /* Space between cards */
-	padding-right: 0;
+	gap: 8px;
+	/* padding-right: 0; */
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+	scroll-behavior: smooth;
 }
 /* --- Card Styling --- */
 .tg-kanban-card {
@@ -92,6 +103,13 @@
 	box-sizing: border-box; /* Include padding/border in width */
 	white-space: nowrap; /* Allow text wrapping */
 	text-overflow: ellipsis;
+
+	/* Mobile touch improvements */
+	touch-action: manipulation; /* Optimize for touch interactions */
+	user-select: none; /* Prevent text selection during drag */
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
 }
 
 .tg-kanban-card .tg-kanban-card-content {
