@@ -1,15 +1,22 @@
 import { App } from "obsidian";
 import { Modal } from "obsidian";
 import { TaskFilterComponent, RootFilterState } from "./ViewTaskFilter";
+import type TaskProgressBarPlugin from "../../index";
 
 export class ViewTaskFilterModal extends Modal {
 	public taskFilterComponent: TaskFilterComponent;
 	public filterCloseCallback:
 		| ((filterState?: RootFilterState) => void)
 		| null = null;
+	private plugin?: TaskProgressBarPlugin;
 
-	constructor(app: App, private leafId?: string) {
+	constructor(
+		app: App,
+		private leafId?: string,
+		plugin?: TaskProgressBarPlugin
+	) {
 		super(app);
+		this.plugin = plugin;
 	}
 
 	onOpen() {
@@ -19,7 +26,8 @@ export class ViewTaskFilterModal extends Modal {
 		this.taskFilterComponent = new TaskFilterComponent(
 			this.contentEl,
 			this.app,
-			this.leafId
+			this.leafId,
+			this.plugin
 		);
 	}
 

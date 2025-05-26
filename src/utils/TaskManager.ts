@@ -1086,7 +1086,9 @@ export class TaskManager extends Component {
 					);
 
 					// Convert array to Set and back to ensure uniqueness
-					const finalUniqueTags = [...new Set(generalTags)];
+					const finalUniqueTags = [...new Set(generalTags)].map(
+						(tag) => (tag.startsWith("#") ? tag : `#${tag}`)
+					);
 
 					if (finalUniqueTags.length > 0) {
 						metadata.push(...finalUniqueTags);
@@ -1106,7 +1108,9 @@ export class TaskManager extends Component {
 						return true;
 					});
 
-					const uniqueTagsToAdd = [...new Set(tagsToAdd)];
+					const uniqueTagsToAdd = [...new Set(tagsToAdd)].map((tag) =>
+						tag.startsWith("#") ? tag : `#${tag}`
+					);
 
 					if (uniqueTagsToAdd.length > 0) {
 						metadata.push(...uniqueTagsToAdd);

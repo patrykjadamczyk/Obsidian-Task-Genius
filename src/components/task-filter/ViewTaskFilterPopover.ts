@@ -2,7 +2,7 @@ import { App } from "obsidian";
 import { CloseableComponent, Component } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
 import { TaskFilterComponent, RootFilterState } from "./ViewTaskFilter";
-import { t } from "../../translations/helper";
+import type TaskProgressBarPlugin from "../../index";
 
 export class ViewTaskFilterPopover
 	extends Component
@@ -15,10 +15,16 @@ export class ViewTaskFilterPopover
 	private scrollParent: HTMLElement | Window;
 	private popperInstance: PopperInstance | null = null;
 	public onClose: ((filterState?: RootFilterState) => void) | null = null;
+	private plugin?: TaskProgressBarPlugin;
 
-	constructor(app: App, private leafId?: string) {
+	constructor(
+		app: App,
+		private leafId?: string,
+		plugin?: TaskProgressBarPlugin
+	) {
 		super();
 		this.app = app;
+		this.plugin = plugin;
 		this.win = app.workspace.containerEl.win || window;
 
 		this.scrollParent = this.win;
@@ -39,7 +45,8 @@ export class ViewTaskFilterPopover
 		this.taskFilterComponent = new TaskFilterComponent(
 			contentEl,
 			this.app,
-			this.leafId
+			this.leafId,
+			this.plugin
 		);
 
 		// Initialize editor and display task

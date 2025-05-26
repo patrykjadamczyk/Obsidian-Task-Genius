@@ -112,7 +112,7 @@ export class TaskMetadataEditor extends Component {
 
 			tabInfo.populateFn(pane); // Populate content immediately
 
-			button.addEventListener("click", () => {
+			this.registerDomEvent(button, "click", () => {
 				this.activeTab = tabInfo.id;
 				this.updateActiveTab(tabButtons, tabPanes);
 			});
@@ -323,7 +323,7 @@ export class TaskMetadataEditor extends Component {
 			}
 		}
 
-		dateInput.addEventListener("change", () => {
+		this.registerDomEvent(dateInput, "change", () => {
 			this.notifyMetadataChange(field, dateInput.value);
 		});
 	}

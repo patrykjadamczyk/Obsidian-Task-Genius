@@ -452,7 +452,8 @@ export class TaskSpecificView extends ItemView {
 			if (Platform.isDesktop) {
 				const popover = new ViewTaskFilterPopover(
 					this.plugin.app,
-					this.leaf.id
+					this.leaf.id,
+					this.plugin
 				);
 
 				// 设置关闭回调 - 现在主要用于处理取消操作
@@ -482,7 +483,8 @@ export class TaskSpecificView extends ItemView {
 			} else {
 				const modal = new ViewTaskFilterModal(
 					this.plugin.app,
-					this.leaf.id
+					this.leaf.id,
+					this.plugin
 				);
 
 				// 设置关闭回调 - 现在主要用于处理取消操作

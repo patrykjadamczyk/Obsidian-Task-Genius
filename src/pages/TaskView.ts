@@ -518,7 +518,11 @@ export class TaskView extends ItemView {
 
 		this.addAction("filter", t("Filter"), (e) => {
 			if (Platform.isDesktop) {
-				const popover = new ViewTaskFilterPopover(this.plugin.app);
+				const popover = new ViewTaskFilterPopover(
+					this.plugin.app,
+					this.leaf.id,
+					this.plugin
+				);
 
 				// 设置关闭回调 - 现在主要用于处理取消操作
 				popover.onClose = (filterState) => {
@@ -547,7 +551,8 @@ export class TaskView extends ItemView {
 			} else {
 				const modal = new ViewTaskFilterModal(
 					this.plugin.app,
-					this.leaf.id
+					this.leaf.id,
+					this.plugin
 				);
 
 				// 设置关闭回调 - 现在主要用于处理取消操作

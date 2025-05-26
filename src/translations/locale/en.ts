@@ -498,6 +498,36 @@ const translations = {
 	"Status with Icons": "Status with Icons",
 	Preview: "Preview",
 	Use: "Use",
+	"Save Filter Configuration": "Save Filter Configuration",
+	"Load Filter Configuration": "Load Filter Configuration",
+	"Save Current Filter": "Save Current Filter",
+	"Load Saved Filter": "Load Saved Filter",
+	"Filter Configuration Name": "Filter Configuration Name",
+	"Filter Configuration Description": "Filter Configuration Description",
+	"Enter a name for this filter configuration":
+		"Enter a name for this filter configuration",
+	"Enter a description for this filter configuration (optional)":
+		"Enter a description for this filter configuration (optional)",
+	"No saved filter configurations": "No saved filter configurations",
+	"Select a saved filter configuration":
+		"Select a saved filter configuration",
+	"Delete Filter Configuration": "Delete Filter Configuration",
+	"Are you sure you want to delete this filter configuration?":
+		"Are you sure you want to delete this filter configuration?",
+	"Filter configuration saved successfully":
+		"Filter configuration saved successfully",
+	"Filter configuration loaded successfully":
+		"Filter configuration loaded successfully",
+	"Filter configuration deleted successfully":
+		"Filter configuration deleted successfully",
+	"Failed to save filter configuration":
+		"Failed to save filter configuration",
+	"Failed to load filter configuration":
+		"Failed to load filter configuration",
+	"Failed to delete filter configuration":
+		"Failed to delete filter configuration",
+	"Filter configuration name is required":
+		"Filter configuration name is required",
 	"Toggle this to show percentage instead of completed/total count.":
 		"Toggle this to show percentage instead of completed/total count.",
 	"Customize progress ranges": "Customize progress ranges",
@@ -1046,6 +1076,10 @@ const translations = {
 	"New Level": "New Level",
 	"Reward Name/Text": "Reward Name/Text",
 	"New Reward": "New Reward",
+	Created: "Created",
+	Updated: "Updated",
+	"Filter Summary": "Filter Summary",
+	"Root condition": "Root condition",
 };
 
 export default translations;

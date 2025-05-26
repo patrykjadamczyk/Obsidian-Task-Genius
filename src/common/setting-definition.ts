@@ -1,6 +1,7 @@
 import { t } from "../translations/helper";
 import type TaskProgressBarPlugin from "../index"; // Type-only import
 import { BaseHabitData } from "../types/habit-card";
+import type { RootFilterState } from "../components/task-filter/ViewTaskFilter";
 
 // Interface for individual project review settings (If still needed, otherwise remove)
 // Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
@@ -348,6 +349,9 @@ export interface TaskProgressBarSettings {
 
 	// Habit Settings
 	habit: HabitSettings;
+
+	// Filter Configuration Settings
+	filterConfig: FilterConfigSettings;
 
 	// Sorting Settings
 	sortTasks: boolean; // Enable/disable task sorting feature
@@ -710,6 +714,12 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		habits: [],
 	},
 
+	// Filter Configuration Defaults
+	filterConfig: {
+		enableSavedFilters: true,
+		savedConfigs: [],
+	},
+
 	// Sorting Defaults
 	sortTasks: true, // Default to enabled
 	sortCriteria: [
@@ -802,4 +812,20 @@ export function getViewSettingOrDefault(
 	}
 
 	return mergedConfig;
+}
+
+// Define saved filter configuration interface
+export interface SavedFilterConfig {
+	id: string;
+	name: string;
+	description?: string;
+	filterState: RootFilterState;
+	createdAt: string;
+	updatedAt: string;
+}
+
+// Define filter configuration settings
+export interface FilterConfigSettings {
+	enableSavedFilters: boolean;
+	savedConfigs: SavedFilterConfig[];
 }

@@ -6,10 +6,13 @@ import {
 	ButtonComponent,
 	CloseableComponent,
 	App,
+	setTooltip,
 } from "obsidian";
 import Sortable from "sortablejs";
 import { t } from "../../translations/helper"; // Adjusted path assuming helper.ts is in src/translations
 import "../../styles/global-filter.css";
+import { FilterConfigModal } from "./FilterConfigModal";
+import type TaskProgressBarPlugin from "../../index";
 
 // --- Interfaces (from focus.md and example HTML) ---
 // (Using 'any' for property types for now, will refine based on focus.md property list)
@@ -52,14 +55,21 @@ export class TaskFilterComponent extends Component {
 	private rootFilterState!: RootFilterState;
 	private app: App;
 	private filterGroupsContainerEl!: HTMLElement;
+	private plugin?: TaskProgressBarPlugin;
 
 	// Sortable instances
 	private groupsSortable?: Sortable;
 
-	constructor(hostEl: HTMLElement, app: App, private leafId?: string) {
+	constructor(
+		hostEl: HTMLElement,
+		app: App,
+		private leafId?: string,
+		plugin?: TaskProgressBarPlugin
+	) {
 		super();
 		this.hostEl = hostEl;
 		this.app = app;
+		this.plugin = plugin;
 	}
 
 	onload() {
@@ -92,11 +102,6 @@ export class TaskFilterComponent extends Component {
 
 		// Render first to initialize DOM elements
 		this.render();
-
-		// Add a default group and filter only if no groups exist
-		if (this.rootFilterState.filterGroups.length === 0) {
-			this.addFilterGroup();
-		}
 	}
 
 	onunload() {
@@ -205,6 +210,61 @@ export class TaskFilterComponent extends Component {
 				});
 			}
 		);
+
+		// Filter Configuration Buttons Section (only show if plugin is available)
+		if (this.plugin) {
+			const configSection = addGroupSection.createDiv({
+				cls: "filter-config-section",
+			});
+
+			// Save Configuration Button
+			configSection.createEl(
+				"div",
+				{
+					cls: ["save-filter-config-btn", "compact-btn"],
+				},
+				(el) => {
+					el.createEl(
+						"span",
+						{
+							cls: "save-filter-config-btn-icon",
+						},
+						(iconEl) => {
+							setIcon(iconEl, "save");
+							setTooltip(el, t("Save Current Filter"));
+						}
+					);
+
+					this.registerDomEvent(el, "click", () => {
+						this.openSaveConfigModal();
+					});
+				}
+			);
+
+			// Load Configuration Button
+			configSection.createEl(
+				"div",
+				{
+					cls: ["load-filter-config-btn", "compact-btn"],
+				},
+				(el) => {
+					el.createEl(
+						"span",
+						{
+							cls: "load-filter-config-btn-icon",
+						},
+						(iconEl) => {
+							setIcon(iconEl, "folder-open");
+							setTooltip(el, t("Load Saved Filter"));
+						}
+					);
+
+					this.registerDomEvent(el, "click", () => {
+						this.openLoadConfigModal();
+					});
+				}
+			);
+		}
 
 		// Re-populate filter groups from state
 		this.rootFilterState.filterGroups.forEach((groupData) => {
@@ -1051,5 +1111,40 @@ export class TaskFilterComponent extends Component {
 				);
 			}
 		}
+	}
+
+	// --- Filter Configuration Management ---
+	private openSaveConfigModal(): void {
+		if (!this.plugin) return;
+
+		const modal = new FilterConfigModal(
+			this.app,
+			this.plugin,
+			"save",
+			this.getFilterState(),
+			(config) => {
+				// Optional: Handle successful save
+				console.log("Filter configuration saved:", config.name);
+			}
+		);
+		modal.open();
+	}
+
+	private openLoadConfigModal(): void {
+		if (!this.plugin) return;
+
+		const modal = new FilterConfigModal(
+			this.app,
+			this.plugin,
+			"load",
+			undefined,
+			undefined,
+			(config) => {
+				// Load the configuration
+				this.loadFilterState(config.filterState);
+				console.log("Filter configuration loaded:", config.name);
+			}
+		);
+		modal.open();
 	}
 }
