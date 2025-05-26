@@ -10,6 +10,9 @@ const BATCH_SIZE = 20; // Number of cards to load at a time
 export class KanbanColumnComponent extends Component {
 	private element: HTMLElement;
 	private contentEl: HTMLElement;
+	private headerEl: HTMLElement;
+	private titleEl: HTMLElement;
+	private countEl: HTMLElement;
 	private cards: KanbanCardComponent[] = [];
 	private renderedTaskCount = 0;
 	private isLoadingMore = false; // Prevent multiple simultaneous loads
@@ -30,6 +33,10 @@ export class KanbanColumnComponent extends Component {
 			onTaskSelected?: (task: Task) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
+			onFilterApply?: (
+				filterType: string,
+				value: string | number | string[]
+			) => void;
 		}
 	) {
 		super();
@@ -41,38 +48,41 @@ export class KanbanColumnComponent extends Component {
 			attr: { "data-status-name": this.statusName },
 		});
 
+		// Hide column if no tasks and hideEmptyColumns is enabled
+		if (this.tasks.length === 0) {
+			this.element.classList.add("tg-kanban-column-empty");
+		}
+
 		// Column Header
-		this.element.createEl(
-			"div",
-			{
-				cls: "tg-kanban-column-header",
-			},
-			(el) => {
-				const checkbox = el.createEl("input", {
-					cls: "task-list-item-checkbox",
-					type: "checkbox",
-				});
+		this.headerEl = this.element.createEl("div", {
+			cls: "tg-kanban-column-header",
+		});
 
-				checkbox.dataset.task =
-					this.plugin.settings.taskStatusMarks[this.statusName] ||
-					" ";
-				if (
-					this.plugin.settings.taskStatusMarks[this.statusName] !==
-					" "
-				) {
-					checkbox.checked = true;
-				}
+		const checkbox = this.headerEl.createEl("input", {
+			cls: "task-list-item-checkbox",
+			type: "checkbox",
+		});
 
-				this.registerDomEvent(checkbox, "click", (event) => {
-					event.stopPropagation();
-					event.preventDefault();
-				});
+		checkbox.dataset.task =
+			this.plugin.settings.taskStatusMarks[this.statusName] || " ";
+		if (this.plugin.settings.taskStatusMarks[this.statusName] !== " ") {
+			checkbox.checked = true;
+		}
 
-				el.createEl("span", {
-					text: this.statusName,
-				});
-			}
-		);
+		this.registerDomEvent(checkbox, "click", (event) => {
+			event.stopPropagation();
+			event.preventDefault();
+		});
+
+		this.titleEl = this.headerEl.createEl("span", {
+			cls: "tg-kanban-column-title",
+			text: this.statusName,
+		});
+
+		this.countEl = this.headerEl.createEl("span", {
+			cls: "tg-kanban-column-count",
+			text: `(${this.tasks.length})`,
+		});
 
 		// Column Content (Scrollable Area for Cards, and Drop Zone)
 		this.contentEl = this.element.createDiv({
@@ -202,9 +212,56 @@ export class KanbanColumnComponent extends Component {
 		}
 	}
 
+	// Update tasks and refresh the column
+	public updateTasks(newTasks: Task[]) {
+		this.tasks = newTasks;
+
+		// Update count in header
+		this.countEl.textContent = `(${this.tasks.length})`;
+
+		// Update empty state
+		if (this.tasks.length === 0) {
+			this.element.classList.add("tg-kanban-column-empty");
+		} else {
+			this.element.classList.remove("tg-kanban-column-empty");
+		}
+
+		// Clear existing cards
+		this.cards.forEach((card) => {
+			this.removeChild(card);
+			card.unload();
+		});
+		this.cards = [];
+		this.renderedTaskCount = 0;
+
+		// Reload cards
+		this.loadMoreCards();
+	}
+
 	// Public getter for the content element (for SortableJS)
 	getContentElement(): HTMLElement {
 		return this.contentEl;
+	}
+
+	// Get the number of tasks in this column
+	public getTaskCount(): number {
+		return this.tasks.length;
+	}
+
+	// Check if column is empty
+	public isEmpty(): boolean {
+		return this.tasks.length === 0;
+	}
+
+	// Hide/show the column
+	public setVisible(visible: boolean) {
+		if (visible) {
+			this.element.style.display = "";
+			this.element.classList.remove("tg-kanban-column-hidden");
+		} else {
+			this.element.style.display = "none";
+			this.element.classList.add("tg-kanban-column-hidden");
+		}
 	}
 
 	private setupIntersectionObserver(): void {

@@ -101,6 +101,10 @@
 	transform: translateY(-1px);
 }
 
+.tg-kanban-view .task-date::before {
+	transform: translateY(0);
+}
+
 .task-date.task-due-date::before {
 	content: "📅";
 }

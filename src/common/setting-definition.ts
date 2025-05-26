@@ -76,6 +76,14 @@ export interface ViewConfig {
 export interface KanbanSpecificConfig {
 	viewType: "kanban"; // Discriminator
 	showCheckbox: boolean;
+	hideEmptyColumns: boolean;
+	defaultSortField:
+		| "priority"
+		| "dueDate"
+		| "scheduledDate"
+		| "startDate"
+		| "createdDate";
+	defaultSortOrder: "asc" | "desc";
 }
 
 export interface CalendarSpecificConfig {
@@ -636,6 +644,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			specificConfig: {
 				viewType: "kanban",
 				showCheckbox: true, // Example default, adjust if needed
+				hideEmptyColumns: false,
+				defaultSortField: "priority",
+				defaultSortOrder: "desc",
 			} as KanbanSpecificConfig,
 		},
 		{

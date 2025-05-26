@@ -272,6 +272,9 @@ export class ViewConfigModal extends Modal {
 							this.viewConfig.specificConfig = {
 								viewType: "kanban",
 								showCheckbox: value,
+								hideEmptyColumns: false,
+								defaultSortField: "priority",
+								defaultSortOrder: "desc",
 							};
 						} else {
 							(
@@ -281,6 +284,113 @@ export class ViewConfigModal extends Modal {
 						}
 						this.checkForChanges();
 					});
+				});
+
+			new Setting(contentEl)
+				.setName(t("Hide empty columns"))
+				.setDesc(t("Hide columns that have no tasks."))
+				.addToggle((toggle) => {
+					toggle.setValue(
+						(this.viewConfig.specificConfig as KanbanSpecificConfig)
+							?.hideEmptyColumns as boolean
+					);
+					toggle.onChange((value) => {
+						if (
+							!this.viewConfig.specificConfig ||
+							this.viewConfig.specificConfig.viewType !== "kanban"
+						) {
+							this.viewConfig.specificConfig = {
+								viewType: "kanban",
+								showCheckbox: true,
+								hideEmptyColumns: value,
+								defaultSortField: "priority",
+								defaultSortOrder: "desc",
+							};
+						} else {
+							(
+								this.viewConfig
+									.specificConfig as KanbanSpecificConfig
+							).hideEmptyColumns = value;
+						}
+						this.checkForChanges();
+					});
+				});
+
+			new Setting(contentEl)
+				.setName(t("Default sort field"))
+				.setDesc(
+					t("Default field to sort tasks by within each column.")
+				)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("priority", t("Priority"))
+						.addOption("dueDate", t("Due Date"))
+						.addOption("scheduledDate", t("Scheduled Date"))
+						.addOption("startDate", t("Start Date"))
+						.addOption("createdDate", t("Created Date"))
+						.setValue(
+							(
+								this.viewConfig
+									.specificConfig as KanbanSpecificConfig
+							)?.defaultSortField || "priority"
+						)
+						.onChange((value) => {
+							if (
+								!this.viewConfig.specificConfig ||
+								this.viewConfig.specificConfig.viewType !==
+									"kanban"
+							) {
+								this.viewConfig.specificConfig = {
+									viewType: "kanban",
+									showCheckbox: true,
+									hideEmptyColumns: false,
+									defaultSortField: value as any,
+									defaultSortOrder: "desc",
+								};
+							} else {
+								(
+									this.viewConfig
+										.specificConfig as KanbanSpecificConfig
+								).defaultSortField = value as any;
+							}
+							this.checkForChanges();
+						});
+				});
+
+			new Setting(contentEl)
+				.setName(t("Default sort order"))
+				.setDesc(t("Default order to sort tasks within each column."))
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("asc", t("Ascending"))
+						.addOption("desc", t("Descending"))
+						.setValue(
+							(
+								this.viewConfig
+									.specificConfig as KanbanSpecificConfig
+							)?.defaultSortOrder || "desc"
+						)
+						.onChange((value) => {
+							if (
+								!this.viewConfig.specificConfig ||
+								this.viewConfig.specificConfig.viewType !==
+									"kanban"
+							) {
+								this.viewConfig.specificConfig = {
+									viewType: "kanban",
+									showCheckbox: true,
+									hideEmptyColumns: false,
+									defaultSortField: "priority",
+									defaultSortOrder: value as any,
+								};
+							} else {
+								(
+									this.viewConfig
+										.specificConfig as KanbanSpecificConfig
+								).defaultSortOrder = value as any;
+							}
+							this.checkForChanges();
+						});
 				});
 		} else if (this.viewConfig.id === "forecast") {
 			new Setting(contentEl)

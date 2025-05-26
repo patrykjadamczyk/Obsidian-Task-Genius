@@ -26,6 +26,10 @@ export class KanbanCardComponent extends Component {
 			onTaskSelected?: (task: Task) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
+			onFilterApply?: (
+				filterType: string,
+				value: string | number | string[]
+			) => void;
 		} = {}
 	) {
 		super();
@@ -138,7 +142,7 @@ export class KanbanCardComponent extends Component {
 		}
 
 		// Project (if not grouped by project already) - Kanban might inherently group by status
-		// if (this.task.project) this.renderProject();
+		if (this.task.project) this.renderProject();
 
 		// Tags
 		if (this.task.tags && this.task.tags.length > 0) this.renderTags();
@@ -194,24 +198,105 @@ export class KanbanCardComponent extends Component {
 		);
 	}
 
+	private renderProject() {
+		const projectEl = this.metadataEl.createEl("div", {
+			cls: ["task-project", "clickable-metadata"],
+		});
+		projectEl.textContent = this.task.project || "";
+		projectEl.setAttribute("aria-label", `Project: ${this.task.project}`);
+
+		// Make project clickable for filtering
+		this.registerDomEvent(projectEl, "click", (ev) => {
+			ev.stopPropagation();
+			if (this.params.onFilterApply && this.task.project) {
+				this.params.onFilterApply("project", this.task.project);
+			}
+		});
+	}
+
 	private renderTags() {
 		const tagsContainer = this.metadataEl.createEl("div", {
 			cls: "task-tags-container",
 		});
 		this.task.tags.forEach((tag) => {
-			tagsContainer.createEl("span", {
-				cls: "task-tag",
+			const tagEl = tagsContainer.createEl("span", {
+				cls: ["task-tag", "clickable-metadata"],
 				text: tag.startsWith("#") ? tag : `#${tag}`,
+			});
+
+			// Add support for colored tags plugin
+			const tagName = tag.replace("#", "");
+			tagEl.setAttribute("data-tag-name", tagName);
+
+			// Check if colored tags plugin is available and apply colors
+			this.applyTagColor(tagEl, tagName);
+
+			// Make tag clickable for filtering
+			this.registerDomEvent(tagEl, "click", (ev) => {
+				ev.stopPropagation();
+				if (this.params.onFilterApply) {
+					this.params.onFilterApply("tag", tag);
+				}
 			});
 		});
 	}
 
 	private renderPriority() {
 		const priorityEl = this.metadataEl.createDiv({
-			cls: ["task-priority", `priority-${this.task.priority}`],
+			cls: [
+				"task-priority",
+				`priority-${this.task.priority}`,
+				"clickable-metadata",
+			],
 		});
 		priorityEl.textContent = `${"!".repeat(this.task.priority || 0)}`;
 		priorityEl.setAttribute("aria-label", `Priority ${this.task.priority}`);
+
+		// Make priority clickable for filtering
+		this.registerDomEvent(priorityEl, "click", (ev) => {
+			ev.stopPropagation();
+			if (this.params.onFilterApply && this.task.priority) {
+				// Convert numeric priority to icon representation for filter compatibility
+				const priorityIcon = this.getPriorityIcon(this.task.priority);
+				this.params.onFilterApply("priority", priorityIcon);
+			}
+		});
+	}
+
+	private getPriorityIcon(priority: number): string {
+		const PRIORITY_ICONS: Record<number, string> = {
+			5: "🔺",
+			4: "⏫",
+			3: "🔼",
+			2: "🔽",
+			1: "⏬",
+		};
+		return PRIORITY_ICONS[priority] || priority.toString();
+	}
+
+	private applyTagColor(tagEl: HTMLElement, tagName: string) {
+		// Check if colored tags plugin is available
+		// @ts-ignore - accessing global app for plugin check
+		const coloredTagsPlugin = this.app.plugins.plugins["colored-tags"];
+
+		if (coloredTagsPlugin && coloredTagsPlugin.settings) {
+			const tagColors = coloredTagsPlugin.settings.tags;
+			if (tagColors && tagColors[tagName]) {
+				const color = tagColors[tagName];
+				tagEl.style.setProperty("--tag-color", color);
+				tagEl.classList.add("colored-tag");
+			}
+		}
+
+		// Fallback: check for CSS custom properties set by other tag color plugins
+		const computedStyle = getComputedStyle(document.body);
+		const tagColorVar = computedStyle.getPropertyValue(
+			`--tag-color-${tagName}`
+		);
+		if (tagColorVar) {
+			tagEl.style.setProperty("--tag-color", tagColorVar);
+			tagEl.classList.add("colored-tag");
+		}
 	}
 
 	public getTask(): Task {
@@ -247,7 +332,8 @@ export class KanbanCardComponent extends Component {
 			oldTask.dueDate !== newTask.dueDate ||
 			oldTask.completedDate !== newTask.completedDate ||
 			oldTask.tags?.join(",") !== newTask.tags?.join(",") || // Simple comparison
-			oldTask.priority !== newTask.priority
+			oldTask.priority !== newTask.priority ||
+			oldTask.project !== newTask.project
 		) {
 			this.renderMetadata();
 		}

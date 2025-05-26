@@ -1,4 +1,11 @@
-import { App, Component, Platform, WorkspaceLeaf } from "obsidian";
+import {
+	App,
+	Component,
+	Menu,
+	Platform,
+	setIcon,
+	WorkspaceLeaf,
+} from "obsidian";
 import TaskProgressBarPlugin from "../../index"; // Adjust path as needed
 import { Task } from "../../utils/types/TaskIndex"; // Adjust path as needed
 import { KanbanColumnComponent } from "./kanban-column";
@@ -11,12 +18,24 @@ import {
 	buildFilterOptionsFromTasks,
 } from "../view-filter/filter";
 import { ActiveFilter } from "../view-filter/filter-type";
+import { KanbanSpecificConfig } from "../../common/setting-definition";
 
 // CSS classes for drop indicators
 const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";
 const DROP_INDICATOR_AFTER_CLASS = "tg-kanban-card--drop-indicator-after";
 const DROP_INDICATOR_EMPTY_CLASS =
 	"tg-kanban-column-content--drop-indicator-empty";
+
+export interface KanbanSortOption {
+	field:
+		| "priority"
+		| "dueDate"
+		| "scheduledDate"
+		| "startDate"
+		| "createdDate";
+	order: "asc" | "desc";
+	label: string;
+}
 
 export class KanbanComponent extends Component {
 	plugin: TaskProgressBarPlugin;
@@ -40,6 +59,12 @@ export class KanbanComponent extends Component {
 	private filterComponent: FilterComponent | null = null;
 	private activeFilters: ActiveFilter[] = [];
 	private filterContainerEl: HTMLElement; // Assume you have a container for filters
+	private sortOption: KanbanSortOption = {
+		field: "priority",
+		order: "desc",
+		label: "Priority (High to Low)",
+	};
+	private hideEmptyColumns: boolean = false;
 
 	constructor(
 		app: App,
@@ -69,11 +94,18 @@ export class KanbanComponent extends Component {
 		this.containerEl.empty();
 		this.containerEl.addClass("tg-kanban-view");
 
+		// Load configuration settings
+		this.loadKanbanConfig();
+
 		this.filterContainerEl = this.containerEl.createDiv({
 			cls: "tg-kanban-filters",
 		});
 
+		// Render filter controls first
 		this.renderFilterControls(this.filterContainerEl);
+
+		// Then render sort and toggle controls
+		this.renderControls(this.filterContainerEl);
 
 		this.columnContainerEl = this.containerEl.createDiv({
 			cls: "tg-kanban-column-container",
@@ -92,9 +124,93 @@ export class KanbanComponent extends Component {
 		console.log("KanbanComponent unloaded.");
 	}
 
-	private renderFilterControls(containerEl: HTMLElement) {
-		containerEl.empty(); // Clear previous controls
+	private renderControls(containerEl: HTMLElement) {
+		// Create a controls container for sort and toggle controls
+		const controlsContainer = containerEl.createDiv({
+			cls: "tg-kanban-controls-container",
+		});
 
+		// Sort dropdown
+		const sortContainer = controlsContainer.createDiv({
+			cls: "tg-kanban-sort-container",
+		});
+
+		const sortButton = sortContainer.createEl(
+			"button",
+			{
+				cls: "tg-kanban-sort-button clickable-icon",
+			},
+			(el) => {
+				setIcon(el, "arrow-up-down");
+			}
+		);
+
+		this.registerDomEvent(sortButton, "click", (event) => {
+			const menu = new Menu();
+
+			const sortOptions: KanbanSortOption[] = [
+				{
+					field: "priority",
+					order: "desc",
+					label: t("Priority (High to Low)"),
+				},
+				{
+					field: "priority",
+					order: "asc",
+					label: t("Priority (Low to High)"),
+				},
+				{
+					field: "dueDate",
+					order: "asc",
+					label: t("Due Date (Earliest First)"),
+				},
+				{
+					field: "dueDate",
+					order: "desc",
+					label: t("Due Date (Latest First)"),
+				},
+				{
+					field: "scheduledDate",
+					order: "asc",
+					label: t("Scheduled Date (Earliest First)"),
+				},
+				{
+					field: "scheduledDate",
+					order: "desc",
+					label: t("Scheduled Date (Latest First)"),
+				},
+				{
+					field: "startDate",
+					order: "asc",
+					label: t("Start Date (Earliest First)"),
+				},
+				{
+					field: "startDate",
+					order: "desc",
+					label: t("Start Date (Latest First)"),
+				},
+			];
+
+			sortOptions.forEach((option) => {
+				menu.addItem((item) => {
+					item.setTitle(option.label)
+						.setChecked(
+							option.field === this.sortOption.field &&
+								option.order === this.sortOption.order
+						)
+						.onClick(() => {
+							this.sortOption = option;
+							this.renderColumns();
+						});
+				});
+			});
+
+			menu.showAtMouseEvent(event);
+		});
+	}
+
+	private renderFilterControls(containerEl: HTMLElement) {
+		console.log("Kanban rendering filter controls");
 		// Build initial options from the current full task list
 		const initialFilterOptions = buildFilterOptionsFromTasks(this.allTasks);
 		console.log("Kanban initial filter options:", initialFilterOptions);
@@ -156,6 +272,12 @@ export class KanbanComponent extends Component {
 				medium: 3,
 				low: 2,
 				lowest: 1,
+				// Add numeric string mappings
+				"1": 1,
+				"2": 2,
+				"3": 3,
+				"4": 4,
+				"5": 5,
 			};
 
 			this.tasks = this.allTasks.filter((task) => {
@@ -164,13 +286,16 @@ export class KanbanComponent extends Component {
 						case "status":
 							return task.status === filter.value;
 						case "tag":
-							return task.tags.includes(filter.value);
+							// Support for nested tags - include child tags
+							return this.matchesTagFilter(task, filter.value);
 						case "project":
 							return task.project === filter.value;
 						case "context":
 							return task.context === filter.value;
 						case "priority":
-							const expectedPriority = PRIORITY_MAP[filter.value];
+							const expectedPriority =
+								PRIORITY_MAP[filter.value] ||
+								parseInt(filter.value);
 							return task.priority === expectedPriority;
 						case "completed":
 							return (
@@ -192,6 +317,105 @@ export class KanbanComponent extends Component {
 		console.log("Kanban filtered tasks count:", this.tasks.length);
 
 		this.renderColumns();
+	}
+
+	// Enhanced tag filtering to support nested tags
+	private matchesTagFilter(task: Task, filterTag: string): boolean {
+		if (!task.tags || task.tags.length === 0) return false;
+
+		return task.tags.some((taskTag) => {
+			// Direct match
+			if (taskTag === filterTag) return true;
+
+			// Check if task tag is a child of the filter tag
+			// e.g., filterTag = "#work", taskTag = "#work/project1"
+			const normalizedFilterTag = filterTag.startsWith("#")
+				? filterTag
+				: `#${filterTag}`;
+			const normalizedTaskTag = taskTag.startsWith("#")
+				? taskTag
+				: `#${taskTag}`;
+
+			return normalizedTaskTag.startsWith(normalizedFilterTag + "/");
+		});
+	}
+
+	// Handle filter application from clickable metadata
+	private handleFilterApply = (
+		filterType: string,
+		value: string | number | string[]
+	) => {
+		// Convert value to string for consistent handling
+		let stringValue = Array.isArray(value) ? value[0] : value.toString();
+
+		// For priority filters, convert numeric input to icon representation if needed
+		if (filterType === "priority" && /^\d+$/.test(stringValue)) {
+			stringValue = this.convertPriorityToIcon(parseInt(stringValue));
+		}
+
+		// Add the filter to active filters
+		const newFilter: ActiveFilter = {
+			id: `${filterType}-${stringValue}`,
+			category: filterType,
+			categoryLabel: this.getCategoryLabel(filterType),
+			value: stringValue,
+		};
+
+		console.log("Kanban handleFilterApply", filterType, stringValue);
+
+		// Check if filter already exists
+		const existingFilterIndex = this.activeFilters.findIndex(
+			(f) => f.category === filterType && f.value === stringValue
+		);
+
+		if (existingFilterIndex === -1) {
+			// Add new filter
+			this.activeFilters.push(newFilter);
+		} else {
+			// Remove existing filter (toggle behavior)
+			this.activeFilters.splice(existingFilterIndex, 1);
+		}
+
+		// Update filter component to reflect changes
+		if (this.filterComponent) {
+			this.filterComponent.setFilters(
+				this.activeFilters.map((f) => ({
+					category: f.category,
+					value: f.value,
+				}))
+			);
+		}
+
+		// Re-apply filters and render
+		this.applyFiltersAndRender();
+	};
+
+	private convertPriorityToIcon(priority: number): string {
+		const PRIORITY_ICONS: Record<number, string> = {
+			5: "🔺",
+			4: "⏫",
+			3: "🔼",
+			2: "🔽",
+			1: "⏬",
+		};
+		return PRIORITY_ICONS[priority] || priority.toString();
+	}
+
+	private getCategoryLabel(category: string): string {
+		switch (category) {
+			case "tag":
+				return t("Tag");
+			case "project":
+				return t("Project");
+			case "priority":
+				return t("Priority");
+			case "status":
+				return t("Status");
+			case "context":
+				return t("Context");
+			default:
+				return category;
+		}
 	}
 
 	private renderColumns() {
@@ -233,21 +457,39 @@ export class KanbanComponent extends Component {
 		statusNames = [...spaceStatus, ...otherStatuses, ...xStatus];
 
 		statusNames.forEach((statusName) => {
+			const tasksForStatus = this.getTasksForStatus(statusName);
+
 			const column = new KanbanColumnComponent(
 				this.app,
 				this.plugin,
 				this.columnContainerEl,
 				statusName,
-				// Pass filtered tasks for this status to the column
-				this.getTasksForStatus(statusName),
-				this.params
+				// Pass filtered and sorted tasks for this status to the column
+				tasksForStatus,
+				{
+					...this.params,
+					onFilterApply: this.handleFilterApply,
+				}
 			);
 			this.addChild(column);
 			this.columns.push(column);
 		});
 
+		// Update column visibility based on hideEmptyColumns setting
+		this.updateColumnVisibility();
+
 		// Re-initialize sortable instances after columns are rendered
 		this.initializeSortableInstances();
+	}
+
+	private updateColumnVisibility() {
+		this.columns.forEach((column) => {
+			if (this.hideEmptyColumns && column.isEmpty()) {
+				column.setVisible(false);
+			} else {
+				column.setVisible(true);
+			}
+		});
 	}
 
 	private getTasksForStatus(statusName: string): Task[] {
@@ -260,18 +502,52 @@ export class KanbanComponent extends Component {
 			return taskStatusMark === statusMark;
 		});
 
-		// Optional: Sort tasks within the status column
+		// Sort tasks within the status column based on selected sort option
 		tasksForStatus.sort((a, b) => {
-			const priorityA = a.priority ?? 0;
-			const priorityB = b.priority ?? 0;
-			if (priorityA !== priorityB) return priorityB - priorityA;
-
-			const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-			const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-			return dateA - dateB;
+			return this.compareTasks(a, b, this.sortOption);
 		});
 
 		return tasksForStatus;
+	}
+
+	private compareTasks(
+		a: Task,
+		b: Task,
+		sortOption: KanbanSortOption
+	): number {
+		const { field, order } = sortOption;
+		let comparison = 0;
+
+		switch (field) {
+			case "priority":
+				const priorityA = a.priority ?? 0;
+				const priorityB = b.priority ?? 0;
+				comparison = priorityA - priorityB;
+				break;
+			case "dueDate":
+				const dueDateA = a.dueDate ?? Number.MAX_SAFE_INTEGER;
+				const dueDateB = b.dueDate ?? Number.MAX_SAFE_INTEGER;
+				comparison = dueDateA - dueDateB;
+				break;
+			case "scheduledDate":
+				const scheduledA = a.scheduledDate ?? Number.MAX_SAFE_INTEGER;
+				const scheduledB = b.scheduledDate ?? Number.MAX_SAFE_INTEGER;
+				comparison = scheduledA - scheduledB;
+				break;
+			case "startDate":
+				const startA = a.startDate ?? Number.MAX_SAFE_INTEGER;
+				const startB = b.startDate ?? Number.MAX_SAFE_INTEGER;
+				comparison = startA - startB;
+				break;
+			case "createdDate":
+				const createdA = a.createdDate ?? Number.MAX_SAFE_INTEGER;
+				const createdB = b.createdDate ?? Number.MAX_SAFE_INTEGER;
+				comparison = createdA - createdB;
+				break;
+		}
+
+		// Apply order (asc/desc)
+		return order === "desc" ? -comparison : comparison;
 	}
 
 	private initializeSortableInstances() {
@@ -352,6 +628,37 @@ export class KanbanComponent extends Component {
 				}
 			}
 		}
+	}
+
+	private loadKanbanConfig() {
+		const kanbanConfig = this.plugin.settings.viewConfiguration.find(
+			(v) => v.id === "kanban"
+		)?.specificConfig as KanbanSpecificConfig;
+
+		if (kanbanConfig) {
+			this.hideEmptyColumns = kanbanConfig.hideEmptyColumns || false;
+			this.sortOption = {
+				field: kanbanConfig.defaultSortField || "priority",
+				order: kanbanConfig.defaultSortOrder || "desc",
+				label: this.getSortOptionLabel(
+					kanbanConfig.defaultSortField || "priority",
+					kanbanConfig.defaultSortOrder || "desc"
+				),
+			};
+		}
+	}
+
+	private getSortOptionLabel(field: string, order: string): string {
+		const fieldLabels: Record<string, string> = {
+			priority: t("Priority"),
+			dueDate: t("Due Date"),
+			scheduledDate: t("Scheduled Date"),
+			startDate: t("Start Date"),
+			createdDate: t("Created Date"),
+		};
+
+		const orderLabel = order === "asc" ? t("Ascending") : t("Descending");
+		return `${fieldLabels[field]} (${orderLabel})`;
 	}
 
 	public getColumnContainer(): HTMLElement {
