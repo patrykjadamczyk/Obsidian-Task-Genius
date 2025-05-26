@@ -84,6 +84,26 @@ export interface KanbanSpecificConfig {
 		| "startDate"
 		| "createdDate";
 	defaultSortOrder: "asc" | "desc";
+	// New properties for flexible column grouping
+	groupBy:
+		| "status"
+		| "priority"
+		| "tags"
+		| "project"
+		| "dueDate"
+		| "scheduledDate"
+		| "startDate"
+		| "context"
+		| "filePath";
+	customColumns?: KanbanColumnConfig[]; // Custom column definitions when not using status
+}
+
+export interface KanbanColumnConfig {
+	id: string;
+	title: string;
+	value: string | number | null; // The value that tasks should have for this property to appear in this column
+	color?: string; // Optional color for the column
+	order: number; // Display order
 }
 
 export interface CalendarSpecificConfig {
@@ -647,6 +667,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				hideEmptyColumns: false,
 				defaultSortField: "priority",
 				defaultSortOrder: "desc",
+				groupBy: "status", // Default to status-based columns
 			} as KanbanSpecificConfig,
 		},
 		{

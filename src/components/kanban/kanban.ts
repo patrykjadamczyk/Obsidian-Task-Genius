@@ -18,7 +18,10 @@ import {
 	buildFilterOptionsFromTasks,
 } from "../view-filter/filter";
 import { ActiveFilter } from "../view-filter/filter-type";
-import { KanbanSpecificConfig } from "../../common/setting-definition";
+import {
+	KanbanSpecificConfig,
+	KanbanColumnConfig,
+} from "../../common/setting-definition";
 
 // CSS classes for drop indicators
 const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";
@@ -423,6 +426,26 @@ export class KanbanComponent extends Component {
 		this.columns.forEach((col) => this.removeChild(col));
 		this.columns = [];
 
+		const kanbanConfig = this.plugin.settings.viewConfiguration.find(
+			(v) => v.id === "kanban"
+		)?.specificConfig as KanbanSpecificConfig;
+
+		const groupBy = kanbanConfig?.groupBy || "status";
+
+		if (groupBy === "status") {
+			this.renderStatusColumns();
+		} else {
+			this.renderCustomColumns(groupBy, kanbanConfig?.customColumns);
+		}
+
+		// Update column visibility based on hideEmptyColumns setting
+		this.updateColumnVisibility();
+
+		// Re-initialize sortable instances after columns are rendered
+		this.initializeSortableInstances();
+	}
+
+	private renderStatusColumns() {
 		const statusCycle = this.plugin.settings.taskStatusCycle;
 		let statusNames =
 			statusCycle.length > 0
@@ -464,22 +487,188 @@ export class KanbanComponent extends Component {
 				this.plugin,
 				this.columnContainerEl,
 				statusName,
-				// Pass filtered and sorted tasks for this status to the column
 				tasksForStatus,
 				{
 					...this.params,
+					onTaskStatusUpdate: (
+						taskId: string,
+						newStatusMark: string
+					) => this.handleStatusUpdate(taskId, newStatusMark),
 					onFilterApply: this.handleFilterApply,
 				}
 			);
 			this.addChild(column);
 			this.columns.push(column);
 		});
+	}
 
-		// Update column visibility based on hideEmptyColumns setting
-		this.updateColumnVisibility();
+	private renderCustomColumns(
+		groupBy: string,
+		customColumns?: KanbanColumnConfig[]
+	) {
+		let columnConfigs: { title: string; value: any; id: string }[] = [];
 
-		// Re-initialize sortable instances after columns are rendered
-		this.initializeSortableInstances();
+		if (customColumns && customColumns.length > 0) {
+			// Use custom defined columns
+			columnConfigs = customColumns
+				.sort((a, b) => a.order - b.order)
+				.map((col) => ({
+					title: col.title,
+					value: col.value,
+					id: col.id,
+				}));
+		} else {
+			// Generate default columns based on groupBy type
+			columnConfigs = this.generateDefaultColumns(groupBy);
+		}
+
+		columnConfigs.forEach((config) => {
+			const tasksForColumn = this.getTasksForProperty(
+				groupBy,
+				config.value
+			);
+
+			const column = new KanbanColumnComponent(
+				this.app,
+				this.plugin,
+				this.columnContainerEl,
+				config.title,
+				tasksForColumn,
+				{
+					...this.params,
+					onTaskStatusUpdate: (taskId: string, newValue: string) =>
+						this.handlePropertyUpdate(
+							taskId,
+							groupBy,
+							config.value,
+							newValue
+						),
+					onFilterApply: this.handleFilterApply,
+				}
+			);
+			this.addChild(column);
+			this.columns.push(column);
+		});
+	}
+
+	private generateDefaultColumns(
+		groupBy: string
+	): { title: string; value: any; id: string }[] {
+		switch (groupBy) {
+			case "priority":
+				return [
+					{ title: "🔺 Highest", value: 5, id: "priority-5" },
+					{ title: "⏫ High", value: 4, id: "priority-4" },
+					{ title: "🔼 Medium", value: 3, id: "priority-3" },
+					{ title: "🔽 Low", value: 2, id: "priority-2" },
+					{ title: "⏬ Lowest", value: 1, id: "priority-1" },
+					{ title: "No Priority", value: null, id: "priority-none" },
+				];
+			case "tags":
+				// Get unique tags from all tasks
+				const allTags = new Set<string>();
+				this.tasks.forEach((task) => {
+					if (task.tags) {
+						task.tags.forEach((tag) => allTags.add(tag));
+					}
+				});
+				const tagColumns = Array.from(allTags).map((tag) => ({
+					title: `#${tag}`,
+					value: tag,
+					id: `tag-${tag}`,
+				}));
+				tagColumns.push({
+					title: "No Tags",
+					value: "",
+					id: "tag-none",
+				});
+				return tagColumns;
+			case "project":
+				// Get unique projects from all tasks
+				const allProjects = new Set<string>();
+				this.tasks.forEach((task) => {
+					if (task.project) {
+						allProjects.add(task.project);
+					}
+				});
+				const projectColumns = Array.from(allProjects).map(
+					(project) => ({
+						title: project,
+						value: project,
+						id: `project-${project}`,
+					})
+				);
+				projectColumns.push({
+					title: "No Project",
+					value: "",
+					id: "project-none",
+				});
+				return projectColumns;
+			case "context":
+				// Get unique contexts from all tasks
+				const allContexts = new Set<string>();
+				this.tasks.forEach((task) => {
+					if (task.context) {
+						allContexts.add(task.context);
+					}
+				});
+				const contextColumns = Array.from(allContexts).map(
+					(context) => ({
+						title: `@${context}`,
+						value: context,
+						id: `context-${context}`,
+					})
+				);
+				contextColumns.push({
+					title: "No Context",
+					value: "",
+					id: "context-none",
+				});
+				return contextColumns;
+			case "dueDate":
+			case "scheduledDate":
+			case "startDate":
+				return [
+					{
+						title: "Overdue",
+						value: "overdue",
+						id: `${groupBy}-overdue`,
+					},
+					{ title: "Today", value: "today", id: `${groupBy}-today` },
+					{
+						title: "Tomorrow",
+						value: "tomorrow",
+						id: `${groupBy}-tomorrow`,
+					},
+					{
+						title: "This Week",
+						value: "thisWeek",
+						id: `${groupBy}-thisWeek`,
+					},
+					{
+						title: "Next Week",
+						value: "nextWeek",
+						id: `${groupBy}-nextWeek`,
+					},
+					{ title: "Later", value: "later", id: `${groupBy}-later` },
+					{ title: "No Date", value: null, id: `${groupBy}-none` },
+				];
+			case "filePath":
+				// Get unique file paths from all tasks
+				const allPaths = new Set<string>();
+				this.tasks.forEach((task) => {
+					if (task.filePath) {
+						allPaths.add(task.filePath);
+					}
+				});
+				return Array.from(allPaths).map((path) => ({
+					title: path.split("/").pop() || path, // Show just filename
+					value: path,
+					id: `path-${path.replace(/[^a-zA-Z0-9]/g, "-")}`,
+				}));
+			default:
+				return [{ title: "All Tasks", value: null, id: "all" }];
+		}
 	}
 
 	private updateColumnVisibility() {
@@ -593,37 +782,49 @@ export class KanbanComponent extends Component {
 		if (taskId && dropTargetColumnContent) {
 			const targetColumnEl =
 				dropTargetColumnContent.closest(".tg-kanban-column");
-			const targetStatusName = targetColumnEl
-				? (targetColumnEl as HTMLElement).dataset.statusName
+			const targetColumnTitle = targetColumnEl
+				? (targetColumnEl as HTMLElement).querySelector(
+						".tg-kanban-column-title"
+				  )?.textContent
 				: null;
 
-			if (targetStatusName) {
-				const targetStatusMark =
-					this.plugin.settings.taskStatusMarks[targetStatusName];
-				if (targetStatusMark !== undefined) {
-					console.log(
-						`Kanban requesting status update for task ${taskId} to status ${targetStatusName} (mark: ${targetStatusMark})`
-					);
-					if (this.params.onTaskStatusUpdate) {
-						try {
-							await this.params.onTaskStatusUpdate(
-								taskId,
-								targetStatusMark
-							);
-						} catch (error) {
-							console.error(
-								"Failed to request task status update:",
-								error
-							);
-						}
+			if (targetColumnTitle) {
+				const kanbanConfig =
+					this.plugin.settings.viewConfiguration.find(
+						(v) => v.id === "kanban"
+					)?.specificConfig as KanbanSpecificConfig;
+
+				const groupBy = kanbanConfig?.groupBy || "status";
+
+				if (groupBy === "status") {
+					// Handle status-based grouping (original logic)
+					const targetStatusMark =
+						this.plugin.settings.taskStatusMarks[targetColumnTitle];
+					if (targetStatusMark !== undefined) {
+						console.log(
+							`Kanban requesting status update for task ${taskId} to status ${targetColumnTitle} (mark: ${targetStatusMark})`
+						);
+						await this.handleStatusUpdate(taskId, targetStatusMark);
 					} else {
 						console.warn(
-							"onTaskStatusUpdate callback not provided to KanbanComponent"
+							`Could not find status mark for status name: ${targetColumnTitle}`
 						);
 					}
 				} else {
-					console.warn(
-						`Could not find status mark for status name: ${targetStatusName}`
+					// Handle property-based grouping
+					const targetValue = this.getColumnValueFromTitle(
+						targetColumnTitle,
+						groupBy,
+						kanbanConfig?.customColumns
+					);
+					console.log(
+						`Kanban requesting ${groupBy} update for task ${taskId} to value: ${targetValue}`
+					);
+					await this.handlePropertyUpdate(
+						taskId,
+						groupBy,
+						null,
+						targetValue
 					);
 				}
 			}
@@ -663,5 +864,419 @@ export class KanbanComponent extends Component {
 
 	public getColumnContainer(): HTMLElement {
 		return this.columnContainerEl;
+	}
+
+	private async handleStatusUpdate(
+		taskId: string,
+		newStatusMark: string
+	): Promise<void> {
+		if (this.params.onTaskStatusUpdate) {
+			try {
+				await this.params.onTaskStatusUpdate(taskId, newStatusMark);
+			} catch (error) {
+				console.error("Failed to update task status:", error);
+			}
+		}
+	}
+
+	private async handlePropertyUpdate(
+		taskId: string,
+		groupBy: string,
+		oldValue: any,
+		newValue: string
+	): Promise<void> {
+		// This method will handle updating task properties when dragged between columns
+		if (groupBy === "status") {
+			await this.handleStatusUpdate(taskId, newValue);
+			return;
+		}
+
+		// Find the task to update
+		const taskToUpdate = this.allTasks.find((task) => task.id === taskId);
+		if (!taskToUpdate) {
+			console.warn(
+				`Task with ID ${taskId} not found for property update`
+			);
+			return;
+		}
+
+		// Create updated task object
+		const updatedTask = { ...taskToUpdate };
+
+		// Update the specific property based on groupBy type
+		switch (groupBy) {
+			case "priority":
+				updatedTask.priority =
+					newValue === null || newValue === ""
+						? undefined
+						: Number(newValue);
+				break;
+			case "tags":
+				if (newValue === null || newValue === "") {
+					// Moving to "No Tags" column - remove all tags
+					updatedTask.tags = [];
+				} else {
+					// Moving to a specific tag column
+					// First, we need to determine which tag the task was originally in
+					const originalColumnTag = this.getTaskOriginalColumnValue(
+						taskToUpdate,
+						groupBy
+					);
+
+					// Remove the original tag if it exists and is different from the new value
+					let currentTags = updatedTask.tags || [];
+					if (
+						originalColumnTag &&
+						originalColumnTag !== "" &&
+						originalColumnTag !== newValue
+					) {
+						currentTags = currentTags.filter(
+							(tag) => tag !== originalColumnTag
+						);
+					}
+
+					// Add the new tag if it's not already present
+					if (!currentTags.includes(newValue)) {
+						currentTags.push(newValue);
+					}
+
+					updatedTask.tags = currentTags;
+				}
+				break;
+			case "project":
+				updatedTask.project =
+					newValue === null || newValue === "" ? undefined : newValue;
+				break;
+			case "context":
+				updatedTask.context =
+					newValue === null || newValue === "" ? undefined : newValue;
+				break;
+			case "dueDate":
+			case "scheduledDate":
+			case "startDate":
+				// For date fields, we need to convert the category back to an actual date
+				const dateValue = this.convertDateCategoryToTimestamp(newValue);
+				if (groupBy === "dueDate") {
+					updatedTask.dueDate = dateValue;
+				} else if (groupBy === "scheduledDate") {
+					updatedTask.scheduledDate = dateValue;
+				} else if (groupBy === "startDate") {
+					updatedTask.startDate = dateValue;
+				}
+				break;
+			default:
+				console.warn(
+					`Unsupported property type for update: ${groupBy}`
+				);
+				return;
+		}
+
+		// Update the task using TaskManager
+		try {
+			console.log(`Updating task ${taskId} ${groupBy} to:`, newValue);
+			await this.plugin.taskManager.updateTask(updatedTask);
+		} catch (error) {
+			console.error(
+				`Failed to update task ${taskId} property ${groupBy}:`,
+				error
+			);
+		}
+	}
+
+	private getTasksForProperty(groupBy: string, value: any): Task[] {
+		// Filter tasks based on the groupBy property and value
+		const tasksForProperty = this.tasks.filter((task) => {
+			switch (groupBy) {
+				case "priority":
+					if (value === null || value === "") {
+						return !task.priority;
+					}
+					return task.priority === value;
+				case "tags":
+					if (value === null || value === "") {
+						return !task.tags || task.tags.length === 0;
+					}
+					return task.tags && task.tags.includes(value);
+				case "project":
+					if (value === null || value === "") {
+						return !task.project;
+					}
+					return task.project === value;
+				case "context":
+					if (value === null || value === "") {
+						return !task.context;
+					}
+					return task.context === value;
+				case "dueDate":
+				case "scheduledDate":
+				case "startDate":
+					return this.matchesDateCategory(task, groupBy, value);
+				case "filePath":
+					return task.filePath === value;
+				default:
+					return true;
+			}
+		});
+
+		// Sort tasks within the property column based on selected sort option
+		tasksForProperty.sort((a, b) => {
+			return this.compareTasks(a, b, this.sortOption);
+		});
+
+		return tasksForProperty;
+	}
+
+	private matchesDateCategory(
+		task: Task,
+		dateField: string,
+		category: string
+	): boolean {
+		const now = new Date();
+		const today = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate()
+		);
+		const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+		const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+		const twoWeeksFromNow = new Date(
+			today.getTime() + 14 * 24 * 60 * 60 * 1000
+		);
+
+		let taskDate: number | undefined;
+		switch (dateField) {
+			case "dueDate":
+				taskDate = task.dueDate;
+				break;
+			case "scheduledDate":
+				taskDate = task.scheduledDate;
+				break;
+			case "startDate":
+				taskDate = task.startDate;
+				break;
+		}
+
+		if (!taskDate) {
+			return category === "none" || category === null || category === "";
+		}
+
+		const taskDateObj = new Date(taskDate);
+
+		switch (category) {
+			case "overdue":
+				return taskDateObj < today;
+			case "today":
+				return taskDateObj >= today && taskDateObj < tomorrow;
+			case "tomorrow":
+				return (
+					taskDateObj >= tomorrow &&
+					taskDateObj <
+						new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
+				);
+			case "thisWeek":
+				return taskDateObj >= tomorrow && taskDateObj < weekFromNow;
+			case "nextWeek":
+				return (
+					taskDateObj >= weekFromNow && taskDateObj < twoWeeksFromNow
+				);
+			case "later":
+				return taskDateObj >= twoWeeksFromNow;
+			case "none":
+			case null:
+			case "":
+				return false; // Already handled above
+			default:
+				return false;
+		}
+	}
+
+	private getColumnValueFromTitle(
+		title: string,
+		groupBy: string,
+		customColumns?: KanbanColumnConfig[]
+	): any {
+		if (customColumns && customColumns.length > 0) {
+			const column = customColumns.find((col) => col.title === title);
+			return column ? column.value : null;
+		}
+
+		// Handle default columns based on groupBy type
+		switch (groupBy) {
+			case "priority":
+				if (title.includes("Highest")) return 5;
+				if (title.includes("High")) return 4;
+				if (title.includes("Medium")) return 3;
+				if (title.includes("Low")) return 2;
+				if (title.includes("Lowest")) return 1;
+				if (title.includes("No Priority")) return null;
+				break;
+			case "tags":
+				if (title === "No Tags") return "";
+				return title.startsWith("#") ? title.substring(1) : title;
+			case "project":
+				if (title === "No Project") return "";
+				return title;
+			case "context":
+				if (title === "No Context") return "";
+				return title.startsWith("@") ? title.substring(1) : title;
+			case "dueDate":
+			case "scheduledDate":
+			case "startDate":
+				if (title === "Overdue") return "overdue";
+				if (title === "Today") return "today";
+				if (title === "Tomorrow") return "tomorrow";
+				if (title === "This Week") return "thisWeek";
+				if (title === "Next Week") return "nextWeek";
+				if (title === "Later") return "later";
+				if (title === "No Date") return null;
+				break;
+			case "filePath":
+				return title; // For file paths, the title is the value
+		}
+		return title;
+	}
+
+	private convertDateCategoryToTimestamp(
+		category: string
+	): number | undefined {
+		if (category === null || category === "" || category === "none") {
+			return undefined;
+		}
+
+		const now = new Date();
+		const today = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate()
+		);
+
+		switch (category) {
+			case "overdue":
+				// For overdue, we can't determine a specific date, so return undefined
+				// The user should manually set a specific date
+				return undefined;
+			case "today":
+				return today.getTime();
+			case "tomorrow":
+				return new Date(
+					today.getTime() + 24 * 60 * 60 * 1000
+				).getTime();
+			case "thisWeek":
+				// Set to end of this week (Sunday)
+				const daysUntilSunday = 7 - today.getDay();
+				return new Date(
+					today.getTime() + daysUntilSunday * 24 * 60 * 60 * 1000
+				).getTime();
+			case "nextWeek":
+				// Set to end of next week
+				const daysUntilNextSunday = 14 - today.getDay();
+				return new Date(
+					today.getTime() + daysUntilNextSunday * 24 * 60 * 60 * 1000
+				).getTime();
+			case "later":
+				// Set to one month from now
+				const oneMonthLater = new Date(today);
+				oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+				return oneMonthLater.getTime();
+			default:
+				return undefined;
+		}
+	}
+
+	private getTaskOriginalColumnValue(task: Task, groupBy: string): any {
+		// Determine which column the task currently belongs to based on its properties
+		switch (groupBy) {
+			case "tags":
+				// For tags, find which tag column this task would be in
+				// We need to check against the current column configuration
+				const kanbanConfig =
+					this.plugin.settings.viewConfiguration.find(
+						(v) => v.id === "kanban"
+					)?.specificConfig as KanbanSpecificConfig;
+
+				if (
+					kanbanConfig?.customColumns &&
+					kanbanConfig.customColumns.length > 0
+				) {
+					// Check custom columns
+					for (const column of kanbanConfig.customColumns) {
+						if (column.value === "" || column.value === null) {
+							// "No Tags" column
+							if (!task.tags || task.tags.length === 0) {
+								return "";
+							}
+						} else {
+							// Specific tag column
+							if (
+								task.tags &&
+								task.tags.includes(column.value as string)
+							) {
+								return column.value;
+							}
+						}
+					}
+				} else {
+					// Use default columns - find the first tag that matches existing columns
+					if (!task.tags || task.tags.length === 0) {
+						return "";
+					}
+					// Return the first tag (for simplicity, as we need to determine which column it came from)
+					return task.tags[0];
+				}
+				return "";
+			case "project":
+				return task.project || "";
+			case "context":
+				return task.context || "";
+			case "priority":
+				return task.priority || null;
+			case "dueDate":
+				return this.getDateCategory(task.dueDate);
+			case "scheduledDate":
+				return this.getDateCategory(task.scheduledDate);
+			case "startDate":
+				return this.getDateCategory(task.startDate);
+			case "filePath":
+				return task.filePath;
+			default:
+				return null;
+		}
+	}
+
+	private getDateCategory(timestamp: number | undefined): string {
+		if (!timestamp) {
+			return "none";
+		}
+
+		const now = new Date();
+		const today = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate()
+		);
+		const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+		const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+		const twoWeeksFromNow = new Date(
+			today.getTime() + 14 * 24 * 60 * 60 * 1000
+		);
+
+		const taskDate = new Date(timestamp);
+
+		if (taskDate < today) {
+			return "overdue";
+		} else if (taskDate >= today && taskDate < tomorrow) {
+			return "today";
+		} else if (
+			taskDate >= tomorrow &&
+			taskDate < new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
+		) {
+			return "tomorrow";
+		} else if (taskDate >= tomorrow && taskDate < weekFromNow) {
+			return "thisWeek";
+		} else if (taskDate >= weekFromNow && taskDate < twoWeeksFromNow) {
+			return "nextWeek";
+		} else {
+			return "later";
+		}
 	}
 }

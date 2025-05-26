@@ -257,6 +257,54 @@ export class ViewConfigModal extends Modal {
 				});
 		} else if (this.viewConfig.id === "kanban") {
 			new Setting(contentEl)
+				.setName(t("Group by"))
+				.setDesc(
+					t("Select which task property to use for creating columns")
+				)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("status", t("Status"))
+						.addOption("priority", t("Priority"))
+						.addOption("tags", t("Tags"))
+						.addOption("project", t("Project"))
+						.addOption("dueDate", t("Due Date"))
+						.addOption("scheduledDate", t("Scheduled Date"))
+						.addOption("startDate", t("Start Date"))
+						.addOption("context", t("Context"))
+						.addOption("filePath", t("File Path"))
+						.setValue(
+							(
+								this.viewConfig
+									.specificConfig as KanbanSpecificConfig
+							)?.groupBy || "status"
+						)
+						.onChange((value) => {
+							if (
+								!this.viewConfig.specificConfig ||
+								this.viewConfig.specificConfig.viewType !==
+									"kanban"
+							) {
+								this.viewConfig.specificConfig = {
+									viewType: "kanban",
+									showCheckbox: true,
+									hideEmptyColumns: false,
+									defaultSortField: "priority",
+									defaultSortOrder: "desc",
+									groupBy: value as any,
+								};
+							} else {
+								(
+									this.viewConfig
+										.specificConfig as KanbanSpecificConfig
+								).groupBy = value as any;
+							}
+							this.checkForChanges();
+							// Refresh the modal to show/hide custom columns settings
+							this.display();
+						});
+				});
+
+			new Setting(contentEl)
 				.setName(t("Show checkbox"))
 				.setDesc(t("Show a checkbox for each task in the kanban view."))
 				.addToggle((toggle) => {
@@ -275,6 +323,7 @@ export class ViewConfigModal extends Modal {
 								hideEmptyColumns: false,
 								defaultSortField: "priority",
 								defaultSortOrder: "desc",
+								groupBy: "status",
 							};
 						} else {
 							(
@@ -305,6 +354,7 @@ export class ViewConfigModal extends Modal {
 								hideEmptyColumns: value,
 								defaultSortField: "priority",
 								defaultSortOrder: "desc",
+								groupBy: "status",
 							};
 						} else {
 							(
@@ -346,6 +396,7 @@ export class ViewConfigModal extends Modal {
 									hideEmptyColumns: false,
 									defaultSortField: value as any,
 									defaultSortOrder: "desc",
+									groupBy: "status",
 								};
 							} else {
 								(
@@ -382,6 +433,7 @@ export class ViewConfigModal extends Modal {
 									hideEmptyColumns: false,
 									defaultSortField: "priority",
 									defaultSortOrder: value as any,
+									groupBy: "status",
 								};
 							} else {
 								(
@@ -392,6 +444,211 @@ export class ViewConfigModal extends Modal {
 							this.checkForChanges();
 						});
 				});
+
+			// Custom columns configuration for non-status grouping
+			const kanbanConfig = this.viewConfig
+				.specificConfig as KanbanSpecificConfig;
+			if (kanbanConfig?.groupBy && kanbanConfig.groupBy !== "status") {
+				new Setting(contentEl)
+					.setName(t("Custom Columns"))
+					.setDesc(
+						t(
+							"Configure custom columns for the selected grouping property"
+						)
+					)
+					.setHeading();
+
+				const columnsContainer = contentEl.createDiv({
+					cls: "kanban-columns-container",
+				});
+
+				const refreshColumnsList = () => {
+					columnsContainer.empty();
+
+					// Ensure customColumns exists
+					if (!kanbanConfig.customColumns) {
+						kanbanConfig.customColumns = [];
+					}
+
+					const columns = kanbanConfig.customColumns;
+
+					if (columns.length === 0) {
+						columnsContainer.createEl("p", {
+							text: t(
+								"No custom columns defined. Add columns below."
+							),
+							cls: "setting-item-description",
+						});
+					}
+
+					columns.forEach((column, index) => {
+						const columnSetting = new Setting(columnsContainer)
+							.setClass("kanban-column-row")
+							.addText((text) => {
+								text.setValue(column.title)
+									.setPlaceholder(t("Column Title"))
+									.onChange((value) => {
+										if (kanbanConfig.customColumns) {
+											kanbanConfig.customColumns[
+												index
+											].title = value;
+											this.checkForChanges();
+										}
+									});
+							})
+							.addText((text) => {
+								text.setValue(column.value?.toString() || "")
+									.setPlaceholder(t("Value"))
+									.onChange((value) => {
+										if (kanbanConfig.customColumns) {
+											// Handle different value types based on groupBy
+											let parsedValue:
+												| string
+												| number
+												| null = value;
+											if (
+												kanbanConfig.groupBy ===
+													"priority" &&
+												value
+											) {
+												const numValue =
+													parseInt(value);
+												parsedValue = isNaN(numValue)
+													? value
+													: numValue;
+											}
+											kanbanConfig.customColumns[
+												index
+											].value = parsedValue;
+											this.checkForChanges();
+										}
+									});
+							});
+
+						// Controls for reordering and deleting
+						columnSetting.addExtraButton((button) => {
+							button
+								.setIcon("arrow-up")
+								.setTooltip(t("Move Up"))
+								.setDisabled(index === 0)
+								.onClick(() => {
+									if (
+										index > 0 &&
+										kanbanConfig.customColumns
+									) {
+										const item =
+											kanbanConfig.customColumns.splice(
+												index,
+												1
+											)[0];
+										kanbanConfig.customColumns.splice(
+											index - 1,
+											0,
+											item
+										);
+										// Update order values
+										kanbanConfig.customColumns.forEach(
+											(col, i) => {
+												col.order = i;
+											}
+										);
+										this.checkForChanges();
+										refreshColumnsList();
+									}
+								});
+						});
+						columnSetting.addExtraButton((button) => {
+							button
+								.setIcon("arrow-down")
+								.setTooltip(t("Move Down"))
+								.setDisabled(index === columns.length - 1)
+								.onClick(() => {
+									if (
+										index < columns.length - 1 &&
+										kanbanConfig.customColumns
+									) {
+										const item =
+											kanbanConfig.customColumns.splice(
+												index,
+												1
+											)[0];
+										kanbanConfig.customColumns.splice(
+											index + 1,
+											0,
+											item
+										);
+										// Update order values
+										kanbanConfig.customColumns.forEach(
+											(col, i) => {
+												col.order = i;
+											}
+										);
+										this.checkForChanges();
+										refreshColumnsList();
+									}
+								});
+						});
+						columnSetting.addExtraButton((button) => {
+							button
+								.setIcon("trash")
+								.setTooltip(t("Remove Column"))
+								.onClick(() => {
+									if (kanbanConfig.customColumns) {
+										kanbanConfig.customColumns.splice(
+											index,
+											1
+										);
+										// Update order values
+										kanbanConfig.customColumns.forEach(
+											(col, i) => {
+												col.order = i;
+											}
+										);
+										this.checkForChanges();
+										refreshColumnsList();
+									}
+								});
+							button.extraSettingsEl.addClass("mod-warning");
+						});
+					});
+
+					// Button to add a new column
+					new Setting(columnsContainer)
+						.addButton((button) => {
+							button
+								.setButtonText(t("Add Column"))
+								.setCta()
+								.onClick(() => {
+									if (!kanbanConfig.customColumns) {
+										kanbanConfig.customColumns = [];
+									}
+									const newColumn = {
+										id: `column_${Date.now()}`,
+										title: t("New Column"),
+										value: "",
+										order: kanbanConfig.customColumns
+											.length,
+									};
+									kanbanConfig.customColumns.push(newColumn);
+									this.checkForChanges();
+									refreshColumnsList();
+								});
+						})
+						.addButton((button) => {
+							button
+								.setButtonText(t("Reset Columns"))
+								.onClick(() => {
+									if (kanbanConfig.customColumns) {
+										kanbanConfig.customColumns = [];
+										this.checkForChanges();
+										refreshColumnsList();
+									}
+								});
+						});
+				};
+
+				refreshColumnsList();
+			}
 		} else if (this.viewConfig.id === "forecast") {
 			new Setting(contentEl)
 				.setName(t("First day of week"))
