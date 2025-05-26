@@ -387,43 +387,86 @@
 
 /* Filter Config Modal Styles */
 .filter-config-details {
-	margin-top: var(--size-4-2);
-	padding: var(--size-4-2);
+	margin-top: var(--size-4-3);
+	padding: var(--size-4-3);
 	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary);
+	border-radius: var(--radius-l);
+	background: linear-gradient(
+		135deg,
+		var(--background-secondary) 0%,
+		var(--background-primary-alt) 100%
+	);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	transition: all 0.2s ease-in-out;
+}
+
+.filter-config-details:hover {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	transform: translateY(-1px);
+}
+
+.filter-config-details h3 {
+	margin: 0 0 var(--size-4-2) 0;
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	color: var(--text-accent);
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+.filter-config-details p {
+	margin: var(--size-2-2) 0;
+	line-height: 1.5;
+	color: var(--text-normal);
 }
 
 .filter-config-meta {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	margin: var(--size-2-1) 0;
+	padding: var(--size-2-1) var(--size-2-2);
+	background-color: var(--background-modifier-form-field);
+	border-radius: var(--radius-s);
+	border-left: 3px solid var(--interactive-accent);
 }
 
 .filter-config-summary {
-	margin-top: var(--size-4-2);
-	padding-top: var(--size-2-2);
-	border-top: 1px solid var(--background-modifier-border);
+	margin-top: var(--size-4-3);
+	padding: var(--size-4-2) 0 0 0;
+	border-top: 2px solid var(--background-modifier-border);
 }
 
 .filter-config-summary h4 {
-	margin: 0 0 var(--size-2-2) 0;
+	margin: 0 0 var(--size-2-3) 0;
 	font-size: var(--font-ui-small);
+	font-weight: 600;
 	color: var(--text-normal);
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
 }
 
 .filter-config-summary p {
 	margin: var(--size-2-1) 0;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
+	padding: var(--size-2-1) var(--size-2-2);
+	background-color: var(--background-primary-alt);
+	border-radius: var(--radius-s);
 }
 
 .filter-config-buttons {
-	margin-top: var(--size-4-2);
+	margin-top: var(--size-4-3);
+	padding-top: var(--size-4-2);
 }
 
 .filter-config-name-highlight {
 	font-weight: 600;
 	color: var(--text-accent);
 	font-style: italic;
+	padding: var(--size-2-1) var(--size-2-2);
+	background-color: var(--background-modifier-success);
+	border-radius: var(--radius-s);
+	border: 1px solid var(--color-accent);
 }

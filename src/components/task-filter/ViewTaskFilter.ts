@@ -1072,13 +1072,33 @@ export class TaskFilterComponent extends Component {
 
 	// Public method to load filter state
 	public loadFilterState(state: RootFilterState): void {
-		this.groupsSortable?.destroy();
-		this.groupsSortable = undefined;
+		// Safely destroy sortable instances
+		try {
+			if (this.groupsSortable) {
+				this.groupsSortable.destroy();
+				this.groupsSortable = undefined;
+			}
+		} catch (error) {
+			console.warn("Error destroying groups sortable:", error);
+			this.groupsSortable = undefined;
+		}
+
+		// Safely destroy filter list sortable instances
 		this.filterGroupsContainerEl
 			?.querySelectorAll(".filters-list")
 			.forEach((listEl) => {
-				if ((listEl as any).sortableInstance) {
-					((listEl as any).sortableInstance as Sortable).destroy();
+				try {
+					if ((listEl as any).sortableInstance) {
+						(
+							(listEl as any).sortableInstance as Sortable
+						).destroy();
+						(listEl as any).sortableInstance = undefined;
+					}
+				} catch (error) {
+					console.warn(
+						"Error destroying filter list sortable:",
+						error
+					);
 					(listEl as any).sortableInstance = undefined;
 				}
 			});

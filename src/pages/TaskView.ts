@@ -50,6 +50,8 @@ import {
 	FilterGroup,
 	RootFilterState,
 } from "../components/task-filter/ViewTaskFilter";
+import { FilterConfigModal } from "../components/task-filter/FilterConfigModal";
+import { SavedFilterConfig } from "../common/setting-definition";
 
 export const TASK_VIEW_TYPE = "task-genius-view";
 
@@ -590,6 +592,49 @@ export class TaskView extends ItemView {
 	}
 
 	onPaneMenu(menu: Menu) {
+		// Add saved filters section
+		const savedConfigs = this.plugin.settings.filterConfig.savedConfigs;
+		if (savedConfigs && savedConfigs.length > 0) {
+			menu.addItem((item) => {
+				item.setTitle(t("Saved Filters"));
+				item.setIcon("filter");
+				const submenu = item.setSubmenu();
+
+				savedConfigs.forEach((config) => {
+					submenu.addItem((subItem) => {
+						subItem.setTitle(config.name);
+						subItem.setIcon("search");
+						if (config.description) {
+							subItem.setSection(config.description);
+						}
+						subItem.onClick(() => {
+							this.applySavedFilter(config);
+						});
+					});
+				});
+
+				submenu.addSeparator();
+				submenu.addItem((subItem) => {
+					subItem.setTitle(t("Manage Saved Filters"));
+					subItem.setIcon("settings");
+					subItem.onClick(() => {
+						const modal = new FilterConfigModal(
+							this.app,
+							this.plugin,
+							"load",
+							undefined,
+							undefined,
+							(config) => {
+								this.applySavedFilter(config);
+							}
+						);
+						modal.open();
+					});
+				});
+			});
+			menu.addSeparator();
+		}
+
 		if (
 			this.currentFilterState &&
 			this.currentFilterState.filterGroups &&
@@ -1194,5 +1239,20 @@ export class TaskView extends ItemView {
 		this.app.saveLocalStorage("task-genius-view-filter", null);
 		this.applyCurrentFilter();
 		this.updateActionButtons();
+	}
+
+	// 应用保存的筛选器配置
+	private applySavedFilter(config: SavedFilterConfig) {
+		console.log("应用保存的筛选器:", config.name);
+		this.currentFilterState = JSON.parse(
+			JSON.stringify(config.filterState)
+		);
+		this.app.saveLocalStorage(
+			"task-genius-view-filter",
+			this.currentFilterState
+		);
+		this.applyCurrentFilter();
+		this.updateActionButtons();
+		new Notice(t("Filter applied: ") + config.name);
 	}
 }
