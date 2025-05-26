@@ -573,11 +573,11 @@ export class KanbanComponent extends Component {
 					}
 				});
 				const tagColumns = Array.from(allTags).map((tag) => ({
-					title: `#${tag}`,
+					title: `${tag}`,
 					value: tag,
 					id: `tag-${tag}`,
 				}));
-				tagColumns.push({
+				tagColumns.unshift({
 					title: "No Tags",
 					value: "",
 					id: "tag-none",
@@ -778,8 +778,10 @@ export class KanbanComponent extends Component {
 		console.log("Kanban sort end:", event.oldIndex, event.newIndex);
 		const taskId = event.item.dataset.taskId;
 		const dropTargetColumnContent = event.to;
+		const sourceColumnContent = event.from;
 
 		if (taskId && dropTargetColumnContent) {
+			// Get target column information
 			const targetColumnEl =
 				dropTargetColumnContent.closest(".tg-kanban-column");
 			const targetColumnTitle = targetColumnEl
@@ -788,7 +790,16 @@ export class KanbanComponent extends Component {
 				  )?.textContent
 				: null;
 
-			if (targetColumnTitle) {
+			// Get source column information
+			const sourceColumnEl =
+				sourceColumnContent.closest(".tg-kanban-column");
+			const sourceColumnTitle = sourceColumnEl
+				? (sourceColumnEl as HTMLElement).querySelector(
+						".tg-kanban-column-title"
+				  )?.textContent
+				: null;
+
+			if (targetColumnTitle && sourceColumnTitle) {
 				const kanbanConfig =
 					this.plugin.settings.viewConfiguration.find(
 						(v) => v.id === "kanban"
@@ -817,13 +828,18 @@ export class KanbanComponent extends Component {
 						groupBy,
 						kanbanConfig?.customColumns
 					);
+					const sourceValue = this.getColumnValueFromTitle(
+						sourceColumnTitle,
+						groupBy,
+						kanbanConfig?.customColumns
+					);
 					console.log(
-						`Kanban requesting ${groupBy} update for task ${taskId} to value: ${targetValue}`
+						`Kanban requesting ${groupBy} update for task ${taskId} from ${sourceValue} to value: ${targetValue}`
 					);
 					await this.handlePropertyUpdate(
 						taskId,
 						groupBy,
-						null,
+						sourceValue,
 						targetValue
 					);
 				}
@@ -917,29 +933,59 @@ export class KanbanComponent extends Component {
 					updatedTask.tags = [];
 				} else {
 					// Moving to a specific tag column
-					// First, we need to determine which tag the task was originally in
-					const originalColumnTag = this.getTaskOriginalColumnValue(
-						taskToUpdate,
-						groupBy
-					);
-
-					// Remove the original tag if it exists and is different from the new value
+					// Use the oldValue parameter to determine which tag to remove
 					let currentTags = updatedTask.tags || [];
-					if (
-						originalColumnTag &&
-						originalColumnTag !== "" &&
-						originalColumnTag !== newValue
-					) {
+
+					console.log("Tags update - current tags:", currentTags);
+					console.log("Tags update - oldValue:", oldValue);
+					console.log("Tags update - newValue:", newValue);
+
+					// Remove the old tag if it exists and is different from the new value
+					if (oldValue && oldValue !== "" && oldValue !== newValue) {
+						// Try to match the oldValue with existing tags
+						// Handle both with and without # prefix
+						const oldTagVariants = [
+							oldValue,
+							`#${oldValue}`,
+							oldValue.startsWith("#")
+								? oldValue.substring(1)
+								: oldValue,
+						];
+
 						currentTags = currentTags.filter(
-							(tag) => tag !== originalColumnTag
+							(tag) => !oldTagVariants.includes(tag)
 						);
+						console.log("Tags after removing old:", currentTags);
 					}
 
 					// Add the new tag if it's not already present
-					if (!currentTags.includes(newValue)) {
-						currentTags.push(newValue);
+					// Handle both with and without # prefix
+					const newTagVariants = [
+						newValue,
+						`#${newValue}`,
+						newValue.startsWith("#")
+							? newValue.substring(1)
+							: newValue,
+					];
+
+					const hasNewTag = currentTags.some((tag) =>
+						newTagVariants.includes(tag)
+					);
+					if (!hasNewTag) {
+						// Add the tag in the same format as existing tags, or without # if no existing tags
+						const tagToAdd =
+							currentTags.length > 0 &&
+							currentTags[0].startsWith("#")
+								? newValue.startsWith("#")
+									? newValue
+									: `#${newValue}`
+								: newValue.startsWith("#")
+								? newValue.substring(1)
+								: newValue;
+						currentTags.push(tagToAdd);
 					}
 
+					console.log("Tags after adding new:", currentTags);
 					updatedTask.tags = currentTags;
 				}
 				break;
@@ -973,7 +1019,12 @@ export class KanbanComponent extends Component {
 
 		// Update the task using TaskManager
 		try {
-			console.log(`Updating task ${taskId} ${groupBy} to:`, newValue);
+			console.log(
+				`Updating task ${taskId} ${groupBy} from:`,
+				oldValue,
+				"to:",
+				newValue
+			);
 			await this.plugin.taskManager.updateTask(updatedTask);
 		} catch (error) {
 			console.error(
@@ -1095,6 +1146,7 @@ export class KanbanComponent extends Component {
 		groupBy: string,
 		customColumns?: KanbanColumnConfig[]
 	): any {
+		console.log("customColumns", customColumns);
 		if (customColumns && customColumns.length > 0) {
 			const column = customColumns.find((col) => col.title === title);
 			return column ? column.value : null;
@@ -1112,7 +1164,9 @@ export class KanbanComponent extends Component {
 				break;
 			case "tags":
 				if (title === "No Tags") return "";
-				return title.startsWith("#") ? title.substring(1) : title;
+				return title.startsWith("#")
+					? title.trim().substring(1)
+					: title;
 			case "project":
 				if (title === "No Project") return "";
 				return title;
