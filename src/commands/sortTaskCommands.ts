@@ -271,6 +271,7 @@ function compareTasks<
 		startDate?: number;
 		scheduledDate?: number;
 		content?: string;
+		line?: number;
 		lineNumber?: number;
 	}
 >(
@@ -365,6 +366,10 @@ function compareTasks<
 			const comparison = sortCollator.compare(a.content, b.content);
 			return order === "asc" ? comparison : -comparison;
 		},
+
+		lineNumber: (a: T, b: T, order: "asc" | "desc") => {
+			return (a.line || 0) - (b.line || 0);
+		},
 	};
 
 	// 通用日期排序函数
@@ -411,7 +416,12 @@ function compareTasks<
 
 	// Maintain original relative order if all criteria are equal
 	// 检查是否有lineNumber属性
-	if (taskA.lineNumber !== undefined && taskB.lineNumber !== undefined) {
+	if (taskA.line !== undefined && taskB.line !== undefined) {
+		return taskA.line - taskB.line;
+	} else if (
+		taskA.lineNumber !== undefined &&
+		taskB.lineNumber !== undefined
+	) {
 		return taskA.lineNumber - taskB.lineNumber;
 	}
 	return 0;
@@ -481,7 +491,7 @@ export function sortTasks<
 		startDate?: number;
 		scheduledDate?: number;
 		content?: string;
-		lineNumber?: number;
+		line?: number;
 		children?: any[]; // Accept any children type
 	}
 >(

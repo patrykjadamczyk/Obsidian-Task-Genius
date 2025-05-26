@@ -2829,6 +2829,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 								.addOption("startDate", t("Start Date"))
 								.addOption("scheduledDate", t("Scheduled Date"))
 								.addOption("content", t("Content"))
+								.addOption("lineNumber", t("Line Number"))
 								.setValue(criterion.field)
 								.onChange((value: SortCriterion["field"]) => {
 									this.plugin.settings.sortCriteria[

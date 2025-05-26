@@ -286,7 +286,8 @@ export interface SortCriterion {
 		| "dueDate"
 		| "startDate"
 		| "scheduledDate"
-		| "content"; // Fields to sort by
+		| "content"
+		| "lineNumber"; // Fields to sort by
 	order: "asc" | "desc"; // Sort order
 }
 
