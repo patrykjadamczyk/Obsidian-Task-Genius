@@ -575,21 +575,20 @@ export function filterTasks(
 		const query = filterRules.pathIncludes
 			.split(",")
 			.filter((p) => p.trim() !== "")
-			.map((p) => p.trim().toLocaleLowerCase());
+			.map((p) => p.trim().toLowerCase());
 		filtered = filtered.filter((task) =>
-			query.some((q) => task.filePath.toLocaleLowerCase().includes(q))
+			query.some((q) => task.filePath.toLowerCase().includes(q))
 		);
 	}
+
 	if (filterRules.pathExcludes) {
 		const query = filterRules.pathExcludes
 			.split(",")
 			.filter((p) => p.trim() !== "")
-			.map((p) => p.trim().toLocaleLowerCase());
+			.map((p) => p.trim().toLowerCase());
 		filtered = filtered.filter((task) => {
 			// Only exclude if ALL exclusion patterns are not found in the path
-			return !query.some((q) =>
-				task.filePath.toLocaleLowerCase().includes(q)
-			);
+			return !query.some((q) => task.filePath.toLowerCase().includes(q));
 		});
 	}
 
