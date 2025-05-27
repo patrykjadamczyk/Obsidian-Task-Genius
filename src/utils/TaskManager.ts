@@ -1388,25 +1388,60 @@ export class TaskManager extends Component {
 		// Create the task markdown with the correct list marker
 		const useDataviewFormat =
 			this.plugin.settings.preferMetadataFormat === "dataview";
-		// Start with the basic task using the extracted list marker
-		let newTaskLine = `${indentation}${listMarker}[ ] ${completedTask.content}`;
+
+		// Extract clean content without any existing tags, project tags, or context tags
+		let cleanContent = completedTask.content;
+
+		// Remove all tags from the content to avoid duplication
+		if (completedTask.tags && completedTask.tags.length > 0) {
+			// Get a unique list of tags to avoid processing duplicates
+			const uniqueTags = [...new Set(completedTask.tags)];
+
+			// Remove each tag from the content
+			for (const tag of uniqueTags) {
+				// Create a regex that looks for the tag preceded by whitespace or at start, and followed by word boundary
+				const tagRegex = new RegExp(
+					`(^|\\s)${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+					"g"
+				);
+				cleanContent = cleanContent.replace(tagRegex, " ").trim();
+			}
+		}
+
+		// Remove project tags that might not be in the tags array
+		if (completedTask.project) {
+			const projectTag = `#project/${completedTask.project}`;
+			const projectTagRegex = new RegExp(
+				`(^|\\s)${projectTag.replace(
+					/[.*+?^${}()|[\]\\]/g,
+					"\\$&"
+				)}\\b`,
+				"g"
+			);
+			cleanContent = cleanContent.replace(projectTagRegex, " ").trim();
+		}
+
+		// Remove context tags that might not be in the tags array
+		if (completedTask.context) {
+			const contextTag = `@${completedTask.context}`;
+			const contextTagRegex = new RegExp(
+				`(^|\\s)${contextTag.replace(
+					/[.*+?^${}()|[\]\\]/g,
+					"\\$&"
+				)}\\b`,
+				"g"
+			);
+			cleanContent = cleanContent.replace(contextTagRegex, " ").trim();
+		}
+
+		// Normalize whitespace
+		cleanContent = cleanContent.replace(/\s+/g, " ").trim();
+
+		// Start with the basic task using the extracted list marker and clean content
+		let newTaskLine = `${indentation}${listMarker}[ ] ${cleanContent}`;
 
 		// Add metadata based on format preference
 		const metadata = [];
-
-		// Create sets to track existing project and context tags
-		const existingProjectTags = new Set<string>();
-		const existingContextTags = new Set<string>();
-
-		if (completedTask.tags && completedTask.tags.length > 0) {
-			completedTask.tags.forEach((tag) => {
-				if (tag.startsWith("#project/")) {
-					existingProjectTags.add(tag.substring("#project/".length));
-				} else if (tag.startsWith("@")) {
-					existingContextTags.add(tag.substring(1));
-				}
-			});
-		}
 
 		// 1. Tags (excluding project/context tags that are handled separately)
 		if (completedTask.tags && completedTask.tags.length > 0) {
@@ -1424,7 +1459,11 @@ export class TaskManager extends Component {
 			});
 
 			if (tagsToAdd.length > 0) {
-				metadata.push(...tagsToAdd);
+				// Ensure uniqueness and proper formatting
+				const uniqueTagsToAdd = [...new Set(tagsToAdd)].map((tag) =>
+					tag.startsWith("#") ? tag : `#${tag}`
+				);
+				metadata.push(...uniqueTagsToAdd);
 			}
 		}
 
@@ -1446,15 +1485,10 @@ export class TaskManager extends Component {
 			if (useDataviewFormat) {
 				metadata.push(`[context:: ${completedTask.context}]`);
 			} else {
-				// 仅当上下文不在已有上下文标签集合中时才添加
-				if (!existingContextTags.has(completedTask.context)) {
-					metadata.push(`@${completedTask.context}`);
-				} else {
-					// 上下文已在标签中，确保它被添加到标签列表
-					const contextTag = `@${completedTask.context}`;
-					if (!metadata.includes(contextTag)) {
-						metadata.push(contextTag);
-					}
+				const contextTag = `@${completedTask.context}`;
+				// Only add context tag if it's not already in the metadata
+				if (!metadata.includes(contextTag)) {
+					metadata.push(contextTag);
 				}
 			}
 		}

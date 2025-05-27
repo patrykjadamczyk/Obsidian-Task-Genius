@@ -16,8 +16,8 @@ import { t } from "../../translations/helper"; // Added import for t
 import {
 	FilterComponent,
 	buildFilterOptionsFromTasks,
-} from "../view-filter/filter";
-import { ActiveFilter } from "../view-filter/filter-type";
+} from "../inview-filter/filter";
+import { ActiveFilter } from "../inview-filter/filter-type";
 import {
 	KanbanSpecificConfig,
 	KanbanColumnConfig,
