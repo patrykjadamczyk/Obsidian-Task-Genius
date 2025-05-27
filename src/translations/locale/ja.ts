@@ -1164,6 +1164,35 @@ const translations = {
 	"A link to the current file will be added to the parent task of the moved incomplete tasks.":
 		"移動した未完了タスクの親タスクに現在のファイルへのリンクが追加されます。",
 	"Line Number": "行番号",
+	"Clear Date": "日付をクリア",
+	"Copy view": "ビューをコピー",
+	"View copied successfully: ": "ビューのコピーが成功しました：",
+	"Copy of ": "コピー ",
+	"Copy view: ": "ビューをコピー：",
+	"Creating a copy based on: ": "以下に基づいてコピーを作成中：",
+	"You can modify all settings below. The original view will remain unchanged.":
+		"以下のすべての設定を変更できます。元のビューは変更されません。",
+	"Tasks Plugin Detected": "Tasksプラグインが検出されました",
+	"Current status management and date management may conflict with the Tasks plugin. Please check the ":
+		"現在のステータス管理と日付管理はTasksプラグインと競合する可能性があります。",
+	"compatibility documentation": "互換性ドキュメント",
+	" for more information.": "を確認してください。",
+	"Auto Date Manager": "自動日付管理",
+	"Automatically manage dates based on task status changes":
+		"タスクステータスの変更に基づいて日付を自動管理",
+	"Enable auto date manager": "自動日付管理を有効にする",
+	"Toggle this to enable automatic date management when task status changes. Dates will be added/removed based on your preferred metadata format (Tasks emoji format or Dataview format).":
+		"タスクステータスが変更されたときの自動日付管理を有効にするトグル。日付は、お好みのメタデータ形式（Tasks絵文字形式またはDataview形式）に基づいて追加/削除されます。",
+	"Manage completion dates": "完了日を管理",
+	"Automatically add completion dates when tasks are marked as completed, and remove them when changed to other statuses.":
+		"タスクが完了としてマークされたときに完了日を自動的に追加し、他のステータスに変更されたときに削除します。",
+	"Manage start dates": "開始日を管理",
+	"Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.":
+		"タスクが進行中としてマークされたときに開始日を自動的に追加し、他のステータスに変更されたときに削除します。",
+	"Manage cancelled dates": "キャンセル日を管理",
+	"Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.":
+		"タスクが放棄としてマークされたときにキャンセル日を自動的に追加し、他のステータスに変更されたときに削除します。",
+	"Copy View": "ビューをコピー",
 };
 
 export default translations;

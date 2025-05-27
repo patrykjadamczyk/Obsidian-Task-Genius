@@ -937,7 +937,29 @@ const translations = {
   "Incomplete custom marker text": "Incomplete custom marker text",
   "With current file link for incomplete tasks": "With current file link for incomplete tasks",
   "A link to the current file will be added to the parent task of the moved incomplete tasks.": "A link to the current file will be added to the parent task of the moved incomplete tasks.",
-  "Line Number": "Line Number"
+  "Line Number": "Line Number",
+  "Clear Date": "Clear Date",
+  "Copy view": "Copy view",
+  "View copied successfully: ": "View copied successfully: ",
+  "Copy of ": "Copy of ",
+  "Copy view: ": "Copy view: ",
+  "Creating a copy based on: ": "Creating a copy based on: ",
+  "You can modify all settings below. The original view will remain unchanged.": "You can modify all settings below. The original view will remain unchanged.",
+  "Tasks Plugin Detected": "Tasks Plugin Detected",
+  "Current status management and date management may conflict with the Tasks plugin. Please check the ": "Current status management and date management may conflict with the Tasks plugin. Please check the ",
+  "compatibility documentation": "compatibility documentation",
+  " for more information.": " for more information.",
+  "Auto Date Manager": "Auto Date Manager",
+  "Automatically manage dates based on task status changes": "Automatically manage dates based on task status changes",
+  "Enable auto date manager": "Enable auto date manager",
+  "Toggle this to enable automatic date management when task status changes. Dates will be added/removed based on your preferred metadata format (Tasks emoji format or Dataview format).": "Toggle this to enable automatic date management when task status changes. Dates will be added/removed based on your preferred metadata format (Tasks emoji format or Dataview format).",
+  "Manage completion dates": "Manage completion dates",
+  "Automatically add completion dates when tasks are marked as completed, and remove them when changed to other statuses.": "Automatically add completion dates when tasks are marked as completed, and remove them when changed to other statuses.",
+  "Manage start dates": "Manage start dates",
+  "Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.": "Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.",
+  "Manage cancelled dates": "Manage cancelled dates",
+  "Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.": "Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.",
+  "Copy View": "Copy View"
 };
 
 export default translations;

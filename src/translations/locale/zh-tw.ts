@@ -1114,6 +1114,35 @@ const translations = {
 	"A link to the current file will be added to the parent task of the moved incomplete tasks.":
 		"將為移動的未完成任務的父任務添加指向當前文件的鏈接。",
 	"Line Number": "行號",
+	"Clear Date": "清除日期",
+	"Copy view": "複製視圖",
+	"View copied successfully: ": "視圖複製成功：",
+	"Copy of ": "副本 ",
+	"Copy view: ": "複製視圖：",
+	"Creating a copy based on: ": "基於以下內容創建副本：",
+	"You can modify all settings below. The original view will remain unchanged.":
+		"您可以修改下面的所有設置。原始視圖將保持不變。",
+	"Tasks Plugin Detected": "檢測到 Tasks 插件",
+	"Current status management and date management may conflict with the Tasks plugin. Please check the ":
+		"當前的狀態管理和日期管理可能與 Tasks 插件衝突。請查看",
+	"compatibility documentation": "兼容性文檔",
+	" for more information.": "以獲取更多信息。",
+	"Auto Date Manager": "自動日期管理器",
+	"Automatically manage dates based on task status changes":
+		"根據任務狀態變化自動管理日期",
+	"Enable auto date manager": "啟用自動日期管理器",
+	"Toggle this to enable automatic date management when task status changes. Dates will be added/removed based on your preferred metadata format (Tasks emoji format or Dataview format).":
+		"切換此選項以在任務狀態更改時啟用自動日期管理。日期將根據您首選的元數據格式（Tasks 表情符號格式或 Dataview 格式）添加/刪除。",
+	"Manage completion dates": "管理完成日期",
+	"Automatically add completion dates when tasks are marked as completed, and remove them when changed to other statuses.":
+		"當任務標記為已完成時自動添加完成日期，當更改為其他狀態時刪除它們。",
+	"Manage start dates": "管理開始日期",
+	"Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.":
+		"當任務標記為進行中時自動添加開始日期，當更改為其他狀態時刪除它們。",
+	"Manage cancelled dates": "管理取消日期",
+	"Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.":
+		"當任務標記為已放棄時自動添加取消日期，當更改為其他狀態時刪除它們。",
+	"Copy View": "複製視圖",
 };
 
 export default translations;
