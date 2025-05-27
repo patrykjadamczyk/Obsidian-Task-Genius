@@ -100,122 +100,160 @@ class PriorityWidget extends WidgetType {
 	}
 
 	toDOM(): HTMLElement {
-		const wrapper = createEl("span", {
-			cls: "priority-widget",
-			attr: {
-				"aria-label": t("Task Priority"),
-			},
-		});
+		try {
+			const wrapper = createEl("span", {
+				cls: "priority-widget",
+				attr: {
+					"aria-label": t("Task Priority"),
+				},
+			});
 
-		if (this.isLetterFormat) {
-			// Create spans for letter format priority [#A]
-			const leftBracket = document.createElement("span");
-			leftBracket.classList.add(
-				"cm-formatting",
-				"cm-formatting-link",
-				"cm-hmd-barelink",
-				"cm-link",
-				"cm-list-1"
-			);
-			leftBracket.setAttribute("spellcheck", "false");
-			leftBracket.textContent = "[";
+			if (this.isLetterFormat) {
+				// Create spans for letter format priority [#A]
+				const leftBracket = document.createElement("span");
+				leftBracket.classList.add(
+					"cm-formatting",
+					"cm-formatting-link",
+					"cm-hmd-barelink",
+					"cm-link",
+					"cm-list-1"
+				);
+				leftBracket.setAttribute("spellcheck", "false");
+				leftBracket.textContent = "[";
 
-			const priority = document.createElement("span");
-			priority.classList.add("cm-hmd-barelink", "cm-link", "cm-list-1");
-			priority.textContent = this.currentPriority.slice(1, -1); // Remove brackets
+				const priority = document.createElement("span");
+				priority.classList.add(
+					"cm-hmd-barelink",
+					"cm-link",
+					"cm-list-1"
+				);
+				priority.textContent = this.currentPriority.slice(1, -1); // Remove brackets
 
-			const rightBracket = document.createElement("span");
-			rightBracket.classList.add(
-				"cm-formatting",
-				"cm-formatting-link",
-				"cm-hmd-barelink",
-				"cm-link",
-				"cm-list-1"
-			);
-			rightBracket.setAttribute("spellcheck", "false");
-			rightBracket.textContent = "]";
+				const rightBracket = document.createElement("span");
+				rightBracket.classList.add(
+					"cm-formatting",
+					"cm-formatting-link",
+					"cm-hmd-barelink",
+					"cm-link",
+					"cm-list-1"
+				);
+				rightBracket.setAttribute("spellcheck", "false");
+				rightBracket.textContent = "]";
 
-			wrapper.appendChild(leftBracket);
-			wrapper.appendChild(priority);
-			wrapper.appendChild(rightBracket);
-		} else {
-			const priorityText = document.createElement("span");
-			priorityText.classList.add("task-priority");
-			priorityText.textContent = this.currentPriority;
-			wrapper.appendChild(priorityText);
+				wrapper.appendChild(leftBracket);
+				wrapper.appendChild(priority);
+				wrapper.appendChild(rightBracket);
+			} else {
+				const priorityText = document.createElement("span");
+				priorityText.classList.add("task-priority");
+				priorityText.textContent = this.currentPriority;
+				wrapper.appendChild(priorityText);
+			}
+
+			// Handle click to show priority menu
+			wrapper.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.showPriorityMenu(e);
+			});
+
+			return wrapper;
+		} catch (error) {
+			console.error("Error creating priority widget DOM:", error);
+			// Return a fallback element to prevent crashes
+			const fallback = createEl("span", {
+				cls: "priority-widget-error",
+				text: this.currentPriority,
+			});
+			return fallback;
 		}
-
-		// Handle click to show priority menu
-		wrapper.addEventListener("click", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			this.showPriorityMenu(e);
-		});
-
-		return wrapper;
 	}
 
 	private showPriorityMenu(e: MouseEvent) {
-		const menu = new Menu();
+		try {
+			const menu = new Menu();
 
-		if (this.isLetterFormat) {
-			// Letter format priorities (A, B, C)
-			Object.entries(LETTER_PRIORITIES).forEach(([key, priority]) => {
+			if (this.isLetterFormat) {
+				// Letter format priorities (A, B, C)
+				Object.entries(LETTER_PRIORITIES).forEach(([key, priority]) => {
+					menu.addItem((item) => {
+						item.setTitle(priority.text);
+						item.onClick(() => {
+							this.setPriority(`[#${key}]`);
+						});
+					});
+				});
+
+				// Add option to remove priority
 				menu.addItem((item) => {
-					item.setTitle(priority.text);
+					item.setTitle(t("Remove Priority"));
 					item.onClick(() => {
-						this.setPriority(`[#${key}]`);
+						this.removePriority();
 					});
 				});
-			});
+			} else {
+				// Emoji format priorities
+				Object.entries(TASK_PRIORITIES).forEach(([key, priority]) => {
+					if (key === "none") {
+						menu.addItem((item) => {
+							item.setTitle(t("Remove Priority"));
+							item.onClick(() => {
+								this.removePriority();
+							});
+						});
+					} else {
+						menu.addItem((item) => {
+							item.setTitle(`${priority.emoji} ${priority.text}`);
+							item.onClick(() => {
+								this.setPriority(priority.emoji);
+							});
+						});
+					}
+				});
+			}
 
-			// Add option to remove priority
-			menu.addItem((item) => {
-				item.setTitle(t("Remove Priority"));
-				item.onClick(() => {
-					this.removePriority();
-				});
-			});
-		} else {
-			// Emoji format priorities
-			Object.entries(TASK_PRIORITIES).forEach(([key, priority]) => {
-				if (key === "none") {
-					menu.addItem((item) => {
-						item.setTitle(t("Remove Priority"));
-						item.onClick(() => {
-							this.removePriority();
-						});
-					});
-				} else {
-					menu.addItem((item) => {
-						item.setTitle(`${priority.emoji} ${priority.text}`);
-						item.onClick(() => {
-							this.setPriority(priority.emoji);
-						});
-					});
-				}
-			});
+			menu.showAtMouseEvent(e);
+		} catch (error) {
+			console.error("Error showing priority menu:", error);
 		}
-
-		menu.showAtMouseEvent(e);
 	}
 
 	private setPriority(priority: string) {
-		const transaction = this.view.state.update({
-			changes: { from: this.from, to: this.to, insert: priority },
-			annotations: [priorityChangeAnnotation.of(true)],
-		});
+		try {
+			// Validate view state before making changes
+			if (!this.view || this.view.state.doc.length < this.to) {
+				console.warn("Invalid view state, skipping priority update");
+				return;
+			}
 
-		this.view.dispatch(transaction);
+			const transaction = this.view.state.update({
+				changes: { from: this.from, to: this.to, insert: priority },
+				annotations: [priorityChangeAnnotation.of(true)],
+			});
+
+			this.view.dispatch(transaction);
+		} catch (error) {
+			console.error("Error setting priority:", error);
+		}
 	}
 
 	private removePriority() {
-		const transaction = this.view.state.update({
-			changes: { from: this.from, to: this.to, insert: "" },
-			annotations: [priorityChangeAnnotation.of(true)],
-		});
+		try {
+			// Validate view state before making changes
+			if (!this.view || this.view.state.doc.length < this.to) {
+				console.warn("Invalid view state, skipping priority removal");
+				return;
+			}
 
-		this.view.dispatch(transaction);
+			const transaction = this.view.state.update({
+				changes: { from: this.from, to: this.to, insert: "" },
+				annotations: [priorityChangeAnnotation.of(true)],
+			});
+
+			this.view.dispatch(transaction);
+		} catch (error) {
+			console.error("Error removing priority:", error);
+		}
 	}
 }
 
@@ -233,7 +271,8 @@ export function priorityPickerExtension(
 		public readonly plugin: TaskProgressBarPlugin;
 		decorations: DecorationSet = Decoration.none;
 		private lastUpdate: number = 0;
-		private readonly updateThreshold: number = 30; // Reduced threshold for quicker updates
+		private readonly updateThreshold: number = 50; // Increased threshold for better stability
+		public isDestroyed: boolean = false;
 
 		// Emoji priorities matcher
 		private readonly emojiMatch = new MatchDecorator({
@@ -245,25 +284,29 @@ export function priorityPickerExtension(
 				match: RegExpExecArray,
 				view: EditorView
 			) => {
-				if (!this.shouldRender(view, from, to)) {
-					return;
-				}
+				try {
+					if (!this.shouldRender(view, from, to)) {
+						return;
+					}
 
-				add(
-					from,
-					to,
-					Decoration.replace({
-						widget: new PriorityWidget(
-							app,
-							plugin,
-							view,
-							from,
-							to,
-							match[0],
-							false
-						),
-					})
-				);
+					add(
+						from,
+						to,
+						Decoration.replace({
+							widget: new PriorityWidget(
+								app,
+								plugin,
+								view,
+								from,
+								to,
+								match[0],
+								false
+							),
+						})
+					);
+				} catch (error) {
+					console.warn("Error decorating emoji priority:", error);
+				}
 			},
 		});
 
@@ -277,25 +320,29 @@ export function priorityPickerExtension(
 				match: RegExpExecArray,
 				view: EditorView
 			) => {
-				if (!this.shouldRender(view, from, to)) {
-					return;
-				}
+				try {
+					if (!this.shouldRender(view, from, to)) {
+						return;
+					}
 
-				add(
-					from,
-					to,
-					Decoration.replace({
-						widget: new PriorityWidget(
-							app,
-							plugin,
-							view,
-							from,
-							to,
-							match[0],
-							true
-						),
-					})
-				);
+					add(
+						from,
+						to,
+						Decoration.replace({
+							widget: new PriorityWidget(
+								app,
+								plugin,
+								view,
+								from,
+								to,
+								match[0],
+								true
+							),
+						})
+					);
+				} catch (error) {
+					console.warn("Error decorating letter priority:", error);
+				}
 			},
 		});
 
@@ -306,37 +353,49 @@ export function priorityPickerExtension(
 		}
 
 		update(update: ViewUpdate): void {
-			if (
-				update.docChanged ||
-				update.viewportChanged ||
-				update.selectionSet ||
-				update.transactions.some((tr) =>
-					tr.annotation(priorityChangeAnnotation)
-				)
-			) {
-				// Throttle updates to avoid performance issues with large documents
-				const now = Date.now();
-				if (now - this.lastUpdate > this.updateThreshold) {
-					this.lastUpdate = now;
-					this.updateDecorations(update.view, update);
-				} else {
-					// Schedule an update in the near future to ensure rendering
-					setTimeout(() => {
-						if (this.view) {
-							this.updateDecorations(this.view);
-						}
-					}, this.updateThreshold);
+			if (this.isDestroyed) return;
+
+			try {
+				if (
+					update.docChanged ||
+					update.viewportChanged ||
+					update.selectionSet ||
+					update.transactions.some((tr) =>
+						tr.annotation(priorityChangeAnnotation)
+					)
+				) {
+					// Throttle updates to avoid performance issues with large documents
+					const now = Date.now();
+					if (now - this.lastUpdate > this.updateThreshold) {
+						this.lastUpdate = now;
+						this.updateDecorations(update.view, update);
+					} else {
+						// Schedule an update in the near future to ensure rendering
+						setTimeout(() => {
+							if (this.view && !this.isDestroyed) {
+								this.updateDecorations(this.view);
+							}
+						}, this.updateThreshold);
+					}
 				}
+			} catch (error) {
+				console.error("Error in priority picker update:", error);
 			}
 		}
 
 		destroy(): void {
-			// No specific cleanup needed
+			this.isDestroyed = true;
+			this.decorations = Decoration.none;
 		}
 
 		updateDecorations(view: EditorView, update?: ViewUpdate) {
+			if (this.isDestroyed) return;
+
 			// Only apply in live preview mode
-			if (!this.isLivePreview(view.state)) return;
+			if (!this.isLivePreview(view.state)) {
+				this.decorations = Decoration.none;
+				return;
+			}
 
 			try {
 				// Use incremental update when possible for better performance
@@ -371,26 +430,21 @@ export function priorityPickerExtension(
 				}
 			} catch (e) {
 				console.warn(
-					"Error updating priority decorations, regenerating all",
+					"Error updating priority decorations, clearing decorations",
 					e
 				);
-				// Fall back to recreating all decorations
-				try {
-					const emojiDecos = this.emojiMatch.createDeco(view);
-					if (emojiDecos.size > 0) {
-						this.decorations = emojiDecos;
-						return;
-					}
-					this.decorations = this.letterMatch.createDeco(view);
-				} catch (e2) {
-					console.error("Failed to create priority decorations", e2);
-					// Keep existing decorations to avoid breaking the editor
-				}
+				// Clear decorations on error to prevent crashes
+				this.decorations = Decoration.none;
 			}
 		}
 
 		isLivePreview(state: EditorView["state"]): boolean {
-			return state.field(editorLivePreviewField);
+			try {
+				return state.field(editorLivePreviewField);
+			} catch (error) {
+				console.warn("Error checking live preview state:", error);
+				return false;
+			}
 		}
 
 		shouldRender(
@@ -399,6 +453,15 @@ export function priorityPickerExtension(
 			decorationTo: number
 		) {
 			try {
+				// Validate positions
+				if (
+					decorationFrom < 0 ||
+					decorationTo > view.state.doc.length ||
+					decorationFrom >= decorationTo
+				) {
+					return false;
+				}
+
 				const syntaxNode = syntaxTree(view.state).resolveInner(
 					decorationFrom + 1
 				);
@@ -432,6 +495,10 @@ export function priorityPickerExtension(
 	const PriorityViewPluginSpec: PluginSpec<PriorityViewPluginValue> = {
 		decorations: (plugin) => {
 			try {
+				if (plugin.isDestroyed) {
+					return Decoration.none;
+				}
+
 				return plugin.decorations.update({
 					filter: (
 						rangeFrom: number,
@@ -441,6 +508,15 @@ export function priorityPickerExtension(
 						try {
 							const widget = deco.spec?.widget;
 							if ((widget as any).error) {
+								return false;
+							}
+
+							// Validate range
+							if (
+								rangeFrom < 0 ||
+								rangeTo > plugin.view.state.doc.length ||
+								rangeFrom >= rangeTo
+							) {
 								return false;
 							}
 

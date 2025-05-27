@@ -9,12 +9,20 @@ import {
 	PluginValue,
 	PluginSpec,
 } from "@codemirror/view";
-import { App, editorLivePreviewField, Menu, MenuItem, moment } from "obsidian";
+import {
+	App,
+	editorLivePreviewField,
+	Menu,
+	MenuItem,
+	moment,
+	Platform,
+} from "obsidian";
 import TaskProgressBarPlugin from "../index";
 import { Annotation } from "@codemirror/state";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import { t } from "../translations/helper";
+import { DatePickerPopover, DatePickerModal } from "../components/date-picker";
 export const dateChangeAnnotation = Annotation.define();
 
 class DatePickerWidget extends WidgetType {
@@ -39,79 +47,110 @@ class DatePickerWidget extends WidgetType {
 	}
 
 	toDOM(): HTMLElement {
-		const wrapper = createEl("span", {
-			cls: "date-picker-widget",
-			attr: {
-				"aria-label": "Task Date",
-			},
-		});
+		try {
+			const wrapper = createEl("span", {
+				cls: "date-picker-widget",
+				attr: {
+					"aria-label": "Task Date",
+				},
+			});
 
-		const dateText = createSpan({
-			cls: "task-date-text",
-			text: this.currentDate,
-		});
+			const dateText = createSpan({
+				cls: "task-date-text",
+				text: this.currentDate,
+			});
 
-		// Handle click to show date menu
-		dateText.addEventListener("click", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			this.showDateMenu(e);
-		});
+			// Handle click to show date menu
+			dateText.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.showDateMenu(e);
+			});
 
-		wrapper.appendChild(dateText);
-		return wrapper;
+			wrapper.appendChild(dateText);
+			return wrapper;
+		} catch (error) {
+			console.error("Error creating date picker widget DOM:", error);
+			// Return a fallback element to prevent crashes
+			const fallback = createEl("span", {
+				cls: "date-picker-widget-error",
+				text: this.currentDate,
+			});
+			return fallback;
+		}
 	}
 
 	private showDateMenu(e: MouseEvent) {
-		const menu = new Menu();
+		try {
+			// Extract current date from the widget text
+			const currentDateMatch =
+				this.currentDate.match(/\d{4}-\d{2}-\d{2}/);
+			const currentDate = currentDateMatch ? currentDateMatch[0] : null;
 
-		// Add date option using moment
-		const addDateOption = (
-			amount: number,
-			unit: moment.unitOfTime.DurationConstructor,
-			label: string
-		) => {
-			menu.addItem((item: MenuItem) => {
-				item.setTitle(label);
-				item.setIcon("calendar");
-				item.onClick(() => {
-					const date = moment().add(amount, unit);
-					const formattedDate = date.format("YYYY-MM-DD");
-					this.setDate(`${this.dateMark} ${formattedDate}`);
+			if (Platform.isDesktop) {
+				// Desktop environment - show Popover
+				const popover = new DatePickerPopover(
+					this.app,
+					this.plugin,
+					currentDate || undefined,
+					this.dateMark
+				);
+
+				popover.onDateSelected = (date: string | null) => {
+					if (date) {
+						this.setDate(date);
+					} else {
+						// Clear date
+						this.setDate("");
+					}
+				};
+
+				popover.showAtPosition({
+					x: e.clientX,
+					y: e.clientY,
 				});
-			});
-		};
+			} else {
+				// Mobile environment - show Modal
+				const modal = new DatePickerModal(
+					this.app,
+					this.plugin,
+					currentDate || undefined,
+					this.dateMark
+				);
 
-		menu.addItem((item: MenuItem) => {
-			item.setTitle(t("From now"));
-			item.setDisabled(true);
-		});
-		// Add all date options
-		addDateOption(1, "days", t("Tomorrow"));
-		addDateOption(2, "days", t("In 2 days"));
-		addDateOption(3, "days", t("In 3 days"));
-		addDateOption(5, "days", t("In 5 days"));
-		addDateOption(1, "weeks", t("In 1 week"));
-		addDateOption(10, "days", t("In 10 days"));
-		addDateOption(2, "weeks", t("In 2 weeks"));
-		addDateOption(1, "months", t("In 1 month"));
-		addDateOption(2, "months", t("In 2 months"));
-		addDateOption(3, "months", t("In 3 months"));
-		addDateOption(6, "months", t("In 6 months"));
-		addDateOption(1, "years", t("In 1 year"));
-		addDateOption(5, "years", t("In 5 years"));
-		addDateOption(10, "years", t("In 10 years"));
+				modal.onDateSelected = (date: string | null) => {
+					if (date) {
+						this.setDate(date);
+					} else {
+						// Clear date
+						this.setDate("");
+					}
+				};
 
-		menu.showAtMouseEvent(e);
+				modal.open();
+			}
+		} catch (error) {
+			console.error("Error showing date menu:", error);
+		}
 	}
 
 	private setDate(date: string) {
-		const transaction = this.view.state.update({
-			changes: { from: this.from, to: this.to, insert: date },
-			annotations: [dateChangeAnnotation.of(true)],
-		});
+		try {
+			// Validate view state before making changes
+			if (!this.view || this.view.state.doc.length < this.to) {
+				console.warn("Invalid view state, skipping date update");
+				return;
+			}
 
-		this.view.dispatch(transaction);
+			const transaction = this.view.state.update({
+				changes: { from: this.from, to: this.to, insert: date },
+				annotations: [dateChangeAnnotation.of(true)],
+			});
+
+			this.view.dispatch(transaction);
+		} catch (error) {
+			console.error("Error setting date:", error);
+		}
 	}
 }
 
@@ -126,7 +165,8 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 		public readonly plugin: TaskProgressBarPlugin;
 		decorations: DecorationSet = Decoration.none;
 		private lastUpdate: number = 0;
-		private readonly updateThreshold: number = 30; // Reduced threshold for quicker updates
+		private readonly updateThreshold: number = 50; // Increased threshold for better stability
+		public isDestroyed: boolean = false;
 
 		// Date matcher
 		private readonly dateMatch = new MatchDecorator({
@@ -143,25 +183,29 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 				match: RegExpExecArray,
 				view: EditorView
 			) => {
-				if (!this.shouldRender(view, from, to)) {
-					return;
-				}
+				try {
+					if (!this.shouldRender(view, from, to)) {
+						return;
+					}
 
-				add(
-					from,
-					to,
-					Decoration.replace({
-						widget: new DatePickerWidget(
-							app,
-							plugin,
-							view,
-							from,
-							to,
-							match[0],
-							match[1]
-						),
-					})
-				);
+					add(
+						from,
+						to,
+						Decoration.replace({
+							widget: new DatePickerWidget(
+								app,
+								plugin,
+								view,
+								from,
+								to,
+								match[0],
+								match[1]
+							),
+						})
+					);
+				} catch (error) {
+					console.warn("Error decorating date:", error);
+				}
 			},
 		});
 
@@ -172,60 +216,78 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 		}
 
 		update(update: ViewUpdate): void {
-			// More aggressive updates to handle content changes
-			if (
-				update.docChanged ||
-				update.viewportChanged ||
-				update.selectionSet ||
-				update.transactions.some((tr) =>
-					tr.annotation(dateChangeAnnotation)
-				)
-			) {
-				// Throttle updates to avoid performance issues with large documents
-				const now = Date.now();
-				if (now - this.lastUpdate > this.updateThreshold) {
-					this.lastUpdate = now;
-					this.updateDecorations(update.view, update);
-				} else {
-					// Schedule an update in the near future to ensure rendering
-					setTimeout(() => {
-						if (this.view) {
-							this.updateDecorations(this.view);
-						}
-					}, this.updateThreshold);
+			if (this.isDestroyed) return;
+
+			try {
+				// More aggressive updates to handle content changes
+				if (
+					update.docChanged ||
+					update.viewportChanged ||
+					update.selectionSet ||
+					update.transactions.some((tr) =>
+						tr.annotation(dateChangeAnnotation)
+					)
+				) {
+					// Throttle updates to avoid performance issues with large documents
+					const now = Date.now();
+					if (now - this.lastUpdate > this.updateThreshold) {
+						this.lastUpdate = now;
+						this.updateDecorations(update.view, update);
+					} else {
+						// Schedule an update in the near future to ensure rendering
+						setTimeout(() => {
+							if (this.view && !this.isDestroyed) {
+								this.updateDecorations(this.view);
+							}
+						}, this.updateThreshold);
+					}
 				}
+			} catch (error) {
+				console.error("Error in date picker update:", error);
 			}
 		}
 
 		destroy(): void {
-			// No specific cleanup needed
+			this.isDestroyed = true;
+			this.decorations = Decoration.none;
 		}
 
 		updateDecorations(view: EditorView, update?: ViewUpdate) {
-			// Only apply in live preview mode
-			if (!this.isLivePreview(view.state)) return;
+			if (this.isDestroyed) return;
 
-			// Check if we can incrementally update, otherwise do a full recreation
-			if (update && !update.docChanged && this.decorations.size > 0) {
-				try {
+			// Only apply in live preview mode
+			if (!this.isLivePreview(view.state)) {
+				this.decorations = Decoration.none;
+				return;
+			}
+
+			try {
+				// Check if we can incrementally update, otherwise do a full recreation
+				if (update && !update.docChanged && this.decorations.size > 0) {
 					this.decorations = this.dateMatch.updateDeco(
 						update,
 						this.decorations
 					);
-				} catch (e) {
-					console.warn(
-						"Error updating date decorations, recreating all",
-						e
-					);
+				} else {
 					this.decorations = this.dateMatch.createDeco(view);
 				}
-			} else {
-				this.decorations = this.dateMatch.createDeco(view);
+			} catch (e) {
+				console.warn(
+					"Error updating date decorations, clearing decorations",
+					e
+				);
+				// Clear decorations on error to prevent crashes
+				this.decorations = Decoration.none;
 			}
 		}
 
 		isLivePreview(state: EditorView["state"]): boolean {
-			return state.field(editorLivePreviewField);
+			try {
+				return state.field(editorLivePreviewField);
+			} catch (error) {
+				console.warn("Error checking live preview state:", error);
+				return false;
+			}
 		}
 
 		shouldRender(
@@ -235,6 +297,15 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 		) {
 			// Skip checking in code blocks or frontmatter
 			try {
+				// Validate positions
+				if (
+					decorationFrom < 0 ||
+					decorationTo > view.state.doc.length ||
+					decorationFrom >= decorationTo
+				) {
+					return false;
+				}
+
 				const syntaxNode = syntaxTree(view.state).resolveInner(
 					decorationFrom + 1
 				);
@@ -269,32 +340,53 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 	const DatePickerViewPluginSpec: PluginSpec<DatePickerViewPluginValue> = {
 		decorations: (plugin) => {
 			try {
+				if (plugin.isDestroyed) {
+					return Decoration.none;
+				}
+
 				return plugin.decorations.update({
 					filter: (
 						rangeFrom: number,
 						rangeTo: number,
 						deco: Decoration
 					) => {
-						const widget = deco.spec?.widget;
-						if ((widget as any).error) {
-							return false;
-						}
+						try {
+							const widget = deco.spec?.widget;
+							if ((widget as any).error) {
+								return false;
+							}
 
-						const selection = plugin.view.state.selection;
-
-						// Remove decorations when cursor is inside them
-						for (const range of selection.ranges) {
+							// Validate range
 							if (
-								!(
-									range.to <= rangeFrom ||
-									range.from >= rangeTo
-								)
+								rangeFrom < 0 ||
+								rangeTo > plugin.view.state.doc.length ||
+								rangeFrom >= rangeTo
 							) {
 								return false;
 							}
-						}
 
-						return true;
+							const selection = plugin.view.state.selection;
+
+							// Remove decorations when cursor is inside them
+							for (const range of selection.ranges) {
+								if (
+									!(
+										range.to <= rangeFrom ||
+										range.from >= rangeTo
+									)
+								) {
+									return false;
+								}
+							}
+
+							return true;
+						} catch (error) {
+							console.warn(
+								"Error filtering date decoration:",
+								error
+							);
+							return false;
+						}
 					},
 				});
 			} catch (e) {
