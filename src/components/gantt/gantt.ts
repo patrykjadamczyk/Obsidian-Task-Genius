@@ -156,7 +156,8 @@ export class GanttComponent extends Component {
 			onTaskSelected?: (task: Task) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
-		}
+		},
+		private viewId: string = "gantt" // 新增：视图ID参数
 	) {
 		super();
 		this.app = plugin.app;

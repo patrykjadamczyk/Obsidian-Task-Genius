@@ -1028,3 +1028,63 @@
 }
 
 /* END: Task Handler Settings Styles */
+
+/* START: View Management Styles */
+.view-management-list {
+	margin: 10px 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 5px;
+	padding: 10px;
+}
+
+.view-edit-button,
+.view-copy-button,
+.view-order-button,
+.view-delete-button {
+	padding: 4px;
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	margin-left: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.view-copy-button {
+	color: var(--interactive-accent);
+}
+
+.view-copy-button:hover {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.view-delete-button {
+	color: var(--text-error);
+}
+
+.view-delete-button:hover {
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+.view-icon {
+	margin-right: 8px;
+	--icon-size: 16px;
+}
+
+/* Copy mode info styles */
+.copy-mode-info {
+	margin: 10px 0;
+	padding: 12px;
+	background-color: var(--background-secondary-alt);
+	border-radius: 5px;
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.copy-mode-info p {
+	margin: 4px 0;
+}
+
+/* END: View Management Styles */

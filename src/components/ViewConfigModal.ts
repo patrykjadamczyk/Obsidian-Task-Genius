@@ -34,6 +34,8 @@ export class ViewConfigModal extends Modal {
 	private viewFilterRule: ViewFilterRule;
 	private plugin: TaskProgressBarPlugin;
 	private isCreate: boolean;
+	private isCopyMode: boolean = false;
+	private sourceViewId: string | null = null;
 	private onSave: (config: ViewConfig, rules: ViewFilterRule) => void;
 	private originalViewConfig: string;
 	private originalViewFilterRule: string;
@@ -67,25 +69,45 @@ export class ViewConfigModal extends Modal {
 		plugin: TaskProgressBarPlugin,
 		initialViewConfig: ViewConfig | null, // Null for creating
 		initialFilterRule: ViewFilterRule | null, // Null for creating
-		onSave: (config: ViewConfig, rules: ViewFilterRule) => void
+		onSave: (config: ViewConfig, rules: ViewFilterRule) => void,
+		sourceViewForCopy?: ViewConfig // 新增：可选的源视图用于拷贝
 	) {
 		super(app);
 		this.plugin = plugin;
 		this.isCreate = initialViewConfig === null;
+		this.isCopyMode = sourceViewForCopy !== undefined;
 
 		if (this.isCreate) {
 			const newId = `custom_${Date.now()}`;
-			this.viewConfig = {
-				id: newId,
-				name: t("New custom view"),
-				icon: "list-plus",
-				type: "custom",
-				visible: true,
-				hideCompletedAndAbandonedTasks: false,
-				filterBlanks: false,
-				sortCriteria: [], // Initialize sort criteria as an empty array
-			};
-			this.viewFilterRule = initialFilterRule || {}; // Start with empty rules or provided defaults
+
+			if (this.isCopyMode && sourceViewForCopy) {
+				// 拷贝模式：基于源视图创建新视图
+				this.sourceViewId = sourceViewForCopy.id;
+				this.viewConfig = {
+					...JSON.parse(JSON.stringify(sourceViewForCopy)), // 深拷贝源视图配置
+					id: newId, // 使用新的ID
+					name: t("Copy of ") + sourceViewForCopy.name, // 修改名称
+					type: "custom", // 确保类型为自定义
+				};
+
+				// 如果源视图有过滤规则，也拷贝过来
+				this.viewFilterRule = sourceViewForCopy.filterRules
+					? JSON.parse(JSON.stringify(sourceViewForCopy.filterRules))
+					: initialFilterRule || {};
+			} else {
+				// 普通创建模式
+				this.viewConfig = {
+					id: newId,
+					name: t("New custom view"),
+					icon: "list-plus",
+					type: "custom",
+					visible: true,
+					hideCompletedAndAbandonedTasks: false,
+					filterBlanks: false,
+					sortCriteria: [], // Initialize sort criteria as an empty array
+				};
+				this.viewFilterRule = initialFilterRule || {}; // Start with empty rules or provided defaults
+			}
 		} else {
 			// Deep copy to avoid modifying original objects until save
 			this.viewConfig = JSON.parse(JSON.stringify(initialViewConfig));
@@ -122,50 +144,79 @@ export class ViewConfigModal extends Modal {
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
 				}).format(new Date(2024, 0, 7)),
-			}, // Monday
+			}, // Sunday (2024-01-07 is Sunday)
 			{
 				value: 1,
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
-				}).format(new Date(2024, 0, 1)),
-			}, // Tuesday
+				}).format(new Date(2024, 0, 8)),
+			}, // Monday (2024-01-08 is Monday)
 			{
 				value: 2,
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
-				}).format(new Date(2024, 0, 2)),
-			}, // Wednesday
+				}).format(new Date(2024, 0, 9)),
+			}, // Tuesday (2024-01-09 is Tuesday)
 			{
 				value: 3,
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
-				}).format(new Date(2024, 0, 3)),
-			}, // Thursday
+				}).format(new Date(2024, 0, 10)),
+			}, // Wednesday (2024-01-10 is Wednesday)
 			{
 				value: 4,
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
-				}).format(new Date(2024, 0, 4)),
-			}, // Friday
+				}).format(new Date(2024, 0, 11)),
+			}, // Thursday (2024-01-11 is Thursday)
 			{
 				value: 5,
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
-				}).format(new Date(2024, 0, 5)),
-			}, // Saturday
+				}).format(new Date(2024, 0, 12)),
+			}, // Friday (2024-01-12 is Friday)
 			{
 				value: 6,
 				name: new Intl.DateTimeFormat(window.navigator.language, {
 					weekday: "long",
-				}).format(new Date(2024, 0, 6)),
-			}, // Sunday
+				}).format(new Date(2024, 0, 13)),
+			}, // Saturday (2024-01-13 is Saturday)
 		];
 
-		this.titleEl.setText(
-			this.isCreate
-				? t("Create custom view")
-				: t("Edit view: ") + this.viewConfig.name
-		);
+		// 设置标题，区分不同模式
+		let title: string;
+		if (this.isCreate) {
+			if (this.isCopyMode) {
+				title = t("Copy view: ") + (this.sourceViewId || "Unknown");
+			} else {
+				title = t("Create custom view");
+			}
+		} else {
+			title = t("Edit view: ") + this.viewConfig.name;
+		}
+		this.titleEl.setText(title);
+
+		// 在拷贝模式下显示源视图信息
+		if (this.isCopyMode && this.sourceViewId) {
+			const sourceViewConfig =
+				this.plugin.settings.viewConfiguration.find(
+					(v) => v.id === this.sourceViewId
+				);
+			if (sourceViewConfig) {
+				const infoEl = contentEl.createDiv({ cls: "copy-mode-info" });
+				infoEl.createEl("p", {
+					text:
+						t("Creating a copy based on: ") + sourceViewConfig.name,
+					cls: "setting-item-description",
+				});
+				infoEl.createEl("p", {
+					text: t(
+						"You can modify all settings below. The original view will remain unchanged."
+					),
+					cls: "setting-item-description",
+				});
+			}
+		}
 
 		// --- Basic View Settings ---
 		new Setting(contentEl).setName(t("View Name")).addText((text) => {
@@ -211,7 +262,25 @@ export class ViewConfigModal extends Modal {
 				});
 			});
 
-		if (this.viewConfig.id === "calendar") {
+		// 检查是否为日历视图（原始ID或拷贝的日历视图）
+		const isCalendarView =
+			this.viewConfig.id === "calendar" ||
+			(this.isCopyMode && this.sourceViewId === "calendar") ||
+			this.viewConfig.specificConfig?.viewType === "calendar";
+
+		// 检查是否为看板视图（原始ID或拷贝的看板视图）
+		const isKanbanView =
+			this.viewConfig.id === "kanban" ||
+			(this.isCopyMode && this.sourceViewId === "kanban") ||
+			this.viewConfig.specificConfig?.viewType === "kanban";
+
+		// 检查是否为预测视图（原始ID或拷贝的预测视图）
+		const isForecastView =
+			this.viewConfig.id === "forecast" ||
+			(this.isCopyMode && this.sourceViewId === "forecast") ||
+			this.viewConfig.specificConfig?.viewType === "forecast";
+
+		if (isCalendarView) {
 			new Setting(contentEl)
 				.setName(t("First day of week"))
 				.setDesc(t("Overrides the locale default for calendar views."))
@@ -255,7 +324,7 @@ export class ViewConfigModal extends Modal {
 						this.checkForChanges();
 					});
 				});
-		} else if (this.viewConfig.id === "kanban") {
+		} else if (isKanbanView) {
 			new Setting(contentEl)
 				.setName(t("Group by"))
 				.setDesc(
@@ -649,7 +718,7 @@ export class ViewConfigModal extends Modal {
 
 				refreshColumnsList();
 			}
-		} else if (this.viewConfig.id === "forecast") {
+		} else if (isForecastView) {
 			new Setting(contentEl)
 				.setName(t("First day of week"))
 				.setDesc(t("Overrides the locale default for forecast views."))
@@ -700,8 +769,9 @@ export class ViewConfigModal extends Modal {
 			this.isCreate ||
 			this.viewConfig.specificConfig?.viewType === "twocolumn"
 		) {
-			// For new views, add a "View Type" dropdown
-			if (this.isCreate) {
+			// For new views (but not copy mode), add a "View Type" dropdown
+			// 只有在非拷贝的创建模式下才显示视图类型选择器
+			if (this.isCreate && !this.isCopyMode) {
 				new Setting(contentEl)
 					.setName(t("View type"))
 					.setDesc(t("Select the type of view to create"))

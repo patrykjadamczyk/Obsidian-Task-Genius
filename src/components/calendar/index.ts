@@ -66,7 +66,8 @@ export class CalendarComponent extends Component {
 			onTaskSelected?: (task: Task | null) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onEventContextMenu?: (ev: MouseEvent, event: CalendarEvent) => void;
-		} = {}
+		} = {},
+		private viewId: string = "calendar" // 新增：视图ID参数
 	) {
 		super();
 		this.app = app;
@@ -296,6 +297,7 @@ export class CalendarComponent extends Component {
 					this.app,
 					this.plugin,
 					this.viewContainerEl,
+					this.viewId,
 					this.currentDate,
 					this.events,
 					{
@@ -313,6 +315,7 @@ export class CalendarComponent extends Component {
 					this.app,
 					this.plugin,
 					this.viewContainerEl,
+					this.viewId,
 					this.currentDate,
 					this.events,
 					{

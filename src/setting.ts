@@ -3228,6 +3228,52 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					button.extraSettingsEl.addClass("view-edit-button"); // Add class for potential styling
 				});
 
+				// Copy button - Available for ALL views to create a copy
+				viewSetting.addExtraButton((button) => {
+					button
+						.setIcon("copy")
+						.setTooltip(t("Copy View"))
+						.onClick(() => {
+							// Create a copy of the current view
+							new ViewConfigModal(
+								this.app,
+								this.plugin,
+								null, // null for create mode
+								null, // null for create mode
+								(
+									createdView: ViewConfig,
+									createdRules: ViewFilterRule
+								) => {
+									if (
+										!this.plugin.settings.viewConfiguration.some(
+											(v) => v.id === createdView.id
+										)
+									) {
+										// Save with filter rules embedded
+										this.plugin.settings.viewConfiguration.push(
+											{
+												...createdView,
+												filterRules: createdRules,
+											}
+										);
+										this.applySettingsUpdate();
+										renderViewList();
+										new Notice(
+											t("View copied successfully: ") +
+												createdView.name
+										);
+									} else {
+										new Notice(
+											t("Error: View ID already exists.")
+										);
+									}
+								},
+								view // 传入当前视图作为拷贝源
+							).open();
+						});
+					button.extraSettingsEl.addClass("view-copy-button");
+				});
+
 				// Reordering buttons
 				viewSetting.addExtraButton((button) => {
 					button

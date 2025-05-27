@@ -1,4 +1,4 @@
-import { App, Component, Menu, setIcon } from "obsidian";
+import { App, Component, Menu, setIcon, Notice } from "obsidian";
 import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
 // Import necessary types from settings definition
@@ -158,6 +158,53 @@ export class SidebarComponent extends Component {
 									this.updateActiveItem();
 								}
 							}
+						).open();
+					});
+				})
+				.addItem((item) => {
+					item.setTitle(t("Copy view")).onClick(() => {
+						const view =
+							this.plugin.settings.viewConfiguration.find(
+								(v) => v.id === viewId
+							);
+						if (!view) {
+							return;
+						}
+						// Create a copy of the current view
+						new ViewConfigModal(
+							this.app,
+							this.plugin,
+							null, // null for create mode
+							null, // null for create mode
+							(
+								createdView: ViewConfig,
+								createdRules: ViewFilterRule
+							) => {
+								if (
+									!this.plugin.settings.viewConfiguration.some(
+										(v) => v.id === createdView.id
+									)
+								) {
+									// Save with filter rules embedded
+									this.plugin.settings.viewConfiguration.push(
+										{
+											...createdView,
+											filterRules: createdRules,
+										}
+									);
+									this.plugin.saveSettings();
+									this.renderSidebarItems();
+									new Notice(
+										t("View copied successfully: ") +
+											createdView.name
+									);
+								} else {
+									new Notice(
+										t("Error: View ID already exists.")
+									);
+								}
+							},
+							view // 传入当前视图作为拷贝源
 						).open();
 					});
 				})

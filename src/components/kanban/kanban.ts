@@ -50,6 +50,7 @@ export class KanbanComponent extends Component {
 	private sortableInstances: Sortable[] = [];
 	private tasks: Task[] = [];
 	private allTasks: Task[] = [];
+	private currentViewId: string = "kanban"; // 新增：当前视图ID
 	private params: {
 		onTaskStatusUpdate?: (
 			taskId: string,
@@ -82,11 +83,13 @@ export class KanbanComponent extends Component {
 			onTaskSelected?: (task: Task) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
-		} = {}
+		} = {},
+		viewId: string = "kanban" // 新增：视图ID参数
 	) {
 		super();
 		this.app = app;
 		this.plugin = plugin;
+		this.currentViewId = viewId; // 设置当前视图ID
 		this.containerEl = parentEl.createDiv("tg-kanban-component-container");
 		this.tasks = initialTasks;
 		this.params = params;
@@ -427,7 +430,7 @@ export class KanbanComponent extends Component {
 		this.columns = [];
 
 		const kanbanConfig = this.plugin.settings.viewConfiguration.find(
-			(v) => v.id === "kanban"
+			(v) => v.id === this.currentViewId
 		)?.specificConfig as KanbanSpecificConfig;
 
 		const groupBy = kanbanConfig?.groupBy || "status";
@@ -802,7 +805,7 @@ export class KanbanComponent extends Component {
 			if (targetColumnTitle && sourceColumnTitle) {
 				const kanbanConfig =
 					this.plugin.settings.viewConfiguration.find(
-						(v) => v.id === "kanban"
+						(v) => v.id === this.currentViewId
 					)?.specificConfig as KanbanSpecificConfig;
 
 				const groupBy = kanbanConfig?.groupBy || "status";
@@ -849,7 +852,7 @@ export class KanbanComponent extends Component {
 
 	private loadKanbanConfig() {
 		const kanbanConfig = this.plugin.settings.viewConfiguration.find(
-			(v) => v.id === "kanban"
+			(v) => v.id === this.currentViewId
 		)?.specificConfig as KanbanSpecificConfig;
 
 		if (kanbanConfig) {
@@ -1245,7 +1248,7 @@ export class KanbanComponent extends Component {
 				// We need to check against the current column configuration
 				const kanbanConfig =
 					this.plugin.settings.viewConfiguration.find(
-						(v) => v.id === "kanban"
+						(v) => v.id === this.currentViewId
 					)?.specificConfig as KanbanSpecificConfig;
 
 				if (

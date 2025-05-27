@@ -20,6 +20,7 @@ export class MonthView extends CalendarViewComponent {
 		app: App,
 		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
+		private currentViewId: string,
 		currentDate: moment.Moment,
 		events: CalendarEvent[],
 		options: CalendarViewOptions // Use the base options type
@@ -32,13 +33,13 @@ export class MonthView extends CalendarViewComponent {
 
 	render(): void {
 		// Get view settings, including the first day of the week override
-		const viewConfig = getViewSettingOrDefault(this.plugin, "calendar"); // Assuming 'calendar' view for settings lookup, adjust if needed
-		const firstDayOfWeekSetting = (
-			viewConfig.specificConfig as CalendarSpecificConfig
-		).firstDayOfWeek;
-		// Default to Monday (1) if the setting is undefined
+		const viewConfig = this.plugin.settings.viewConfiguration.find(
+			(v) => v.id === this.currentViewId
+		)?.specificConfig as CalendarSpecificConfig; // Assuming 'calendar' view for settings lookup, adjust if needed
+		const firstDayOfWeekSetting = viewConfig?.firstDayOfWeek;
+		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
-			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
+			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
 
 		// 1. Calculate the date range for the grid using effective first day
 		const startOfMonth = this.currentDate.clone().startOf("month");

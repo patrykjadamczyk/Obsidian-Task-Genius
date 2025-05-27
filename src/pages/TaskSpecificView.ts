@@ -37,6 +37,7 @@ import { CalendarComponent, CalendarEvent } from "../components/calendar";
 import { KanbanComponent } from "../components/kanban/kanban";
 import { GanttComponent } from "../components/gantt/gantt";
 import { TaskPropertyTwoColumnView } from "../components/task-view/TaskPropertyTwoColumnView";
+import { ViewComponentManager } from "../components/ViewComponentManager";
 import { Habit as HabitsComponent } from "../components/habit/habit";
 import { Platform } from "obsidian";
 import {
@@ -72,6 +73,7 @@ export class TaskSpecificView extends ItemView {
 	private kanbanComponent: KanbanComponent;
 	private ganttComponent: GanttComponent;
 	private habitsComponent: HabitsComponent;
+	private viewComponentManager: ViewComponentManager; // 新增：统一的视图组件管理器
 	// Custom view components by view ID
 	private twoColumnViewComponents: Map<string, TaskPropertyTwoColumnView> =
 		new Map();
@@ -420,6 +422,24 @@ export class TaskSpecificView extends ItemView {
 		this.addChild(this.detailsComponent);
 		this.detailsComponent.load();
 
+		// 初始化统一的视图组件管理器
+		this.viewComponentManager = new ViewComponentManager(
+			this,
+			this.app,
+			this.plugin,
+			this.rootContainerEl,
+			{
+				onTaskSelected: this.handleTaskSelection.bind(this),
+				onTaskCompleted: this.toggleTaskCompletion.bind(this),
+				onTaskContextMenu: this.handleTaskContextMenu.bind(this),
+				onTaskStatusUpdate:
+					this.handleKanbanTaskStatusUpdate.bind(this),
+				onEventContextMenu: this.handleTaskContextMenu.bind(this),
+			}
+		);
+
+		this.addChild(this.viewComponentManager);
+
 		this.setupComponentEvents();
 	}
 
@@ -590,6 +610,8 @@ export class TaskSpecificView extends ItemView {
 		this.twoColumnViewComponents.forEach((component) => {
 			component.containerEl.hide();
 		});
+		// Hide all special view components
+		this.viewComponentManager.hideAllComponents();
 
 		this.calendarComponent.containerEl.hide();
 		this.kanbanComponent.containerEl.hide();
@@ -635,38 +657,40 @@ export class TaskSpecificView extends ItemView {
 			// Get the component to display
 			targetComponent = this.twoColumnViewComponents.get(viewId);
 		} else {
-			// Standard view types
-			switch (viewId) {
-				case "habit":
-					targetComponent = this.habitsComponent;
-					break;
-				case "forecast":
-					targetComponent = this.forecastComponent;
-					break;
-				case "tags":
-					targetComponent = this.tagsComponent;
-					break;
-				case "projects":
-					targetComponent = this.projectsComponent;
-					break;
-				case "review":
-					targetComponent = this.reviewComponent;
-					break;
-				case "calendar":
-					targetComponent = this.calendarComponent;
-					break;
-				case "kanban":
-					targetComponent = this.kanbanComponent;
-					break;
-				case "gantt":
-					targetComponent = this.ganttComponent;
-					break;
-				case "inbox":
-				case "flagged":
-				default:
-					targetComponent = this.contentComponent;
-					modeForComponent = viewId;
-					break;
+			// 检查特殊视图类型（基于 specificConfig 或原始 viewId）
+			const specificViewType = viewConfig.specificConfig?.viewType;
+
+			// 检查是否为特殊视图，使用统一管理器处理
+			if (this.viewComponentManager.isSpecialView(viewId)) {
+				targetComponent =
+					this.viewComponentManager.showComponent(viewId);
+			} else if (
+				specificViewType === "forecast" ||
+				viewId === "forecast"
+			) {
+				targetComponent = this.forecastComponent;
+			} else {
+				// Standard view types
+				switch (viewId) {
+					case "habit":
+						targetComponent = this.habitsComponent;
+						break;
+					case "tags":
+						targetComponent = this.tagsComponent;
+						break;
+					case "projects":
+						targetComponent = this.projectsComponent;
+						break;
+					case "review":
+						targetComponent = this.reviewComponent;
+						break;
+					case "inbox":
+					case "flagged":
+					default:
+						targetComponent = this.contentComponent;
+						modeForComponent = viewId;
+						break;
+				}
 			}
 		}
 
@@ -1052,6 +1076,9 @@ export class TaskSpecificView extends ItemView {
 			this.removeChild(component);
 		});
 		this.twoColumnViewComponents.clear();
+
+		// Cleanup special view components
+		// this.viewComponentManager.cleanup();
 
 		this.unload(); // This callsremoveChild on all direct children automatically
 		if (this.rootContainerEl) {

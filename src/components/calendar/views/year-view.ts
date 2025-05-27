@@ -68,8 +68,9 @@ export class YearView extends CalendarViewComponent {
 		const firstDayOfWeekSetting = (
 			viewConfig.specificConfig as CalendarSpecificConfig
 		).firstDayOfWeek;
+		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
-			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
+			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
 
 		console.log("Effective first day:", effectiveFirstDay);
 

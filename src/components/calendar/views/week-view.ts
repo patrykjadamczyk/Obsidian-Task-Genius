@@ -24,6 +24,7 @@ export class WeekView extends CalendarViewComponent {
 		app: App,
 		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
+		private currentViewId: string,
 		currentDate: moment.Moment,
 		events: CalendarEvent[],
 		options: CalendarViewOptions // Use the base options type
@@ -36,12 +37,17 @@ export class WeekView extends CalendarViewComponent {
 
 	render(): void {
 		// Get view settings, including the first day of the week override
-		const viewConfig = getViewSettingOrDefault(this.plugin, "calendar"); // Assuming 'calendar' view for settings lookup, adjust if needed
+		const viewConfig = getViewSettingOrDefault(
+			this.plugin,
+			this.currentViewId
+		);
+		console.log("viewConfig calendar", viewConfig);
 		const firstDayOfWeekSetting = (
 			viewConfig.specificConfig as CalendarSpecificConfig
 		).firstDayOfWeek;
+		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
-			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting - 1;
+			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
 
 		// Calculate start and end of week based on the setting
 		const startOfWeek = this.currentDate.clone().weekday(effectiveFirstDay);
