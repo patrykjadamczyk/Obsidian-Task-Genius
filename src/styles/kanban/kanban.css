@@ -94,8 +94,18 @@
 
 	/* Mobile scrolling improvements */
 	-webkit-overflow-scrolling: touch; /* Smooth horizontal scrolling on iOS */
-	overscroll-behavior-x: contain; /* Prevent horizontal scroll chaining */
-	scroll-snap-type: x proximity; /* Optional: snap to columns on mobile */
+	/* Conditional overscroll behavior - prevent bounce on desktop, allow on mobile for drag */
+	overscroll-behavior-x: auto; /* Allow default behavior for mobile drag compatibility */
+	scroll-snap-type: x proximity; /* Keep snap for mobile UX */
+	scroll-behavior: smooth; /* Smooth scrolling */
+}
+
+/* Desktop-specific: Prevent scroll bounce */
+@media (hover: hover) and (pointer: fine) {
+	.tg-kanban-column-container {
+		overscroll-behavior-x: none; /* Prevent bounce on desktop */
+		scroll-snap-type: none; /* Disable snap on desktop */
+	}
 }
 
 .tg-kanban-column {
@@ -110,8 +120,15 @@
 
 	border: 1px solid var(--background-modifier-border);
 
-	/* Mobile scroll snap */
-	scroll-snap-align: start; /* Snap to start of column */
+	/* Mobile scroll snap for better UX */
+	scroll-snap-align: start;
+}
+
+/* Desktop-specific: Disable scroll snap */
+@media (hover: hover) and (pointer: fine) {
+	.tg-kanban-column {
+		scroll-snap-align: none;
+	}
 }
 
 .tg-kanban-column-header {
@@ -139,8 +156,15 @@
 	gap: 8px;
 	/* padding-right: 0; */
 	-webkit-overflow-scrolling: touch;
-	overscroll-behavior: contain;
-	scroll-behavior: smooth;
+	overscroll-behavior: contain; /* Keep contain for mobile drag compatibility */
+	scroll-behavior: smooth; /* Smooth scrolling */
+}
+
+/* Desktop-specific: Prevent vertical scroll bounce */
+@media (hover: hover) and (pointer: fine) {
+	.tg-kanban-column-content {
+		overscroll-behavior: none; /* Prevent bounce on desktop */
+	}
 }
 /* --- Card Styling --- */
 .tg-kanban-card {
