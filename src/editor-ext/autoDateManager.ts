@@ -78,7 +78,8 @@ function handleAutoDateManagerTransaction(
 	const dateOperations = determineDateOperations(
 		oldStatus,
 		newStatus,
-		plugin
+		plugin,
+		doc.line(lineNumber).text
 	);
 
 	if (dateOperations.length === 0) {
@@ -165,12 +166,14 @@ function findTaskStatusChange(tr: Transaction): {
  * @param oldStatus The old task status
  * @param newStatus The new task status
  * @param plugin The plugin instance
+ * @param lineText The current line text to check for existing dates
  * @returns Array of date operations to perform
  */
 function determineDateOperations(
 	oldStatus: string,
 	newStatus: string,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
+	lineText: string
 ): DateOperation[] {
 	const operations: DateOperation[] = [];
 	const settings = plugin.settings.autoDateManager;
@@ -185,17 +188,11 @@ function determineDateOperations(
 		return operations;
 	}
 
-	// Remove old status date if it exists and is managed
+	// Remove old status date if it exists and is managed (but never remove start date)
 	if (settings.manageCompletedDate && oldStatusType === "completed") {
 		operations.push({
 			type: "remove",
 			dateType: "completed",
-		});
-	}
-	if (settings.manageStartDate && oldStatusType === "inProgress") {
-		operations.push({
-			type: "remove",
-			dateType: "start",
 		});
 	}
 	if (settings.manageCancelledDate && oldStatusType === "abandoned") {
@@ -205,7 +202,7 @@ function determineDateOperations(
 		});
 	}
 
-	// Add new status date if it should be managed
+	// Add new status date if it should be managed and doesn't already exist
 	if (settings.manageCompletedDate && newStatusType === "completed") {
 		operations.push({
 			type: "add",
@@ -214,11 +211,14 @@ function determineDateOperations(
 		});
 	}
 	if (settings.manageStartDate && newStatusType === "inProgress") {
-		operations.push({
-			type: "add",
-			dateType: "start",
-			format: settings.startDateFormat || "YYYY-MM-DD",
-		});
+		// Only add start date if it doesn't already exist
+		if (!hasExistingDate(lineText, "start", plugin)) {
+			operations.push({
+				type: "add",
+				dateType: "start",
+				format: settings.startDateFormat || "YYYY-MM-DD",
+			});
+		}
 	}
 	if (settings.manageCancelledDate && newStatusType === "abandoned") {
 		operations.push({
@@ -229,6 +229,38 @@ function determineDateOperations(
 	}
 
 	return operations;
+}
+
+/**
+ * Checks if a specific date type already exists in the line
+ * @param lineText The task line text
+ * @param dateType The type of date to check for
+ * @param plugin The plugin instance
+ * @returns True if the date already exists
+ */
+function hasExistingDate(
+	lineText: string,
+	dateType: string,
+	plugin: TaskProgressBarPlugin
+): boolean {
+	const useDataviewFormat =
+		plugin.settings.preferMetadataFormat === "dataview";
+
+	if (useDataviewFormat) {
+		const fieldName = dateType === "start" ? "start" : dateType;
+		const pattern = new RegExp(
+			`\\[${fieldName}::\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?\\]`
+		);
+		return pattern.test(lineText);
+	} else {
+		const dateMarker = getDateMarker(dateType, plugin);
+		const pattern = new RegExp(
+			`${escapeRegex(
+				dateMarker
+			)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`
+		);
+		return pattern.test(lineText);
+	}
 }
 
 /**
@@ -294,8 +326,23 @@ function applyDateOperations(
 				dateText = ` ${dateMarker} ${dateString}`;
 			}
 
-			// Find the end of the task content (before any existing dates)
-			const insertPosition = findDateInsertPosition(lineText, plugin);
+			// Find the appropriate insert position based on date type
+			let insertPosition: number;
+			if (operation.dateType === "completed") {
+				// Completed date goes at the end (before block reference ID)
+				insertPosition = findCompletedDateInsertPosition(
+					lineText,
+					plugin
+				);
+			} else {
+				// Start date and cancelled date go after existing metadata but before completed date
+				insertPosition = findMetadataInsertPosition(
+					lineText,
+					plugin,
+					operation.dateType
+				);
+			}
+
 			const absolutePosition = line.from + insertPosition;
 
 			changes.push({
@@ -316,12 +363,10 @@ function applyDateOperations(
 			let datePattern: RegExp;
 
 			if (useDataviewFormat) {
-				// For dataview format: [completion::2024-01-01] or [start::2024-01-01]
+				// For dataview format: [completion::2024-01-01] or [cancelled::2024-01-01]
 				const fieldName =
 					operation.dateType === "completed"
 						? "completion"
-						: operation.dateType === "start"
-						? "start"
 						: operation.dateType === "cancelled"
 						? "cancelled"
 						: "unknown";
@@ -330,7 +375,7 @@ function applyDateOperations(
 					"g"
 				);
 			} else {
-				// For emoji format: ✅ 2024-01-01 or 🚀 2024-01-01
+				// For emoji format: ✅ 2024-01-01 or ❌ 2024-01-01
 				const dateMarker = getDateMarker(operation.dateType, plugin);
 				datePattern = new RegExp(
 					`\\s*${escapeRegex(
@@ -442,43 +487,83 @@ function getDateMarker(
 }
 
 /**
- * Finds the position where a new date should be inserted
+ * Finds the position where metadata (start date, cancelled date, etc.) should be inserted
  * @param lineText The task line text
  * @param plugin The plugin instance
- * @returns The position index where the date should be inserted
+ * @param dateType The type of date being inserted
+ * @returns The position index where the metadata should be inserted
  */
-function findDateInsertPosition(
+function findMetadataInsertPosition(
 	lineText: string,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
+	dateType: string
 ): number {
-	// Find the end of the task content, before any existing dates or metadata
+	// Find the end of the task content, right after the task description
 	const taskMatch = lineText.match(/^[\s|\t]*([-*+]|\d+\.)\s\[.\]\s*/);
 	if (!taskMatch) return lineText.length;
 
 	let position = taskMatch[0].length;
 
-	const useDataviewFormat =
-		plugin.settings.preferMetadataFormat === "dataview";
+	// Find the main task content (description) before any metadata
+	const contentMatch = lineText
+		.slice(position)
+		.match(/^[^\[#@📅🚀✅❌]*(?=\s*[\[#@📅🚀✅❌]|$)/);
+	if (contentMatch) {
+		position += contentMatch[0].trimEnd().length;
+	}
 
-	if (useDataviewFormat) {
-		// For dataview format, find the main task content before any dataview fields, tags, or metadata
-		const contentMatch = lineText
-			.slice(position)
-			.match(/^[^\[#@]*(?=\s*[\[#@]|$)/);
-		if (contentMatch) {
-			position += contentMatch[0].trimEnd().length;
+	// If we're inserting a cancelled date, we need to find the position after existing start dates
+	if (dateType === "cancelled") {
+		const useDataviewFormat =
+			plugin.settings.preferMetadataFormat === "dataview";
+
+		// Look for existing start dates and position after them
+		const remainingText = lineText.slice(position);
+		let startDateEnd = 0;
+
+		if (useDataviewFormat) {
+			const startDateMatch = remainingText.match(/^\s*\[start::[^\]]*\]/);
+			if (startDateMatch) {
+				startDateEnd = startDateMatch[0].length;
+			}
+		} else {
+			const startMarker = getDateMarker("start", plugin);
+			const startDatePattern = new RegExp(
+				`^\\s*${escapeRegex(
+					startMarker
+				)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`
+			);
+			const startDateMatch = remainingText.match(startDatePattern);
+			if (startDateMatch) {
+				startDateEnd = startDateMatch[0].length;
+			}
 		}
-	} else {
-		// For emoji format, find the main task content before any emoji dates, tags, or metadata
-		const contentMatch = lineText
-			.slice(position)
-			.match(/^[^📅🚀✅❌#@\[]*(?=\s*[📅🚀✅❌#@\[]|$)/);
-		if (contentMatch) {
-			position += contentMatch[0].trimEnd().length;
-		}
+
+		position += startDateEnd;
 	}
 
 	return position;
+}
+
+/**
+ * Finds the position where completed date should be inserted (at the end, before block reference ID)
+ * @param lineText The task line text
+ * @param plugin The plugin instance
+ * @returns The position index where the completed date should be inserted
+ */
+function findCompletedDateInsertPosition(
+	lineText: string,
+	plugin: TaskProgressBarPlugin
+): number {
+	// Look for block reference ID pattern (^block-id) at the end
+	const blockRefMatch = lineText.match(/\s*\^[\w-]+\s*$/);
+	if (blockRefMatch) {
+		// Insert before the block reference ID
+		return lineText.length - blockRefMatch[0].length;
+	}
+
+	// If no block reference, insert at the very end
+	return lineText.length;
 }
 
 /**
