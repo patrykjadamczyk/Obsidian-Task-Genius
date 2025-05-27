@@ -2,6 +2,7 @@ import { App, editorInfoField } from "obsidian";
 import { EditorState, Transaction, Text } from "@codemirror/state";
 import TaskProgressBarPlugin from "../index"; // Adjust path if needed
 import { parseTaskLine } from "../utils/taskUtil"; // Adjust path if needed
+import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 
 /**
  * Creates an editor extension that monitors task completion events.
@@ -35,6 +36,15 @@ function handleMonitorTaskCompletionTransaction(
 ) {
 	// Only process transactions that change the document
 	if (!tr.docChanged) {
+		return;
+	}
+
+	// Skip if this transaction was triggered by auto date management
+	const annotationValue = tr.annotation(taskStatusChangeAnnotation);
+	if (
+		typeof annotationValue === "string" &&
+		annotationValue.includes("autoDateManager")
+	) {
 		return;
 	}
 

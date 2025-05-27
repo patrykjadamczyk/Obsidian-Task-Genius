@@ -278,6 +278,20 @@ export interface HabitSettings {
 	habits: BaseHabitData[]; // 存储基础习惯数据，不包含completions字段
 }
 
+/** Define the structure for auto date manager settings */
+export interface AutoDateManagerSettings {
+	enabled: boolean;
+	manageCompletedDate: boolean;
+	manageStartDate: boolean;
+	manageCancelledDate: boolean;
+	completedDateFormat: string;
+	startDateFormat: string;
+	cancelledDateFormat: string;
+	completedDateMarker: string;
+	startDateMarker: string;
+	cancelledDateMarker: string;
+}
+
 // Define SortCriterion interface (if not already present)
 export interface SortCriterion {
 	field:
@@ -385,6 +399,9 @@ export interface TaskProgressBarSettings {
 	// Sorting Settings
 	sortTasks: boolean; // Enable/disable task sorting feature
 	sortCriteria: SortCriterion[]; // Array defining the sorting order
+
+	// Auto Date Manager Settings
+	autoDateManager: AutoDateManagerSettings;
 }
 
 /** Define the default settings */
@@ -761,6 +778,20 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		{ field: "priority", order: "asc" },
 		{ field: "dueDate", order: "asc" },
 	],
+
+	// Auto Date Manager Defaults
+	autoDateManager: {
+		enabled: false,
+		manageCompletedDate: true,
+		manageStartDate: true,
+		manageCancelledDate: true,
+		completedDateFormat: "YYYY-MM-DD",
+		startDateFormat: "YYYY-MM-DD",
+		cancelledDateFormat: "YYYY-MM-DD",
+		completedDateMarker: "✅",
+		startDateMarker: "🚀",
+		cancelledDateMarker: "❌",
+	},
 };
 
 // Helper function to get view settings safely

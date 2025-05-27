@@ -74,6 +74,7 @@ import { HabitManager } from "./utils/HabitManager";
 import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
 import { sortTasksInDocument } from "./commands/sortTaskCommands";
 import { taskGutterExtension } from "./editor-ext/TaskGutterHandler";
+import { autoDateManagerExtension } from "./editor-ext/autoDateManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -747,6 +748,13 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add task filter extension
 		if (this.settings.taskFilter.enableTaskFilter) {
 			this.registerEditorExtension([taskFilterExtension(this)]);
+		}
+
+		// Add auto date manager extension
+		if (this.settings.autoDateManager.enabled) {
+			this.registerEditorExtension([
+				autoDateManagerExtension(this.app, this),
+			]);
 		}
 	}
 

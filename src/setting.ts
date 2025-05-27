@@ -1677,6 +1677,94 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Initial render of the task states list
 		refreshTaskStatesList();
+
+		// Auto Date Manager Settings
+		new Setting(containerEl)
+			.setName(t("Auto Date Manager"))
+			.setDesc(
+				t("Automatically manage dates based on task status changes")
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable auto date manager"))
+			.setDesc(
+				t(
+					"Toggle this to enable automatic date management when task status changes. Dates will be added/removed based on your preferred metadata format (Tasks emoji format or Dataview format)."
+				)
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoDateManager.enabled)
+					.onChange(async (value) => {
+						this.plugin.settings.autoDateManager.enabled = value;
+						this.applySettingsUpdate();
+						setTimeout(() => {
+							this.display();
+						}, 200);
+					})
+			);
+
+		if (this.plugin.settings.autoDateManager.enabled) {
+			new Setting(containerEl)
+				.setName(t("Manage completion dates"))
+				.setDesc(
+					t(
+						"Automatically add completion dates when tasks are marked as completed, and remove them when changed to other statuses."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.autoDateManager
+								.manageCompletedDate
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.autoDateManager.manageCompletedDate =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Manage start dates"))
+				.setDesc(
+					t(
+						"Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.autoDateManager.manageStartDate
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.autoDateManager.manageStartDate =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName(t("Manage cancelled dates"))
+				.setDesc(
+					t(
+						"Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses."
+					)
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.autoDateManager
+								.manageCancelledDate
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.autoDateManager.manageCancelledDate =
+								value;
+							this.applySettingsUpdate();
+						})
+				);
+		}
 	}
 
 	private displayDatePrioritySettings(containerEl: HTMLElement): void {
