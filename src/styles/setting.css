@@ -1088,3 +1088,55 @@
 }
 
 /* END: View Management Styles */
+
+/* Tasks Plugin Compatibility Warning Banner */
+.tasks-compatibility-warning {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-4-3);
+	padding: var(--size-4-4);
+	margin-bottom: var(--size-4-4);
+	background-color: hsl(
+		var(--accent-h),
+		var(--accent-s),
+		var(--accent-l),
+		0.5
+	);
+	border: 1px solid
+		hsl(var(--accent-h), var(--accent-s), var(--accent-l), 0.5);
+	border-radius: var(--radius-m);
+	color: var(--text-on-accent);
+}
+
+.tasks-warning-icon {
+	font-size: 20px;
+	line-height: 1;
+	flex-shrink: 0;
+}
+
+.tasks-warning-content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+}
+
+.tasks-warning-title {
+	font-weight: 600;
+	font-size: var(--font-ui-medium);
+}
+
+.tasks-warning-text {
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+}
+
+.tasks-warning-text a {
+	color: var(--text-on-accent);
+	text-decoration: underline;
+}
+
+.tasks-warning-text a:hover {
+	color: var(--text-on-accent);
+}

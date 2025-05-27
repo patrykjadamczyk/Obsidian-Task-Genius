@@ -35,6 +35,7 @@ import {
 } from "./components/AutoComplete";
 import { HabitList } from "./components/HabitSettingList";
 import { ConfirmModal } from "./components/ConfirmModal";
+import { getTasksAPI } from "./utils";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -933,6 +934,49 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.setName(t("Task Status Settings"))
 			.setDesc(t("Configure task status settings"))
 			.setHeading();
+
+		// Check if Tasks plugin is installed and show compatibility warning
+		const tasksAPI = getTasksAPI(this.plugin);
+		if (tasksAPI) {
+			const warningBanner = containerEl.createDiv({
+				cls: "tasks-compatibility-warning",
+			});
+
+			warningBanner.createEl("div", {
+				cls: "tasks-warning-icon",
+				text: "⚠️",
+			});
+
+			const warningContent = warningBanner.createDiv({
+				cls: "tasks-warning-content",
+			});
+
+			warningContent.createEl("div", {
+				cls: "tasks-warning-title",
+				text: t("Tasks Plugin Detected"),
+			});
+
+			const warningText = warningContent.createEl("div", {
+				cls: "tasks-warning-text",
+			});
+
+			warningText.createEl("span", {
+				text: t(
+					"Current status management and date management may conflict with the Tasks plugin. Please check the "
+				),
+			});
+
+			const compatibilityLink = warningText.createEl("a", {
+				text: t("compatibility documentation"),
+				href: "https://taskgenius.md/docs/compatibility",
+			});
+			compatibilityLink.setAttribute("target", "_blank");
+			compatibilityLink.setAttribute("rel", "noopener noreferrer");
+
+			warningText.createEl("span", {
+				text: t(" for more information."),
+			});
+		}
 
 		new Setting(containerEl)
 			.setName(t("Auto complete parent task"))
