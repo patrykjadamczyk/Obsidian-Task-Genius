@@ -600,6 +600,10 @@ export class TaskSpecificView extends ItemView {
 	}
 
 	private switchView(viewId: ViewMode, project?: string | null) {
+		this.currentViewId = viewId;
+		this.currentProject = project;
+		console.log("Switching view to:", viewId, "Project:", project);
+
 		// Hide all components first
 		this.contentComponent.containerEl.hide();
 		this.forecastComponent.containerEl.hide();
@@ -612,11 +616,11 @@ export class TaskSpecificView extends ItemView {
 		});
 		// Hide all special view components
 		this.viewComponentManager.hideAllComponents();
-
+		this.habitsComponent.containerEl.hide();
 		this.calendarComponent.containerEl.hide();
 		this.kanbanComponent.containerEl.hide();
 		this.ganttComponent.containerEl.hide();
-		this.habitsComponent.containerEl.hide();
+
 		let targetComponent: any = null;
 		let modeForComponent: ViewMode = viewId;
 
@@ -696,47 +700,63 @@ export class TaskSpecificView extends ItemView {
 
 		if (targetComponent) {
 			console.log(
-				`TaskSpecificView activating component for view ${viewId}`,
+				`Activating component for view ${viewId}`,
 				targetComponent.constructor.name
 			);
 			targetComponent.containerEl.show();
+			if (typeof targetComponent.setTasks === "function") {
+				// 使用高级过滤器状态，确保传递有效的过滤器
+				const filterOptions: {
+					advancedFilter?: RootFilterState;
+					textQuery?: string;
+				} = {};
+				if (
+					this.currentFilterState &&
+					this.currentFilterState.filterGroups &&
+					this.currentFilterState.filterGroups.length > 0
+				) {
+					console.log("应用高级筛选器到视图:", viewId);
+					filterOptions.advancedFilter = this.currentFilterState;
+				}
 
-			// Ensure tasks are loaded/filtered for the specific view
-			const filterOptions: {
-				advancedFilter?: RootFilterState;
-				textQuery?: string;
-			} = {};
-			if (
-				this.currentFilterState &&
-				this.currentFilterState.filterGroups &&
-				this.currentFilterState.filterGroups.length > 0
-			) {
-				filterOptions.advancedFilter = this.currentFilterState;
+				targetComponent.setTasks(
+					filterTasks(this.tasks, viewId, this.plugin, filterOptions),
+					this.tasks
+				);
 			}
 
-			const filteredTasks = filterTasks(
-				this.tasks,
-				viewId,
-				this.plugin,
-				filterOptions
-			);
-			if (typeof targetComponent.setTasks === "function") {
-				targetComponent.setTasks(filteredTasks);
+			// Handle updateTasks method for table view adapter
+			if (typeof targetComponent.updateTasks === "function") {
+				const filterOptions: {
+					advancedFilter?: RootFilterState;
+					textQuery?: string;
+				} = {};
+				if (
+					this.currentFilterState &&
+					this.currentFilterState.filterGroups &&
+					this.currentFilterState.filterGroups.length > 0
+				) {
+					console.log("应用高级筛选器到表格视图:", viewId);
+					filterOptions.advancedFilter = this.currentFilterState;
+				}
+
+				targetComponent.updateTasks(
+					filterTasks(this.tasks, viewId, this.plugin, filterOptions)
+				);
 			}
 
 			if (typeof targetComponent.setViewMode === "function") {
 				console.log(
-					`TaskSpecificView setting view mode for ${viewId} to ${modeForComponent} with project ${project}`
+					`Setting view mode for ${viewId} to ${modeForComponent} with project ${project}`
 				);
 				targetComponent.setViewMode(modeForComponent, project);
 			}
 
-			// Handle TwoColumnView task update specifically
-			this.twoColumnViewComponents.forEach((component, id) => {
+			this.twoColumnViewComponents.forEach((component) => {
 				if (
-					id === viewId && // Only update the *current* two-column view
 					component &&
-					typeof component.setTasks === "function"
+					typeof component.setTasks === "function" &&
+					component.getViewId() === viewId
 				) {
 					const filterOptions: {
 						advancedFilter?: RootFilterState;
@@ -754,12 +774,12 @@ export class TaskSpecificView extends ItemView {
 						filterTasks(
 							this.tasks,
 							component.getViewId(),
-							this.plugin
+							this.plugin,
+							filterOptions
 						)
 					);
 				}
 			});
-
 			if (
 				viewId === "review" &&
 				typeof targetComponent.refreshReviewSettings === "function"
@@ -767,28 +787,11 @@ export class TaskSpecificView extends ItemView {
 				targetComponent.refreshReviewSettings();
 			}
 		} else {
-			console.warn(
-				`TaskSpecificView: No target component found for viewId: ${viewId}`
-			);
+			console.warn(`No target component found for viewId: ${viewId}`);
 		}
-
-		// Don't save to local storage as state is managed by the leaf
-		// this.app.saveLocalStorage("task-genius:view-mode", viewId);
 
 		this.updateHeaderDisplay();
-		this.handleTaskSelection(null); // Deselect task on view switch
-
-		// Update tab icon/title
-		if (this.leaf.tabHeaderInnerIconEl) {
-			setIcon(this.leaf.tabHeaderInnerIconEl, this.getIcon());
-		}
-		if (this.leaf.tabHeaderInnerTitleEl) {
-			this.leaf.tabHeaderInnerTitleEl.setText(this.getDisplayText());
-		}
-		if (this.titleEl) {
-			// Also update the view title element itself
-			this.titleEl.setText(this.getDisplayText());
-		}
+		this.handleTaskSelection(null);
 	}
 
 	private updateHeaderDisplay() {

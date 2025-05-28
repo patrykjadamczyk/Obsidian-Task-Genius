@@ -131,13 +131,31 @@ export interface TwoColumnSpecificConfig {
 	emptyStateText: string; // Text to show when no items are selected
 }
 
+export interface TableSpecificConfig {
+	viewType: "table"; // Discriminator
+	enableTreeView: boolean; // Enable hierarchical tree view
+	enableLazyLoading: boolean; // Enable lazy loading for large datasets
+	pageSize: number; // Number of rows to load per batch
+	enableInlineEditing: boolean; // Enable inline editing of task properties
+	visibleColumns: string[]; // Array of column IDs to display
+	columnWidths: Record<string, number>; // Column width settings
+	sortableColumns: boolean; // Enable column sorting
+	resizableColumns: boolean; // Enable column resizing
+	showRowNumbers: boolean; // Show row numbers
+	enableRowSelection: boolean; // Enable row selection
+	enableMultiSelect: boolean; // Enable multiple row selection
+	defaultSortField: string; // Default sort field
+	defaultSortOrder: "asc" | "desc"; // Default sort order
+}
+
 // ADDED: Union type for specific configs
 export type SpecificViewConfig =
 	| KanbanSpecificConfig
 	| CalendarSpecificConfig
 	| GanttSpecificConfig
 	| TwoColumnSpecificConfig
-	| ForecastSpecificConfig;
+	| ForecastSpecificConfig
+	| TableSpecificConfig;
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -720,6 +738,46 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			hideCompletedAndAbandonedTasks: false,
 			filterRules: {},
 			filterBlanks: false,
+		},
+		{
+			id: "table",
+			name: t("Table"),
+			icon: "table",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			filterBlanks: false,
+			specificConfig: {
+				viewType: "table",
+				enableTreeView: true,
+				enableLazyLoading: true,
+				pageSize: 50,
+				enableInlineEditing: true,
+				visibleColumns: [
+					"status",
+					"content",
+					"priority",
+					"dueDate",
+					"tags",
+					"project",
+				],
+				columnWidths: {
+					status: 80,
+					content: 300,
+					priority: 100,
+					dueDate: 120,
+					tags: 150,
+					project: 150,
+				},
+				sortableColumns: true,
+				resizableColumns: true,
+				showRowNumbers: true,
+				enableRowSelection: true,
+				enableMultiSelect: true,
+				defaultSortField: "priority",
+				defaultSortOrder: "asc",
+			} as TableSpecificConfig,
 		},
 	],
 
