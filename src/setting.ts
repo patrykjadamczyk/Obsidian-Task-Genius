@@ -4048,7 +4048,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.addButton((button) => {
 				button.setButtonText(t("Report Issue")).onClick(() => {
 					window.open(
-						"https://github.com/boninall/obsidian-task-progress-bar/issues"
+						"https://github.com/quorafind/obsidian-task-genius/issues"
 					);
 				});
 			});
