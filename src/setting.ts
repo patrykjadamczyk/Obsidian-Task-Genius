@@ -64,7 +64,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "reward", name: t("Reward"), icon: "medal" },
 		{ id: "habit", name: t("Habit"), icon: "calendar-check" },
 		{ id: "view-settings", name: t("View Config"), icon: "layout" },
-		{ id: "beta-test", name: t("Beta Test"), icon: "flask" },
+		{ id: "beta-test", name: t("Beta"), icon: "test-tube" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
 
