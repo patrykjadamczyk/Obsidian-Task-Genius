@@ -31,7 +31,7 @@ import {
 	parsePriorityFilterValue,
 } from "../utils/filterUtils";
 import { t } from "../translations/helper";
-import { Task as TaskIndexTask } from "../utils/types/TaskIndex";
+import { Task as TaskIndexTask } from "../types/task";
 import "../styles/task-filter.css";
 
 // Effect to toggle the filter panel

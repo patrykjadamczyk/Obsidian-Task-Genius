@@ -12,7 +12,7 @@ import {
 	CloseableComponent,
 } from "obsidian";
 import { createPopper, Instance as PopperInstance } from "@popperjs/core";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import TaskProgressBarPlugin from "../../index";
 import { TaskMetadataEditor } from "./MetadataEditor";
 import { t } from "../../translations/helper";

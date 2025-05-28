@@ -9,7 +9,7 @@ import {
 	ListItemCache,
 	TFile,
 } from "obsidian";
-import { Task, TaskParserConfig } from "../types/TaskIndex";
+import { Task, TaskParserConfig } from "../../types/task";
 import { MetadataFormat, parseTaskLine } from "../taskUtil";
 
 /**

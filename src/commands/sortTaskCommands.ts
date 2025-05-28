@@ -1,7 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import { Notice } from "obsidian";
 import { parseTaskLine, MetadataFormat } from "../utils/taskUtil";
-import { Task as IndexerTask } from "../utils/types/TaskIndex";
+import { Task as IndexerTask } from "../types/task";
 import TaskProgressBarPlugin from "../index";
 import {
 	TaskProgressBarSettings,

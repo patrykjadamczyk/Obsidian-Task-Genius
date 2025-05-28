@@ -11,7 +11,7 @@ import {
 	DropdownComponent,
 	TextAreaComponent,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
 import { ProjectSuggest, TagSuggest, ContextSuggest } from "../AutoComplete";

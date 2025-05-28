@@ -5,7 +5,7 @@ import {
 	MarkdownRenderer as ObsidianMarkdownRenderer,
 	TFile,
 } from "obsidian";
-import { type Task } from "../../utils/types/TaskIndex";
+import { type Task } from "../../types/task";
 import "../../styles/gantt/gantt.css";
 
 // Import new components and helpers
@@ -1071,7 +1071,11 @@ export class GanttComponent extends Component {
 						case "status":
 							return task.status === filter.value;
 						case "tag":
-							return task.tags.includes(filter.value);
+							return task.tags.some(
+								(tag) =>
+									typeof tag === "string" &&
+									tag === filter.value
+							);
 						case "project":
 							return task.project === filter.value;
 						case "context":

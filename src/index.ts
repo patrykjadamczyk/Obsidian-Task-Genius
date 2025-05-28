@@ -7,6 +7,7 @@ import {
 	Editor,
 	Menu,
 	addIcon,
+	requireApiVersion,
 } from "obsidian";
 import {
 	taskProgressBarExtension,
@@ -54,7 +55,7 @@ import {
 	taskFilterState,
 	migrateOldFilterOptions,
 } from "./editor-ext/filterTasks";
-import { Task } from "./utils/types/TaskIndex";
+import { Task } from "./types/task";
 import { QuickCaptureModal } from "./components/QuickCaptureModal";
 import { MarkdownView } from "obsidian";
 import { Notice } from "obsidian";
@@ -75,6 +76,7 @@ import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted
 import { sortTasksInDocument } from "./commands/sortTaskCommands";
 import { taskGutterExtension } from "./editor-ext/TaskGutterHandler";
 import { autoDateManagerExtension } from "./editor-ext/autoDateManager";
+import { ViewManager } from "./pages/ViewManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -169,6 +171,14 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+
+		if (
+			requireApiVersion("1.9.0") &&
+			this.settings.betaTest?.enableBaseView
+		) {
+			const viewManager = new ViewManager(this.app, this);
+			this.addChild(viewManager);
+		}
 
 		// Initialize task manager
 		if (this.settings.enableView) {

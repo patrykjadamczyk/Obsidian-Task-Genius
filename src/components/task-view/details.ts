@@ -10,7 +10,7 @@ import {
 	Menu,
 	debounce,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import TaskProgressBarPlugin from "../../index";
 import { TaskProgressBarSettings } from "../../common/setting-definition";
 import "../../styles/task-details.css";
@@ -18,6 +18,7 @@ import { t } from "../../translations/helper";
 import { clearAllMarks } from "../MarkdownRenderer";
 import { StatusComponent } from "../StatusComponent";
 import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
+import { FileTask } from "../../types/file-task";
 
 function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	const status = Object.keys(settings.taskStatuses).find((key) => {
@@ -358,7 +359,12 @@ export class TaskDetailsComponent extends Component {
 			cls: "date-input",
 		});
 		if (task.dueDate) {
-			dueDateInput.value = moment(task.dueDate).format("YYYY-MM-DD");
+			// Use local date to avoid timezone issues
+			const date = new Date(task.dueDate);
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			dueDateInput.value = `${year}-${month}-${day}`;
 		}
 
 		// Start date
@@ -371,7 +377,12 @@ export class TaskDetailsComponent extends Component {
 			cls: "date-input",
 		});
 		if (task.startDate) {
-			startDateInput.value = moment(task.startDate).format("YYYY-MM-DD");
+			// Use local date to avoid timezone issues
+			const date = new Date(task.startDate);
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			startDateInput.value = `${year}-${month}-${day}`;
 		}
 
 		// Scheduled date
@@ -384,9 +395,12 @@ export class TaskDetailsComponent extends Component {
 			cls: "date-input",
 		});
 		if (task.scheduledDate) {
-			scheduledDateInput.value = moment(task.scheduledDate).format(
-				"YYYY-MM-DD"
-			);
+			// Use local date to avoid timezone issues
+			const date = new Date(task.scheduledDate);
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			scheduledDateInput.value = `${year}-${month}-${day}`;
 		}
 
 		// Recurrence pattern
@@ -429,7 +443,9 @@ export class TaskDetailsComponent extends Component {
 			// Parse dates and check if they've changed
 			const dueDateValue = dueDateInput.value;
 			if (dueDateValue) {
-				const newDueDate = moment(dueDateValue, "YYYY-MM-DD").valueOf();
+				// Create date in local timezone to avoid timezone offset issues
+				const [year, month, day] = dueDateValue.split("-").map(Number);
+				const newDueDate = new Date(year, month - 1, day).getTime();
 				// Only update if the date has changed or is different from the original
 				if (task.dueDate !== newDueDate) {
 					updatedTask.dueDate = newDueDate;
@@ -446,10 +462,11 @@ export class TaskDetailsComponent extends Component {
 
 			const startDateValue = startDateInput.value;
 			if (startDateValue) {
-				const newStartDate = moment(
-					startDateValue,
-					"YYYY-MM-DD"
-				).valueOf();
+				// Create date in local timezone to avoid timezone offset issues
+				const [year, month, day] = startDateValue
+					.split("-")
+					.map(Number);
+				const newStartDate = new Date(year, month - 1, day).getTime();
 				// Only update if the date has changed or is different from the original
 				if (task.startDate !== newStartDate) {
 					updatedTask.startDate = newStartDate;
@@ -466,10 +483,15 @@ export class TaskDetailsComponent extends Component {
 
 			const scheduledDateValue = scheduledDateInput.value;
 			if (scheduledDateValue) {
-				const newScheduledDate = moment(
-					scheduledDateValue,
-					"YYYY-MM-DD"
-				).valueOf();
+				// Create date in local timezone to avoid timezone offset issues
+				const [year, month, day] = scheduledDateValue
+					.split("-")
+					.map(Number);
+				const newScheduledDate = new Date(
+					year,
+					month - 1,
+					day
+				).getTime();
 				// Only update if the date has changed or is different from the original
 				if (task.scheduledDate !== newScheduledDate) {
 					updatedTask.scheduledDate = newScheduledDate;
@@ -487,8 +509,14 @@ export class TaskDetailsComponent extends Component {
 			updatedTask.recurrence = recurrenceInput.getValue() || undefined;
 
 			// Check if any task data has changed before updating
-			const hasChanges =
-				JSON.stringify(task) !== JSON.stringify(updatedTask);
+			const hasChanges = this.hasTaskChanges(task, updatedTask);
+
+			console.log(
+				"dueDate",
+				task.dueDate,
+				updatedTask.dueDate,
+				hasChanges
+			);
 
 			// Call the update callback only if there are changes
 			if (this.onTaskUpdate && hasChanges) {
@@ -528,15 +556,112 @@ export class TaskDetailsComponent extends Component {
 		registerBlurEvent(tagsInput.inputEl);
 		registerBlurEvent(contextInput.inputEl);
 		registerBlurEvent(priorityDropdown.selectEl);
-		registerBlurEvent(dueDateInput);
-		registerBlurEvent(startDateInput);
-		registerBlurEvent(scheduledDateInput);
+		// Remove blur events for date inputs to prevent duplicate saves
+		// registerBlurEvent(dueDateInput);
+		// registerBlurEvent(startDateInput);
+		// registerBlurEvent(scheduledDateInput);
 		registerBlurEvent(recurrenceInput.inputEl);
 
 		// Register change events for date inputs
 		registerDateChangeEvent(dueDateInput);
 		registerDateChangeEvent(startDateInput);
 		registerDateChangeEvent(scheduledDateInput);
+	}
+
+	private hasTaskChanges(originalTask: Task, updatedTask: Task): boolean {
+		// For FileTask objects, we need to avoid comparing the sourceEntry property
+		// which contains circular references that can't be JSON.stringify'd
+		const isFileTask =
+			"isFileTask" in originalTask && originalTask.isFileTask;
+
+		if (isFileTask) {
+			// Compare all properties except sourceEntry for FileTask
+			const originalCopy = { ...originalTask };
+			const updatedCopy = { ...updatedTask };
+
+			// Remove sourceEntry from comparison for FileTask
+			if ("sourceEntry" in originalCopy) {
+				delete (originalCopy as any).sourceEntry;
+			}
+			if ("sourceEntry" in updatedCopy) {
+				delete (updatedCopy as any).sourceEntry;
+			}
+
+			try {
+				return (
+					JSON.stringify(originalCopy) !== JSON.stringify(updatedCopy)
+				);
+			} catch (error) {
+				console.warn(
+					"Failed to compare tasks with JSON.stringify, falling back to property comparison:",
+					error
+				);
+				return this.compareTaskProperties(originalTask, updatedTask);
+			}
+		} else {
+			// For regular Task objects, use JSON.stringify comparison
+			try {
+				return (
+					JSON.stringify(originalTask) !== JSON.stringify(updatedTask)
+				);
+			} catch (error) {
+				console.warn(
+					"Failed to compare tasks with JSON.stringify, falling back to property comparison:",
+					error
+				);
+				return this.compareTaskProperties(originalTask, updatedTask);
+			}
+		}
+	}
+
+	private compareTaskProperties(
+		originalTask: Task,
+		updatedTask: Task
+	): boolean {
+		// Compare key properties that can be edited in the form
+		const compareProps = [
+			"content",
+			"project",
+			"tags",
+			"context",
+			"priority",
+			"dueDate",
+			"startDate",
+			"scheduledDate",
+			"recurrence",
+		];
+
+		for (const prop of compareProps) {
+			const originalValue = (originalTask as any)[prop];
+			const updatedValue = (updatedTask as any)[prop];
+
+			// Handle array comparison for tags
+			if (prop === "tags") {
+				const originalTags = Array.isArray(originalValue)
+					? originalValue
+					: [];
+				const updatedTags = Array.isArray(updatedValue)
+					? updatedValue
+					: [];
+
+				if (originalTags.length !== updatedTags.length) {
+					return true;
+				}
+
+				for (let i = 0; i < originalTags.length; i++) {
+					if (originalTags[i] !== updatedTags[i]) {
+						return true;
+					}
+				}
+			} else {
+				// Simple value comparison
+				if (originalValue !== updatedValue) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	private createFormField(
@@ -564,7 +689,23 @@ export class TaskDetailsComponent extends Component {
 		valueEl.setText(value);
 	}
 
-	private async editTask(task: Task) {
+	private async editTask(task: Task | FileTask) {
+		if (typeof task === "object" && "isFileTask" in task) {
+			const fileTask = task as FileTask;
+			const file = this.app.vault.getAbstractFileByPath(
+				fileTask.sourceEntry.file.path
+			);
+			if (!(file instanceof TFile)) return;
+			const leaf = this.app.workspace.getLeaf(true);
+			await leaf.openFile(file);
+			const editor = this.app.workspace.activeEditor?.editor;
+			if (editor) {
+				editor.setCursor({ line: fileTask.line || 0, ch: 0 });
+				editor.focus();
+			}
+			return;
+		}
+
 		// Get the file from the vault
 		const file = this.app.vault.getAbstractFileByPath(task.filePath);
 		if (!(file instanceof TFile)) return;
@@ -576,7 +717,7 @@ export class TaskDetailsComponent extends Component {
 		// Try to set the cursor at the task's line
 		const editor = this.app.workspace.activeEditor?.editor;
 		if (editor) {
-			editor.setCursor({ line: task.line, ch: 0 });
+			editor.setCursor({ line: task.line || 0, ch: 0 });
 			editor.focus();
 		}
 	}

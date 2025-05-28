@@ -14,7 +14,7 @@ import {
 	MenuItem,
 	ExtraButtonComponent,
 } from "obsidian";
-import { Task } from "../utils/types/TaskIndex";
+import { Task } from "../types/task";
 import TaskProgressBarPlugin from "../index";
 import { TaskDetailsModal } from "../components/task-edit/TaskDetailsModal";
 import { TaskDetailsPopover } from "../components/task-edit/TaskDetailsPopover";

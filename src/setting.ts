@@ -27,6 +27,7 @@ import {
 } from "./common/setting-definition";
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
+import "./styles/beta-warning.css";
 import { ViewConfigModal } from "./components/ViewConfigModal";
 import {
 	FolderSuggest,
@@ -63,6 +64,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "reward", name: t("Reward"), icon: "medal" },
 		{ id: "habit", name: t("Habit"), icon: "calendar-check" },
 		{ id: "view-settings", name: t("View Config"), icon: "layout" },
+		{ id: "beta-test", name: t("Beta Test"), icon: "flask" },
 		{ id: "about", name: t("About"), icon: "info" },
 	];
 
@@ -259,6 +261,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Habit Tab
 		const habitSection = this.createTabSection("habit");
 		this.displayHabitSettings(habitSection);
+
+		// Beta Test Tab
+		const betaTestSection = this.createTabSection("beta-test");
+		this.displayBetaTestSettings(betaTestSection);
 
 		// About Tab
 		const aboutSection = this.createTabSection("about");
@@ -3908,6 +3914,144 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Habit List
 		this.displayHabitList(habitContainer);
+	}
+
+	private displayBetaTestSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName(t("Beta Test Features"))
+			.setDesc(
+				t(
+					"Experimental features that are currently in testing phase. These features may be unstable and could change or be removed in future updates."
+				)
+			)
+			.setHeading();
+
+		// Warning banner
+		const warningBanner = containerEl.createDiv({
+			cls: "beta-test-warning-banner",
+		});
+
+		warningBanner.createEl("div", {
+			cls: "beta-warning-icon",
+			text: "⚠️",
+		});
+
+		const warningContent = warningBanner.createDiv({
+			cls: "beta-warning-content",
+		});
+
+		warningContent.createEl("div", {
+			cls: "beta-warning-title",
+			text: t("Beta Features Warning"),
+		});
+
+		const warningText = warningContent.createEl("div", {
+			cls: "beta-warning-text",
+			text: t(
+				"These features are experimental and may be unstable. They could change significantly or be removed in future updates due to Obsidian API changes or other factors. Please use with caution and provide feedback to help improve these features."
+			),
+		});
+
+		// Base View Settings
+		new Setting(containerEl)
+			.setName(t("Base View"))
+			.setDesc(
+				t(
+					"Advanced view management features that extend the default Task Genius views with additional functionality."
+				)
+			)
+			.setHeading();
+
+		const descFragment = new DocumentFragment();
+		descFragment.createEl("span", {
+			text: t(
+				"Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes. You may need to restart Obsidian to see the changes."
+			),
+		});
+
+		descFragment.createEl("div", {
+			text: t(
+				"You need to close all bases view if you already create task view in them and remove unused view via edit them manually when disable this feature."
+			),
+			cls: "mod-warning",
+		});
+
+		new Setting(containerEl)
+			.setName(t("Enable Base View"))
+			.setDesc(descFragment)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						this.plugin.settings.betaTest?.enableBaseView || false
+					)
+					.onChange(async (value) => {
+						if (value) {
+							new ConfirmModal(this.plugin, {
+								title: t("Enable Base View"),
+								message: t(
+									"Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes."
+								),
+								confirmText: t("Enable"),
+								cancelText: t("Cancel"),
+								onConfirm: (confirmed: boolean) => {
+									if (!confirmed) {
+										setTimeout(() => {
+											toggle.setValue(false);
+											this.display();
+										}, 200);
+										return;
+									}
+
+									if (!this.plugin.settings.betaTest) {
+										this.plugin.settings.betaTest = {
+											enableBaseView: false,
+										};
+									}
+									this.plugin.settings.betaTest.enableBaseView =
+										confirmed;
+									this.applySettingsUpdate();
+									setTimeout(() => {
+										this.display();
+									}, 200);
+								},
+							}).open();
+						} else {
+							if (this.plugin.settings.betaTest) {
+								this.plugin.settings.betaTest.enableBaseView =
+									false;
+							}
+							this.applySettingsUpdate();
+							setTimeout(() => {
+								this.display();
+							}, 200);
+						}
+					})
+			);
+
+		// Feedback section
+		new Setting(containerEl)
+			.setName(t("Beta Feedback"))
+			.setDesc(
+				t(
+					"Help improve these features by providing feedback on your experience."
+				)
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Report Issues"))
+			.setDesc(
+				t(
+					"If you encounter any issues with beta features, please report them to help improve the plugin."
+				)
+			)
+			.addButton((button) => {
+				button.setButtonText(t("Report Issue")).onClick(() => {
+					window.open(
+						"https://github.com/boninall/obsidian-task-progress-bar/issues"
+					);
+				});
+			});
 	}
 
 	// Helper methods for task filters and workflows

@@ -9,7 +9,7 @@ import {
 	TFile,
 	Vault,
 } from "obsidian";
-import { Task } from "../types/TaskIndex";
+import { Task } from "../../types/task";
 import {
 	ErrorResult,
 	IndexerResult,

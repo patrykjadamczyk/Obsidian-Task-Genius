@@ -5,7 +5,7 @@ import {
 	TFile,
 } from "obsidian";
 import { GanttTaskItem, PlacedGanttTaskItem, Timescale } from "./gantt"; // 添加PlacedGanttTaskItem导入
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 
 // Constants from GanttComponent (consider moving to a shared config/constants file)

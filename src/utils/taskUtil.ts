@@ -1,6 +1,6 @@
 import { PRIORITY_MAP } from "../common/default-symbol";
 import { parseLocalDate } from "./dateUtil";
-import { Task } from "./types/TaskIndex";
+import { Task } from "../types/task";
 import {
 	DV_DUE_DATE_REGEX,
 	EMOJI_DUE_DATE_REGEX,
@@ -373,8 +373,9 @@ export function extractTags(
 	// If using 'tasks' (emoji) format, derive project from tags if not set
 	// Also make sure project wasn't already set by DV format before falling back
 	if (!useDataview && !task.project) {
-		const projectTag = task.tags.find((tag) =>
-			tag.startsWith(EMOJI_PROJECT_PREFIX)
+		const projectTag = task.tags.find(
+			(tag) =>
+				typeof tag === "string" && tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 		if (projectTag) {
 			task.project = projectTag.substring(EMOJI_PROJECT_PREFIX.length);
@@ -384,7 +385,8 @@ export function extractTags(
 	// If using Dataview format, filter out any remaining #project/ tags from the tag list
 	if (useDataview) {
 		task.tags = task.tags.filter(
-			(tag) => !tag.startsWith(EMOJI_PROJECT_PREFIX)
+			(tag) =>
+				typeof tag === "string" && !tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 	}
 

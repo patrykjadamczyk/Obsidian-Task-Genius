@@ -1,5 +1,5 @@
 import "obsidian";
-import { Task, TaskCache } from "../utils/types/TaskIndex";
+import { Task, TaskCache } from "./task";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { Extension } from "@codemirror/state";
 import { App, FoldInfo } from "obsidian";

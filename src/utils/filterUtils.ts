@@ -1,4 +1,4 @@
-import { Task } from "./types/TaskIndex";
+import { Task } from "../types/task";
 import { moment } from "obsidian";
 
 // Types for parsing expression trees in advanced filtering
@@ -272,7 +272,10 @@ export function evaluateFilterNode(node: FilterNode, task: Task): boolean {
 
 		case "TAG":
 			return task.tags.some(
-				(tag) => tag.toLowerCase() === node.value.toLowerCase()
+				(tag) =>
+					// Skip non-string tags
+					typeof tag === "string" &&
+					tag.toLowerCase() === node.value.toLowerCase()
 			);
 
 		case "PRIORITY":

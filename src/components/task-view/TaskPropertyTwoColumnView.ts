@@ -1,5 +1,5 @@
 import { App, setIcon } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { TwoColumnViewBase, TwoColumnViewConfig } from "./TwoColumnViewBase";
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";

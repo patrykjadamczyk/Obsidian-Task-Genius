@@ -1,5 +1,5 @@
 import { App, Component, setIcon } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { TaskListItemComponent } from "./listItem"; // Re-import needed components
 import {
 	ViewMode,

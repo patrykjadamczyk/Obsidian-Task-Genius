@@ -7,7 +7,7 @@ import {
 	Platform,
 	setIcon,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { t } from "../../translations/helper";
 import { ProjectReviewSetting } from "../../common/setting-definition";
 import TaskProgressBarPlugin from "../../index"; // Path used in TaskView.ts

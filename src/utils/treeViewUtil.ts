@@ -1,4 +1,4 @@
-import { Task } from "./types/TaskIndex";
+import { Task } from "../types/task";
 
 /**
  * Convert a flat list of tasks to a hierarchical tree structure

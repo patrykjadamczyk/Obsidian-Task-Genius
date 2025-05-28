@@ -1,5 +1,5 @@
 import { App, setIcon } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { t } from "../../translations/helper";
 import "../../styles/tag-view.css";
 import "../../styles/view-two-column-base.css";
@@ -50,6 +50,11 @@ export class TagViewComponent extends TwoColumnViewBase<string> {
 		this.allTasks.forEach((task) => {
 			if (task.tags && task.tags.length > 0) {
 				task.tags.forEach((tag) => {
+					// 跳过非字符串类型的标签
+					if (typeof tag !== "string") {
+						return;
+					}
+
 					if (!this.allTagsMap.has(tag)) {
 						this.allTagsMap.set(tag, new Set());
 					}
@@ -281,7 +286,9 @@ export class TagViewComponent extends TwoColumnViewBase<string> {
 				if (!task.tags) return false;
 				return task.tags.some(
 					(taskTag) =>
-						taskTag === tag || taskTag.startsWith(tag + "/")
+						// 跳过非字符串类型的标签
+						typeof taskTag === "string" &&
+						(taskTag === tag || taskTag.startsWith(tag + "/"))
 				);
 			});
 
@@ -459,8 +466,10 @@ export class TagViewComponent extends TwoColumnViewBase<string> {
 						if (
 							updatedTask.tags?.some(
 								(taskTag) =>
-									taskTag === section.tag ||
-									taskTag.startsWith(section.tag + "/")
+									// 跳过非字符串类型的标签
+									typeof taskTag === "string" &&
+									(taskTag === section.tag ||
+										taskTag.startsWith(section.tag + "/"))
 							)
 						) {
 							// 检查任务是否实际存在于此分区的列表中

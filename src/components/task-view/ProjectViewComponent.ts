@@ -1,5 +1,5 @@
 import { App, setIcon } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { t } from "../../translations/helper";
 import "../../styles/project-view.css";
 import "../../styles/view-two-column-base.css";

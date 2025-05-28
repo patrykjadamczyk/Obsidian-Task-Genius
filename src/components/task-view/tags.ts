@@ -5,7 +5,7 @@ import {
 	ExtraButtonComponent,
 	Platform,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/tag-view.css";
@@ -229,6 +229,11 @@ export class TagsComponent extends Component {
 		this.allTasks.forEach((task) => {
 			if (task.tags && task.tags.length > 0) {
 				task.tags.forEach((tag) => {
+					// Skip non-string tags
+					if (typeof tag !== "string") {
+						return;
+					}
+
 					if (!this.allTagsMap.has(tag)) {
 						this.allTagsMap.set(tag, new Set());
 					}
@@ -542,7 +547,9 @@ export class TagsComponent extends Component {
 				if (!task.tags) return false;
 				return task.tags.some(
 					(taskTag) =>
-						taskTag === tag || taskTag.startsWith(tag + "/")
+						// Skip non-string tags
+						typeof taskTag === "string" &&
+						(taskTag === tag || taskTag.startsWith(tag + "/"))
 				);
 			});
 
@@ -796,8 +803,10 @@ export class TagsComponent extends Component {
 						if (
 							updatedTask.tags?.some(
 								(taskTag) =>
-									taskTag === section.tag ||
-									taskTag.startsWith(section.tag + "/")
+									// Skip non-string tags
+									typeof taskTag === "string" &&
+									(taskTag === section.tag ||
+										taskTag.startsWith(section.tag + "/"))
 							)
 						) {
 							// Check if the task is actually in this section's list

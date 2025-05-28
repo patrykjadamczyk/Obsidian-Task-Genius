@@ -1,5 +1,5 @@
 import { App, Component } from "obsidian";
-import { Task } from "../utils/types/TaskIndex";
+import { Task } from "../types/task";
 import TaskProgressBarPlugin from "../index";
 import {
 	ViewMode,

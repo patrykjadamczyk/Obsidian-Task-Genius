@@ -7,7 +7,7 @@ import {
 	moment,
 	setIcon,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex"; // Assuming Task type exists here
+import { Task } from "../../types/task"; // Assuming Task type exists here
 // Removed: import { renderCalendarEvent } from "./event";
 import "../../styles/calendar/view.css"; // Import the CSS file
 import "../../styles/calendar/event.css"; // Import the CSS file

@@ -1,5 +1,5 @@
 import { App, Component, Menu } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import "../../styles/task-list.css";
 import { createTaskCheckbox } from "./details";
@@ -295,8 +295,6 @@ export class TaskListItemComponent extends Component {
 			this.task.filePath
 		);
 		this.addChild(this.markdownRenderer);
-
-		console.log("renderMarkdown", this.task.originalMarkdown);
 
 		// Render the markdown content
 		this.markdownRenderer.render(this.task.originalMarkdown);

@@ -3,7 +3,7 @@
  */
 
 import { FileStats } from "obsidian"; // Assuming ListItemCache is not directly available/serializable to worker, rely on regex
-import { Task } from "../types/TaskIndex"; // Task type definition needed
+import { Task } from "../../types/task"; // Task type definition needed
 import {
 	// Assume these types are defined and exported from TaskIndexWorkerMessage.ts
 	// Need to add preferMetadataFormat to IndexerCommand payloads where relevant
@@ -393,8 +393,9 @@ function extractTags(
 	// If using 'tasks' (emoji) format, derive project from tags if not set
 	// Also make sure project wasn't already set by DV format before falling back
 	if (!useDataview && !task.project) {
-		const projectTag = task.tags.find((tag) =>
-			tag.startsWith(EMOJI_PROJECT_PREFIX)
+		const projectTag = task.tags.find(
+			(tag) =>
+				typeof tag === "string" && tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 		if (projectTag) {
 			task.project = projectTag.substring(EMOJI_PROJECT_PREFIX.length);
@@ -404,7 +405,8 @@ function extractTags(
 	// If using Dataview format, filter out any remaining #project/ tags from the tag list
 	if (useDataview) {
 		task.tags = task.tags.filter(
-			(tag) => !tag.startsWith(EMOJI_PROJECT_PREFIX)
+			(tag) =>
+				typeof tag === "string" && !tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 	}
 

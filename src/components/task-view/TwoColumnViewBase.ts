@@ -5,7 +5,7 @@ import {
 	ExtraButtonComponent,
 	Platform,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { TaskListRendererComponent } from "./TaskList";
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";

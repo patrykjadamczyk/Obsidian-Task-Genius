@@ -7,7 +7,7 @@ import {
 	WorkspaceLeaf,
 } from "obsidian";
 import TaskProgressBarPlugin from "../../index"; // Adjust path as needed
-import { Task } from "../../utils/types/TaskIndex"; // Adjust path as needed
+import { Task } from "../../types/task"; // Adjust path as needed
 import { KanbanColumnComponent } from "./kanban-column";
 // import { DragManager, DragMoveEvent, DragEndEvent } from "../DragManager";
 import Sortable from "sortablejs";
@@ -330,6 +330,11 @@ export class KanbanComponent extends Component {
 		if (!task.tags || task.tags.length === 0) return false;
 
 		return task.tags.some((taskTag) => {
+			// Skip non-string tags
+			if (typeof taskTag !== "string") {
+				return false;
+			}
+
 			// Direct match
 			if (taskTag === filterTag) return true;
 
@@ -572,7 +577,12 @@ export class KanbanComponent extends Component {
 				const allTags = new Set<string>();
 				this.tasks.forEach((task) => {
 					if (task.tags) {
-						task.tags.forEach((tag) => allTags.add(tag));
+						task.tags.forEach((tag) => {
+							// Skip non-string tags
+							if (typeof tag === "string") {
+								allTags.add(tag);
+							}
+						});
 					}
 				});
 				const tagColumns = Array.from(allTags).map((tag) => ({
@@ -1050,7 +1060,12 @@ export class KanbanComponent extends Component {
 					if (value === null || value === "") {
 						return !task.tags || task.tags.length === 0;
 					}
-					return task.tags && task.tags.includes(value);
+					return (
+						task.tags &&
+						task.tags.some(
+							(tag) => typeof tag === "string" && tag === value
+						)
+					);
 				case "project":
 					if (value === null || value === "") {
 						return !task.project;
@@ -1266,7 +1281,11 @@ export class KanbanComponent extends Component {
 							// Specific tag column
 							if (
 								task.tags &&
-								task.tags.includes(column.value as string)
+								task.tags.some(
+									(tag) =>
+										typeof tag === "string" &&
+										tag === column.value
+								)
 							) {
 								return column.value;
 							}
@@ -1277,8 +1296,11 @@ export class KanbanComponent extends Component {
 					if (!task.tags || task.tags.length === 0) {
 						return "";
 					}
-					// Return the first tag (for simplicity, as we need to determine which column it came from)
-					return task.tags[0];
+					// Return the first string tag (for simplicity, as we need to determine which column it came from)
+					const firstStringTag = task.tags.find(
+						(tag) => typeof tag === "string"
+					);
+					return firstStringTag || "";
 				}
 				return "";
 			case "project":

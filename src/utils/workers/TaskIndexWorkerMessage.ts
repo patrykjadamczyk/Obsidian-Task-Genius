@@ -3,7 +3,7 @@
  */
 
 import { CachedMetadata, FileStats, ListItemCache } from "obsidian";
-import { Task } from "../types/TaskIndex";
+import { Task } from "../../types/task";
 import { MetadataFormat } from "../taskUtil";
 
 /**

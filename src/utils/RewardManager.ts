@@ -7,7 +7,7 @@ import {
 	evaluateFilterNode,
 	FilterNode,
 } from "./filterUtils";
-import { Task } from "./types/TaskIndex";
+import { Task } from "../types/task";
 
 export class RewardManager extends Component {
 	private plugin: TaskProgressBarPlugin;

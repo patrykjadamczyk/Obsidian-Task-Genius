@@ -1,5 +1,5 @@
 import { moment } from "obsidian";
-import { Task } from "./types/TaskIndex";
+import { Task } from "../types/task";
 import {
 	ViewMode,
 	getViewSettingOrDefault,
@@ -520,7 +520,11 @@ export function filterTasks(
 	}
 	if (filterRules.tagsInclude && filterRules.tagsInclude.length > 0) {
 		filtered = filtered.filter((task) =>
-			filterRules.tagsInclude?.some((tag) => task.tags.includes(tag))
+			filterRules.tagsInclude?.some((tag) =>
+				task.tags.some(
+					(taskTag) => typeof taskTag === "string" && taskTag === tag
+				)
+			)
 		);
 	}
 	if (filterRules.tagsExclude && filterRules.tagsExclude.length > 0) {

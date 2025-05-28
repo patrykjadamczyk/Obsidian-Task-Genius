@@ -6,12 +6,7 @@
  */
 
 import { App, Component, MetadataCache, TFile, Vault } from "obsidian";
-import {
-	Task,
-	TaskFilter,
-	SortingCriteria,
-	TaskCache,
-} from "./types/TaskIndex";
+import { Task, TaskFilter, SortingCriteria, TaskCache } from "../types/task";
 import { TaskIndexer } from "./import/TaskIndexer";
 import { TaskWorkerManager } from "./workers/TaskWorkerManager";
 import { LocalStorageCache } from "./persister";
@@ -891,6 +886,13 @@ export class TaskManager extends Component {
 			throw new Error(`Task with ID ${updatedTask.id} not found`);
 		}
 
+		console.log(
+			"originalTask",
+			originalTask,
+			updatedTask.dueDate,
+			originalTask.dueDate
+		);
+
 		// Check if this is a completion of a recurring task
 		const isCompletingRecurringTask =
 			!originalTask.completed &&
@@ -1082,7 +1084,9 @@ export class TaskManager extends Component {
 					// For emoji format: add tags that aren't project tags
 					const generalTags = updatedTask.tags.filter(
 						(tag) =>
-							!tag.startsWith("#project/") && !tag.startsWith("@")
+							typeof tag === "string" &&
+							!tag.startsWith("#project/") &&
+							!tag.startsWith("@")
 					);
 
 					// Convert array to Set and back to ensure uniqueness
@@ -1096,6 +1100,8 @@ export class TaskManager extends Component {
 				} else {
 					// For dataview format: add tags that aren't project/context tags
 					const tagsToAdd = updatedTask.tags.filter((tag) => {
+						// Skip non-string tags
+						if (typeof tag !== "string") return false;
 						// filter out project tags (already added as [project::...])
 						if (tag.startsWith("#project/")) return false;
 						// filter out context tags (already added as [context::...])
@@ -1309,6 +1315,7 @@ export class TaskManager extends Component {
 				this.log(
 					`Updated task ${updatedTask.id} and re-indexed file ${updatedTask.filePath}`
 				);
+				this.log(updatedTask.originalMarkdown);
 			} else {
 				this.log(
 					`Task ${updatedTask.id} content did not change. No file modification needed.`
@@ -1446,6 +1453,8 @@ export class TaskManager extends Component {
 		// 1. Tags (excluding project/context tags that are handled separately)
 		if (completedTask.tags && completedTask.tags.length > 0) {
 			const tagsToAdd = completedTask.tags.filter((tag) => {
+				// Skip non-string tags
+				if (typeof tag !== "string") return false;
 				// Skip project tags (handled separately)
 				if (tag.startsWith("#project/")) return false;
 				// Skip context tags (handled separately)

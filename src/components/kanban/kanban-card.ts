@@ -1,5 +1,5 @@
 import { App, Component, MarkdownRenderer, Menu, TFile } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex"; // Adjust path
+import { Task } from "../../types/task"; // Adjust path
 import { MarkdownRendererComponent } from "../MarkdownRenderer"; // Adjust path
 import TaskProgressBarPlugin from "../../index"; // Adjust path
 import { KanbanSpecificConfig } from "../../common/setting-definition";
@@ -219,6 +219,11 @@ export class KanbanCardComponent extends Component {
 			cls: "task-tags-container",
 		});
 		this.task.tags.forEach((tag) => {
+			// Skip non-string tags
+			if (typeof tag !== "string") {
+				return;
+			}
+
 			const tagEl = tagsContainer.createEl("span", {
 				cls: ["task-tag", "clickable-metadata"],
 				text: tag.startsWith("#") ? tag : `#${tag}`,

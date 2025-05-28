@@ -1,5 +1,5 @@
 import { App, Component, setIcon } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { formatDate } from "../../utils/dateUtil";
 import "../../styles/tree-view.css";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";

@@ -5,7 +5,7 @@ import {
 	Platform,
 	setIcon,
 } from "obsidian";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import { CalendarComponent } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";

@@ -17,7 +17,7 @@ import { FileSuggest } from "../editor-ext/quickCapture";
 import { t } from "../translations/helper";
 import { MarkdownRendererComponent } from "./MarkdownRenderer";
 import { StatusComponent } from "./StatusComponent";
-import { Task } from "../utils/types/TaskIndex";
+import { Task } from "../types/task";
 import { ContextSuggest, ProjectSuggest } from "./AutoComplete";
 
 interface TaskMetadata {

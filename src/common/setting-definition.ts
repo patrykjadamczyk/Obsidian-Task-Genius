@@ -305,6 +305,11 @@ export interface SortCriterion {
 	order: "asc" | "desc"; // Sort order
 }
 
+/** Define the structure for beta test settings */
+export interface BetaTestSettings {
+	enableBaseView: boolean;
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -402,6 +407,9 @@ export interface TaskProgressBarSettings {
 
 	// Auto Date Manager Settings
 	autoDateManager: AutoDateManagerSettings;
+
+	// Beta Test Settings
+	betaTest?: BetaTestSettings;
 }
 
 /** Define the default settings */
@@ -791,6 +799,14 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		completedDateMarker: "✅",
 		startDateMarker: "🚀",
 		cancelledDateMarker: "❌",
+	},
+
+	// Beta Test Defaults
+	betaTest: {
+		enableBaseView: false,
+		autoRegisterBaseViews: false,
+		baseViewDebugMode: false,
+		useBaseViewForTaskLists: false,
 	},
 };
 

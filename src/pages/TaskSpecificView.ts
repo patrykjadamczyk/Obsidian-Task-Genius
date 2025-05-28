@@ -11,7 +11,7 @@ import {
 	debounce,
 	// FrontmatterCache,
 } from "obsidian";
-import { Task } from "../utils/types/TaskIndex";
+import { Task } from "../types/task";
 // Removed SidebarComponent import
 import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";

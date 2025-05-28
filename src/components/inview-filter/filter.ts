@@ -7,7 +7,7 @@ import {
 	FilterComponentOptions,
 } from "./filter-type";
 import "./filter.css";
-import { Task } from "../../utils/types/TaskIndex";
+import { Task } from "../../types/task";
 import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
 import { PRIORITY_MAP } from "../../common/default-symbol";
@@ -26,7 +26,12 @@ export function buildFilterOptionsFromTasks(tasks: Task[]): FilterCategory[] {
 		if (task.status) statuses.add(task.status);
 
 		// Tags
-		task.tags.forEach((tag) => tags.add(tag));
+		task.tags.forEach((tag) => {
+			// Skip non-string tags
+			if (typeof tag === "string") {
+				tags.add(tag);
+			}
+		});
 
 		// Project
 		if (task.project) projects.add(task.project);

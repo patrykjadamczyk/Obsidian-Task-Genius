@@ -223,14 +223,11 @@
 .task-sidebar {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
 	border-right: 1px solid var(--background-modifier-border);
 	background-color: var(--background-secondary);
 	overflow-y: auto;
 
 	width: 240px;
-	flex-shrink: 0;
-	height: 100%;
 	transition: width 0.3s ease-in-out;
 	position: relative;
 }

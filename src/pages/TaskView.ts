@@ -13,7 +13,7 @@ import {
 	debounce,
 	// FrontmatterCache,
 } from "obsidian";
-import { Task } from "../utils/types/TaskIndex";
+import { Task } from "../types/task";
 import { SidebarComponent } from "../components/task-view/sidebar";
 import { ContentComponent } from "../components/task-view/content";
 import { ForecastComponent } from "../components/task-view/forecast";
@@ -208,10 +208,7 @@ export class TaskView extends ItemView {
 		this.createActionButtons();
 
 		(this.leaf.tabHeaderStatusContainerEl as HTMLElement).empty();
-		console.log(
-			this.containerEl.closest(".mod-right-split"),
-			this.containerEl.closest(".mod-left-split")
-		);
+
 		(this.leaf.tabHeaderEl as HTMLElement).toggleClass(
 			"task-genius-tab-header",
 			true
@@ -756,6 +753,7 @@ export class TaskView extends ItemView {
 			originalTask: Task,
 			updatedTask: Task
 		) => {
+			console.log("triggered by detailsComponent");
 			await this.updateTask(originalTask, updatedTask);
 		};
 		this.detailsComponent.toggleDetailsVisibility = (visible: boolean) => {
