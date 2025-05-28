@@ -1193,6 +1193,31 @@ const translations = {
 	"Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.":
 		"タスクが放棄としてマークされたときにキャンセル日を自動的に追加し、他のステータスに変更されたときに削除します。",
 	"Copy View": "ビューをコピー",
+	Beta: "ベータ",
+	"Beta Test Features": "ベータテスト機能",
+	"Experimental features that are currently in testing phase. These features may be unstable and could change or be removed in future updates.":
+		"現在テスト段階にある実験的機能です。これらの機能は不安定で、将来のアップデートで変更または削除される可能性があります。",
+	"Beta Features Warning": "ベータ機能の警告",
+	"These features are experimental and may be unstable. They could change significantly or be removed in future updates due to Obsidian API changes or other factors. Please use with caution and provide feedback to help improve these features.":
+		"これらの機能は実験的で不安定な可能性があります。Obsidian APIの変更やその他の要因により、将来のアップデートで大幅に変更または削除される可能性があります。注意してご使用いただき、これらの機能の改善にご協力ください。",
+	"Base View": "ベースビュー",
+	"Advanced view management features that extend the default Task Genius views with additional functionality.":
+		"デフォルトのTask Geniusビューを追加機能で拡張する高度なビュー管理機能です。",
+	"Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes. You may need to restart Obsidian to see the changes.":
+		"実験的なベースビュー機能を有効にします。この機能は強化されたビュー管理機能を提供しますが、将来のObsidian APIの変更により影響を受ける可能性があります。変更を確認するためにObsidianの再起動が必要な場合があります。",
+	"You need to close all bases view if you already create task view in them and remove unused view via edit them manually when disable this feature.":
+		"この機能を無効にする際、既にタスクビューを作成している場合は、すべてのベースビューを閉じ、手動で編集して未使用のビューを削除する必要があります。",
+	"Enable Base View": "ベースビューを有効にする",
+	"Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes.":
+		"実験的なベースビュー機能を有効にします。この機能は強化されたビュー管理機能を提供しますが、将来のObsidian APIの変更により影響を受ける可能性があります。",
+	Enable: "有効にする",
+	"Beta Feedback": "ベータフィードバック",
+	"Help improve these features by providing feedback on your experience.":
+		"ご利用体験のフィードバックを提供して、これらの機能の改善にご協力ください。",
+	"Report Issues": "問題を報告",
+	"If you encounter any issues with beta features, please report them to help improve the plugin.":
+		"ベータ機能で問題が発生した場合は、プラグインの改善のために報告してください。",
+	"Report Issue": "問題を報告",
 };
 
 export default translations;

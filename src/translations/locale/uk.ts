@@ -959,7 +959,24 @@ const translations = {
   "Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.": "Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.",
   "Manage cancelled dates": "Manage cancelled dates",
   "Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.": "Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.",
-  "Copy View": "Copy View"
+  "Copy View": "Copy View",
+  "Beta": "Beta",
+  "Beta Test Features": "Beta Test Features",
+  "Experimental features that are currently in testing phase. These features may be unstable and could change or be removed in future updates.": "Experimental features that are currently in testing phase. These features may be unstable and could change or be removed in future updates.",
+  "Beta Features Warning": "Beta Features Warning",
+  "These features are experimental and may be unstable. They could change significantly or be removed in future updates due to Obsidian API changes or other factors. Please use with caution and provide feedback to help improve these features.": "These features are experimental and may be unstable. They could change significantly or be removed in future updates due to Obsidian API changes or other factors. Please use with caution and provide feedback to help improve these features.",
+  "Base View": "Base View",
+  "Advanced view management features that extend the default Task Genius views with additional functionality.": "Advanced view management features that extend the default Task Genius views with additional functionality.",
+  "Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes. You may need to restart Obsidian to see the changes.": "Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes. You may need to restart Obsidian to see the changes.",
+  "You need to close all bases view if you already create task view in them and remove unused view via edit them manually when disable this feature.": "You need to close all bases view if you already create task view in them and remove unused view via edit them manually when disable this feature.",
+  "Enable Base View": "Enable Base View",
+  "Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes.": "Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes.",
+  "Enable": "Enable",
+  "Beta Feedback": "Beta Feedback",
+  "Help improve these features by providing feedback on your experience.": "Help improve these features by providing feedback on your experience.",
+  "Report Issues": "Report Issues",
+  "If you encounter any issues with beta features, please report them to help improve the plugin.": "If you encounter any issues with beta features, please report them to help improve the plugin.",
+  "Report Issue": "Report Issue"
 };
 
 export default translations;

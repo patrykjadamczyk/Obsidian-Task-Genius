@@ -1142,6 +1142,31 @@ const translations = {
 	"Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.":
 		"当任务标记为已放弃时自动添加取消日期，当更改为其他状态时删除它们。",
 	"Copy View": "复制视图",
+	Beta: "测试版",
+	"Beta Test Features": "测试版功能",
+	"Experimental features that are currently in testing phase. These features may be unstable and could change or be removed in future updates.":
+		"当前处于测试阶段的实验性功能。这些功能可能不稳定，在未来的更新中可能会发生变化或被移除。",
+	"Beta Features Warning": "测试版功能警告",
+	"These features are experimental and may be unstable. They could change significantly or be removed in future updates due to Obsidian API changes or other factors. Please use with caution and provide feedback to help improve these features.":
+		"这些功能是实验性的，可能不稳定。由于 Obsidian API 变化或其他因素，它们可能在未来的更新中发生重大变化或被移除。请谨慎使用并提供反馈以帮助改进这些功能。",
+	"Base View": "基础视图",
+	"Advanced view management features that extend the default Task Genius views with additional functionality.":
+		"扩展默认 Task Genius 视图的高级视图管理功能，提供额外的功能。",
+	"Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes. You may need to restart Obsidian to see the changes.":
+		"启用实验性基础视图功能。此功能提供增强的视图管理能力，但可能会受到未来 Obsidian API 变化的影响。您可能需要重启 Obsidian 才能看到变化。",
+	"You need to close all bases view if you already create task view in them and remove unused view via edit them manually when disable this feature.":
+		"如果您已经在基础视图中创建了任务视图，当禁用此功能时，您需要关闭所有基础视图并通过手动编辑删除未使用的视图。",
+	"Enable Base View": "启用基础视图",
+	"Enable experimental Base View functionality. This feature provides enhanced view management capabilities but may be affected by future Obsidian API changes.":
+		"启用实验性基础视图功能。此功能提供增强的视图管理能力，但可能会受到未来 Obsidian API 变化的影响。",
+	Enable: "启用",
+	"Beta Feedback": "测试版反馈",
+	"Help improve these features by providing feedback on your experience.":
+		"通过提供您的使用体验反馈来帮助改进这些功能。",
+	"Report Issues": "报告问题",
+	"If you encounter any issues with beta features, please report them to help improve the plugin.":
+		"如果您在使用测试版功能时遇到任何问题，请报告它们以帮助改进插件。",
+	"Report Issue": "报告问题",
 };
 
 export default translations;
