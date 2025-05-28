@@ -568,7 +568,10 @@ export class TaskDetailsComponent extends Component {
 		registerDateChangeEvent(scheduledDateInput);
 	}
 
-	private hasTaskChanges(originalTask: Task, updatedTask: Task): boolean {
+	private hasTaskChanges(
+		originalTask: Task | FileTask,
+		updatedTask: Task | FileTask
+	): boolean {
 		// For FileTask objects, we need to avoid comparing the sourceEntry property
 		// which contains circular references that can't be JSON.stringify'd
 		const isFileTask =
@@ -615,8 +618,8 @@ export class TaskDetailsComponent extends Component {
 	}
 
 	private compareTaskProperties(
-		originalTask: Task,
-		updatedTask: Task
+		originalTask: Task | FileTask,
+		updatedTask: Task | FileTask
 	): boolean {
 		// Compare key properties that can be edited in the form
 		const compareProps = [

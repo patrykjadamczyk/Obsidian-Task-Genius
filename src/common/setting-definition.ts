@@ -804,9 +804,6 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Beta Test Defaults
 	betaTest: {
 		enableBaseView: false,
-		autoRegisterBaseViews: false,
-		baseViewDebugMode: false,
-		useBaseViewForTaskLists: false,
 	},
 };
 
