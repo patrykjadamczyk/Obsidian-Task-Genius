@@ -3597,7 +3597,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.setDesc(t("View the documentation for this plugin"))
 			.addButton((button) => {
 				button.setButtonText(t("Open Documentation")).onClick(() => {
-					window.open("https://taskgenius.md/docs");
+					window.open("https://taskgenius.md/docs/getting-started");
 				});
 			});
 	}
