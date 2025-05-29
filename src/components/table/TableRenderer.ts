@@ -2,6 +2,8 @@ import { Component } from "obsidian";
 import { TableColumn, TableRow, TableCell } from "./TableTypes";
 import { TableSpecificConfig } from "../../common/setting-definition";
 import { t } from "../../translations/helper";
+import { DatePickerPopover } from "../date-picker/DatePickerPopover";
+import type TaskProgressBarPlugin from "../../index";
 
 /**
  * Table renderer component responsible for rendering the table HTML structure
@@ -13,12 +15,21 @@ export class TableRenderer extends Component {
 	private resizeColumn: string = "";
 	private resizeStartWidth: number = 0;
 
+	// Callback for date changes
+	public onDateChange?: (
+		rowId: string,
+		columnId: string,
+		newDate: string | null
+	) => void;
+
 	constructor(
 		private tableEl: HTMLElement,
 		private headerEl: HTMLElement,
 		private bodyEl: HTMLElement,
 		private columns: TableColumn[],
-		private config: TableSpecificConfig
+		private config: TableSpecificConfig,
+		private app?: any,
+		private plugin?: TaskProgressBarPlugin
 	) {
 		super();
 	}
@@ -280,10 +291,11 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Render date cell with relative time
+	 * Render date cell with relative time and click-to-edit functionality
 	 */
 	private renderDateCell(cellEl: HTMLElement, cell: TableCell) {
 		const dateContainer = cellEl.createDiv("task-table-date");
+		dateContainer.addClass("clickable-date");
 
 		if (cell.value) {
 			const date = new Date(cell.value as number);
@@ -316,7 +328,60 @@ export class TableRenderer extends Component {
 				relativeIndicator.textContent = `${diffDays}d`;
 				relativeIndicator.addClass("upcoming");
 			}
+		} else {
+			// Empty date cell
+			const emptyText = dateContainer.createSpan("task-table-date-empty");
+			emptyText.textContent = t("No date");
+			emptyText.addClass("empty-date");
 		}
+
+		// Add click handler for date editing
+		if (this.app && this.plugin) {
+			dateContainer.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.openDatePicker(cellEl, cell);
+			});
+
+			// Add hover effect
+			dateContainer.title = t("Click to edit date");
+		}
+	}
+
+	/**
+	 * Open date picker for editing date
+	 */
+	private openDatePicker(cellEl: HTMLElement, cell: TableCell) {
+		if (!this.app || !this.plugin) return;
+
+		const rowId = cellEl.dataset.rowId;
+		const columnId = cell.columnId;
+
+		if (!rowId) return;
+
+		// Get current date value
+		const currentDate = cell.value
+			? new Date(cell.value as number).toISOString().split("T")[0]
+			: undefined;
+
+		// Create date picker popover
+		const popover = new DatePickerPopover(
+			this.app,
+			this.plugin,
+			currentDate
+		);
+
+		popover.onDateSelected = (dateStr: string | null) => {
+			if (this.onDateChange) {
+				this.onDateChange(rowId, columnId, dateStr);
+			}
+		};
+
+		// Position the popover near the cell
+		const rect = cellEl.getBoundingClientRect();
+		popover.showAtPosition({
+			x: rect.left,
+			y: rect.bottom + 5,
+		});
 	}
 
 	/**
@@ -497,5 +562,13 @@ export class TableRenderer extends Component {
 			detail: { rowId },
 		});
 		this.tableEl.dispatchEvent(event);
+	}
+
+	/**
+	 * Update columns configuration and re-render header
+	 */
+	public updateColumns(newColumns: TableColumn[]) {
+		this.columns = newColumns;
+		this.renderHeader();
 	}
 }

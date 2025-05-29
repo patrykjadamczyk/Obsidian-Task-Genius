@@ -67,10 +67,6 @@ export class VirtualScrollManager extends Component {
 		}
 
 		scrollableContainer.style.position = "relative";
-		scrollableContainer.style.maxHeight = "70vh"; // Limit height to enable scrolling
-
-		// Don't create virtual spacer for table - we'll handle spacing differently
-		// The table rows themselves will provide the spacing
 	}
 
 	/**

@@ -8,6 +8,7 @@ import { TableRenderer } from "./TableRenderer";
 import { TableEditor } from "./TableEditor";
 import { TreeManager } from "./TreeManager";
 import { VirtualScrollManager } from "./VirtualScrollManager";
+import { TableHeader, TableHeaderCallbacks } from "./TableHeader";
 import "../../styles/table.css";
 
 export interface TableViewCallbacks {
@@ -27,8 +28,10 @@ export class TableView extends Component {
 	private headerEl: HTMLElement;
 	private bodyEl: HTMLElement;
 	private loadingEl: HTMLElement;
+	private tableWrapper: HTMLElement;
 
 	// Child components
+	private tableHeader: TableHeader;
 	private renderer: TableRenderer;
 	private editor: TableEditor;
 	private treeManager: TreeManager;
@@ -148,6 +151,24 @@ export class TableView extends Component {
 				visible: this.config.visibleColumns.includes("scheduledDate"),
 			},
 			{
+				id: "createdDate",
+				title: t("Created Date"),
+				width: this.config.columnWidths.createdDate || 120,
+				sortable: this.config.sortableColumns,
+				resizable: this.config.resizableColumns,
+				type: "date",
+				visible: this.config.visibleColumns.includes("createdDate"),
+			},
+			{
+				id: "completedDate",
+				title: t("Completed Date"),
+				width: this.config.columnWidths.completedDate || 120,
+				sortable: this.config.sortableColumns,
+				resizable: this.config.resizableColumns,
+				type: "date",
+				visible: this.config.visibleColumns.includes("completedDate"),
+			},
+			{
 				id: "tags",
 				title: t("Tags"),
 				width: this.config.columnWidths.tags || 150,
@@ -175,6 +196,33 @@ export class TableView extends Component {
 				visible: this.config.visibleColumns.includes("context"),
 			},
 			{
+				id: "recurrence",
+				title: t("Recurrence"),
+				width: this.config.columnWidths.recurrence || 120,
+				sortable: this.config.sortableColumns,
+				resizable: this.config.resizableColumns,
+				type: "text",
+				visible: this.config.visibleColumns.includes("recurrence"),
+			},
+			{
+				id: "estimatedTime",
+				title: t("Estimated Time"),
+				width: this.config.columnWidths.estimatedTime || 120,
+				sortable: this.config.sortableColumns,
+				resizable: this.config.resizableColumns,
+				type: "text",
+				visible: this.config.visibleColumns.includes("estimatedTime"),
+			},
+			{
+				id: "actualTime",
+				title: t("Actual Time"),
+				width: this.config.columnWidths.actualTime || 120,
+				sortable: this.config.sortableColumns,
+				resizable: this.config.resizableColumns,
+				type: "text",
+				visible: this.config.visibleColumns.includes("actualTime"),
+			},
+			{
 				id: "filePath",
 				title: t("File"),
 				width: this.config.columnWidths.filePath || 200,
@@ -192,6 +240,9 @@ export class TableView extends Component {
 		this.createTableStructure();
 		this.initializeChildComponents();
 		this.setupEventListeners();
+
+		// Initialize table header with current state
+		this.updateTableHeaderInfo();
 	}
 
 	onunload() {
@@ -201,8 +252,27 @@ export class TableView extends Component {
 	private createTableStructure() {
 		this.containerEl = this.parentEl.createDiv("task-table-container");
 
+		// Create table header bar (not the table header)
+		this.tableHeader = new TableHeader(this.containerEl, {
+			onTreeModeToggle: (enabled: boolean) => {
+				this.isTreeView = enabled;
+				this.config.enableTreeView = enabled;
+				this.refreshDisplay();
+			},
+			onRefresh: () => {
+				this.refreshData();
+			},
+			onColumnToggle: (columnId: string, visible: boolean) => {
+				this.toggleColumnVisibility(columnId, visible);
+			},
+		});
+		this.addChild(this.tableHeader);
+
+		// Create table wrapper for proper scrolling
+		this.tableWrapper = this.containerEl.createDiv("task-table-wrapper");
+
 		// Create table element
-		this.tableEl = this.containerEl.createEl("table", "task-table");
+		this.tableEl = this.tableWrapper.createEl("table", "task-table");
 
 		// Create header
 		this.headerEl = this.tableEl.createEl("thead", "task-table-header");
@@ -211,7 +281,7 @@ export class TableView extends Component {
 		this.bodyEl = this.tableEl.createEl("tbody", "task-table-body");
 
 		// Create loading indicator
-		this.loadingEl = this.containerEl.createDiv("task-table-loading");
+		this.loadingEl = this.tableWrapper.createDiv("task-table-loading");
 		this.loadingEl.textContent = t("Loading...");
 		this.loadingEl.style.display = "none";
 	}
@@ -223,17 +293,30 @@ export class TableView extends Component {
 			this.headerEl,
 			this.bodyEl,
 			this.columns,
-			this.config
+			this.config,
+			this.app,
+			this.plugin
 		);
 		this.addChild(this.renderer);
 
-		// Initialize editor
-		this.editor = new TableEditor(this.app, this.plugin, this.config, {
-			onCellEdit: this.handleCellEdit.bind(this),
-			onEditComplete: this.handleEditComplete.bind(this),
-			onEditCancel: this.handleEditCancel.bind(this),
-		});
-		this.addChild(this.editor);
+		// Set up date change callback
+		this.renderer.onDateChange = (
+			rowId: string,
+			columnId: string,
+			newDate: string | null
+		) => {
+			this.handleDateChange(rowId, columnId, newDate);
+		};
+
+		// Initialize editor if inline editing is enabled
+		if (this.config.enableInlineEditing) {
+			this.editor = new TableEditor(this.app, this.plugin, this.config, {
+				onCellEdit: this.handleCellEdit.bind(this),
+				onEditComplete: this.handleEditComplete.bind(this),
+				onEditCancel: this.handleEditCancel.bind(this),
+			});
+			this.addChild(this.editor);
+		}
 
 		// Initialize tree manager if tree view is enabled
 		if (this.config.enableTreeView) {
@@ -244,7 +327,7 @@ export class TableView extends Component {
 		// Initialize virtual scroll if lazy loading is enabled
 		if (this.config.enableLazyLoading) {
 			this.virtualScroll = new VirtualScrollManager(
-				this.containerEl,
+				this.tableWrapper,
 				this.config.pageSize,
 				{
 					onLoadMore: this.loadMoreRows.bind(this),
@@ -290,6 +373,7 @@ export class TableView extends Component {
 		this.allTasks = tasks;
 		this.applyFiltersAndSort();
 		this.refreshDisplay();
+		this.updateTableHeaderInfo();
 	}
 
 	/**
@@ -450,6 +534,14 @@ export class TableView extends Component {
 					value = task.scheduledDate;
 					displayValue = this.formatDate(task.scheduledDate);
 					break;
+				case "createdDate":
+					value = task.createdDate;
+					displayValue = this.formatDate(task.createdDate);
+					break;
+				case "completedDate":
+					value = task.completedDate;
+					displayValue = this.formatDate(task.completedDate);
+					break;
 				case "tags":
 					value = task.tags;
 					displayValue = task.tags?.join(", ") || "";
@@ -461,6 +553,18 @@ export class TableView extends Component {
 				case "context":
 					value = task.context;
 					displayValue = task.context || "";
+					break;
+				case "recurrence":
+					value = task.recurrence;
+					displayValue = task.recurrence || "";
+					break;
+				case "estimatedTime":
+					value = task.estimatedTime;
+					displayValue = task.estimatedTime?.toString() || "";
+					break;
+				case "actualTime":
+					value = task.actualTime;
+					displayValue = task.actualTime?.toString() || "";
 					break;
 				case "filePath":
 					value = task.filePath;
@@ -658,6 +762,9 @@ export class TableView extends Component {
 		this.editor.startEdit(rowId, columnId, cellEl);
 	}
 
+	/**
+	 * Handle cell edit from table editor
+	 */
 	private handleCellEdit(rowId: string, columnId: string, newValue: any) {
 		const task = this.allTasks.find((t) => t.id === rowId);
 		if (!task) return;
@@ -784,5 +891,244 @@ export class TableView extends Component {
 			});
 			return data;
 		});
+	}
+
+	/**
+	 * Refresh table data
+	 */
+	private refreshData() {
+		this.applyFiltersAndSort();
+		this.refreshDisplay();
+	}
+
+	/**
+	 * Toggle column visibility
+	 */
+	private toggleColumnVisibility(columnId: string, visible: boolean) {
+		// Update config
+		if (visible && !this.config.visibleColumns.includes(columnId)) {
+			this.config.visibleColumns.push(columnId);
+		} else if (!visible) {
+			const index = this.config.visibleColumns.indexOf(columnId);
+			if (index > -1) {
+				this.config.visibleColumns.splice(index, 1);
+			}
+		}
+
+		// Save the updated configuration to plugin settings
+		this.saveColumnConfiguration();
+
+		// Reinitialize columns
+		this.initializeColumns();
+
+		// Update renderer with new columns
+		if (this.renderer) {
+			this.renderer.updateColumns(this.columns);
+		}
+
+		// Refresh display
+		this.refreshDisplay();
+
+		// Update table header with new column info
+		this.updateTableHeaderInfo();
+	}
+
+	/**
+	 * Save column configuration to plugin settings
+	 */
+	private saveColumnConfiguration() {
+		if (this.plugin && this.plugin.settings) {
+			// Find the table view configuration
+			const tableViewConfig = this.plugin.settings.viewConfiguration.find(
+				(view) => view.id === "table"
+			);
+
+			if (tableViewConfig && tableViewConfig.specificConfig) {
+				const tableConfig = tableViewConfig.specificConfig as any;
+				if (tableConfig.viewType === "table") {
+					// Update the visible columns in the plugin settings
+					tableConfig.visibleColumns = [
+						...this.config.visibleColumns,
+					];
+
+					// Save settings
+					this.plugin.saveSettings();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Update table header information
+	 */
+	private updateTableHeaderInfo() {
+		if (this.tableHeader) {
+			// Update task count
+			this.tableHeader.updateTaskCount(this.filteredTasks.length);
+
+			// Update tree mode state
+			this.tableHeader.updateTreeMode(this.isTreeView);
+
+			// Update available columns
+			const allColumns = this.getAllAvailableColumns();
+			this.tableHeader.updateColumns(allColumns);
+		}
+	}
+
+	/**
+	 * Get all available columns with their visibility state
+	 */
+	private getAllAvailableColumns(): Array<{
+		id: string;
+		title: string;
+		visible: boolean;
+	}> {
+		return [
+			{
+				id: "status",
+				title: t("Status"),
+				visible: this.config.visibleColumns.includes("status"),
+			},
+			{
+				id: "content",
+				title: t("Content"),
+				visible: this.config.visibleColumns.includes("content"),
+			},
+			{
+				id: "priority",
+				title: t("Priority"),
+				visible: this.config.visibleColumns.includes("priority"),
+			},
+			{
+				id: "dueDate",
+				title: t("Due Date"),
+				visible: this.config.visibleColumns.includes("dueDate"),
+			},
+			{
+				id: "startDate",
+				title: t("Start Date"),
+				visible: this.config.visibleColumns.includes("startDate"),
+			},
+			{
+				id: "scheduledDate",
+				title: t("Scheduled Date"),
+				visible: this.config.visibleColumns.includes("scheduledDate"),
+			},
+			{
+				id: "createdDate",
+				title: t("Created Date"),
+				visible: this.config.visibleColumns.includes("createdDate"),
+			},
+			{
+				id: "completedDate",
+				title: t("Completed Date"),
+				visible: this.config.visibleColumns.includes("completedDate"),
+			},
+			{
+				id: "tags",
+				title: t("Tags"),
+				visible: this.config.visibleColumns.includes("tags"),
+			},
+			{
+				id: "project",
+				title: t("Project"),
+				visible: this.config.visibleColumns.includes("project"),
+			},
+			{
+				id: "context",
+				title: t("Context"),
+				visible: this.config.visibleColumns.includes("context"),
+			},
+			{
+				id: "recurrence",
+				title: t("Recurrence"),
+				visible: this.config.visibleColumns.includes("recurrence"),
+			},
+			{
+				id: "estimatedTime",
+				title: t("Estimated Time"),
+				visible: this.config.visibleColumns.includes("estimatedTime"),
+			},
+			{
+				id: "actualTime",
+				title: t("Actual Time"),
+				visible: this.config.visibleColumns.includes("actualTime"),
+			},
+			{
+				id: "filePath",
+				title: t("File"),
+				visible: this.config.visibleColumns.includes("filePath"),
+			},
+		];
+	}
+
+	/**
+	 * Handle date change from date picker
+	 */
+	private handleDateChange(
+		rowId: string,
+		columnId: string,
+		newDate: string | null
+	) {
+		const task = this.allTasks.find((t) => t.id === rowId);
+		if (!task) return;
+
+		// Update task property based on column
+		const updatedTask = { ...task };
+
+		if (newDate) {
+			const dateValue = new Date(newDate).getTime();
+			switch (columnId) {
+				case "dueDate":
+					updatedTask.dueDate = dateValue;
+					break;
+				case "startDate":
+					updatedTask.startDate = dateValue;
+					break;
+				case "scheduledDate":
+					updatedTask.scheduledDate = dateValue;
+					break;
+				case "createdDate":
+					updatedTask.createdDate = dateValue;
+					break;
+				case "completedDate":
+					updatedTask.completedDate = dateValue;
+					break;
+			}
+		} else {
+			// Clear the date
+			switch (columnId) {
+				case "dueDate":
+					delete updatedTask.dueDate;
+					break;
+				case "startDate":
+					delete updatedTask.startDate;
+					break;
+				case "scheduledDate":
+					delete updatedTask.scheduledDate;
+					break;
+				case "createdDate":
+					delete updatedTask.createdDate;
+					break;
+				case "completedDate":
+					delete updatedTask.completedDate;
+					break;
+			}
+		}
+
+		// Notify task update
+		if (this.onTaskUpdated) {
+			this.onTaskUpdated(updatedTask);
+		}
+
+		// Refresh display
+		this.refreshDisplay();
+	}
+
+	/**
+	 * Handle edit start
+	 */
+	private handleEditStart(rowId: string, columnId: string) {
+		this.editingCell = { rowId, columnId };
 	}
 }
