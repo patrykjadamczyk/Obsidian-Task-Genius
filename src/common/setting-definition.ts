@@ -56,6 +56,9 @@ export interface ViewFilterRule {
 	pathIncludes?: string;
 	pathExcludes?: string;
 	// Add more rules based on Task properties: createdDate, completedDate, recurrence, context, time estimates etc.
+
+	// Add advanced filtering support
+	advancedFilter?: RootFilterState;
 }
 
 // Define and export ViewConfig interface

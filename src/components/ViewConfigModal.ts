@@ -28,6 +28,10 @@ import TaskProgressBarPlugin from "../index";
 import { FolderSuggest } from "./AutoComplete";
 import { attachIconMenu } from "./IconMenu";
 import { ConfirmModal } from "./ConfirmModal";
+import {
+	TaskFilterComponent,
+	RootFilterState,
+} from "./task-filter/ViewTaskFilter";
 
 export class ViewConfigModal extends Modal {
 	private viewConfig: ViewConfig;
@@ -41,21 +45,16 @@ export class ViewConfigModal extends Modal {
 	private originalViewFilterRule: string;
 	private hasChanges: boolean = false;
 
+	// Advanced filter component
+	private taskFilterComponent: TaskFilterComponent | null = null;
+	private advancedFilterContainer: HTMLElement | null = null;
+	private filterChangeHandler:
+		| ((filterState: RootFilterState, leafId?: string) => void)
+		| null = null;
+
 	// References to input components to read values later
 	private nameInput: TextComponent;
 	private iconInput: TextComponent;
-	private textContainsInput: TextComponent;
-	private tagsIncludeInput: TextComponent;
-	private tagsExcludeInput: TextComponent;
-	private statusIncludeInput: TextComponent;
-	private statusExcludeInput: TextComponent;
-	private projectInput: TextComponent;
-	private priorityInput: TextComponent; // Consider dropdown if fixed range
-	private dueDateInput: TextComponent;
-	private startDateInput: TextComponent;
-	private scheduledDateInput: TextComponent;
-	private pathIncludesInput: TextComponent;
-	private pathExcludesInput: TextComponent;
 
 	// TwoColumnView specific settings
 	private taskPropertyKeyInput: TextComponent;
@@ -1028,158 +1027,43 @@ export class ViewConfigModal extends Modal {
 				});
 			});
 
+		// --- Advanced Filter Section ---
 		new Setting(contentEl)
-			.setName(t("Text contains"))
+			.setName(t("Advanced Filtering"))
 			.setDesc(
-				t(
-					"Filter tasks whose content includes this text (case-insensitive)."
-				)
+				t("Use advanced multi-group filtering with complex conditions")
 			)
-			.addText((text) => {
-				this.textContainsInput = text;
-				text.setValue(this.viewFilterRule.textContains || "");
-				text.onChange(() => this.checkForChanges());
+			.addToggle((toggle) => {
+				const hasAdvancedFilter = !!this.viewFilterRule.advancedFilter;
+				toggle.setValue(hasAdvancedFilter);
+				toggle.onChange((value) => {
+					if (value) {
+						// Enable advanced filtering
+						if (!this.viewFilterRule.advancedFilter) {
+							this.viewFilterRule.advancedFilter = {
+								rootCondition: "any",
+								filterGroups: [],
+							};
+						}
+						this.setupAdvancedFilter();
+					} else {
+						// Disable advanced filtering
+						delete this.viewFilterRule.advancedFilter;
+						this.cleanupAdvancedFilter();
+					}
+					this.checkForChanges();
+				});
 			});
 
-		new Setting(contentEl)
-			.setName(t("Tags include"))
-			.setDesc(t("Task must include ALL these tags (comma-separated)."))
-			.addText((text) => {
-				this.tagsIncludeInput = text;
-				text.setValue(
-					(this.viewFilterRule.tagsInclude || []).join(", ")
-				).setPlaceholder("#important, #projectA");
-				text.onChange(() => this.checkForChanges());
-			});
+		// Container for advanced filter component
+		this.advancedFilterContainer = contentEl.createDiv({
+			cls: "advanced-filter-container",
+		});
 
-		new Setting(contentEl)
-			.setName(t("Tags exclude"))
-			.setDesc(
-				t("Task must NOT include ANY of these tags (comma-separated).")
-			)
-			.addText((text) => {
-				this.tagsExcludeInput = text;
-				text.setValue(
-					(this.viewFilterRule.tagsExclude || []).join(", ")
-				).setPlaceholder("#waiting, #someday");
-				text.onChange(() => this.checkForChanges());
-			});
-
-		new Setting(contentEl)
-			.setName(t("Project is"))
-			.setDesc(t("Task must belong to this project (exact match)."))
-			.addText((text) => {
-				this.projectInput = text;
-				text.setValue(this.viewFilterRule.project || "");
-				text.onChange(() => this.checkForChanges());
-			});
-
-		new Setting(contentEl)
-			.setName(t("Priority is"))
-			.setDesc(
-				t(
-					"Task must have this priority (e.g., 1, 2, 3). You can also use 'none' to filter out tasks without a priority."
-				)
-			)
-			.addText((text) => {
-				this.priorityInput = text;
-				text.setValue(
-					this.viewFilterRule.priority !== undefined
-						? String(this.viewFilterRule.priority)
-						: ""
-				);
-				text.setPlaceholder("1, 2, 3 or none");
-				text.onChange(() => this.checkForChanges());
-			});
-
-		// --- Status Filters (Potentially complex, using simple text for now) ---
-		new Setting(contentEl)
-			.setName(t("Status include"))
-			.setDesc(
-				t(
-					"Task status must be one of these (comma-separated markers, e.g., /,>)."
-				)
-			)
-			.addText((text) => {
-				this.statusIncludeInput = text;
-				text.setValue(
-					(this.viewFilterRule.statusInclude || []).join(",")
-				).setPlaceholder("/.>");
-				text.onChange(() => this.checkForChanges());
-			});
-
-		new Setting(contentEl)
-			.setName(t("Status exclude"))
-			.setDesc(
-				t(
-					"Task status must NOT be one of these (comma-separated markers, e.g., -,x)."
-				)
-			)
-			.addText((text) => {
-				this.statusExcludeInput = text;
-				text.setValue(
-					(this.viewFilterRule.statusExclude || []).join(",")
-				).setPlaceholder("-,x");
-				text.onChange(() => this.checkForChanges());
-			});
-
-		// --- Date Filters ---
-		// TODO: Consider using a date picker component or Moment.js for relative dates
-		const dateDesc = t(
-			"Use YYYY-MM-DD or relative terms like 'today', 'tomorrow', 'next week', 'last month'."
-		);
-		new Setting(contentEl)
-			.setName(t("Due date is"))
-			.setDesc(dateDesc)
-			.addText((text) => {
-				this.dueDateInput = text;
-				text.setValue(this.viewFilterRule.dueDate || "");
-				text.onChange(() => this.checkForChanges());
-			});
-		new Setting(contentEl)
-			.setName(t("Start date is"))
-			.setDesc(dateDesc)
-			.addText((text) => {
-				this.startDateInput = text;
-				text.setValue(this.viewFilterRule.startDate || "");
-				text.onChange(() => this.checkForChanges());
-			});
-		new Setting(contentEl)
-			.setName(t("Scheduled date is"))
-			.setDesc(dateDesc)
-			.addText((text) => {
-				this.scheduledDateInput = text;
-				text.setValue(this.viewFilterRule.scheduledDate || "");
-				text.onChange(() => this.checkForChanges());
-			});
-
-		// --- Path Filters ---
-		new Setting(contentEl)
-			.setName(t("Path includes"))
-			.setDesc(
-				t(
-					"Task must contain this path (case-insensitive). Separate multiple paths with commas."
-				)
-			)
-			.addText((text) => {
-				new FolderSuggest(this.app, text.inputEl, this.plugin);
-				this.pathIncludesInput = text;
-				text.setValue(this.viewFilterRule.pathIncludes || "");
-				text.onChange(() => this.checkForChanges());
-			});
-		new Setting(contentEl)
-			.setName(t("Path excludes"))
-			.setDesc(
-				t(
-					"Task must NOT contain this path (case-insensitive). Separate multiple paths with commas."
-				)
-			)
-			.addText((text) => {
-				new FolderSuggest(this.app, text.inputEl, this.plugin);
-				this.pathExcludesInput = text;
-				text.setValue(this.viewFilterRule.pathExcludes || "");
-				text.onChange(() => this.checkForChanges());
-			});
+		// Initialize advanced filter if it exists
+		if (this.viewFilterRule.advancedFilter) {
+			this.setupAdvancedFilter();
+		}
 
 		if (
 			!["kanban", "gantt", "calendar"].includes(
@@ -1235,7 +1119,6 @@ export class ViewConfigModal extends Modal {
 										this.viewConfig.sortCriteria[
 											index
 										].field = value;
-										this.checkForChanges();
 										this.checkForChanges();
 									}
 								});
@@ -1381,96 +1264,6 @@ export class ViewConfigModal extends Modal {
 			refreshCriteriaList();
 		}
 
-		new Setting(contentEl)
-			.setName(t("Has due date"))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("hasDate", t("Has date"))
-					.addOption("noDate", t("No date"))
-					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasDueDate || "any")
-					.onChange((value) => {
-						this.viewFilterRule.hasDueDate = value as DateExistType;
-						this.checkForChanges();
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Has start date"))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("hasDate", t("Has date"))
-					.addOption("noDate", t("No date"))
-					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasStartDate || "any")
-					.onChange((value) => {
-						this.viewFilterRule.hasStartDate =
-							value as DateExistType;
-						this.checkForChanges();
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Has scheduled date"))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("hasDate", t("Has date"))
-					.addOption("noDate", t("No date"))
-					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasScheduledDate || "any")
-					.onChange((value) => {
-						this.viewFilterRule.hasScheduledDate =
-							value as DateExistType;
-						this.checkForChanges();
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Has created date"))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("hasDate", t("Has date"))
-					.addOption("noDate", t("No date"))
-					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasCreatedDate || "any")
-					.onChange((value) => {
-						this.viewFilterRule.hasCreatedDate =
-							value as DateExistType;
-						this.checkForChanges();
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Has completed date"))
-			.setDesc(t("Only show tasks that match the completed date."))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("hasDate", t("Has date"))
-					.addOption("noDate", t("No date"))
-					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasCompletedDate || "any")
-					.onChange((value) => {
-						this.viewFilterRule.hasCompletedDate =
-							value as DateExistType;
-						this.checkForChanges();
-					});
-			});
-
-		new Setting(contentEl)
-			.setName(t("Has recurrence"))
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("hasProperty", t("Has property"))
-					.addOption("noProperty", t("No property"))
-					.addOption("any", t("Any"))
-					.setValue(this.viewFilterRule.hasRecurrence || "any")
-					.onChange((value) => {
-						this.viewFilterRule.hasRecurrence =
-							value as PropertyExistType;
-						this.checkForChanges();
-					});
-			});
-
 		// --- First Day of Week ---
 
 		// --- Action Buttons ---
@@ -1508,63 +1301,25 @@ export class ViewConfigModal extends Modal {
 
 	private getCurrentFilterRule(): ViewFilterRule {
 		const rules: ViewFilterRule = {};
-		const textContains = this.textContainsInput?.getValue()?.trim();
-		if (textContains) rules.textContains = textContains;
 
-		const tagsInclude = this.parseStringToArray(
-			this.tagsIncludeInput?.getValue() || ""
-		);
-		if (tagsInclude.length > 0) rules.tagsInclude = tagsInclude;
-
-		const tagsExclude = this.parseStringToArray(
-			this.tagsExcludeInput?.getValue() || ""
-		);
-		if (tagsExclude.length > 0) rules.tagsExclude = tagsExclude;
-
-		const statusInclude = this.parseStringToArray(
-			this.statusIncludeInput?.getValue() || ""
-		);
-		if (statusInclude.length > 0) rules.statusInclude = statusInclude;
-
-		const statusExclude = this.parseStringToArray(
-			this.statusExcludeInput?.getValue() || ""
-		);
-		if (statusExclude.length > 0) rules.statusExclude = statusExclude;
-
-		const project = this.projectInput?.getValue()?.trim();
-		if (project) rules.project = project;
-
-		const priorityStr = this.priorityInput?.getValue()?.trim();
-		if (priorityStr) rules.priority = priorityStr;
-
-		const dueDate = this.dueDateInput?.getValue()?.trim();
-		if (dueDate) rules.dueDate = dueDate;
-
-		const startDate = this.startDateInput?.getValue()?.trim();
-		if (startDate) rules.startDate = startDate;
-
-		const scheduledDate = this.scheduledDateInput?.getValue()?.trim();
-		if (scheduledDate) rules.scheduledDate = scheduledDate;
-
-		// 保留日期存在性筛选设置
-		if (this.viewFilterRule.hasDueDate)
-			rules.hasDueDate = this.viewFilterRule.hasDueDate;
-		if (this.viewFilterRule.hasStartDate)
-			rules.hasStartDate = this.viewFilterRule.hasStartDate;
-		if (this.viewFilterRule.hasScheduledDate)
-			rules.hasScheduledDate = this.viewFilterRule.hasScheduledDate;
-		if (this.viewFilterRule.hasCreatedDate)
-			rules.hasCreatedDate = this.viewFilterRule.hasCreatedDate;
-		if (this.viewFilterRule.hasCompletedDate)
-			rules.hasCompletedDate = this.viewFilterRule.hasCompletedDate;
-		if (this.viewFilterRule.hasRecurrence)
-			rules.hasRecurrence = this.viewFilterRule.hasRecurrence;
-
-		const pathIncludes = this.pathIncludesInput?.getValue()?.trim();
-		if (pathIncludes) rules.pathIncludes = pathIncludes;
-
-		const pathExcludes = this.pathExcludesInput?.getValue()?.trim();
-		if (pathExcludes) rules.pathExcludes = pathExcludes;
+		// Get advanced filter state if available
+		if (this.taskFilterComponent) {
+			try {
+				const currentFilterState =
+					this.taskFilterComponent.getFilterState();
+				if (
+					currentFilterState &&
+					currentFilterState.filterGroups.length > 0
+				) {
+					rules.advancedFilter = currentFilterState;
+				}
+			} catch (error) {
+				console.warn("Error getting current filter state:", error);
+			}
+		} else if (this.viewFilterRule.advancedFilter) {
+			// Preserve existing advanced filter if component is not loaded
+			rules.advancedFilter = this.viewFilterRule.advancedFilter;
+		}
 
 		return rules;
 	}
@@ -1610,6 +1365,9 @@ export class ViewConfigModal extends Modal {
 	}
 
 	onClose() {
+		// Clean up the advanced filter component
+		this.cleanupAdvancedFilter();
+
 		const { contentEl } = this;
 		contentEl.empty();
 	}
@@ -1617,5 +1375,82 @@ export class ViewConfigModal extends Modal {
 	// 添加saveSettingsUpdate方法
 	private saveSettingsUpdate() {
 		this.checkForChanges();
+	}
+
+	private setupAdvancedFilter() {
+		if (!this.advancedFilterContainer) return;
+
+		// Clean up existing component if any
+		this.cleanupAdvancedFilter();
+
+		// Create the TaskFilterComponent
+		this.taskFilterComponent = new TaskFilterComponent(
+			this.advancedFilterContainer,
+			this.app,
+			`view-config-${this.viewConfig.id}`, // Use view-specific storage key
+			this.plugin
+		);
+
+		// Load existing filter state if available
+		if (this.viewFilterRule.advancedFilter) {
+			// Initialize the component first
+			this.taskFilterComponent.onload();
+
+			// Load the saved state
+			this.taskFilterComponent.loadFilterState(
+				this.viewFilterRule.advancedFilter
+			);
+		} else {
+			// Initialize with empty state
+			this.taskFilterComponent.onload();
+		}
+
+		// Set up event listener for filter changes
+		// Since we can't override private methods, we'll use a polling approach or workspace events
+		this.filterChangeHandler = (
+			filterState: RootFilterState,
+			leafId?: string
+		) => {
+			// Only respond to changes from our specific component
+			if (
+				leafId === `view-config-${this.viewConfig.id}` &&
+				this.taskFilterComponent
+			) {
+				this.viewFilterRule.advancedFilter = filterState;
+				this.checkForChanges();
+			}
+		};
+
+		this.app.workspace.on(
+			"task-genius:filter-changed",
+			this.filterChangeHandler
+		);
+
+		// Show the container
+		this.advancedFilterContainer.style.display = "block";
+	}
+
+	private cleanupAdvancedFilter() {
+		if (this.taskFilterComponent) {
+			try {
+				this.taskFilterComponent.onunload();
+			} catch (error) {
+				console.warn("Error cleaning up task filter component:", error);
+			}
+			this.taskFilterComponent = null;
+		}
+
+		if (this.advancedFilterContainer) {
+			this.advancedFilterContainer.empty();
+			this.advancedFilterContainer.style.display = "none";
+		}
+
+		if (this.filterChangeHandler) {
+			this.app.workspace.off(
+				"task-genius:filter-changed",
+				this.filterChangeHandler
+			);
+			this.filterChangeHandler = null;
+		}
 	}
 }

@@ -461,11 +461,52 @@
 }
 
 .filter-config-name-highlight {
-	font-weight: 600;
-	color: var(--text-accent);
-	font-style: italic;
-	padding: var(--size-2-1) var(--size-2-2);
-	background-color: var(--background-modifier-success);
+	background-color: var(--text-accent);
+	color: var(--text-on-accent);
+	padding: 0.125rem 0.25rem;
 	border-radius: var(--radius-s);
-	border: 1px solid var(--color-accent);
+	font-weight: 500;
+}
+
+/* Advanced filter container styles for ViewConfigModal */
+.advanced-filter-container {
+	margin-top: var(--size-4-2);
+	padding: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+}
+
+.advanced-filter-container .task-filter-root-container {
+	background-color: transparent;
+	border: none;
+	padding: 0;
+}
+
+.advanced-filter-container .task-filter-main-panel {
+	background-color: transparent;
+	border: none;
+	padding: 0;
+}
+
+/* Smaller styling for filters in modal */
+.task-genius-view-config-modal .advanced-filter-container .filter-group {
+	padding: var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.task-genius-view-config-modal .advanced-filter-container .filter-item {
+	padding: var(--size-2-2);
+	gap: var(--size-2-2);
+}
+
+.task-genius-view-config-modal .advanced-filter-container .compact-btn {
+	padding: var(--size-2-1) var(--size-2-2);
+	min-height: 26px;
+}
+
+.task-genius-view-config-modal .advanced-filter-container .compact-select,
+.task-genius-view-config-modal .advanced-filter-container .compact-input {
+	font-size: var(--font-ui-smaller);
+	height: 28px;
 }
