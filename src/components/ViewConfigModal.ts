@@ -1035,8 +1035,14 @@ export class ViewConfigModal extends Modal {
 			)
 			.addToggle((toggle) => {
 				const hasAdvancedFilter = !!this.viewFilterRule.advancedFilter;
+				console.log(
+					"Initial advanced filter state:",
+					hasAdvancedFilter,
+					this.viewFilterRule.advancedFilter
+				);
 				toggle.setValue(hasAdvancedFilter);
 				toggle.onChange((value) => {
+					console.log("Advanced filter toggle changed to:", value);
 					if (value) {
 						// Enable advanced filtering
 						if (!this.viewFilterRule.advancedFilter) {
@@ -1044,10 +1050,15 @@ export class ViewConfigModal extends Modal {
 								rootCondition: "any",
 								filterGroups: [],
 							};
+							console.log(
+								"Created new advanced filter:",
+								this.viewFilterRule.advancedFilter
+							);
 						}
 						this.setupAdvancedFilter();
 					} else {
 						// Disable advanced filtering
+						console.log("Disabling advanced filter");
 						delete this.viewFilterRule.advancedFilter;
 						this.cleanupAdvancedFilter();
 					}
@@ -1063,6 +1074,9 @@ export class ViewConfigModal extends Modal {
 		// Initialize advanced filter if it exists
 		if (this.viewFilterRule.advancedFilter) {
 			this.setupAdvancedFilter();
+		} else {
+			// Hide the container initially if no advanced filter
+			this.advancedFilterContainer.style.display = "none";
 		}
 
 		if (
@@ -1380,6 +1394,8 @@ export class ViewConfigModal extends Modal {
 	private setupAdvancedFilter() {
 		if (!this.advancedFilterContainer) return;
 
+		console.log("Setting up advanced filter...");
+
 		// Clean up existing component if any
 		this.cleanupAdvancedFilter();
 
@@ -1391,22 +1407,29 @@ export class ViewConfigModal extends Modal {
 			this.plugin
 		);
 
+		console.log("TaskFilterComponent created:", this.taskFilterComponent);
+
+		// Manually load the component
+		this.taskFilterComponent.onload();
+
+		console.log(
+			"TaskFilterComponent onload called, container content:",
+			this.advancedFilterContainer.innerHTML
+		);
+
 		// Load existing filter state if available
 		if (this.viewFilterRule.advancedFilter) {
-			// Initialize the component first
-			this.taskFilterComponent.onload();
-
+			console.log(
+				"Loading existing filter state:",
+				this.viewFilterRule.advancedFilter
+			);
 			// Load the saved state
 			this.taskFilterComponent.loadFilterState(
 				this.viewFilterRule.advancedFilter
 			);
-		} else {
-			// Initialize with empty state
-			this.taskFilterComponent.onload();
 		}
 
 		// Set up event listener for filter changes
-		// Since we can't override private methods, we'll use a polling approach or workspace events
 		this.filterChangeHandler = (
 			filterState: RootFilterState,
 			leafId?: string
@@ -1428,14 +1451,16 @@ export class ViewConfigModal extends Modal {
 
 		// Show the container
 		this.advancedFilterContainer.style.display = "block";
+		console.log("Advanced filter container should now be visible");
 	}
 
 	private cleanupAdvancedFilter() {
 		if (this.taskFilterComponent) {
 			try {
+				// Manually unload the component
 				this.taskFilterComponent.onunload();
 			} catch (error) {
-				console.warn("Error cleaning up task filter component:", error);
+				console.warn("Error unloading task filter component:", error);
 			}
 			this.taskFilterComponent = null;
 		}
