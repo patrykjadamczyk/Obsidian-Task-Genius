@@ -276,7 +276,6 @@
 	padding: var(--size-4-2);
 	/* border: 1px solid var(--background-modifier-border); */
 	/* border-radius: var(--radius-m); */
-	background: var(--background-secondary-alt);
 	padding-top: 0;
 	padding-bottom: 0;
 }

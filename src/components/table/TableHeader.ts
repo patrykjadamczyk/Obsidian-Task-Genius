@@ -137,7 +137,6 @@ export class TableHeader extends Component {
 		);
 
 		const treeModeIcon = this.treeModeBtn.createSpan("tree-mode-icon");
-		const treeModeText = this.treeModeBtn.createSpan("tree-mode-text");
 
 		this.updateTreeModeButton();
 
@@ -188,15 +187,11 @@ export class TableHeader extends Component {
 		if (!this.treeModeBtn) return;
 
 		const icon = this.treeModeBtn.querySelector(".tree-mode-icon");
-		const text = this.treeModeBtn.querySelector(".tree-mode-text");
 
-		if (icon && text) {
+		if (icon) {
 			icon.empty();
 			setIcon(icon as HTMLElement, this.isTreeMode ? "network" : "list");
 
-			text.textContent = this.isTreeMode
-				? t("Tree Mode")
-				: t("List Mode");
 			this.treeModeBtn.title = this.isTreeMode
 				? t("Switch to List Mode")
 				: t("Switch to Tree Mode");

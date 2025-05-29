@@ -696,6 +696,8 @@
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 	transition: all 0.2s ease;
+
+	box-shadow: unset !important;
 }
 
 .table-control-btn:hover {
@@ -716,6 +718,9 @@
 .refresh-icon,
 .column-icon {
 	font-size: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .tree-mode-text,
