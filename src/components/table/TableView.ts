@@ -205,24 +205,6 @@ export class TableView extends Component {
 				visible: this.config.visibleColumns.includes("recurrence"),
 			},
 			{
-				id: "estimatedTime",
-				title: t("Estimated Time"),
-				width: this.config.columnWidths.estimatedTime || 120,
-				sortable: this.config.sortableColumns,
-				resizable: this.config.resizableColumns,
-				type: "text",
-				visible: this.config.visibleColumns.includes("estimatedTime"),
-			},
-			{
-				id: "actualTime",
-				title: t("Actual Time"),
-				width: this.config.columnWidths.actualTime || 120,
-				sortable: this.config.sortableColumns,
-				resizable: this.config.resizableColumns,
-				type: "text",
-				visible: this.config.visibleColumns.includes("actualTime"),
-			},
-			{
 				id: "filePath",
 				title: t("File"),
 				width: this.config.columnWidths.filePath || 200,
@@ -583,14 +565,6 @@ export class TableView extends Component {
 					value = task.recurrence;
 					displayValue = task.recurrence || "";
 					break;
-				case "estimatedTime":
-					value = task.estimatedTime;
-					displayValue = task.estimatedTime?.toString() || "";
-					break;
-				case "actualTime":
-					value = task.actualTime;
-					displayValue = task.actualTime?.toString() || "";
-					break;
 				case "filePath":
 					value = task.filePath;
 					displayValue = this.formatFilePath(task.filePath);
@@ -888,14 +862,6 @@ export class TableView extends Component {
 			case "recurrence":
 				task.recurrence = value || undefined;
 				break;
-			case "estimatedTime":
-				task.estimatedTime = value
-					? parseInt(String(value))
-					: undefined;
-				break;
-			case "actualTime":
-				task.actualTime = value ? parseInt(String(value)) : undefined;
-				break;
 		}
 	}
 
@@ -1115,16 +1081,6 @@ export class TableView extends Component {
 				id: "recurrence",
 				title: t("Recurrence"),
 				visible: this.config.visibleColumns.includes("recurrence"),
-			},
-			{
-				id: "estimatedTime",
-				title: t("Estimated Time"),
-				visible: this.config.visibleColumns.includes("estimatedTime"),
-			},
-			{
-				id: "actualTime",
-				title: t("Actual Time"),
-				visible: this.config.visibleColumns.includes("actualTime"),
 			},
 			{
 				id: "filePath",

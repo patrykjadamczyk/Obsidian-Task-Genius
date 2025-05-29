@@ -544,7 +544,11 @@ export class TableRenderer extends Component {
 
 		if (cell.value) {
 			const date = new Date(cell.value as number);
+			date.setHours(0, 0, 0, 0); // Zero out time for consistent comparison
+
 			const now = new Date();
+			now.setHours(0, 0, 0, 0); // Zero out time for consistent comparison
+
 			const diffDays = Math.floor(
 				(date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
 			);
@@ -576,7 +580,7 @@ export class TableRenderer extends Component {
 		} else {
 			// Empty date cell
 			const emptyText = dateContainer.createSpan("task-table-date-empty");
-			emptyText.textContent = t("No date");
+			emptyText.textContent = "\u00A0"; // Non-breaking space for invisible whitespace
 			emptyText.addClass("empty-date");
 		}
 

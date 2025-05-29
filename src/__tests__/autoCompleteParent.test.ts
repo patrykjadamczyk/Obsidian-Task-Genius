@@ -431,7 +431,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: " " },
 			], // Child uncompleted - position adjusted for 4-space indent
 		});
-		
+
 		const result = handleParentTaskUpdateTransaction(
 			tr,
 			mockApp,
