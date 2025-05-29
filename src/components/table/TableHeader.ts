@@ -1,4 +1,4 @@
-import { Component } from "obsidian";
+import { Component, setIcon } from "obsidian";
 import { t } from "../../translations/helper";
 
 export interface TableHeaderCallbacks {
@@ -20,6 +20,9 @@ export class TableHeader extends Component {
 		visible: boolean;
 	}> = [];
 	private callbacks: TableHeaderCallbacks;
+	private treeModeBtn: HTMLElement;
+	private refreshBtn: HTMLElement;
+	private columnBtn: HTMLElement;
 
 	constructor(
 		private containerEl: HTMLElement,
@@ -87,11 +90,36 @@ export class TableHeader extends Component {
 		const countContainer = container.createDiv("task-count-container");
 
 		const countIcon = countContainer.createSpan("task-count-icon");
-		countIcon.textContent = "📋";
+		setIcon(countIcon, "list-checks");
 
 		const countText = countContainer.createSpan("task-count-text");
-		countText.textContent = t("{{count}} tasks", { count: this.taskCount });
+		countText.textContent = this.getTaskCountText();
 		countText.dataset.countElement = "true";
+	}
+
+	/**
+	 * Get formatted task count text
+	 */
+	private getTaskCountText(): string {
+		if (this.taskCount === 0) {
+			return t("No tasks");
+		} else if (this.taskCount === 1) {
+			return t("1 task");
+		} else {
+			return `${this.taskCount} ${t("tasks")}`;
+		}
+	}
+
+	/**
+	 * Update task count display
+	 */
+	private updateTaskCountDisplay() {
+		const countElement = this.headerEl.querySelector(
+			"[data-count-element]"
+		);
+		if (countElement) {
+			countElement.textContent = this.getTaskCountText();
+		}
 	}
 
 	/**
@@ -103,36 +131,35 @@ export class TableHeader extends Component {
 		);
 
 		// Tree mode toggle
-		const treeModeBtn = controlsContainer.createEl(
+		this.treeModeBtn = controlsContainer.createEl(
 			"button",
 			"table-control-btn tree-mode-btn"
 		);
-		treeModeBtn.innerHTML = `
-			<span class="tree-mode-icon">${this.isTreeMode ? "🌳" : "📄"}</span>
-			<span class="tree-mode-text">${
-				this.isTreeMode ? t("Tree Mode") : t("List Mode")
-			}</span>
-		`;
-		treeModeBtn.title = this.isTreeMode
-			? t("Switch to List Mode")
-			: t("Switch to Tree Mode");
 
-		this.registerDomEvent(treeModeBtn, "click", () => {
+		const treeModeIcon = this.treeModeBtn.createSpan("tree-mode-icon");
+		const treeModeText = this.treeModeBtn.createSpan("tree-mode-text");
+
+		this.updateTreeModeButton();
+
+		this.registerDomEvent(this.treeModeBtn, "click", () => {
 			this.toggleTreeMode();
 		});
 
 		// Refresh button
-		const refreshBtn = controlsContainer.createEl(
+		this.refreshBtn = controlsContainer.createEl(
 			"button",
 			"table-control-btn refresh-btn"
 		);
-		refreshBtn.innerHTML = `
-			<span class="refresh-icon">🔄</span>
-			<span class="refresh-text">${t("Refresh")}</span>
-		`;
-		refreshBtn.title = t("Refresh table data");
 
-		this.registerDomEvent(refreshBtn, "click", () => {
+		const refreshIcon = this.refreshBtn.createSpan("refresh-icon");
+		setIcon(refreshIcon, "refresh-cw");
+
+		const refreshText = this.refreshBtn.createSpan("refresh-text");
+		refreshText.textContent = t("Refresh");
+
+		this.refreshBtn.title = t("Refresh table data");
+
+		this.registerDomEvent(this.refreshBtn, "click", () => {
 			if (this.callbacks.onRefresh) {
 				this.callbacks.onRefresh();
 			}
@@ -140,21 +167,26 @@ export class TableHeader extends Component {
 
 		// Column visibility dropdown
 		const columnDropdown = controlsContainer.createDiv("column-dropdown");
-		const columnBtn = columnDropdown.createEl(
+		this.columnBtn = columnDropdown.createEl(
 			"button",
 			"table-control-btn column-btn"
 		);
-		columnBtn.innerHTML = `
-			<span class="column-icon">👁️</span>
-			<span class="column-text">${t("Columns")}</span>
-			<span class="dropdown-arrow">▼</span>
-		`;
-		columnBtn.title = t("Toggle column visibility");
+
+		const columnIcon = this.columnBtn.createSpan("column-icon");
+		setIcon(columnIcon, "eye");
+
+		const columnText = this.columnBtn.createSpan("column-text");
+		columnText.textContent = t("Columns");
+
+		const dropdownArrow = this.columnBtn.createSpan("dropdown-arrow");
+		setIcon(dropdownArrow, "chevron-down");
+
+		this.columnBtn.title = t("Toggle column visibility");
 
 		const columnMenu = columnDropdown.createDiv("column-dropdown-menu");
 		columnMenu.style.display = "none";
 
-		this.registerDomEvent(columnBtn, "click", (e) => {
+		this.registerDomEvent(this.columnBtn, "click", (e) => {
 			e.stopPropagation();
 			const isVisible = columnMenu.style.display !== "none";
 			columnMenu.style.display = isVisible ? "none" : "block";
@@ -165,7 +197,61 @@ export class TableHeader extends Component {
 			columnMenu.style.display = "none";
 		});
 
-		this.createColumnToggles(columnMenu);
+		// Store column menu for later updates
+		this.updateColumnDropdown(columnMenu);
+	}
+
+	/**
+	 * Update tree mode button appearance
+	 */
+	private updateTreeModeButton() {
+		if (!this.treeModeBtn) return;
+
+		const icon = this.treeModeBtn.querySelector(".tree-mode-icon");
+		const text = this.treeModeBtn.querySelector(".tree-mode-text");
+
+		if (icon && text) {
+			icon.empty();
+			setIcon(icon as HTMLElement, this.isTreeMode ? "network" : "list");
+
+			text.textContent = this.isTreeMode
+				? t("Tree Mode")
+				: t("List Mode");
+			this.treeModeBtn.title = this.isTreeMode
+				? t("Switch to List Mode")
+				: t("Switch to Tree Mode");
+
+			this.treeModeBtn.toggleClass("active", this.isTreeMode);
+		}
+	}
+
+	/**
+	 * Update tree mode display
+	 */
+	private updateTreeModeDisplay() {
+		this.updateTreeModeButton();
+	}
+
+	/**
+	 * Toggle tree mode
+	 */
+	private toggleTreeMode() {
+		this.isTreeMode = !this.isTreeMode;
+		this.updateTreeModeDisplay();
+
+		if (this.callbacks.onTreeModeToggle) {
+			this.callbacks.onTreeModeToggle(this.isTreeMode);
+		}
+	}
+
+	/**
+	 * Update column toggles
+	 */
+	private updateColumnToggles() {
+		const columnMenu = this.headerEl.querySelector(".column-dropdown-menu");
+		if (columnMenu) {
+			this.createColumnToggles(columnMenu as HTMLElement);
+		}
 	}
 
 	/**
@@ -198,61 +284,9 @@ export class TableHeader extends Component {
 	}
 
 	/**
-	 * Toggle tree mode
+	 * Update column dropdown
 	 */
-	private toggleTreeMode() {
-		this.isTreeMode = !this.isTreeMode;
-		this.updateTreeModeDisplay();
-
-		if (this.callbacks.onTreeModeToggle) {
-			this.callbacks.onTreeModeToggle(this.isTreeMode);
-		}
-	}
-
-	/**
-	 * Update task count display
-	 */
-	private updateTaskCountDisplay() {
-		const countElement = this.headerEl.querySelector(
-			"[data-count-element]"
-		);
-		if (countElement) {
-			countElement.textContent = t("{{count}} tasks", {
-				count: this.taskCount,
-			});
-		}
-	}
-
-	/**
-	 * Update tree mode button display
-	 */
-	private updateTreeModeDisplay() {
-		const treeModeBtn = this.headerEl.querySelector(
-			".tree-mode-btn"
-		) as HTMLElement;
-		if (treeModeBtn) {
-			const icon = treeModeBtn.querySelector(".tree-mode-icon");
-			const text = treeModeBtn.querySelector(".tree-mode-text");
-
-			if (icon) icon.textContent = this.isTreeMode ? "🌳" : "📄";
-			if (text)
-				text.textContent = this.isTreeMode
-					? t("Tree Mode")
-					: t("List Mode");
-
-			treeModeBtn.title = this.isTreeMode
-				? t("Switch to List Mode")
-				: t("Switch to Tree Mode");
-		}
-	}
-
-	/**
-	 * Update column toggles
-	 */
-	private updateColumnToggles() {
-		const columnMenu = this.headerEl.querySelector(".column-dropdown-menu");
-		if (columnMenu) {
-			this.createColumnToggles(columnMenu as HTMLElement);
-		}
+	private updateColumnDropdown(columnMenu: HTMLElement) {
+		this.createColumnToggles(columnMenu);
 	}
 }

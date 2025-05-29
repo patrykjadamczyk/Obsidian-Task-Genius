@@ -1,6 +1,7 @@
 import { Component } from "obsidian";
 import { Task } from "../../types/task";
-import { TreeNode, TableRow, TableCell } from "./TableTypes";
+import { TreeNode, TableRow, TableCell, TableColumn } from "./TableTypes";
+import { t } from "../../translations/helper";
 
 /**
  * Tree manager component responsible for handling hierarchical task display
@@ -8,6 +9,12 @@ import { TreeNode, TableRow, TableCell } from "./TableTypes";
 export class TreeManager extends Component {
 	private expandedNodes: Set<string> = new Set();
 	private treeNodes: Map<string, TreeNode> = new Map();
+	private columns: TableColumn[] = [];
+
+	constructor(columns: TableColumn[]) {
+		super();
+		this.columns = columns;
+	}
 
 	onload() {
 		// Initialize tree manager
@@ -15,6 +22,13 @@ export class TreeManager extends Component {
 
 	onunload() {
 		this.cleanup();
+	}
+
+	/**
+	 * Update columns configuration
+	 */
+	public updateColumns(columns: TableColumn[]) {
+		this.columns = columns;
 	}
 
 	/**
@@ -150,57 +164,92 @@ export class TreeManager extends Component {
 	}
 
 	/**
-	 * Create table cells for a tree node
+	 * Create table cells for a tree node using the same logic as TableView
 	 */
 	private createCellsForNode(node: TreeNode, rowNumber: number): TableCell[] {
 		const task = node.task;
 
-		// This is a simplified version - in practice, you'd want to use
-		// the same cell creation logic as the main table component
-		return [
-			{
-				columnId: "rowNumber",
-				value: rowNumber,
-				displayValue: rowNumber.toString(),
-				editable: false,
-			},
-			{
-				columnId: "status",
-				value: task.status,
-				displayValue: this.formatStatus(task.status),
-				editable: true,
-			},
-			{
-				columnId: "content",
-				value: task.content,
-				displayValue: task.content,
-				editable: true,
-			},
-			{
-				columnId: "priority",
-				value: task.priority,
-				displayValue: this.formatPriority(task.priority),
-				editable: true,
-			},
-			{
-				columnId: "dueDate",
-				value: task.dueDate,
-				displayValue: this.formatDate(task.dueDate),
-				editable: true,
-			},
-			{
-				columnId: "tags",
-				value: task.tags,
-				displayValue: task.tags?.join(", ") || "",
-				editable: true,
-			},
-			{
-				columnId: "project",
-				value: task.project,
-				displayValue: task.project || "",
-				editable: true,
-			},
-		];
+		return this.columns.map((column) => {
+			let value: any;
+			let displayValue: string;
+
+			switch (column.id) {
+				case "rowNumber":
+					value = rowNumber;
+					displayValue = rowNumber.toString();
+					break;
+				case "status":
+					value = task.status;
+					displayValue = this.formatStatus(task.status);
+					break;
+				case "content":
+					value = task.content;
+					displayValue = task.content;
+					break;
+				case "priority":
+					value = task.priority;
+					displayValue = this.formatPriority(task.priority);
+					break;
+				case "dueDate":
+					value = task.dueDate;
+					displayValue = this.formatDate(task.dueDate);
+					break;
+				case "startDate":
+					value = task.startDate;
+					displayValue = this.formatDate(task.startDate);
+					break;
+				case "scheduledDate":
+					value = task.scheduledDate;
+					displayValue = this.formatDate(task.scheduledDate);
+					break;
+				case "createdDate":
+					value = task.createdDate;
+					displayValue = this.formatDate(task.createdDate);
+					break;
+				case "completedDate":
+					value = task.completedDate;
+					displayValue = this.formatDate(task.completedDate);
+					break;
+				case "tags":
+					value = task.tags;
+					displayValue = task.tags?.join(", ") || "";
+					break;
+				case "project":
+					value = task.project;
+					displayValue = task.project || "";
+					break;
+				case "context":
+					value = task.context;
+					displayValue = task.context || "";
+					break;
+				case "recurrence":
+					value = task.recurrence;
+					displayValue = task.recurrence || "";
+					break;
+				case "estimatedTime":
+					value = task.estimatedTime;
+					displayValue = task.estimatedTime?.toString() || "";
+					break;
+				case "actualTime":
+					value = task.actualTime;
+					displayValue = task.actualTime?.toString() || "";
+					break;
+				case "filePath":
+					value = task.filePath;
+					displayValue = this.formatFilePath(task.filePath);
+					break;
+				default:
+					value = "";
+					displayValue = "";
+			}
+
+			return {
+				columnId: column.id,
+				value: value,
+				displayValue: displayValue,
+				editable: column.id !== "rowNumber" && column.id !== "filePath",
+			};
+		});
 	}
 
 	/**
@@ -349,16 +398,16 @@ export class TreeManager extends Component {
 		return true;
 	}
 
-	// Formatting methods (simplified versions)
+	// Formatting methods (same as TableView)
 	private formatStatus(status: string): string {
 		const statusMap: Record<string, string> = {
-			" ": "Not Started",
-			x: "Completed",
-			X: "Completed",
-			"/": "In Progress",
-			">": "In Progress",
-			"-": "Abandoned",
-			"?": "Planned",
+			" ": t("Not Started"),
+			x: t("Completed"),
+			X: t("Completed"),
+			"/": t("In Progress"),
+			">": t("In Progress"),
+			"-": t("Abandoned"),
+			"?": t("Planned"),
 		};
 		return statusMap[status] || status;
 	}
@@ -366,9 +415,9 @@ export class TreeManager extends Component {
 	private formatPriority(priority?: number): string {
 		if (!priority) return "";
 		const priorityMap: Record<number, string> = {
-			1: "High",
-			2: "Medium",
-			3: "Low",
+			1: t("High"),
+			2: t("Medium"),
+			3: t("Low"),
 		};
 		return priorityMap[priority] || priority.toString();
 	}
@@ -376,6 +425,12 @@ export class TreeManager extends Component {
 	private formatDate(timestamp?: number): string {
 		if (!timestamp) return "";
 		return new Date(timestamp).toLocaleDateString();
+	}
+
+	private formatFilePath(filePath: string): string {
+		// Extract just the filename
+		const parts = filePath.split("/");
+		return parts[parts.length - 1].replace(/\.md$/, "");
 	}
 
 	/**

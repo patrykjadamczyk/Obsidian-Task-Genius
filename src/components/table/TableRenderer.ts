@@ -1,10 +1,10 @@
-import { Component } from "obsidian";
+import { Component, setIcon, Menu, App } from "obsidian";
 import { TableColumn, TableRow, TableCell } from "./TableTypes";
 import { TableSpecificConfig } from "../../common/setting-definition";
 import { t } from "../../translations/helper";
 import { DatePickerPopover } from "../date-picker/DatePickerPopover";
 import type TaskProgressBarPlugin from "../../index";
-
+import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
 /**
  * Table renderer component responsible for rendering the table HTML structure
  */
@@ -22,14 +22,24 @@ export class TableRenderer extends Component {
 		newDate: string | null
 	) => void;
 
+	// Callback for row expansion
+	public onRowExpand?: (rowId: string) => void;
+
+	// Callback for cell value changes
+	public onCellChange?: (
+		rowId: string,
+		columnId: string,
+		newValue: any
+	) => void;
+
 	constructor(
 		private tableEl: HTMLElement,
 		private headerEl: HTMLElement,
 		private bodyEl: HTMLElement,
 		private columns: TableColumn[],
 		private config: TableSpecificConfig,
-		private app?: any,
-		private plugin?: TaskProgressBarPlugin
+		private app: App,
+		private plugin: TaskProgressBarPlugin
 	) {
 		super();
 	}
@@ -43,6 +53,9 @@ export class TableRenderer extends Component {
 		if (this.resizeObserver) {
 			this.resizeObserver.disconnect();
 		}
+		// Clean up active suggests
+		this.activeSuggests.forEach((suggest) => suggest.destroy());
+		this.activeSuggests = [];
 	}
 
 	/**
@@ -74,7 +87,7 @@ export class TableRenderer extends Component {
 				const sortIcon = headerContent.createSpan(
 					"task-table-sort-icon"
 				);
-				sortIcon.innerHTML = "↕️"; // Default sort icon
+				setIcon(sortIcon, "chevrons-up-down");
 			}
 
 			// Add resize handle if resizable
@@ -170,7 +183,10 @@ export class TableRenderer extends Component {
 					const expandBtn = indent.createSpan(
 						"task-table-expand-btn"
 					);
-					expandBtn.textContent = row.expanded ? "▼" : "▶";
+					setIcon(
+						expandBtn,
+						row.expanded ? "chevron-down" : "chevron-right"
+					);
 					expandBtn.addEventListener("click", (e) => {
 						e.stopPropagation();
 						this.toggleRowExpansion(row.id);
@@ -237,24 +253,24 @@ export class TableRenderer extends Component {
 		switch (status) {
 			case "x":
 			case "X":
-				statusIcon.textContent = "✅";
+				setIcon(statusIcon, "check-circle");
 				statusContainer.addClass("completed");
 				break;
 			case "/":
 			case ">":
-				statusIcon.textContent = "🔄";
+				setIcon(statusIcon, "clock");
 				statusContainer.addClass("in-progress");
 				break;
 			case "-":
-				statusIcon.textContent = "❌";
+				setIcon(statusIcon, "x-circle");
 				statusContainer.addClass("abandoned");
 				break;
 			case "?":
-				statusIcon.textContent = "❓";
+				setIcon(statusIcon, "help-circle");
 				statusContainer.addClass("planned");
 				break;
 			default:
-				statusIcon.textContent = "⭕";
+				setIcon(statusIcon, "circle");
 				statusContainer.addClass("not-started");
 		}
 
@@ -264,22 +280,28 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Render priority cell with visual indicator
+	 * Render priority cell with visual indicator and click-to-edit
 	 */
 	private renderPriorityCell(cellEl: HTMLElement, cell: TableCell) {
 		const priorityContainer = cellEl.createDiv("task-table-priority");
+		priorityContainer.addClass("clickable-priority");
 		const priority = cell.value as number;
 
 		if (priority) {
-			// Add priority dots
-			const priorityDots = priorityContainer.createSpan(
-				"task-table-priority-dots"
+			// Add priority icon
+			const priorityIcon = priorityContainer.createSpan(
+				"task-table-priority-icon"
 			);
-			for (let i = 0; i < priority; i++) {
-				const dot = priorityDots.createSpan("priority-dot");
-				if (priority === 1) dot.addClass("high");
-				else if (priority === 2) dot.addClass("medium");
-				else dot.addClass("low");
+
+			if (priority === 1) {
+				setIcon(priorityIcon, "alert-triangle");
+				priorityIcon.addClass("high");
+			} else if (priority === 2) {
+				setIcon(priorityIcon, "minus");
+				priorityIcon.addClass("medium");
+			} else {
+				setIcon(priorityIcon, "circle");
+				priorityIcon.addClass("low");
 			}
 
 			// Add priority text
@@ -287,7 +309,80 @@ export class TableRenderer extends Component {
 				"task-table-priority-text"
 			);
 			priorityText.textContent = cell.displayValue;
+		} else {
+			// Empty priority cell
+			const emptyText = priorityContainer.createSpan(
+				"task-table-priority-empty"
+			);
+			emptyText.textContent = t("No priority");
+			emptyText.addClass("empty-priority");
 		}
+
+		// Add click handler for priority editing
+		priorityContainer.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.openPriorityMenu(cellEl, cell);
+		});
+
+		// Add hover effect
+		priorityContainer.title = t("Click to set priority");
+	}
+
+	/**
+	 * Open priority selection menu
+	 */
+	private openPriorityMenu(cellEl: HTMLElement, cell: TableCell) {
+		const rowId = cellEl.dataset.rowId;
+		if (!rowId) return;
+
+		const menu = new Menu();
+
+		// No priority option
+		menu.addItem((item) => {
+			item.setTitle(t("No priority"))
+				.setIcon("circle")
+				.onClick(() => {
+					if (this.onCellChange) {
+						this.onCellChange(rowId, cell.columnId, null);
+					}
+				});
+		});
+
+		// High priority
+		menu.addItem((item) => {
+			item.setTitle(t("High priority"))
+				.setIcon("alert-triangle")
+				.onClick(() => {
+					if (this.onCellChange) {
+						this.onCellChange(rowId, cell.columnId, 1);
+					}
+				});
+		});
+
+		// Medium priority
+		menu.addItem((item) => {
+			item.setTitle(t("Medium priority"))
+				.setIcon("minus")
+				.onClick(() => {
+					if (this.onCellChange) {
+						this.onCellChange(rowId, cell.columnId, 2);
+					}
+				});
+		});
+
+		// Low priority
+		menu.addItem((item) => {
+			item.setTitle(t("Low priority"))
+				.setIcon("circle")
+				.onClick(() => {
+					if (this.onCellChange) {
+						this.onCellChange(rowId, cell.columnId, 3);
+					}
+				});
+		});
+
+		const rect = cellEl.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom + 5 });
 	}
 
 	/**
@@ -385,17 +480,75 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Render tags cell with tag chips
+	 * Render tags cell with inline editing and auto-suggest
 	 */
 	private renderTagsCell(cellEl: HTMLElement, cell: TableCell) {
 		const tagsContainer = cellEl.createDiv("task-table-tags");
 		const tags = cell.value as string[];
 
-		if (tags && tags.length > 0) {
-			tags.forEach((tag) => {
-				const tagChip = tagsContainer.createSpan("task-table-tag-chip");
-				tagChip.textContent = tag;
+		if (cell.editable) {
+			// Create editable input for tags
+			const input = tagsContainer.createEl(
+				"input",
+				"task-table-tags-input"
+			);
+			input.type = "text";
+			input.value = tags?.join(", ") || "";
+			input.placeholder = t("Add tags...");
+			input.style.border = "none";
+			input.style.background = "transparent";
+			input.style.width = "100%";
+			input.style.padding = "0";
+			input.style.font = "inherit";
+
+			// Add auto-suggest for tags
+			if (this.app) {
+				const allTags = this.getAllValues("tags");
+				console.log(allTags);
+				new TagSuggest(this.app, input, this.plugin!);
+			}
+
+			// Handle blur event to save changes
+			input.addEventListener("blur", () => {
+				const newValue = input.value.trim();
+				const newTags = newValue
+					? newValue
+							.split(",")
+							.map((tag) => tag.trim())
+							.filter((tag) => tag.length > 0)
+					: [];
+				this.saveCellValue(cellEl, cell, newTags);
 			});
+
+			// Handle Enter key to save and exit
+			input.addEventListener("keydown", (e) => {
+				if (e.key === "Enter") {
+					input.blur();
+					e.preventDefault();
+				}
+				e.stopPropagation();
+			});
+
+			// Stop click propagation
+			input.addEventListener("click", (e) => {
+				e.stopPropagation();
+			});
+		} else {
+			// Display tags as chips
+			if (tags && tags.length > 0) {
+				tags.forEach((tag) => {
+					const tagChip = tagsContainer.createSpan(
+						"task-table-tag-chip"
+					);
+					tagChip.textContent = tag;
+				});
+			} else {
+				const emptyText = tagsContainer.createSpan(
+					"task-table-tags-empty"
+				);
+				emptyText.textContent = t("No tags");
+				emptyText.addClass("empty-tags");
+			}
 		}
 	}
 
@@ -408,11 +561,54 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Render text cell
+	 * Render text cell with inline editing and auto-suggest
 	 */
 	private renderTextCell(cellEl: HTMLElement, cell: TableCell) {
 		cellEl.addClass("task-table-text");
-		cellEl.textContent = cell.displayValue;
+
+		if (cell.editable) {
+			// Create editable input
+			const input = cellEl.createEl("input", "task-table-text-input");
+			input.type = "text";
+			input.value = cell.displayValue;
+			input.style.border = "none";
+			input.style.background = "transparent";
+			input.style.width = "100%";
+			input.style.padding = "0";
+			input.style.font = "inherit";
+
+			// Add auto-suggest for project and context fields
+			if (cell.columnId === "project" && this.app) {
+				new ProjectSuggest(this.app, input, this.plugin);
+			}
+
+			if (cell.columnId === "context" && this.app) {
+				new ContextSuggest(this.app, input, this.plugin);
+			}
+
+			// Handle blur event to save changes
+			input.addEventListener("blur", () => {
+				const newValue = input.value.trim();
+				this.saveCellValue(cellEl, cell, newValue);
+			});
+
+			// Handle Enter key to save and exit
+			input.addEventListener("keydown", (e) => {
+				if (e.key === "Enter") {
+					input.blur();
+					e.preventDefault();
+				}
+				// Stop propagation to prevent triggering table events
+				e.stopPropagation();
+			});
+
+			// Stop click propagation to prevent row selection
+			input.addEventListener("click", (e) => {
+				e.stopPropagation();
+			});
+		} else {
+			cellEl.textContent = cell.displayValue;
+		}
 
 		// Add tooltip for long text
 		if (cell.displayValue.length > 50) {
@@ -452,7 +648,8 @@ export class TableRenderer extends Component {
 			".task-table-sort-icon"
 		);
 		sortIcons.forEach((icon) => {
-			icon.textContent = "↕️";
+			icon.empty();
+			setIcon(icon as HTMLElement, "chevrons-up-down");
 			icon.removeClass("asc", "desc");
 		});
 
@@ -465,7 +662,11 @@ export class TableRenderer extends Component {
 				".task-table-sort-icon"
 			);
 			if (sortIcon) {
-				sortIcon.textContent = sortOrder === "asc" ? "↑" : "↓";
+				sortIcon.empty();
+				setIcon(
+					sortIcon as HTMLElement,
+					sortOrder === "asc" ? "chevron-up" : "chevron-down"
+				);
 				sortIcon.addClass(sortOrder);
 			}
 		}
@@ -480,25 +681,7 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Start column resize
-	 */
-	private startResize(
-		event: MouseEvent,
-		columnId: string,
-		currentWidth: number
-	) {
-		event.preventDefault();
-		this.isResizing = true;
-		this.resizeColumn = columnId;
-		this.resizeStartX = event.clientX;
-		this.resizeStartWidth = currentWidth;
-
-		document.body.style.cursor = "col-resize";
-		this.tableEl.addClass("resizing");
-	}
-
-	/**
-	 * Handle mouse move during resize
+	 * Handle mouse move during resize - prevent triggering sort when resizing
 	 */
 	private handleMouseMove(event: MouseEvent) {
 		if (!this.isResizing) return;
@@ -508,6 +691,25 @@ export class TableRenderer extends Component {
 
 		// Update column width
 		this.updateColumnWidth(this.resizeColumn, newWidth);
+	}
+
+	/**
+	 * Start column resize
+	 */
+	private startResize(
+		event: MouseEvent,
+		columnId: string,
+		currentWidth: number
+	) {
+		event.preventDefault();
+		event.stopPropagation(); // Prevent triggering sort
+		this.isResizing = true;
+		this.resizeColumn = columnId;
+		this.resizeStartX = event.clientX;
+		this.resizeStartWidth = currentWidth;
+
+		document.body.style.cursor = "col-resize";
+		this.tableEl.addClass("resizing");
 	}
 
 	/**
@@ -558,10 +760,15 @@ export class TableRenderer extends Component {
 	private toggleRowExpansion(rowId: string) {
 		// This will be handled by the parent component
 		// Emit event or call callback
-		const event = new CustomEvent("rowToggle", {
-			detail: { rowId },
-		});
-		this.tableEl.dispatchEvent(event);
+		if (this.onRowExpand) {
+			this.onRowExpand(rowId);
+		} else {
+			// Fallback: dispatch event
+			const event = new CustomEvent("rowToggle", {
+				detail: { rowId },
+			});
+			this.tableEl.dispatchEvent(event);
+		}
 	}
 
 	/**
@@ -570,5 +777,64 @@ export class TableRenderer extends Component {
 	public updateColumns(newColumns: TableColumn[]) {
 		this.columns = newColumns;
 		this.renderHeader();
+	}
+
+	/**
+	 * Get all available values for auto-completion from existing tasks
+	 */
+	private getAllValues(columnType: string): string[] {
+		if (!this.plugin) return [];
+
+		// Get all tasks from the plugin
+		const allTasks = this.plugin.taskManager?.getAllTasks() || [];
+		const values = new Set<string>();
+
+		allTasks.forEach((task) => {
+			switch (columnType) {
+				case "tags":
+					task.tags?.forEach((tag) => {
+						if (tag && tag.trim()) {
+							// Remove # prefix if present
+							const cleanTag = tag.startsWith("#")
+								? tag.substring(1)
+								: tag;
+							values.add(cleanTag);
+						}
+					});
+					break;
+				case "project":
+					if (task.project && task.project.trim()) {
+						values.add(task.project);
+					}
+					break;
+				case "context":
+					if (task.context && task.context.trim()) {
+						values.add(task.context);
+					}
+					break;
+			}
+		});
+
+		return Array.from(values).sort();
+	}
+
+	/**
+	 * Save cell value helper
+	 */
+	private saveCellValue(cellEl: HTMLElement, cell: TableCell, newValue: any) {
+		const rowId = cellEl.dataset.rowId;
+		if (rowId && this.onCellChange) {
+			// Only save if value actually changed
+			const currentValue = Array.isArray(cell.value)
+				? cell.value.join(", ")
+				: cell.displayValue;
+			const newValueStr = Array.isArray(newValue)
+				? newValue.join(", ")
+				: String(newValue);
+
+			if (currentValue !== newValueStr) {
+				this.onCellChange(rowId, cell.columnId, newValue);
+			}
+		}
 	}
 }

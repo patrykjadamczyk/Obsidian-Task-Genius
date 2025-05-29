@@ -308,6 +308,20 @@ export class TableView extends Component {
 			this.handleDateChange(rowId, columnId, newDate);
 		};
 
+		// Set up row expansion callback
+		this.renderer.onRowExpand = (rowId: string) => {
+			this.handleRowExpansion(rowId);
+		};
+
+		// Set up cell change callback
+		this.renderer.onCellChange = (
+			rowId: string,
+			columnId: string,
+			newValue: any
+		) => {
+			this.handleCellChange(rowId, columnId, newValue);
+		};
+
 		// Initialize editor if inline editing is enabled
 		if (this.config.enableInlineEditing) {
 			this.editor = new TableEditor(this.app, this.plugin, this.config, {
@@ -320,7 +334,7 @@ export class TableView extends Component {
 
 		// Initialize tree manager if tree view is enabled
 		if (this.config.enableTreeView) {
-			this.treeManager = new TreeManager();
+			this.treeManager = new TreeManager(this.columns);
 			this.addChild(this.treeManager);
 		}
 
@@ -453,6 +467,12 @@ export class TableView extends Component {
 	 * Refresh the table display
 	 */
 	private refreshDisplay() {
+		// Ensure tree manager is initialized if we're in tree view
+		if (this.isTreeView && !this.treeManager) {
+			this.treeManager = new TreeManager(this.columns);
+			this.addChild(this.treeManager);
+		}
+
 		if (this.isTreeView && this.treeManager) {
 			this.displayedRows = this.treeManager.buildTreeRows(
 				this.filteredTasks
@@ -697,8 +717,19 @@ export class TableView extends Component {
 
 	private handleHeaderClick(event: MouseEvent) {
 		const target = event.target as HTMLElement;
+
+		// Don't handle sort if we're resizing or clicking on a resize handle
+		if (target.classList.contains("task-table-resize-handle")) {
+			return;
+		}
+
 		const header = target.closest("th");
 		if (!header) return;
+
+		// Check if the table is currently being resized
+		if (this.tableEl.classList.contains("resizing")) {
+			return;
+		}
 
 		const columnId = header.dataset.columnId;
 		if (!columnId) return;
@@ -805,7 +836,7 @@ export class TableView extends Component {
 				task.content = value;
 				break;
 			case "priority":
-				task.priority = parseInt(value) || undefined;
+				task.priority = value ? parseInt(String(value)) : undefined;
 				break;
 			case "dueDate":
 				task.dueDate = value ? new Date(value).getTime() : undefined;
@@ -818,16 +849,47 @@ export class TableView extends Component {
 					? new Date(value).getTime()
 					: undefined;
 				break;
+			case "createdDate":
+				task.createdDate = value
+					? new Date(value).getTime()
+					: undefined;
+				break;
+			case "completedDate":
+				task.completedDate = value
+					? new Date(value).getTime()
+					: undefined;
+				break;
 			case "tags":
-				task.tags = value
-					? value.split(",").map((t: string) => t.trim())
-					: [];
+				// Handle both array and string inputs
+				if (Array.isArray(value)) {
+					task.tags = value;
+				} else if (typeof value === "string") {
+					task.tags = value
+						? value
+								.split(",")
+								.map((t: string) => t.trim())
+								.filter((t) => t.length > 0)
+						: [];
+				} else {
+					task.tags = [];
+				}
 				break;
 			case "project":
 				task.project = value || undefined;
 				break;
 			case "context":
 				task.context = value || undefined;
+				break;
+			case "recurrence":
+				task.recurrence = value || undefined;
+				break;
+			case "estimatedTime":
+				task.estimatedTime = value
+					? parseInt(String(value))
+					: undefined;
+				break;
+			case "actualTime":
+				task.actualTime = value ? parseInt(String(value)) : undefined;
 				break;
 		}
 	}
@@ -924,6 +986,11 @@ export class TableView extends Component {
 		// Update renderer with new columns
 		if (this.renderer) {
 			this.renderer.updateColumns(this.columns);
+		}
+
+		// Update tree manager with new columns
+		if (this.treeManager) {
+			this.treeManager.updateColumns(this.columns);
 		}
 
 		// Refresh display
@@ -1130,5 +1197,37 @@ export class TableView extends Component {
 	 */
 	private handleEditStart(rowId: string, columnId: string) {
 		this.editingCell = { rowId, columnId };
+	}
+
+	/**
+	 * Handle row expansion in tree view
+	 */
+	private handleRowExpansion(rowId: string) {
+		if (this.isTreeView && this.treeManager) {
+			const wasToggled = this.treeManager.toggleNodeExpansion(rowId);
+			if (wasToggled) {
+				this.refreshDisplay();
+			}
+		}
+	}
+
+	/**
+	 * Handle cell change from inline editing
+	 */
+	private handleCellChange(rowId: string, columnId: string, newValue: any) {
+		const task = this.allTasks.find((t) => t.id === rowId);
+		if (!task) return;
+
+		// Update task property
+		const updatedTask = { ...task };
+		this.updateTaskProperty(updatedTask, columnId, newValue);
+
+		// Notify task update
+		if (this.onTaskUpdated) {
+			this.onTaskUpdated(updatedTask);
+		}
+
+		// Refresh display
+		this.refreshDisplay();
 	}
 }
