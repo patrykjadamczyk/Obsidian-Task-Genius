@@ -7,12 +7,6 @@ import {
 } from "@codemirror/state";
 import TaskProgressBarPlugin from "../index";
 import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
-import {
-	DV_COMPLETED_DATE_REGEX,
-	EMOJI_COMPLETED_DATE_REGEX,
-	DV_START_DATE_REGEX,
-	EMOJI_START_DATE_REGEX,
-} from "../common/regex-define";
 
 /**
  * Creates an editor extension that automatically manages dates based on task status changes
@@ -65,6 +59,11 @@ function handleAutoDateManagerTransaction(
 		return tr;
 	}
 
+	// Skip if this looks like a move operation (delete + insert of same content)
+	if (isMoveOperation(tr)) {
+		return tr;
+	}
+
 	// Check if a task status was changed in this transaction
 	const taskStatusChangeInfo = findTaskStatusChange(tr);
 
@@ -88,6 +87,93 @@ function handleAutoDateManagerTransaction(
 
 	// Apply date operations to the task line
 	return applyDateOperations(tr, doc, lineNumber, dateOperations, plugin);
+}
+
+/**
+ * Detects if a transaction represents a move operation (line reordering)
+ * @param tr The transaction to check
+ * @returns True if this appears to be a move operation
+ */
+function isMoveOperation(tr: Transaction): boolean {
+	const changes: Array<{
+		type: "delete" | "insert";
+		content: string;
+		fromA: number;
+		toA: number;
+		fromB: number;
+		toB: number;
+	}> = [];
+
+	// Collect all changes in the transaction
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		// Record deletions
+		if (fromA < toA) {
+			const deletedText = tr.startState.doc.sliceString(fromA, toA);
+			changes.push({
+				type: "delete",
+				content: deletedText,
+				fromA,
+				toA,
+				fromB,
+				toB,
+			});
+		}
+
+		// Record insertions
+		if (inserted.length > 0) {
+			changes.push({
+				type: "insert",
+				content: inserted.toString(),
+				fromA,
+				toA,
+				fromB,
+				toB,
+			});
+		}
+	});
+
+	// Check if we have both deletions and insertions
+	const deletions = changes.filter((c) => c.type === "delete");
+	const insertions = changes.filter((c) => c.type === "insert");
+
+	if (deletions.length === 0 || insertions.length === 0) {
+		return false;
+	}
+
+	// Check if any deleted content matches any inserted content
+	// This could indicate a move operation
+	for (const deletion of deletions) {
+		for (const insertion of insertions) {
+			// Check for exact match or match with whitespace differences
+			const deletedLines = deletion.content
+				.split("\n")
+				.filter((line) => line.trim());
+			const insertedLines = insertion.content
+				.split("\n")
+				.filter((line) => line.trim());
+
+			if (
+				deletedLines.length === insertedLines.length &&
+				deletedLines.length > 0
+			) {
+				let isMatch = true;
+				for (let i = 0; i < deletedLines.length; i++) {
+					// Compare content without leading/trailing whitespace but preserve task structure
+					const deletedLine = deletedLines[i].trim();
+					const insertedLine = insertedLines[i].trim();
+					if (deletedLine !== insertedLine) {
+						isMatch = false;
+						break;
+					}
+				}
+				if (isMatch) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -117,6 +203,11 @@ function findTaskStatusChange(tr: Transaction): {
 			toB: number,
 			inserted: Text
 		) => {
+			// Only process actual insertions that contain task markers
+			if (inserted.length === 0) {
+				return;
+			}
+
 			// Get the position context
 			const pos = fromB;
 			const newLine = tr.newDoc.lineAt(pos);
@@ -127,26 +218,86 @@ function findTaskStatusChange(tr: Transaction): {
 			const newTaskMatch = newLineText.match(taskRegex);
 
 			if (newTaskMatch) {
-				// Get the old line if it exists in the old document
-				let oldLine = null;
+				const newStatus = newTaskMatch[2];
 				let oldStatus = " ";
-				try {
-					const oldPos = fromA;
-					if (oldPos >= 0 && oldPos < tr.startState.doc.length) {
-						oldLine = tr.startState.doc.lineAt(oldPos);
-						const oldTaskMatch = oldLine.text.match(taskRegex);
-						if (oldTaskMatch) {
-							oldStatus = oldTaskMatch[2];
+
+				// Try to find the corresponding old task status
+				// First, check if there was a deletion in this transaction that might correspond
+				let foundCorrespondingOldTask = false;
+
+				tr.changes.iterChanges(
+					(oldFromA, oldToA, oldFromB, oldToB, oldInserted) => {
+						// Look for deletions that might correspond to this insertion
+						if (oldFromA < oldToA && !foundCorrespondingOldTask) {
+							try {
+								const deletedText =
+									tr.startState.doc.sliceString(
+										oldFromA,
+										oldToA
+									);
+								const deletedLines = deletedText.split("\n");
+
+								for (const deletedLine of deletedLines) {
+									const oldTaskMatch =
+										deletedLine.match(taskRegex);
+									if (oldTaskMatch) {
+										// Compare the task content (without status) to see if it's the same task
+										const newTaskContent = newLineText
+											.replace(taskRegex, "")
+											.trim();
+										const oldTaskContent = deletedLine
+											.replace(taskRegex, "")
+											.trim();
+
+										// If the content matches, this is likely the same task
+										if (newTaskContent === oldTaskContent) {
+											oldStatus = oldTaskMatch[2];
+											foundCorrespondingOldTask = true;
+											break;
+										}
+									}
+								}
+							} catch (e) {
+								// Ignore errors when trying to get deleted text
+							}
 						}
 					}
-				} catch (e) {
-					// Line might not exist in old document
+				);
+
+				// If we couldn't find a corresponding old task, try the original method
+				if (!foundCorrespondingOldTask) {
+					try {
+						// Check if the change is actually modifying the task status character
+						const taskStatusStart = newLineText.indexOf("[") + 1;
+						const taskStatusEnd = newLineText.indexOf("]");
+
+						// Only proceed if the change affects the task status area
+						if (
+							fromB <= newLine.from + taskStatusEnd &&
+							toB >= newLine.from + taskStatusStart
+						) {
+							const oldPos = fromA;
+							if (
+								oldPos >= 0 &&
+								oldPos < tr.startState.doc.length
+							) {
+								const oldLine =
+									tr.startState.doc.lineAt(oldPos);
+								const oldTaskMatch =
+									oldLine.text.match(taskRegex);
+								if (oldTaskMatch) {
+									oldStatus = oldTaskMatch[2];
+									foundCorrespondingOldTask = true;
+								}
+							}
+						}
+					} catch (e) {
+						// Line might not exist in old document
+					}
 				}
 
-				const newStatus = newTaskMatch[2];
-
-				// Only process if the status actually changed
-				if (oldStatus !== newStatus) {
+				// Only process if we found a corresponding old task and the status actually changed
+				if (foundCorrespondingOldTask && oldStatus !== newStatus) {
 					taskChangedInfo = {
 						doc: tr.newDoc,
 						lineNumber: newLine.number,
@@ -590,4 +741,5 @@ export {
 	determineDateOperations,
 	getStatusType,
 	applyDateOperations,
+	isMoveOperation,
 };
