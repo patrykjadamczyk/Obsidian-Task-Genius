@@ -442,7 +442,7 @@ export class TableRenderer extends Component {
 			const emptyText = priorityContainer.createSpan(
 				"task-table-priority-empty"
 			);
-			emptyText.textContent = t("No priority");
+			emptyText.textContent = "\u00A0"; // Non-breaking space for invisible whitespace
 			emptyText.addClass("empty-priority");
 		}
 
@@ -648,7 +648,6 @@ export class TableRenderer extends Component {
 			);
 			input.type = "text";
 			input.value = tags?.join(", ") || "";
-			input.placeholder = t("Add tags...");
 			input.style.border = "none";
 			input.style.background = "transparent";
 			input.style.width = "100%";

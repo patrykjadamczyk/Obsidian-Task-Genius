@@ -190,7 +190,10 @@ export class TableHeader extends Component {
 
 		if (icon) {
 			icon.empty();
-			setIcon(icon as HTMLElement, this.isTreeMode ? "network" : "list");
+			setIcon(
+				icon as HTMLElement,
+				this.isTreeMode ? "git-branch" : "list"
+			);
 
 			this.treeModeBtn.title = this.isTreeMode
 				? t("Switch to List Mode")

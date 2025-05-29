@@ -412,7 +412,6 @@
 .task-table-text-input:focus,
 .task-table-tags-input:focus {
 	background-color: var(--background-modifier-form-field) !important;
-	border: 1px solid var(--interactive-accent) !important;
 	border-radius: 3px !important;
 	padding: 2px 4px !important;
 }
@@ -620,12 +619,28 @@
 
 /* Responsive improvements */
 @media (max-width: 768px) {
-	.task-table-container {
-		max-height: 60vh;
-	}
-
 	.task-table {
 		font-size: 0.9em;
+	}
+
+	th[data-column-id="rowNumber"] {
+		max-width: 40px !important;
+		min-width: 40px !important;
+		width: 40px !important;
+	}
+
+	.task-table-tree-container {
+		gap: 0 !important;
+	}
+
+	.task-table-expand-btn {
+		margin-right: 0 !important;
+	}
+
+	td[data-column-id="rowNumber"] {
+		max-width: 40px !important;
+		min-width: 40px !important;
+		width: 40px !important;
 	}
 
 	.task-table-header-cell,
@@ -786,6 +801,10 @@
 		flex-direction: column;
 		gap: 12px;
 		align-items: stretch;
+	}
+
+	.table-header-left {
+		display: none;
 	}
 
 	.table-header-left,
