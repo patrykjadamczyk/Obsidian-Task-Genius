@@ -89,6 +89,7 @@ export class TaskSpecificView extends ItemView {
 	private tabActionButton: HTMLElement;
 
 	private currentFilterState: RootFilterState | null = null;
+	private liveFilterState: RootFilterState | null = null; // 新增：专门跟踪实时过滤器状态
 
 	// Data management
 	tasks: Task[] = [];
@@ -114,7 +115,7 @@ export class TaskSpecificView extends ItemView {
 			...state,
 			viewId: this.currentViewId,
 			project: this.currentProject,
-			filterState: this.currentFilterState,
+			filterState: this.liveFilterState, // 保存实时过滤器状态，而不是基础过滤器
 		};
 	}
 
@@ -126,6 +127,8 @@ export class TaskSpecificView extends ItemView {
 
 			this.currentViewId = specificState?.viewId || "inbox";
 			this.currentProject = specificState?.project;
+			// 从状态恢复的过滤器应该被视为实时过滤器
+			this.liveFilterState = specificState?.filterState || null;
 			this.currentFilterState = specificState?.filterState || null;
 			console.log("TaskSpecificView setState:", specificState);
 
@@ -186,10 +189,22 @@ export class TaskSpecificView extends ItemView {
 			this.app.workspace.on(
 				"task-genius:filter-changed",
 				(filterState: RootFilterState, leafId?: string) => {
+					console.log(
+						"TaskSpecificView 过滤器实时变更:",
+						filterState,
+						"leafId:",
+						leafId
+					);
+
+					// 只处理来自当前视图的过滤器变更
 					if (leafId === this.leaf.id) {
+						// 这是来自当前视图的实时过滤器组件的变更
+						this.liveFilterState = filterState;
 						this.currentFilterState = filterState;
+						console.log("更新 TaskSpecificView 实时过滤器状态");
 						this.debouncedApplyFilter();
 					}
+					// 忽略来自其他leafId的变更，包括基础过滤器（view-config-开头）
 				}
 			)
 		);
@@ -486,12 +501,12 @@ export class TaskSpecificView extends ItemView {
 				this.app.workspace.onLayoutReady(() => {
 					setTimeout(() => {
 						if (
-							this.currentFilterState &&
+							this.liveFilterState &&
 							popover.taskFilterComponent
 						) {
 							// 使用类型断言解决非空问题
 							const filterState = this
-								.currentFilterState as RootFilterState;
+								.liveFilterState as RootFilterState;
 							popover.taskFilterComponent.loadFilterState(
 								filterState
 							);
@@ -516,11 +531,11 @@ export class TaskSpecificView extends ItemView {
 				modal.open();
 
 				// 设置初始过滤器状态
-				if (this.currentFilterState && modal.taskFilterComponent) {
+				if (this.liveFilterState && modal.taskFilterComponent) {
 					setTimeout(() => {
 						// 使用类型断言解决非空问题
 						const filterState = this
-							.currentFilterState as RootFilterState;
+							.liveFilterState as RootFilterState;
 						modal.taskFilterComponent.loadFilterState(filterState);
 					}, 100);
 				}
@@ -530,9 +545,9 @@ export class TaskSpecificView extends ItemView {
 
 	onPaneMenu(menu: Menu) {
 		if (
-			this.currentFilterState &&
-			this.currentFilterState.filterGroups &&
-			this.currentFilterState.filterGroups.length > 0
+			this.liveFilterState &&
+			this.liveFilterState.filterGroups &&
+			this.liveFilterState.filterGroups.length > 0
 		) {
 			menu.addItem((item) => {
 				item.setTitle(t("Reset Filter"));
@@ -937,8 +952,9 @@ export class TaskSpecificView extends ItemView {
 	// 添加应用当前过滤器状态的方法
 	private applyCurrentFilter() {
 		console.log(
-			"应用当前过滤状态:",
-			this.currentFilterState ? "有筛选器" : "无筛选器"
+			"应用 TaskSpecificView 当前过滤状态:",
+			this.liveFilterState ? "有实时筛选器" : "无实时筛选器",
+			this.currentFilterState ? "有过滤器" : "无过滤器"
 		);
 		// 通过 loadTasks 重新加载任务
 		this.loadTasks();
@@ -966,11 +982,11 @@ export class TaskSpecificView extends ItemView {
 			resetButton.remove();
 		}
 
-		// 如果有高级筛选器，添加重置按钮
+		// 只有在有实时高级筛选器时才添加重置按钮（不包括基础过滤器）
 		if (
-			this.currentFilterState &&
-			this.currentFilterState.filterGroups &&
-			this.currentFilterState.filterGroups.length > 0
+			this.liveFilterState &&
+			this.liveFilterState.filterGroups &&
+			this.liveFilterState.filterGroups.length > 0
 		) {
 			this.addAction("reset", t("Reset Filter"), () => {
 				this.resetCurrentFilter();
@@ -1152,6 +1168,8 @@ export class TaskSpecificView extends ItemView {
 
 	// 添加重置筛选器的方法
 	public resetCurrentFilter() {
+		console.log("重置 TaskSpecificView 实时筛选器");
+		this.liveFilterState = null;
 		this.currentFilterState = null;
 		this.app.saveLocalStorage(
 			`task-genius-view-filter-${this.leaf.id}`,

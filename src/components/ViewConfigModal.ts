@@ -1399,46 +1399,46 @@ export class ViewConfigModal extends Modal {
 		// Clean up existing component if any
 		this.cleanupAdvancedFilter();
 
-		// Create the TaskFilterComponent
+		// Create the TaskFilterComponent with undefined leafId to disable localStorage
 		this.taskFilterComponent = new TaskFilterComponent(
 			this.advancedFilterContainer,
 			this.app,
-			`view-config-${this.viewConfig.id}`, // Use view-specific storage key
+			undefined, // 使用 undefined 禁用 localStorage，完全依赖传入的状态
 			this.plugin
 		);
 
 		console.log("TaskFilterComponent created:", this.taskFilterComponent);
 
-		// Manually load the component
+		// 保存现有的过滤器状态
+		const existingFilterState = this.viewFilterRule.advancedFilter
+			? JSON.parse(JSON.stringify(this.viewFilterRule.advancedFilter))
+			: {
+					rootCondition: "any" as const,
+					filterGroups: [],
+			  };
+
+		console.log("Filter state for view config:", existingFilterState);
+
+		// 手动调用 onload（由于 leafId 为 undefined，不会从 localStorage 加载）
 		this.taskFilterComponent.onload();
 
-		console.log(
-			"TaskFilterComponent onload called, container content:",
-			this.advancedFilterContainer.innerHTML
-		);
+		console.log("TaskFilterComponent onload called");
 
-		// Load existing filter state if available
-		if (this.viewFilterRule.advancedFilter) {
-			console.log(
-				"Loading existing filter state:",
-				this.viewFilterRule.advancedFilter
-			);
-			// Load the saved state
-			this.taskFilterComponent.loadFilterState(
-				this.viewFilterRule.advancedFilter
-			);
-		}
+		// 立即加载视图配置的过滤器状态
+		console.log("Loading view config filter state:", existingFilterState);
+		this.taskFilterComponent.loadFilterState(existingFilterState);
 
 		// Set up event listener for filter changes
 		this.filterChangeHandler = (
 			filterState: RootFilterState,
 			leafId?: string
 		) => {
-			// Only respond to changes from our specific component
-			if (
-				leafId === `view-config-${this.viewConfig.id}` &&
-				this.taskFilterComponent
-			) {
+			// 由于我们使用 undefined leafId，leafId 会是 undefined，所以直接更新
+			if (this.taskFilterComponent) {
+				console.log(
+					"Filter changed in view config modal:",
+					filterState
+				);
 				this.viewFilterRule.advancedFilter = filterState;
 				this.checkForChanges();
 			}

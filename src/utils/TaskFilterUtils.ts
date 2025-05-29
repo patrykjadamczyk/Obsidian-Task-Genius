@@ -462,7 +462,7 @@ export function filterTasks(
 	const filterRules = viewConfig.filterRules || {};
 
 	// --- 基本筛选：隐藏已完成和空白任务 ---
-	// 注意：这些是基础过滤条件，即使有高级过滤器也会应用
+	// 注意：这些是基础过滤条件，始终应用
 	if (viewConfig.hideCompletedAndAbandonedTasks) {
 		filtered = filtered.filter((task) => !task.completed);
 	}
@@ -471,18 +471,31 @@ export function filterTasks(
 		filtered = filtered.filter((task) => task.content.trim() !== "");
 	}
 
-	// --- 应用高级过滤器（优先级高于默认规则） ---
+	// --- 应用视图配置中的基础高级过滤器（如果存在） ---
+	if (
+		filterRules.advancedFilter &&
+		filterRules.advancedFilter.filterGroups?.length > 0
+	) {
+		console.log(
+			"应用视图配置中的基础高级过滤器:",
+			filterRules.advancedFilter
+		);
+		filtered = filtered.filter((task) =>
+			applyAdvancedFilter(task, filterRules.advancedFilter!)
+		);
+	}
+
+	// --- 应用传入的实时高级过滤器（如果存在） ---
 	if (
 		options.advancedFilter &&
-		Object.keys(options.advancedFilter.filterGroups || {}).length > 0
+		options.advancedFilter.filterGroups?.length > 0
 	) {
+		console.log("应用传入的实时高级过滤器:", options.advancedFilter);
 		filtered = filtered.filter((task) =>
 			applyAdvancedFilter(task, options.advancedFilter!)
 		);
 
-		// 有高级过滤器时可以选择跳过默认视图规则，但我们仍然应用某些基本规则
-		// 完成标准，空白任务等过滤会保留
-
+		// 如果有实时高级过滤器，应用基本规则后直接返回
 		// 应用 isNotCompleted 过滤器（基于视图配置的 hideCompletedAndAbandonedTasks）
 		filtered = filtered.filter((task) =>
 			isNotCompleted(plugin, task, viewId)
@@ -505,7 +518,7 @@ export function filterTasks(
 			);
 		}
 
-		// 有高级过滤器时，跳过应用默认视图逻辑和默认过滤规则
+		// 有实时高级过滤器时，跳过应用默认视图逻辑和默认过滤规则
 		return filtered;
 	}
 

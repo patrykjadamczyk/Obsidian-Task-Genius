@@ -92,6 +92,7 @@ export class TaskView extends ItemView {
 	tasks: Task[] = [];
 
 	private currentFilterState: RootFilterState | null = null;
+	private liveFilterState: RootFilterState | null = null; // 新增：专门跟踪实时过滤器状态
 
 	// 创建防抖的过滤器应用函数
 	private debouncedApplyFilter = debounce(() => {
@@ -154,17 +155,36 @@ export class TaskView extends ItemView {
 		this.registerEvent(
 			this.app.workspace.on(
 				"task-genius:filter-changed",
-				(filterState: RootFilterState) => {
-					console.log("过滤器实时变更:", filterState);
-					// 更新当前过滤器状态
-					this.currentFilterState = filterState;
+				(filterState: RootFilterState, leafId?: string) => {
+					console.log(
+						"过滤器实时变更:",
+						filterState,
+						"leafId:",
+						leafId
+					);
+
+					// 只有来自实时过滤器组件的变更才更新liveFilterState
+					// 基础过滤器（ViewConfigModal）不会影响实时过滤器状态
+					if (leafId && !leafId.startsWith("view-config-")) {
+						// 这是来自实时过滤器组件的变更
+						this.liveFilterState = filterState;
+						this.currentFilterState = filterState;
+						console.log("更新实时过滤器状态");
+					} else if (!leafId) {
+						// 没有leafId的情况，也视为实时过滤器变更
+						this.liveFilterState = filterState;
+						this.currentFilterState = filterState;
+						console.log("更新实时过滤器状态（无leafId）");
+					}
+					// 如果leafId以"view-config-"开头，则忽略，因为这是基础过滤器的变更
+
 					// 使用防抖函数应用过滤器，避免频繁更新
 					this.debouncedApplyFilter();
 				}
 			)
 		);
 
-		// 2. 加载缓存的过滤状态
+		// 2. 加载缓存的实时过滤状态
 		const savedFilterState = this.app.loadLocalStorage(
 			"task-genius-view-filter"
 		) as RootFilterState;
@@ -173,10 +193,12 @@ export class TaskView extends ItemView {
 			typeof savedFilterState.rootCondition === "string" &&
 			Array.isArray(savedFilterState.filterGroups)
 		) {
-			console.log("已加载保存的过滤器状态");
+			console.log("已加载保存的实时过滤器状态");
+			this.liveFilterState = savedFilterState;
 			this.currentFilterState = savedFilterState;
 		} else {
-			console.log("没有找到保存的过滤器状态或状态无效");
+			console.log("没有找到保存的实时过滤器状态或状态无效");
+			this.liveFilterState = null;
 			this.currentFilterState = null;
 		}
 
@@ -553,12 +575,12 @@ export class TaskView extends ItemView {
 				this.app.workspace.onLayoutReady(() => {
 					setTimeout(() => {
 						if (
-							this.currentFilterState &&
+							this.liveFilterState &&
 							popover.taskFilterComponent
 						) {
 							// 使用类型断言解决非空问题
 							const filterState = this
-								.currentFilterState as RootFilterState;
+								.liveFilterState as RootFilterState;
 							popover.taskFilterComponent.loadFilterState(
 								filterState
 							);
@@ -583,11 +605,11 @@ export class TaskView extends ItemView {
 				modal.open();
 
 				// 设置初始过滤器状态
-				if (this.currentFilterState && modal.taskFilterComponent) {
+				if (this.liveFilterState && modal.taskFilterComponent) {
 					setTimeout(() => {
 						// 使用类型断言解决非空问题
 						const filterState = this
-							.currentFilterState as RootFilterState;
+							.liveFilterState as RootFilterState;
 						modal.taskFilterComponent.loadFilterState(filterState);
 					}, 100);
 				}
@@ -602,7 +624,8 @@ export class TaskView extends ItemView {
 	private applyCurrentFilter() {
 		console.log(
 			"应用当前过滤状态:",
-			this.currentFilterState ? "有筛选器" : "无筛选器"
+			this.liveFilterState ? "有实时筛选器" : "无实时筛选器",
+			this.currentFilterState ? "有过滤器" : "无过滤器"
 		);
 		// 通过triggerViewUpdate重新加载任务
 		this.triggerViewUpdate();
@@ -653,9 +676,9 @@ export class TaskView extends ItemView {
 		}
 
 		if (
-			this.currentFilterState &&
-			this.currentFilterState.filterGroups &&
-			this.currentFilterState.filterGroups.length > 0
+			this.liveFilterState &&
+			this.liveFilterState.filterGroups &&
+			this.liveFilterState.filterGroups.length > 0
 		) {
 			menu.addItem((item) => {
 				item.setTitle(t("Reset Filter"));
@@ -1112,11 +1135,11 @@ export class TaskView extends ItemView {
 			resetButton.remove();
 		}
 
-		// 如果有高级筛选器，添加重置按钮
+		// 只有在有实时高级筛选器时才添加重置按钮（不包括基础过滤器）
 		if (
-			this.currentFilterState &&
-			this.currentFilterState.filterGroups &&
-			this.currentFilterState.filterGroups.length > 0
+			this.liveFilterState &&
+			this.liveFilterState.filterGroups &&
+			this.liveFilterState.filterGroups.length > 0
 		) {
 			this.addAction("reset", t("Reset Filter"), () => {
 				this.resetCurrentFilter();
@@ -1279,7 +1302,8 @@ export class TaskView extends ItemView {
 
 	// 添加重置筛选器的方法
 	public resetCurrentFilter() {
-		console.log("重置当前筛选器");
+		console.log("重置实时筛选器");
+		this.liveFilterState = null;
 		this.currentFilterState = null;
 		this.app.saveLocalStorage("task-genius-view-filter", null);
 		this.applyCurrentFilter();
@@ -1289,12 +1313,13 @@ export class TaskView extends ItemView {
 	// 应用保存的筛选器配置
 	private applySavedFilter(config: SavedFilterConfig) {
 		console.log("应用保存的筛选器:", config.name);
+		this.liveFilterState = JSON.parse(JSON.stringify(config.filterState));
 		this.currentFilterState = JSON.parse(
 			JSON.stringify(config.filterState)
 		);
 		this.app.saveLocalStorage(
 			"task-genius-view-filter",
-			this.currentFilterState
+			this.liveFilterState
 		);
 		this.applyCurrentFilter();
 		this.updateActionButtons();
