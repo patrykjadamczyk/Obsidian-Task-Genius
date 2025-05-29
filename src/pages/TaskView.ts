@@ -894,6 +894,26 @@ export class TaskView extends ItemView {
 				);
 			}
 
+			// Handle updateTasks method for table view adapter
+			if (typeof targetComponent.updateTasks === "function") {
+				const filterOptions: {
+					advancedFilter?: RootFilterState;
+					textQuery?: string;
+				} = {};
+				if (
+					this.currentFilterState &&
+					this.currentFilterState.filterGroups &&
+					this.currentFilterState.filterGroups.length > 0
+				) {
+					console.log("应用高级筛选器到表格视图:", viewId);
+					filterOptions.advancedFilter = this.currentFilterState;
+				}
+
+				targetComponent.updateTasks(
+					filterTasks(this.tasks, viewId, this.plugin, filterOptions)
+				);
+			}
+
 			if (typeof targetComponent.setViewMode === "function") {
 				console.log(
 					`Setting view mode for ${viewId} to ${modeForComponent} with project ${project}`

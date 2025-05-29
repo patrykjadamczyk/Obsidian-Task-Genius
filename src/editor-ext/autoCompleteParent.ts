@@ -29,11 +29,11 @@ export function autoCompleteParentExtension(
 }
 
 /**
- * Handles transactions to detect task status changes and process parent task updates
+ * Handles transactions to detect task status changes and manage parent task completion
  * @param tr The transaction to handle
  * @param app The Obsidian app instance
  * @param plugin The plugin instance
- * @returns The original transaction or a modified transaction
+ * @returns The original transaction or a modified transaction with parent task updates
  */
 function handleParentTaskUpdateTransaction(
 	tr: Transaction,
@@ -45,98 +45,168 @@ function handleParentTaskUpdateTransaction(
 		return tr;
 	}
 
-	// Check if a task status was changed or a new task was added in this transaction
+	// Skip if auto-complete parent is disabled
+	if (!plugin.settings.autoCompleteParent) {
+		return tr;
+	}
+
+	// Skip if this transaction was triggered by the auto-complete parent feature itself
+	const annotationValue = tr.annotation(taskStatusChangeAnnotation);
+	if (
+		typeof annotationValue === "string" &&
+		annotationValue.includes("autoCompleteParent")
+	) {
+		return tr;
+	}
+
+	// Skip if this is a paste operation or other bulk operations
+	if (tr.isUserEvent("input.paste") || tr.isUserEvent("set")) {
+		return tr;
+	}
+
+	// Skip if this looks like a move operation (delete + insert of same content)
+	if (isMoveOperation(tr)) {
+		return tr;
+	}
+
+	// Check if a task status was changed in this transaction
 	const taskStatusChangeInfo = findTaskStatusChange(tr);
 
 	if (!taskStatusChangeInfo) {
 		return tr;
 	}
 
-	if (tr.isUserEvent("input.paste")) {
-		return tr;
-	}
-
-	// Check if the changed task has a parent task
 	const { doc, lineNumber } = taskStatusChangeInfo;
-	const parentInfo = findParentTask(doc, lineNumber);
 
-	if (!parentInfo) {
+	// Find the parent task of the changed task
+	const parentTaskInfo = findParentTask(doc, lineNumber);
+
+	if (!parentTaskInfo) {
 		return tr;
 	}
 
-	// Check if all siblings are completed (considering workflow status)
-	const allSiblingsCompleted = areAllSiblingsCompleted(
-		doc,
-		parentInfo.lineNumber,
-		parentInfo.indentationLevel,
-		plugin
-	);
+	const { lineNumber: parentLineNumber, indentationLevel } = parentTaskInfo;
 
-	// Get current parent status
-	const parentStatus = getParentTaskStatus(doc, parentInfo.lineNumber);
-	const isParentCompleted = parentStatus === "x" || parentStatus === "X";
-
-	// Retrieve the annotation safely and check its type and content
-	const annotationValue = tr.annotation(taskStatusChangeAnnotation);
-	const isAutoCompleteAnnotation =
-		typeof annotationValue === "string" &&
-		annotationValue.includes("autoCompleteParent");
-
-	// If all siblings are completed, mark the parent task as completed
-	if (allSiblingsCompleted && !isParentCompleted) {
-		// Prevent completing parent if the trigger was an auto-complete itself
-		if (!isAutoCompleteAnnotation) {
-			return completeParentTask(tr, parentInfo.lineNumber, doc);
+	// If auto-completion is enabled and all siblings are completed
+	if (plugin.settings.autoCompleteParent) {
+		if (
+			areAllSiblingsCompleted(
+				doc,
+				parentLineNumber,
+				indentationLevel,
+				plugin
+			)
+		) {
+			return completeParentTask(tr, parentLineNumber, doc);
 		}
 	}
 
-	// If the parent is already completed but not all siblings are completed,
-	// it means a new task was added or an existing task was reverted after the parent was completed,
-	// so we should revert the parent to "In Progress" if the setting is enabled
-	if (
-		isParentCompleted &&
-		!allSiblingsCompleted &&
-		plugin.settings.markParentInProgressWhenPartiallyComplete
-	) {
-		// Prevent reverting parent if the trigger was an auto-complete itself
-		if (!isAutoCompleteAnnotation) {
-			return markParentAsInProgress(
-				tr,
-				parentInfo.lineNumber,
-				doc,
-				plugin.settings.taskStatuses.inProgress.split("|") || ["/"]
-			);
-		}
-	}
+	// If auto-in-progress is enabled
+	if (plugin.settings.markParentInProgressWhenPartiallyComplete) {
+		const parentCurrentStatus = getParentTaskStatus(doc, parentLineNumber);
 
-	// Check if any sibling is completed or has any status other than empty
-	const anySiblingsWithStatus = anySiblingWithStatus(
-		doc,
-		parentInfo.lineNumber,
-		parentInfo.indentationLevel,
-		app
-	);
+		// Only mark as in-progress if parent is currently empty
+		if (
+			parentCurrentStatus === " " &&
+			anySiblingWithStatus(doc, parentLineNumber, indentationLevel, app)
+		) {
+			const inProgressMarker =
+				plugin.settings.taskStatuses.inProgress.split("|")[0] || "/";
 
-	// If any siblings have a status and the feature is enabled, mark the parent as "In Progress"
-	// Only update if the parent is currently empty (' ')
-	if (
-		anySiblingsWithStatus &&
-		plugin.settings.markParentInProgressWhenPartiallyComplete &&
-		parentStatus === " "
-	) {
-		const inProgressStatuses =
-			plugin.settings.taskStatuses.inProgress.split("|") || ["/"];
-		if (!isAutoCompleteAnnotation) {
-			return markParentAsInProgress(
-				tr,
-				parentInfo.lineNumber,
-				doc,
-				inProgressStatuses
-			);
+			return markParentAsInProgress(tr, parentLineNumber, doc, [
+				inProgressMarker,
+			]);
 		}
 	}
 
 	return tr;
+}
+
+/**
+ * Detects if a transaction represents a move operation (line reordering)
+ * @param tr The transaction to check
+ * @returns True if this appears to be a move operation
+ */
+function isMoveOperation(tr: Transaction): boolean {
+	const changes: Array<{
+		type: "delete" | "insert";
+		content: string;
+		fromA: number;
+		toA: number;
+		fromB: number;
+		toB: number;
+	}> = [];
+
+	// Collect all changes in the transaction
+	tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+		// Record deletions
+		if (fromA < toA) {
+			const deletedText = tr.startState.doc.sliceString(fromA, toA);
+			changes.push({
+				type: "delete",
+				content: deletedText,
+				fromA,
+				toA,
+				fromB,
+				toB,
+			});
+		}
+
+		// Record insertions
+		if (inserted.length > 0) {
+			changes.push({
+				type: "insert",
+				content: inserted.toString(),
+				fromA,
+				toA,
+				fromB,
+				toB,
+			});
+		}
+	});
+
+	// Check if we have both deletions and insertions
+	const deletions = changes.filter((c) => c.type === "delete");
+	const insertions = changes.filter((c) => c.type === "insert");
+
+	if (deletions.length === 0 || insertions.length === 0) {
+		return false;
+	}
+
+	// Check if any deleted content matches any inserted content
+	// This could indicate a move operation
+	for (const deletion of deletions) {
+		for (const insertion of insertions) {
+			// Check for exact match or match with whitespace differences
+			const deletedLines = deletion.content
+				.split("\n")
+				.filter((line) => line.trim());
+			const insertedLines = insertion.content
+				.split("\n")
+				.filter((line) => line.trim());
+
+			if (
+				deletedLines.length === insertedLines.length &&
+				deletedLines.length > 0
+			) {
+				let isMatch = true;
+				for (let i = 0; i < deletedLines.length; i++) {
+					// Compare content without leading/trailing whitespace but preserve task structure
+					const deletedLine = deletedLines[i].trim();
+					const insertedLine = insertedLines[i].trim();
+					if (deletedLine !== insertedLine) {
+						isMatch = false;
+						break;
+					}
+				}
+				if (isMatch) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 /**

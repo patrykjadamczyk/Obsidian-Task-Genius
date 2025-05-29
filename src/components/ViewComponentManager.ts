@@ -10,11 +10,13 @@ import { CalendarComponent, CalendarEvent } from "./calendar";
 import { GanttComponent } from "./gantt/gantt";
 import { TaskPropertyTwoColumnView } from "./task-view/TaskPropertyTwoColumnView";
 import { ForecastComponent } from "./task-view/forecast";
+import { TableViewAdapter } from "./table/TableViewAdapter";
 
 // 定义视图组件的通用接口
 interface ViewComponentInterface {
 	containerEl: HTMLElement;
 	setTasks?: (tasks: Task[], allTasks?: Task[]) => void;
+	updateTasks?: (tasks: Task[]) => void;
 	setViewMode?: (viewId: ViewMode, project?: string | null) => void;
 	load?: () => void;
 	unload?: () => void;
@@ -105,6 +107,28 @@ class ViewComponentFactory {
 					onTaskContextMenu: handlers.onTaskContextMenu,
 				});
 
+			case "table":
+				if (viewConfig.specificConfig?.viewType === "table") {
+					return new TableViewAdapter(
+						app,
+						plugin,
+						parentEl,
+						viewConfig.specificConfig,
+						{
+							onTaskSelected: handlers.onTaskSelected,
+							onTaskCompleted: handlers.onTaskCompleted,
+							onTaskContextMenu: handlers.onTaskContextMenu,
+							onTaskUpdated: async (task: Task) => {
+								// Handle task updates through the plugin's task manager
+								if (plugin.taskManager) {
+									await plugin.taskManager.updateTask(task);
+								}
+							},
+						}
+					);
+				}
+				return null;
+
 			default:
 				return null;
 		}
@@ -153,7 +177,9 @@ export class ViewComponentManager extends Component {
 		if (specificViewType) {
 			viewType = specificViewType;
 		} else if (
-			["calendar", "kanban", "gantt", "forecast"].includes(viewId)
+			["calendar", "kanban", "gantt", "forecast", "table"].includes(
+				viewId
+			)
 		) {
 			viewType = viewId;
 		}
@@ -224,12 +250,16 @@ export class ViewComponentManager extends Component {
 			"isSpecialView",
 			viewId,
 			specificViewType,
-			["calendar", "kanban", "gantt", "forecast"].includes(viewId)
+			["calendar", "kanban", "gantt", "forecast", "table"].includes(
+				viewId
+			)
 		);
 
 		return !!(
 			specificViewType ||
-			["calendar", "kanban", "gantt", "forecast"].includes(viewId)
+			["calendar", "kanban", "gantt", "forecast", "table"].includes(
+				viewId
+			)
 		);
 	}
 
