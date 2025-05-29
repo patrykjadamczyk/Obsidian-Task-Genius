@@ -5,6 +5,7 @@ import {
 	areAllSiblingsCompleted,
 	anySiblingWithStatus,
 	getParentTaskStatus,
+	hasAnyChildTasksAtLevel,
 } from "../editor-ext/autoCompleteParent"; // Adjust the import path as necessary
 import { buildIndentString } from "../utils";
 import {
@@ -354,7 +355,9 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	});
 
 	it("should complete parent when last child is completed", () => {
-		const mockPlugin = createMockPlugin();
+		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
+		});
 		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
 			startStateDocContent: "- [ ] Parent\n" + `${indent}- [ ] Child`,
@@ -382,7 +385,9 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	});
 
 	it("should NOT complete parent if it is already complete", () => {
-		const mockPlugin = createMockPlugin();
+		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
+		});
 		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
 			startStateDocContent:
@@ -408,6 +413,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 
 	it("should mark parent as in progress when a child is unchecked (if setting enabled)", () => {
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: true,
 			taskStatuses: {
 				inProgress: "/",
@@ -417,13 +423,15 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 				notStarted: " ",
 			},
 		});
+		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
-			startStateDocContent: "- [x] Parent\n  - [x] Child",
-			newDocContent: "- [x] Parent\n  - [ ] Child", // Doc content *before* parent update
+			startStateDocContent: "- [x] Parent\n" + `${indent}- [x] Child`,
+			newDocContent: "- [x] Parent\n" + `${indent}- [ ] Child`, // Doc content *before* parent update
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: " " },
-			], // Child uncompleted
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: " " },
+			], // Child uncompleted - position adjusted for 4-space indent
 		});
+		
 		const result = handleParentTaskUpdateTransaction(
 			tr,
 			mockApp,
@@ -446,14 +454,16 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 
 	it("should NOT mark parent as in progress when a child is unchecked (if setting disabled)", () => {
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: false,
 		});
+		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
-			startStateDocContent: "- [x] Parent\n  - [x] Child",
-			newDocContent: "- [x] Parent\n  - [ ] Child",
+			startStateDocContent: "- [x] Parent\n" + `${indent}- [x] Child`,
+			newDocContent: "- [x] Parent\n" + `${indent}- [ ] Child`, // Doc content *before* parent update
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: " " },
-			],
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: " " },
+			], // Child uncompleted - position adjusted for 4-space indent
 		});
 		const result = handleParentTaskUpdateTransaction(
 			tr,
@@ -465,6 +475,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 
 	it("should mark parent as in progress when first child gets a status (if setting enabled)", () => {
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: true,
 			taskStatuses: {
 				inProgress: "/",
@@ -477,10 +488,10 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
 			startStateDocContent: "- [ ] Parent\n" + `${indent}- [ ] Child`,
-			newDocContent: "- [ ] Parent\n" + `${indent}- [/] Child`, // Doc content *before* parent update
+			newDocContent: "- [ ] Parent\n" + `${indent}- [/] Child`,
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: "/" },
-			], // Child marked in progress
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: "/" },
+			], // Child marked in progress - position adjusted for 4-space indent
 		});
 		const result = handleParentTaskUpdateTransaction(
 			tr,
@@ -504,14 +515,16 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 
 	it("should NOT mark parent as in progress when first child gets a status (if setting disabled)", () => {
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: false,
 		});
+		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
-			startStateDocContent: "- [ ] Parent\n  - [ ] Child",
-			newDocContent: "- [ ] Parent\n  - [/] Child",
+			startStateDocContent: "- [ ] Parent\n" + `${indent}- [ ] Child`,
+			newDocContent: "- [ ] Parent\n" + `${indent}- [/] Child`,
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: "/" },
-			],
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: "/" },
+			], // Child marked in progress - position adjusted for 4-space indent
 		});
 		const result = handleParentTaskUpdateTransaction(
 			tr,
@@ -523,6 +536,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 
 	it("should NOT mark parent as in progress if parent already has a status", () => {
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: true,
 			taskStatuses: {
 				inProgress: "/",
@@ -532,13 +546,19 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 				notStarted: " ",
 			},
 		});
+		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
 			startStateDocContent:
-				"- [/] Parent\n  - [ ] Child 1\n  - [ ] Child 2",
-			newDocContent: "- [/] Parent\n  - [x] Child 1\n  - [ ] Child 2",
+				"- [/] Parent\n" +
+				`${indent}- [ ] Child 1\n` +
+				`${indent}- [ ] Child 2`,
+			newDocContent:
+				"- [/] Parent\n" +
+				`${indent}- [x] Child 1\n` +
+				`${indent}- [ ] Child 2`,
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: "x" },
-			], // Child 1 completed
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: "x" },
+			], // Child 1 completed - position adjusted for 4-space indent
 		});
 		const result = handleParentTaskUpdateTransaction(
 			tr,
@@ -550,13 +570,16 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	});
 
 	it("should ignore changes triggered by its own annotation (complete)", () => {
-		const mockPlugin = createMockPlugin();
+		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
+		});
+		const indent = buildIndentString(createMockApp());
 		const tr = createMockTransaction({
-			startStateDocContent: "- [ ] Parent\n  - [ ] Child",
-			newDocContent: "- [ ] Parent\n  - [x] Child", // Doc content *before* potential parent update
+			startStateDocContent: "- [ ] Parent\n" + `${indent}- [ ] Child`,
+			newDocContent: "- [ ] Parent\n" + `${indent}- [x] Child`, // Doc content *before* potential parent update
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: "x" },
-			], // Change in child
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: "x" },
+			], // Change in child - position adjusted for 4-space indent
 			annotations: [
 				mockParentTaskStatusChangeAnnotation.of(
 					"autoCompleteParent.SOME_OTHER_ACTION"
@@ -584,6 +607,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	it("should ignore changes triggered by its own annotation (in progress)", () => {
 		const indent = buildIndentString(createMockApp());
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: true,
 			taskStatuses: {
 				inProgress: "/",
@@ -597,7 +621,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 			startStateDocContent: "- [ ] Parent\n" + `${indent}- [ ] Child`,
 			newDocContent: "- [ ] Parent\n" + `${indent}- [/] Child`, // Doc content *before* potential parent update
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: "/" },
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: "/" },
 			], // Child marked in progress
 			annotations: [
 				mockParentTaskStatusChangeAnnotation.of(
@@ -624,6 +648,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 
 	it("should mark parent as in progress when one child is completed but others remain incomplete", () => {
 		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
 			markParentInProgressWhenPartiallyComplete: true,
 			taskStatuses: {
 				inProgress: "/",
@@ -644,7 +669,7 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 				`${indent}- [x] Child 1\n` +
 				`${indent}- [ ] Child 2`, // Doc content *before* parent update
 			changes: [
-				{ fromA: 18, toA: 19, fromB: 18, toB: 19, insertedText: "x" },
+				{ fromA: 21, toA: 22, fromB: 21, toB: 22, insertedText: "x" },
 			], // Change in Child 1
 		});
 		const result = handleParentTaskUpdateTransaction(
@@ -668,7 +693,9 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	});
 
 	it("should NOT change parent task status when deleting a dash with backspace", () => {
-		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
+		}); // Defaults: ' ', '/', 'x'
 
 		// Set up a complete task and an incomplete task line below (just a dash)
 		const startContent = "- [ ] Task 1\n- ";
@@ -705,7 +732,9 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	});
 
 	it("should NOT change parent task status when deleting an indented dash", () => {
-		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
+		}); // Defaults: ' ', '/', 'x'
 		const indent = buildIndentString(createMockApp());
 
 		// Test with indentation
@@ -753,7 +782,9 @@ describe("handleParentTaskUpdateTransaction (Integration)", () => {
 	});
 
 	it("should prevent accidental parent status changes when deleting a dash and newline marker", () => {
-		const mockPlugin = createMockPlugin(); // Defaults: ' ', '/', 'x'
+		const mockPlugin = createMockPlugin({
+			autoCompleteParent: true,
+		}); // Defaults: ' ', '/', 'x'
 
 		// Test erroneous behavior: deleting a dash incorrectly changes the status of the previous task
 		const startContent = "- [ ] Task 1\n- ";

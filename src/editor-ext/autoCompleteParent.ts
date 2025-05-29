@@ -104,11 +104,35 @@ function handleParentTaskUpdateTransaction(
 	// If auto-in-progress is enabled
 	if (plugin.settings.markParentInProgressWhenPartiallyComplete) {
 		const parentCurrentStatus = getParentTaskStatus(doc, parentLineNumber);
+		const allSiblingsCompleted = areAllSiblingsCompleted(
+			doc,
+			parentLineNumber,
+			indentationLevel,
+			plugin
+		);
+		const anySiblingHasStatus = anySiblingWithStatus(
+			doc,
+			parentLineNumber,
+			indentationLevel,
+			app
+		);
 
-		// Only mark as in-progress if parent is currently empty
+		// Check if there are any child tasks at all
+		const hasAnyChildTasks = hasAnyChildTasksAtLevel(
+			doc,
+			parentLineNumber,
+			indentationLevel,
+			app
+		);
+
+		// Mark as in-progress if:
+		// 1. Parent is currently empty and any sibling has status, OR
+		// 2. Parent is currently complete but not all siblings are complete and there are child tasks
 		if (
-			parentCurrentStatus === " " &&
-			anySiblingWithStatus(doc, parentLineNumber, indentationLevel, app)
+			(parentCurrentStatus === " " && anySiblingHasStatus) ||
+			(parentCurrentStatus === "x" &&
+				!allSiblingsCompleted &&
+				hasAnyChildTasks)
 		) {
 			const inProgressMarker =
 				plugin.settings.taskStatuses.inProgress.split("|")[0] || "/";
@@ -411,13 +435,7 @@ function areAllSiblingsCompleted(
 	const tabSize = getTabSize(plugin.app);
 
 	// The expected indentation level for child tasks
-	// Ensure childIndentLevel is correctly calculated based on actual indentation characters if mixed tabs/spaces are possible
-	const parentLine = doc.line(parentLineNumber);
-	const parentIndentMatch = parentLine.text.match(/^[\s|\t]*/);
-	const parentIndentText = parentIndentMatch ? parentIndentMatch[0] : "";
-	// Simple addition might not be robust if mixing tabs and spaces; getTabSize helps standardize comparison
-	// We'll primarily compare raw length for hierarchy, assuming consistent indentation within a list.
-	const childIndentLevel = parentIndentLevel + tabSize; // Use for regex matching primarily
+	const childIndentLevel = parentIndentLevel + tabSize;
 
 	// Track if we found at least one child
 	let foundChild = false;
@@ -435,31 +453,26 @@ function areAllSiblingsCompleted(
 		// Get the indentation of this line
 		const indentMatch = lineText.match(/^[\s|\t]*/);
 		const currentIndentText = indentMatch ? indentMatch[0] : "";
-		const indentLevel = currentIndentText.length; // Compare raw length
+		const indentLevel = currentIndentText.length;
 
 		// If we encounter a line with less or equal indentation to the parent,
 		// we've moved out of the parent's children scope
-		// Use raw length comparison for hierarchy check
 		if (indentLevel <= parentIndentLevel) {
 			break;
 		}
 
-		if (
-			indentLevel === childIndentLevel &&
-			lineText.startsWith(parentIndentText)
-		) {
-			// Check if it's a task using a regex that allows for flexible indentation matching
-			const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)\]/i;
+		// Check if this is a direct child (exactly one level deeper)
+		if (indentLevel === childIndentLevel) {
+			// Check if it's a task
+			const taskRegex = /^[\s|\t]*([-*+]|\d+\.)\s\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
 
 			if (taskMatch) {
-				// Check if this task's indentation makes it a direct child
-
-				foundChild = true; // We found at least one descendant task
-				const taskStatus = taskMatch[3]; // Use index 3 for the status character
+				foundChild = true; // We found at least one child task
+				const taskStatus = taskMatch[2]; // Status character is in group 2
 
 				if (taskStatus !== "x" && taskStatus !== "X") {
-					// Found an incomplete descendant task
+					// Found an incomplete child task
 					return false;
 				} else {
 					// Task IS marked [x] or [X]. Now, consider workflow.
@@ -601,15 +614,13 @@ function anySiblingWithStatus(
 
 		// If this is a direct child of the parent (exactly one level deeper)
 		if (indentLevel === childIndentLevel) {
-			// Create a regex to match tasks based on the indentation level
-			const taskRegex = new RegExp(
-				`^[\\s|\\t]{${childIndentLevel}}([-*+]|\\d+\\.)\\s\\[(.)\\]`
-			);
-
+			// Check if it's a task
+			const taskRegex = /^[\s|\t]*([-*+]|\d+\.)\s\[(.)\]/i;
 			const taskMatch = lineText.match(taskRegex);
+
 			if (taskMatch) {
 				// If the task has any status other than space, return true
-				const taskStatus = taskMatch[2];
+				const taskStatus = taskMatch[2]; // Status character is in group 2
 				if (taskStatus !== " ") {
 					return true;
 				}
@@ -713,6 +724,58 @@ function markParentAsInProgress(
 	};
 }
 
+/**
+ * Checks if there are any child tasks at the specified indentation level
+ * @param doc The document to check
+ * @param parentLineNumber The line number of the parent task
+ * @param parentIndentLevel The indentation level of the parent task
+ * @param app The Obsidian app instance
+ * @returns True if there are any child tasks, false otherwise
+ */
+function hasAnyChildTasksAtLevel(
+	doc: Text,
+	parentLineNumber: number,
+	parentIndentLevel: number,
+	app: App
+): boolean {
+	const tabSize = getTabSize(app);
+
+	// The expected indentation level for child tasks
+	const childIndentLevel = parentIndentLevel + tabSize;
+
+	// Search forward from the parent line
+	for (let i = parentLineNumber + 1; i <= doc.lines; i++) {
+		const line = doc.line(i);
+		const lineText = line.text;
+
+		// Skip empty lines
+		if (lineText.trim() === "") {
+			continue;
+		}
+
+		// Get the indentation of this line
+		const indentMatch = lineText.match(/^[\s|\t]*/);
+		const indentLevel = indentMatch ? indentMatch[0].length : 0;
+
+		// If we encounter a line with less or equal indentation to the parent,
+		// we've moved out of the parent's children scope
+		if (indentLevel <= parentIndentLevel) {
+			break;
+		}
+
+		// If this is a direct child of the parent (exactly one level deeper)
+		if (indentLevel === childIndentLevel) {
+			// Check if it's a task
+			const taskRegex = /^[\s|\t]*([-*+]|\d+\.)\s\[(.)\]/i;
+			if (taskRegex.test(lineText)) {
+				return true; // Found at least one child task
+			}
+		}
+	}
+
+	return false;
+}
+
 export {
 	handleParentTaskUpdateTransaction,
 	findTaskStatusChange,
@@ -720,5 +783,6 @@ export {
 	areAllSiblingsCompleted,
 	anySiblingWithStatus,
 	getParentTaskStatus,
+	hasAnyChildTasksAtLevel,
 	taskStatusChangeAnnotation,
 };
