@@ -5,6 +5,7 @@ import { t } from "../../translations/helper";
 import { DatePickerPopover } from "../date-picker/DatePickerPopover";
 import type TaskProgressBarPlugin from "../../index";
 import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
+import { clearAllMarks } from "../MarkdownRenderer";
 /**
  * Table renderer component responsible for rendering the table HTML structure
  */
@@ -53,9 +54,6 @@ export class TableRenderer extends Component {
 		if (this.resizeObserver) {
 			this.resizeObserver.disconnect();
 		}
-		// Clean up active suggests
-		this.activeSuggests.forEach((suggest) => suggest.destroy());
-		this.activeSuggests = [];
 	}
 
 	/**
@@ -93,7 +91,7 @@ export class TableRenderer extends Component {
 			// Add resize handle if resizable
 			if (column.resizable && this.config.resizableColumns) {
 				const resizeHandle = th.createDiv("task-table-resize-handle");
-				resizeHandle.addEventListener("mousedown", (e) => {
+				this.registerDomEvent(resizeHandle, "mousedown", (e) => {
 					this.startResize(e, column.id, column.width);
 				});
 			}
@@ -148,6 +146,12 @@ export class TableRenderer extends Component {
 		// Add tree level indentation class
 		if (row.level > 0) {
 			tr.addClass(`task-table-row-level-${row.level}`);
+			tr.addClass("task-table-subtask");
+		}
+
+		// Add parent/child relationship classes
+		if (row.hasChildren) {
+			tr.addClass("task-table-parent");
 		}
 
 		// Add selection state
@@ -173,29 +177,19 @@ export class TableRenderer extends Component {
 			td.style.width = `${column.width}px`;
 			td.style.minWidth = `${Math.min(column.width, 50)}px`;
 
-			// Add tree indentation for content column
-			if (column.id === "content" && row.level > 0) {
-				const indent = td.createSpan("task-table-tree-indent");
-				indent.style.paddingLeft = `${row.level * 20}px`;
-
-				// Add expand/collapse button for parent rows
-				if (row.hasChildren) {
-					const expandBtn = indent.createSpan(
-						"task-table-expand-btn"
-					);
-					setIcon(
-						expandBtn,
-						row.expanded ? "chevron-down" : "chevron-right"
-					);
-					expandBtn.addEventListener("click", (e) => {
-						e.stopPropagation();
-						this.toggleRowExpansion(row.id);
-					});
+			// Enhanced tree indentation for content column
+			if (column.id === "rowNumber") {
+				this.renderTreeStructure(td, row, cell, column);
+			} else {
+				// For non-content columns, add subtle indentation for subtasks
+				if (row.level > 0) {
+					td.addClass("task-table-subtask-cell");
+					td.style.opacity = "0.9";
 				}
-			}
 
-			// Render cell content based on type
-			this.renderCellContent(td, cell, column);
+				// Render cell content based on type
+				this.renderCellContent(td, cell, column);
+			}
 
 			// Add custom cell class if provided
 			if (cell.className) {
@@ -207,6 +201,58 @@ export class TableRenderer extends Component {
 				td.style.textAlign = column.align;
 			}
 		});
+	}
+
+	/**
+	 * Render tree structure for content column
+	 */
+	private renderTreeStructure(
+		cellEl: HTMLElement,
+		row: TableRow,
+		cell: TableCell,
+		column: TableColumn
+	) {
+		const treeContainer = cellEl.createDiv("task-table-tree-container");
+
+		if (row.level > 0) {
+			// Add expand/collapse button for parent rows
+			if (row.hasChildren) {
+				const expandBtn = treeContainer.createSpan(
+					"task-table-expand-btn"
+				);
+				expandBtn.addClass("clickable-icon");
+				setIcon(
+					expandBtn,
+					row.expanded ? "chevron-down" : "chevron-right"
+				);
+				this.registerDomEvent(expandBtn, "click", (e) => {
+					e.stopPropagation();
+					this.toggleRowExpansion(row.id);
+				});
+				expandBtn.title = row.expanded ? t("Collapse") : t("Expand");
+			}
+		} else if (row.hasChildren) {
+			// Top-level parent task with children
+			const expandBtn = treeContainer.createSpan("task-table-expand-btn");
+			expandBtn.addClass("clickable-icon");
+			expandBtn.addClass("task-table-top-level-expand");
+			setIcon(expandBtn, row.expanded ? "chevron-down" : "chevron-right");
+			this.registerDomEvent(expandBtn, "click", (e) => {
+				e.stopPropagation();
+				this.toggleRowExpansion(row.id);
+			});
+			expandBtn.title = row.expanded
+				? t("Collapse subtasks")
+				: t("Expand subtasks");
+		}
+
+		// Create content wrapper
+		const contentWrapper = treeContainer.createDiv(
+			"task-table-content-wrapper"
+		);
+
+		// Render the actual cell content
+		this.renderCellContent(contentWrapper, cell, column);
 	}
 
 	/**
@@ -241,10 +287,11 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Render status cell with visual indicator
+	 * Render status cell with visual indicator and click-to-edit
 	 */
 	private renderStatusCell(cellEl: HTMLElement, cell: TableCell) {
 		const statusContainer = cellEl.createDiv("task-table-status");
+		statusContainer.addClass("clickable-status");
 
 		// Add status icon
 		const statusIcon = statusContainer.createSpan("task-table-status-icon");
@@ -277,6 +324,76 @@ export class TableRenderer extends Component {
 		// Add status text
 		const statusText = statusContainer.createSpan("task-table-status-text");
 		statusText.textContent = cell.displayValue;
+
+		// Add click handler for status editing
+		this.registerDomEvent(statusContainer, "click", (e) => {
+			e.stopPropagation();
+			this.openStatusMenu(cellEl, cell);
+		});
+
+		// Add hover effect
+		statusContainer.title = t("Click to change status");
+	}
+
+	/**
+	 * Open status selection menu
+	 */
+	private openStatusMenu(cellEl: HTMLElement, cell: TableCell) {
+		const rowId = cellEl.dataset.rowId;
+		if (!rowId) return;
+
+		const menu = new Menu();
+
+		// Get unique statuses from taskStatusMarks
+		const statusMarks = this.plugin.settings.taskStatusMarks;
+		const uniqueStatuses = new Map<string, string>();
+
+		// Build a map of unique mark -> status name to avoid duplicates
+		for (const status of Object.keys(statusMarks)) {
+			const mark = statusMarks[status as keyof typeof statusMarks];
+			// If this mark is not already in the map, add it
+			// This ensures each mark appears only once in the menu
+			if (!Array.from(uniqueStatuses.values()).includes(mark)) {
+				uniqueStatuses.set(status, mark);
+			}
+		}
+
+		// Create menu items from unique statuses
+		for (const [status, mark] of uniqueStatuses) {
+			menu.addItem((item) => {
+				item.titleEl.createEl(
+					"span",
+					{
+						cls: "status-option-checkbox",
+					},
+					(el) => {
+						const checkbox = el.createEl("input", {
+							cls: "task-list-item-checkbox",
+							type: "checkbox",
+						});
+						checkbox.dataset.task = mark;
+						if (mark !== " ") {
+							checkbox.checked = true;
+						}
+					}
+				);
+				item.titleEl.createEl("span", {
+					cls: "status-option",
+					text: status,
+				});
+				item.onClick(() => {
+					if (this.onCellChange) {
+						// Also update completed status if needed
+						const isCompleted = mark.toLowerCase() === "x";
+						this.onCellChange(rowId, cell.columnId, mark);
+						// Note: completion status should be handled by the parent component
+					}
+				});
+			});
+		}
+
+		const rect = cellEl.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom + 5 });
 	}
 
 	/**
@@ -293,22 +410,33 @@ export class TableRenderer extends Component {
 				"task-table-priority-icon"
 			);
 
-			if (priority === 1) {
-				setIcon(priorityIcon, "alert-triangle");
-				priorityIcon.addClass("high");
-			} else if (priority === 2) {
-				setIcon(priorityIcon, "minus");
-				priorityIcon.addClass("medium");
-			} else {
-				setIcon(priorityIcon, "circle");
-				priorityIcon.addClass("low");
-			}
-
-			// Add priority text
+			// Add priority text with emoji and label
 			const priorityText = priorityContainer.createSpan(
 				"task-table-priority-text"
 			);
-			priorityText.textContent = cell.displayValue;
+
+			// Update priority icons and text according to 5-level system
+			if (priority === 5) {
+				setIcon(priorityIcon, "triangle");
+				priorityIcon.addClass("highest");
+				priorityText.textContent = t("Highest");
+			} else if (priority === 4) {
+				setIcon(priorityIcon, "alert-triangle");
+				priorityIcon.addClass("high");
+				priorityText.textContent = t("High");
+			} else if (priority === 3) {
+				setIcon(priorityIcon, "minus");
+				priorityIcon.addClass("medium");
+				priorityText.textContent = t("Medium");
+			} else if (priority === 2) {
+				setIcon(priorityIcon, "chevron-down");
+				priorityIcon.addClass("low");
+				priorityText.textContent = t("Low");
+			} else if (priority === 1) {
+				setIcon(priorityIcon, "chevrons-down");
+				priorityIcon.addClass("lowest");
+				priorityText.textContent = t("Lowest");
+			}
 		} else {
 			// Empty priority cell
 			const emptyText = priorityContainer.createSpan(
@@ -319,7 +447,7 @@ export class TableRenderer extends Component {
 		}
 
 		// Add click handler for priority editing
-		priorityContainer.addEventListener("click", (e) => {
+		this.registerDomEvent(priorityContainer, "click", (e) => {
 			e.stopPropagation();
 			this.openPriorityMenu(cellEl, cell);
 		});
@@ -348,10 +476,10 @@ export class TableRenderer extends Component {
 				});
 		});
 
-		// High priority
+		// Lowest priority (1)
 		menu.addItem((item) => {
-			item.setTitle(t("High priority"))
-				.setIcon("alert-triangle")
+			item.setTitle(t("Lowest"))
+				.setIcon("chevrons-down")
 				.onClick(() => {
 					if (this.onCellChange) {
 						this.onCellChange(rowId, cell.columnId, 1);
@@ -359,10 +487,10 @@ export class TableRenderer extends Component {
 				});
 		});
 
-		// Medium priority
+		// Low priority (2)
 		menu.addItem((item) => {
-			item.setTitle(t("Medium priority"))
-				.setIcon("minus")
+			item.setTitle(t("Low"))
+				.setIcon("chevron-down")
 				.onClick(() => {
 					if (this.onCellChange) {
 						this.onCellChange(rowId, cell.columnId, 2);
@@ -370,13 +498,35 @@ export class TableRenderer extends Component {
 				});
 		});
 
-		// Low priority
+		// Medium priority (3)
 		menu.addItem((item) => {
-			item.setTitle(t("Low priority"))
-				.setIcon("circle")
+			item.setTitle(t("Medium"))
+				.setIcon("minus")
 				.onClick(() => {
 					if (this.onCellChange) {
 						this.onCellChange(rowId, cell.columnId, 3);
+					}
+				});
+		});
+
+		// High priority (4)
+		menu.addItem((item) => {
+			item.setTitle(t("High"))
+				.setIcon("alert-triangle")
+				.onClick(() => {
+					if (this.onCellChange) {
+						this.onCellChange(rowId, cell.columnId, 4);
+					}
+				});
+		});
+
+		// Highest priority (5)
+		menu.addItem((item) => {
+			item.setTitle(t("Highest"))
+				.setIcon("triangle")
+				.onClick(() => {
+					if (this.onCellChange) {
+						this.onCellChange(rowId, cell.columnId, 5);
 					}
 				});
 		});
@@ -432,7 +582,7 @@ export class TableRenderer extends Component {
 
 		// Add click handler for date editing
 		if (this.app && this.plugin) {
-			dateContainer.addEventListener("click", (e) => {
+			this.registerDomEvent(dateContainer, "click", (e) => {
 				e.stopPropagation();
 				this.openDatePicker(cellEl, cell);
 			});
@@ -509,7 +659,7 @@ export class TableRenderer extends Component {
 			}
 
 			// Handle blur event to save changes
-			input.addEventListener("blur", () => {
+			this.registerDomEvent(input, "blur", () => {
 				const newValue = input.value.trim();
 				const newTags = newValue
 					? newValue
@@ -521,7 +671,7 @@ export class TableRenderer extends Component {
 			});
 
 			// Handle Enter key to save and exit
-			input.addEventListener("keydown", (e) => {
+			this.registerDomEvent(input, "keydown", (e) => {
 				if (e.key === "Enter") {
 					input.blur();
 					e.preventDefault();
@@ -530,7 +680,7 @@ export class TableRenderer extends Component {
 			});
 
 			// Stop click propagation
-			input.addEventListener("click", (e) => {
+			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
 			});
 		} else {
@@ -566,11 +716,17 @@ export class TableRenderer extends Component {
 	private renderTextCell(cellEl: HTMLElement, cell: TableCell) {
 		cellEl.addClass("task-table-text");
 
+		// For content column (rowNumber), use cleaned content without tags and other marks
+		const isContentColumn = cell.columnId === "content";
+		const displayText = isContentColumn
+			? clearAllMarks((cell.value as string) || cell.displayValue)
+			: cell.displayValue;
+
 		if (cell.editable) {
 			// Create editable input
 			const input = cellEl.createEl("input", "task-table-text-input");
 			input.type = "text";
-			input.value = cell.displayValue;
+			input.value = displayText;
 			input.style.border = "none";
 			input.style.background = "transparent";
 			input.style.width = "100%";
@@ -587,13 +743,13 @@ export class TableRenderer extends Component {
 			}
 
 			// Handle blur event to save changes
-			input.addEventListener("blur", () => {
+			this.registerDomEvent(input, "blur", () => {
 				const newValue = input.value.trim();
 				this.saveCellValue(cellEl, cell, newValue);
 			});
 
 			// Handle Enter key to save and exit
-			input.addEventListener("keydown", (e) => {
+			this.registerDomEvent(input, "keydown", (e) => {
 				if (e.key === "Enter") {
 					input.blur();
 					e.preventDefault();
@@ -603,16 +759,29 @@ export class TableRenderer extends Component {
 			});
 
 			// Stop click propagation to prevent row selection
-			input.addEventListener("click", (e) => {
+			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
 			});
 		} else {
-			cellEl.textContent = cell.displayValue;
+			cellEl.textContent = displayText;
+
+			if (cell.columnId === "filePath") {
+				this.registerDomEvent(cellEl, "click", (e) => {
+					e.stopPropagation();
+					const file = this.plugin.app.vault.getFileByPath(
+						cell.value as string
+					);
+					if (file) {
+						this.plugin.app.workspace.getLeaf(true).openFile(file);
+					}
+				});
+				cellEl.title = t("Click to open file");
+			}
 		}
 
 		// Add tooltip for long text
-		if (cell.displayValue.length > 50) {
-			cellEl.title = cell.displayValue;
+		if (displayText.length > 50) {
+			cellEl.title = displayText;
 		}
 	}
 
@@ -676,8 +845,16 @@ export class TableRenderer extends Component {
 	 * Setup column resize handlers
 	 */
 	private setupResizeHandlers() {
-		document.addEventListener("mousemove", this.handleMouseMove.bind(this));
-		document.addEventListener("mouseup", this.handleMouseUp.bind(this));
+		this.registerDomEvent(
+			document,
+			"mousemove",
+			this.handleMouseMove.bind(this)
+		);
+		this.registerDomEvent(
+			document,
+			"mouseup",
+			this.handleMouseUp.bind(this)
+		);
 	}
 
 	/**

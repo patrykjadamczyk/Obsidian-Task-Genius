@@ -145,26 +145,6 @@ export class TableHeader extends Component {
 			this.toggleTreeMode();
 		});
 
-		// Refresh button
-		this.refreshBtn = controlsContainer.createEl(
-			"button",
-			"table-control-btn refresh-btn"
-		);
-
-		const refreshIcon = this.refreshBtn.createSpan("refresh-icon");
-		setIcon(refreshIcon, "refresh-cw");
-
-		const refreshText = this.refreshBtn.createSpan("refresh-text");
-		refreshText.textContent = t("Refresh");
-
-		this.refreshBtn.title = t("Refresh table data");
-
-		this.registerDomEvent(this.refreshBtn, "click", () => {
-			if (this.callbacks.onRefresh) {
-				this.callbacks.onRefresh();
-			}
-		});
-
 		// Column visibility dropdown
 		const columnDropdown = controlsContainer.createDiv("column-dropdown");
 		this.columnBtn = columnDropdown.createEl(

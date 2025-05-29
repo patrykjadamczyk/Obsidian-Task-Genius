@@ -93,12 +93,12 @@ export class DayView extends CalendarViewComponent {
 
 				// Add event listeners using the options from the base class
 				if (this.options.onEventClick) {
-					eventEl.addEventListener("click", (ev) => {
+					this.registerDomEvent(eventEl, "click", (ev) => {
 						this.options.onEventClick!(ev, event);
 					});
 				}
 				if (this.options.onEventHover) {
-					eventEl.addEventListener("mouseenter", (ev) => {
+					this.registerDomEvent(eventEl, "mouseenter", (ev) => {
 						this.options.onEventHover!(ev, event);
 					});
 					// Optionally add mouseleave if needed

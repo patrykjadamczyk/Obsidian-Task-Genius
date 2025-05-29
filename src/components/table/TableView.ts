@@ -354,27 +354,32 @@ export class TableView extends Component {
 
 	private setupEventListeners() {
 		// Table click events
-		this.tableEl.addEventListener(
+		this.registerDomEvent(
+			this.tableEl,
 			"click",
 			this.handleTableClick.bind(this)
 		);
-		this.tableEl.addEventListener(
+		this.registerDomEvent(
+			this.tableEl,
 			"dblclick",
 			this.handleTableDoubleClick.bind(this)
 		);
-		this.tableEl.addEventListener(
+		this.registerDomEvent(
+			this.tableEl,
 			"contextmenu",
 			this.handleTableContextMenu.bind(this)
 		);
 
 		// Keyboard events
-		this.containerEl.addEventListener(
+		this.registerDomEvent(
+			this.containerEl,
 			"keydown",
 			this.handleKeyDown.bind(this)
 		);
 
 		// Header events for sorting and resizing
-		this.headerEl.addEventListener(
+		this.registerDomEvent(
+			this.headerEl,
 			"click",
 			this.handleHeaderClick.bind(this)
 		);

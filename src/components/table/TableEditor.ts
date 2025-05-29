@@ -191,11 +191,14 @@ export class TableEditor extends Component {
 	 * Create date input
 	 */
 	private createDateInput(currentValue: number): HTMLInputElement {
-		const input = document.createElement("input");
-		input.type = "text";
-		input.className = "task-table-date-input";
-		input.placeholder = t("Click to select date");
-		input.readOnly = true; // Make it read-only to force using the picker
+		const input = createEl("input", {
+			type: "text",
+			cls: "task-table-date-input",
+			placeholder: t("Click to select date"),
+			attr: {
+				readOnly: true,
+			},
+		});
 
 		if (currentValue) {
 			const date = new Date(currentValue);
@@ -203,7 +206,7 @@ export class TableEditor extends Component {
 		}
 
 		// Add click handler to open date picker
-		input.addEventListener("click", (e) => {
+		this.registerDomEvent(input, "click", (e) => {
 			e.stopPropagation();
 			this.openDatePicker(input, currentValue);
 		});
@@ -437,7 +440,7 @@ export class TableEditor extends Component {
 		input: HTMLInputElement | HTMLSelectElement
 	) {
 		// Save on Enter key
-		input.addEventListener("keydown", (e: KeyboardEvent) => {
+		this.registerDomEvent(input, "keydown", (e: KeyboardEvent) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
 				this.saveEdit();
@@ -448,7 +451,7 @@ export class TableEditor extends Component {
 		});
 
 		// Save on blur (focus lost)
-		input.addEventListener("blur", () => {
+		this.registerDomEvent(input, "blur", () => {
 			// Small delay to allow for other events to process
 			setTimeout(() => {
 				if (this.currentInput === input) {
@@ -458,7 +461,7 @@ export class TableEditor extends Component {
 		});
 
 		// Prevent event bubbling
-		input.addEventListener("click", (e) => {
+		this.registerDomEvent(input, "click", (e) => {
 			e.stopPropagation();
 		});
 	}
@@ -468,7 +471,7 @@ export class TableEditor extends Component {
 	 */
 	private setupGlobalEventListeners() {
 		// Cancel edit on outside click
-		document.addEventListener("click", (e) => {
+		this.registerDomEvent(document, "click", (e) => {
 			if (
 				this.currentEditCell &&
 				!this.currentEditCell.contains(e.target as Node)

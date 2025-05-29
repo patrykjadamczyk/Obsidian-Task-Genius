@@ -42,7 +42,7 @@ export class DatePickerPopover extends Component implements CloseableComponent {
 		const contentEl = createDiv({ cls: "date-picker-popover-content" });
 
 		// Prevent clicks inside the popover from bubbling up
-		contentEl.addEventListener("click", (e) => {
+		this.registerDomEvent(contentEl, "click", (e) => {
 			e.stopPropagation();
 		});
 

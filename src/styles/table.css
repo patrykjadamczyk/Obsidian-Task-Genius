@@ -181,11 +181,16 @@
 	gap: 4px;
 }
 
+.task-table-cell:has(.task-table-expand-btn) {
+	padding-left: 0;
+}
+
 .task-table-expand-btn {
 	cursor: pointer;
 	user-select: none;
-	width: 16px;
-	height: 16px;
+	width: 20px;
+	height: 20px;
+	padding: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -844,4 +849,114 @@
 
 .custom-suggest-dropdown .suggestion-item.selected {
 	color: var(--text-accent);
+}
+
+/* Enhanced Tree View Styles */
+.task-table-subtask {
+	border-left: 2px solid var(--background-modifier-border-hover);
+}
+
+.task-table-parent .task-table-cell:first-child {
+	font-weight: 500;
+}
+
+.task-table-subtask-cell {
+	border-left: 1px solid var(--background-modifier-border-focus);
+}
+
+.task-table-tree-container {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+}
+
+.task-table-tree-structure {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.task-table-tree-line {
+	font-family: monospace;
+	font-size: 12px;
+	color: var(--text-faint);
+	line-height: 1;
+	width: 16px;
+	text-align: center;
+}
+
+.task-table-tree-connector {
+	color: var(--text-muted);
+}
+
+.task-table-tree-vertical {
+	color: var(--text-faint);
+}
+
+.task-table-subtask-indicator {
+	font-size: 10px;
+	color: var(--text-accent);
+	margin-right: 6px;
+	margin-left: 4px;
+	flex-shrink: 0;
+	font-weight: bold;
+}
+
+.task-table-top-level-expand {
+	margin-right: 6px;
+}
+
+.task-table-content-wrapper {
+	flex: 1;
+	min-width: 0;
+}
+
+.task-table-child-indicator {
+	font-size: 10px;
+	color: var(--text-muted);
+	margin-left: 6px;
+	flex-shrink: 0;
+}
+
+/* Enhanced Status Cell */
+.task-table-status.clickable-status {
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 4px;
+	transition: background-color 0.2s;
+}
+
+.task-table-status.clickable-status:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Enhanced Priority Icons */
+.task-table-priority-icon.highest {
+	color: var(--text-error);
+	filter: brightness(1.2);
+}
+
+.task-table-priority-icon.lowest {
+	color: var(--text-faint);
+}
+
+/* Tree expand button improvements */
+.task-table-expand-btn.clickable-icon {
+	opacity: 0.7;
+	transition: opacity 0.2s, background-color 0.2s;
+}
+
+.task-table-expand-btn.clickable-icon:hover {
+	opacity: 1;
+}
+
+/* Override existing tree indentation to use new system */
+.task-table-row-level-1 .task-table-cell:first-child,
+.task-table-row-level-2 .task-table-cell:first-child,
+.task-table-row-level-3 .task-table-cell:first-child,
+.task-table-row-level-4 .task-table-cell:first-child,
+.task-table-row-level-5 .task-table-cell:first-child {
+	padding-left: 12px; /* Reset to normal padding, let tree structure handle indentation */
 }

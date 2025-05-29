@@ -73,13 +73,14 @@ export class VirtualScrollManager extends Component {
 	 * Setup event listeners
 	 */
 	private setupEventListeners() {
-		this.scrollContainer.addEventListener(
+		this.registerDomEvent(
+			this.scrollContainer,
 			"scroll",
 			this.debouncedScrollHandler
 		);
 
 		// Handle resize events
-		window.addEventListener("resize", this.handleResize.bind(this));
+		this.registerDomEvent(window, "resize", this.handleResize.bind(this));
 	}
 
 	/**
@@ -319,7 +320,8 @@ export class VirtualScrollManager extends Component {
 	 */
 	public setEnabled(enabled: boolean) {
 		if (enabled) {
-			this.scrollContainer.addEventListener(
+			this.registerDomEvent(
+				this.scrollContainer,
 				"scroll",
 				this.debouncedScrollHandler
 			);
