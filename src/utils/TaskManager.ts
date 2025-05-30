@@ -995,10 +995,6 @@ export class TaskManager extends Component {
 			// Dataview Priority
 			updatedLine = updatedLine.replace(/\[priority::\s*\w+\]/gi, ""); // Assuming priority value is a word like high, medium, etc. or number
 
-			updatedLine = updatedLine.replace(
-				new RegExp("🔁" + "\\s*" + updatedTask.recurrence),
-				""
-			);
 			// Emoji Recurrence
 			updatedLine = updatedLine.replace(/🔁\s*[^\s]+/g, "");
 			// Dataview Recurrence
@@ -1017,51 +1013,19 @@ export class TaskManager extends Component {
 				.substring(contentStartIndex)
 				.trim();
 
-			// Remove all instances of existing tags and context from the content part
+			// Simplified tag cleanup - remove ALL tags, project tags, and context tags from content
+			// This approach is more reliable than trying to track specific tags
 
-			// First completely remove project tags from content
+			// Remove all hashtags (including project tags)
+			taskTextContent = taskTextContent.replace(/#[^\s]+/g, "");
+
+			// Remove all context tags (@mentions)
+			taskTextContent = taskTextContent.replace(/@[^\s]+/g, "");
+
+			// Normalize spaces and clean up
 			taskTextContent = taskTextContent
-				.replace(/#project\/[^\s]+/g, "")
-				.replace(/\s+/g, " ") // Normalize spaces
+				.replace(/\s+/g, " ") // Normalize multiple spaces to single space
 				.trim();
-
-			// Then remove context tags from content
-			taskTextContent = taskTextContent
-				.replace(/@[^\s]+/g, "")
-				.replace(/\s+/g, " ") // Normalize spaces
-				.trim();
-
-			// Then remove general tags, ensuring all instances are removed
-			if (originalTask.tags && originalTask.tags.length > 0) {
-				// Get a unique list of tags to avoid processing duplicates
-				const uniqueTags = [...new Set(originalTask.tags)];
-
-				// Filter out project tags as they are handled differently
-				const generalTags = uniqueTags.filter(
-					(tag) =>
-						!tag.startsWith("#project/") && !tag.startsWith("@")
-				);
-
-				// Remove each general tag, ensuring we handle all instances
-				for (const tag of generalTags) {
-					// Extract the tag text without the # prefix
-					const tagText = tag.replace(/^#/, "");
-
-					// Create a regex that looks for the tag preceded by whitespace and followed by word boundary
-					// This ensures we don't remove parts of words or other content
-					const tagRegex = new RegExp(
-						`\\s+#${tagText.replace(
-							/[.*+?^${}()|[\]\\]/g,
-							"\\$&"
-						)}\\b`,
-						"g"
-					);
-					taskTextContent = taskTextContent
-						.replace(tagRegex, " ")
-						.replace(/\s+/g, " ") // Normalize spaces
-						.trim();
-				}
-			}
 
 			// Reconstruct the beginning of the line
 			updatedLine =
@@ -1080,57 +1044,43 @@ export class TaskManager extends Component {
 
 			// --- Add non-project/context tags first (1. Tags) ---
 			if (updatedTask.tags && updatedTask.tags.length > 0) {
-				if (!useDataviewFormat) {
-					// For emoji format: add tags that aren't project tags
-					const generalTags = updatedTask.tags.filter(
-						(tag) =>
-							typeof tag === "string" &&
-							!tag.startsWith("#project/") &&
-							!tag.startsWith("@")
-					);
+				// Filter out project and context tags, and ensure uniqueness
+				const generalTags = updatedTask.tags.filter((tag) => {
+					if (typeof tag !== "string") return false;
+					// Skip project tags - they'll be handled separately
+					if (tag.startsWith("#project/")) return false;
+					// Skip context tags if they match the current context
+					if (
+						tag.startsWith("@") &&
+						updatedTask.context &&
+						tag === `@${updatedTask.context}`
+					)
+						return false;
+					return true;
+				});
 
-					// Convert array to Set and back to ensure uniqueness
-					const finalUniqueTags = [...new Set(generalTags)].map(
-						(tag) => (tag.startsWith("#") ? tag : `#${tag}`)
-					);
+				// Ensure uniqueness and proper formatting
+				const uniqueGeneralTags = [...new Set(generalTags)]
+					.map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
+					.filter((tag) => tag.length > 1); // Filter out empty tags
 
-					if (finalUniqueTags.length > 0) {
-						metadata.push(...finalUniqueTags);
-					}
-				} else {
-					// For dataview format: add tags that aren't project/context tags
-					const tagsToAdd = updatedTask.tags.filter((tag) => {
-						// Skip non-string tags
-						if (typeof tag !== "string") return false;
-						// filter out project tags (already added as [project::...])
-						if (tag.startsWith("#project/")) return false;
-						// filter out context tags (already added as [context::...])
-						if (
-							tag.startsWith("@") &&
-							updatedTask.context &&
-							tag === `@${updatedTask.context}`
-						)
-							return false;
-						return true;
-					});
-
-					const uniqueTagsToAdd = [...new Set(tagsToAdd)].map((tag) =>
-						tag.startsWith("#") ? tag : `#${tag}`
-					);
-
-					if (uniqueTagsToAdd.length > 0) {
-						metadata.push(...uniqueTagsToAdd);
-					}
+				if (!useDataviewFormat && uniqueGeneralTags.length > 0) {
+					metadata.push(...uniqueGeneralTags);
+				} else if (useDataviewFormat && uniqueGeneralTags.length > 0) {
+					// For dataview format, add tags as regular hashtags
+					metadata.push(...uniqueGeneralTags);
 				}
 			}
 
 			// 2. Project
 			if (updatedTask.project) {
 				if (useDataviewFormat) {
-					metadata.push(`[project:: ${updatedTask.project}]`);
+					const projectField = `[project:: ${updatedTask.project}]`;
+					if (!metadata.includes(projectField)) {
+						metadata.push(projectField);
+					}
 				} else {
 					const projectTag = `#project/${updatedTask.project}`;
-					// Only add to metadata if not already added before
 					if (!metadata.includes(projectTag)) {
 						metadata.push(projectTag);
 					}
@@ -1140,10 +1090,12 @@ export class TaskManager extends Component {
 			// 3. Context
 			if (updatedTask.context) {
 				if (useDataviewFormat) {
-					metadata.push(`[context:: ${updatedTask.context}]`);
+					const contextField = `[context:: ${updatedTask.context}]`;
+					if (!metadata.includes(contextField)) {
+						metadata.push(contextField);
+					}
 				} else {
 					const contextTag = `@${updatedTask.context}`;
-					// Only add to metadata if not already present
 					if (!metadata.includes(contextTag)) {
 						metadata.push(contextTag);
 					}

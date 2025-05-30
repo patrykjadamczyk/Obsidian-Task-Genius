@@ -8,7 +8,9 @@ Full documentation is available at [Docs](https://taskgenius.md/docs/getting-sta
 
 Task Genius is a comprehensive plugin for Obsidian designed to enhance your task and project management workflow.
 
-![Task Genius Feature Showcase](./media/task-genius-view.jpg)
+| Forecast | Inbox |
+| --- | --- |
+| ![Task Genius Forecast](./media/Forecast.png) | ![Task Genius Inbox](./media/Table.png) |
 
 ## Key Features
 
