@@ -270,7 +270,14 @@ function compareTasks<
 		dueDate?: number;
 		startDate?: number;
 		scheduledDate?: number;
+		createdDate?: number;
+		completedDate?: number;
 		content?: string;
+		tags?: string[];
+		project?: string;
+		context?: string;
+		recurrence?: string;
+		filePath?: string;
 		line?: number;
 		lineNumber?: number;
 	}
@@ -316,32 +323,31 @@ function compareTasks<
 		},
 
 		priority: (a: T, b: T, order: "asc" | "desc") => {
-			// Assuming numerical mapping where HIGHER number means HIGHER priority (e.g., High=3, Medium=2, Low=1)
+			// Priority comparison: higher number means higher priority (1=Lowest, 5=Highest)
 			const valA = a.priority; // Use undefined/null directly
 			const valB = b.priority;
-			const aHasPriority = valA !== undefined && valA !== null;
-			const bHasPriority = valB !== undefined && valB !== null;
+			const aHasPriority =
+				valA !== undefined && valA !== null && valA > 0;
+			const bHasPriority =
+				valB !== undefined && valB !== null && valB > 0;
 
 			let comparison = 0;
 			if (!aHasPriority && !bHasPriority) {
 				comparison = 0; // Both lack priority
 			} else if (!aHasPriority) {
-				// A lacks priority. 'asc' means High->Low->None. None is last (+1).
+				// A lacks priority - no priority tasks go to the end
 				comparison = 1;
 			} else if (!bHasPriority) {
-				// B lacks priority. 'asc' means High->Low->None. None is last. B is last, so A is first (-1).
+				// B lacks priority - no priority tasks go to the end
 				comparison = -1;
 			} else {
-				// Both have numeric priorities.
-				// Compare numerically: A - B.
-				// Example: High(3) vs Low(1) => comparison = 3 - 1 = 2
+				// Both have numeric priorities - simple numeric comparison
+				// For asc: 1, 2, 3, 4, 5 (Low to High)
+				// For desc: 5, 4, 3, 2, 1 (High to Low)
 				comparison = valA - valB;
 			}
 
-			// Special handling for priority: 'asc' means HIGHER numeric value first
-			// If 'asc' (High first), comparison = A - B. High(3) - Low(1) = 2. We need negative result.
-			// If 'desc' (Low first), comparison = A - B. High(3) - Low(1) = 2. We need positive result.
-			return order === "asc" ? -comparison : comparison;
+			return order === "asc" ? comparison : -comparison;
 		},
 
 		dueDate: (a: T, b: T, order: "asc" | "desc") => {
@@ -356,6 +362,14 @@ function compareTasks<
 			return sortByDate("scheduledDate", a, b, order);
 		},
 
+		createdDate: (a: T, b: T, order: "asc" | "desc") => {
+			return sortByDate("createdDate", a, b, order);
+		},
+
+		completedDate: (a: T, b: T, order: "asc" | "desc") => {
+			return sortByDate("completedDate", a, b, order);
+		},
+
 		content: (a: T, b: T, order: "asc" | "desc") => {
 			// 使用Collator进行更智能的文本比较，代替简单的localeCompare
 			// 首先检查content是否存在
@@ -367,6 +381,51 @@ function compareTasks<
 			return order === "asc" ? comparison : -comparison;
 		},
 
+		tags: (a: T, b: T, order: "asc" | "desc") => {
+			// Sort by tags - convert array to string for comparison
+			const tagsA = Array.isArray((a as any).tags)
+				? (a as any).tags.join(", ")
+				: "";
+			const tagsB = Array.isArray((b as any).tags)
+				? (b as any).tags.join(", ")
+				: "";
+
+			const comparison = sortCollator.compare(tagsA, tagsB);
+			return order === "asc" ? comparison : -comparison;
+		},
+
+		project: (a: T, b: T, order: "asc" | "desc") => {
+			const projectA = (a as any).project || "";
+			const projectB = (b as any).project || "";
+
+			const comparison = sortCollator.compare(projectA, projectB);
+			return order === "asc" ? comparison : -comparison;
+		},
+
+		context: (a: T, b: T, order: "asc" | "desc") => {
+			const contextA = (a as any).context || "";
+			const contextB = (b as any).context || "";
+
+			const comparison = sortCollator.compare(contextA, contextB);
+			return order === "asc" ? comparison : -comparison;
+		},
+
+		recurrence: (a: T, b: T, order: "asc" | "desc") => {
+			const recurrenceA = (a as any).recurrence || "";
+			const recurrenceB = (b as any).recurrence || "";
+
+			const comparison = sortCollator.compare(recurrenceA, recurrenceB);
+			return order === "asc" ? comparison : -comparison;
+		},
+
+		filePath: (a: T, b: T, order: "asc" | "desc") => {
+			const filePathA = (a as any).filePath || "";
+			const filePathB = (b as any).filePath || "";
+
+			const comparison = sortCollator.compare(filePathA, filePathB);
+			return order === "asc" ? comparison : -comparison;
+		},
+
 		lineNumber: (a: T, b: T, order: "asc" | "desc") => {
 			return (a.line || 0) - (b.line || 0);
 		},
@@ -374,13 +433,18 @@ function compareTasks<
 
 	// 通用日期排序函数
 	function sortByDate(
-		field: "dueDate" | "startDate" | "scheduledDate",
+		field:
+			| "dueDate"
+			| "startDate"
+			| "scheduledDate"
+			| "createdDate"
+			| "completedDate",
 		a: T,
 		b: T,
 		order: "asc" | "desc"
 	): number {
-		const valA = a[field]; // Use undefined/null directly
-		const valB = b[field];
+		const valA = (a as any)[field]; // Use type assertion for new fields
+		const valB = (b as any)[field];
 		const aHasDate = valA !== undefined && valA !== null;
 		const bHasDate = valB !== undefined && valB !== null;
 
@@ -395,8 +459,28 @@ function compareTasks<
 			comparison = -1;
 		} else {
 			// Both have numeric dates (timestamps)
-			// Compare numerically: A - B. Earlier date first.
-			comparison = ((valA as number) - valB) as number;
+			const dateA = valA as number;
+			const dateB = valB as number;
+			const now = Date.now();
+
+			// Check if dates are overdue
+			const aIsOverdue = dateA < now;
+			const bIsOverdue = dateB < now;
+
+			if (aIsOverdue && bIsOverdue) {
+				// Both are overdue - for overdue dates, show most overdue first (oldest dates first)
+				// So we want earlier dates to come first, regardless of asc/desc order
+				comparison = dateA - dateB;
+			} else if (aIsOverdue && !bIsOverdue) {
+				// A is overdue, B is not - overdue tasks should come first
+				comparison = -1;
+			} else if (!aIsOverdue && bIsOverdue) {
+				// B is overdue, A is not - overdue tasks should come first
+				comparison = 1;
+			} else {
+				// Both are future dates - normal date comparison
+				comparison = dateA - dateB;
+			}
 		}
 
 		return order === "asc" ? comparison : -comparison;
@@ -490,7 +574,14 @@ export function sortTasks<
 		dueDate?: number;
 		startDate?: number;
 		scheduledDate?: number;
+		createdDate?: number;
+		completedDate?: number;
 		content?: string;
+		tags?: string[];
+		project?: string;
+		context?: string;
+		recurrence?: string;
+		filePath?: string;
 		line?: number;
 		children?: any[]; // Accept any children type
 	}
@@ -514,6 +605,7 @@ export function sortTasks<
 	});
 
 	preparedTasks.sort((a, b) => compareTasks(a, b, criteria, statusOrder));
+
 	return preparedTasks as T[]; // 类型断言回原类型
 }
 

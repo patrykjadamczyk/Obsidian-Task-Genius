@@ -112,7 +112,12 @@ export class TaskManager extends Component {
 		// Watch for file modifications
 		this.registerEvent(
 			this.metadataCache.on("changed", (file, content, cache) => {
-				this.log("All files resolved, updating indexes");
+				// Skip processing during initialization to avoid excessive file processing
+				if (this.isInitializing) {
+					return;
+				}
+
+				this.log("File metadata changed, updating index");
 				// Trigger a full index update when all files are resolved
 				if (file instanceof TFile && file.extension === "md") {
 					this.indexFile(file);
@@ -123,6 +128,11 @@ export class TaskManager extends Component {
 		// Watch for individual file changes
 		this.registerEvent(
 			this.metadataCache.on("deleted", (file) => {
+				// Skip processing during initialization
+				if (this.isInitializing) {
+					return;
+				}
+
 				if (file instanceof TFile && file.extension === "md") {
 					this.removeFileFromIndex(file);
 				}
@@ -132,6 +142,11 @@ export class TaskManager extends Component {
 		// Watch for file deletions
 		this.registerEvent(
 			this.vault.on("rename", (file, oldPath) => {
+				// Skip processing during initialization
+				if (this.isInitializing) {
+					return;
+				}
+
 				if (file instanceof TFile && file.extension === "md") {
 					this.removeFileFromIndexByOldPath(oldPath);
 					this.indexFile(file);
@@ -143,6 +158,11 @@ export class TaskManager extends Component {
 		this.app.workspace.onLayoutReady(() => {
 			this.registerEvent(
 				this.vault.on("create", (file) => {
+					// Skip processing during initialization
+					if (this.isInitializing) {
+						return;
+					}
+
 					if (file instanceof TFile && file.extension === "md") {
 						this.indexFile(file);
 					}
@@ -743,6 +763,9 @@ export class TaskManager extends Component {
 		}
 	}
 
+	// 添加初始化节流标志
+	private initializationPending: boolean = false;
+
 	/**
 	 * Query tasks based on filters and sorting criteria
 	 */
@@ -751,19 +774,29 @@ export class TaskManager extends Component {
 		sortBy: SortingCriteria[] = []
 	): Task[] {
 		if (!this.initialized) {
-			console.warn("Task manager not initialized, initializing now");
-			// Instead of calling initialize() directly which causes recursion,
-			// schedule it for the next event loop and return empty results for now
-			setTimeout(() => {
-				if (!this.initialized) {
-					this.initialize().catch((error) => {
-						console.error(
-							"Error during delayed initialization:",
-							error
-						);
-					});
-				}
-			}, 0);
+			// 使用节流机制避免多次初始化和重复警告
+			if (!this.initializationPending && !this.isInitializing) {
+				console.warn("Task manager not initialized, initializing now");
+				this.initializationPending = true;
+				// Instead of calling initialize() directly which causes recursion,
+				// schedule it for the next event loop and return empty results for now
+				setTimeout(() => {
+					if (!this.initialized && !this.isInitializing) {
+						this.initialize()
+							.catch((error) => {
+								console.error(
+									"Error during delayed initialization:",
+									error
+								);
+							})
+							.finally(() => {
+								this.initializationPending = false;
+							});
+					} else {
+						this.initializationPending = false;
+					}
+				}, 0);
+			}
 			return [];
 		}
 

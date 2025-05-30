@@ -321,7 +321,14 @@ export interface SortCriterion {
 		| "dueDate"
 		| "startDate"
 		| "scheduledDate"
+		| "createdDate"
+		| "completedDate"
 		| "content"
+		| "tags"
+		| "project"
+		| "context"
+		| "recurrence"
+		| "filePath"
 		| "lineNumber"; // Fields to sort by
 	order: "asc" | "desc"; // Sort order
 }
