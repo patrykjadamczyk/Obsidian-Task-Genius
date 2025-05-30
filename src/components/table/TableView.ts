@@ -400,7 +400,7 @@ export class TableView extends Component {
 	}
 
 	/**
-	 * Sort tasks by the specified field and order
+	 * Sort tasks by the specified field and order using simple sorting logic
 	 */
 	private sortTasks(field: string, order: "asc" | "desc") {
 		this.filteredTasks.sort((a, b) => {
@@ -412,7 +412,53 @@ export class TableView extends Component {
 			if (aValue == null) return order === "asc" ? 1 : -1;
 			if (bValue == null) return order === "asc" ? -1 : 1;
 
-			// Compare values
+			// Special handling for priority (larger number = higher priority: 5>4>3>2>1)
+			if (field === "priority") {
+				const priorityA =
+					typeof aValue === "number" && aValue > 0 ? aValue : 0; // No priority = 0 (lowest)
+				const priorityB =
+					typeof bValue === "number" && bValue > 0 ? bValue : 0; // No priority = 0 (lowest)
+				const comparison = priorityB - priorityA; // For asc: 5-4-3-2-1-0 (High to Low to None)
+
+				console.log(
+					"priority comparison",
+					comparison,
+					priorityA,
+					priorityB,
+					field
+				);
+				return order === "asc" ? comparison : -comparison;
+			}
+
+			// Special handling for dates (overdue tasks first when ascending)
+			if (
+				field === "dueDate" ||
+				field === "startDate" ||
+				field === "scheduledDate"
+			) {
+				if (typeof aValue === "number" && typeof bValue === "number") {
+					const now = Date.now();
+					const aIsOverdue = aValue < now;
+					const bIsOverdue = bValue < now;
+
+					if (aIsOverdue && bIsOverdue) {
+						// Both overdue - older dates first
+						return aValue - bValue;
+					} else if (aIsOverdue && !bIsOverdue) {
+						// A is overdue, B is not - A comes first
+						return -1;
+					} else if (!aIsOverdue && bIsOverdue) {
+						// B is overdue, A is not - B comes first
+						return 1;
+					} else {
+						// Both future dates - normal comparison
+						const comparison = aValue - bValue;
+						return order === "asc" ? comparison : -comparison;
+					}
+				}
+			}
+
+			// Default comparison
 			let comparison = 0;
 			if (typeof aValue === "string" && typeof bValue === "string") {
 				comparison = aValue.localeCompare(bValue);
@@ -439,19 +485,25 @@ export class TableView extends Component {
 			case "content":
 				return task.content;
 			case "priority":
-				return task.priority || 0;
+				return task.priority; // Keep undefined as undefined, don't convert to 0
 			case "dueDate":
 				return task.dueDate;
 			case "startDate":
 				return task.startDate;
 			case "scheduledDate":
 				return task.scheduledDate;
+			case "createdDate":
+				return task.createdDate;
+			case "completedDate":
+				return task.completedDate;
 			case "tags":
 				return task.tags?.join(", ") || "";
 			case "project":
 				return task.project || "";
 			case "context":
 				return task.context || "";
+			case "recurrence":
+				return task.recurrence || "";
 			case "filePath":
 				return task.filePath;
 			default:
@@ -613,9 +665,11 @@ export class TableView extends Component {
 	private formatPriority(priority?: number): string {
 		if (!priority) return "";
 		const priorityMap: Record<number, string> = {
-			1: t("High"),
-			2: t("Medium"),
-			3: t("Low"),
+			5: t("Highest"),
+			4: t("High"),
+			3: t("Medium"),
+			2: t("Low"),
+			1: t("Lowest"),
 		};
 		return priorityMap[priority] || priority.toString();
 	}
@@ -713,7 +767,9 @@ export class TableView extends Component {
 		}
 
 		const header = target.closest("th");
-		if (!header) return;
+		if (!header) {
+			return;
+		}
 
 		// Check if the table is currently being resized
 		if (this.tableEl.classList.contains("resizing")) {
@@ -724,12 +780,19 @@ export class TableView extends Component {
 		if (!columnId) return;
 
 		const column = this.columns.find((c) => c.id === columnId);
-		if (!column || !column.sortable) return;
+		if (!column || !column.sortable) {
+			return;
+		}
 
-		// Toggle sort order
+		// Cycle through: asc -> desc -> no sort
 		if (this.currentSortField === columnId) {
-			this.currentSortOrder =
-				this.currentSortOrder === "asc" ? "desc" : "asc";
+			if (this.currentSortOrder === "asc") {
+				this.currentSortOrder = "desc";
+			} else if (this.currentSortOrder === "desc") {
+				// Third click: clear sorting
+				this.currentSortField = "";
+				this.currentSortOrder = "asc";
+			}
 		} else {
 			this.currentSortField = columnId;
 			this.currentSortOrder = "asc";
@@ -978,10 +1041,15 @@ export class TableView extends Component {
 	}
 
 	private updateSortIndicators() {
-		this.renderer.updateSortIndicators(
-			this.currentSortField,
-			this.currentSortOrder
-		);
+		// If no sort field is set, clear all indicators
+		if (!this.currentSortField) {
+			this.renderer.updateSortIndicators("", "asc");
+		} else {
+			this.renderer.updateSortIndicators(
+				this.currentSortField,
+				this.currentSortOrder
+			);
+		}
 	}
 
 	private loadMoreRows() {
