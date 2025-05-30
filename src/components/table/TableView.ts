@@ -51,6 +51,15 @@ export class TableView extends Component {
 	private currentSortOrder: "asc" | "desc" = "asc";
 	private isLoading: boolean = false;
 
+	// Performance optimization
+	private scrollRAF: number | null = null;
+	private lastScrollTime: number = 0;
+	private scrollVelocity: number = 0;
+	private lastViewport: { startIndex: number; endIndex: number } | null =
+		null;
+	private renderThrottleRAF: number | null = null;
+	private lastRenderTime: number = 0;
+
 	// Callbacks
 	public onTaskSelected?: (task: Task | null) => void;
 	public onTaskCompleted?: (task: Task) => void;
@@ -482,7 +491,8 @@ export class TableView extends Component {
 			this.renderer.renderTable(
 				visibleRows,
 				this.selectedRows,
-				viewport.startIndex
+				viewport.startIndex,
+				this.displayedRows.length
 			);
 		} else {
 			// Render all rows normally
@@ -737,26 +747,123 @@ export class TableView extends Component {
 		}
 	}
 
-	private handleScroll = debounce(() => {
-		// Handle scroll events for virtual scrolling
-		if (
-			this.virtualScroll &&
-			this.displayedRows.length > this.config.pageSize
-		) {
-			this.virtualScroll.handleScroll();
-			// Re-render visible rows after scroll
-			const viewport = this.virtualScroll.getViewport();
-			const visibleRows = this.displayedRows.slice(
-				viewport.startIndex,
-				viewport.endIndex + 1
+	private handleScroll = () => {
+		// Cancel any pending animation frame
+		if (this.scrollRAF) {
+			cancelAnimationFrame(this.scrollRAF);
+		}
+
+		// Use requestAnimationFrame for smooth scrolling
+		this.scrollRAF = requestAnimationFrame(() => {
+			// Handle virtual scrolling only if enabled and needed
+			if (
+				this.virtualScroll &&
+				this.displayedRows.length > this.config.pageSize
+			) {
+				// Calculate scroll velocity for predictive rendering
+				const currentTime = performance.now();
+				const deltaTime = currentTime - this.lastScrollTime;
+
+				if (deltaTime > 16) {
+					// Minimum 16ms between updates
+					const currentScrollTop = this.tableWrapper.scrollTop;
+					const previousScrollTop =
+						this.virtualScroll.getViewport().scrollTop;
+					this.scrollVelocity =
+						(currentScrollTop - previousScrollTop) / deltaTime;
+					this.lastScrollTime = currentTime;
+
+					// Let virtual scroll manager handle the scroll logic first
+					this.virtualScroll.handleScroll();
+
+					// Get viewport and check if it actually changed
+					const viewport = this.virtualScroll.getViewport();
+
+					// Only re-render if viewport changed significantly AND enough time has passed
+					const viewportChanged =
+						!this.lastViewport ||
+						Math.abs(
+							this.lastViewport.startIndex - viewport.startIndex
+						) >= 2 ||
+						Math.abs(
+							this.lastViewport.endIndex - viewport.endIndex
+						) >= 2;
+
+					const timeSinceLastRender =
+						currentTime - this.lastRenderTime;
+					const shouldRender =
+						viewportChanged && timeSinceLastRender > 33; // Max 30fps for rendering
+
+					if (shouldRender) {
+						this.performRender(viewport, currentTime);
+					}
+				}
+			}
+
+			this.scrollRAF = null;
+		});
+	};
+
+	/**
+	 * Perform actual rendering with throttling
+	 */
+	private performRender(viewport: any, currentTime: number) {
+		// Cancel any pending render
+		if (this.renderThrottleRAF) {
+			cancelAnimationFrame(this.renderThrottleRAF);
+		}
+
+		this.renderThrottleRAF = requestAnimationFrame(() => {
+			// Conservative buffer adjustment
+			let bufferAdjustment = 0;
+			if (Math.abs(this.scrollVelocity) > 4) {
+				// Even higher threshold
+				bufferAdjustment = Math.min(
+					3,
+					Math.floor(Math.abs(this.scrollVelocity) / 3)
+				); // Smaller buffer
+			}
+
+			// Calculate visible range with buffer
+			let adjustedStartIndex = Math.max(
+				0,
+				viewport.startIndex - bufferAdjustment
 			);
+
+			// Special check: if we're very close to the top, force startIndex to 0
+			const currentScrollTop = this.tableWrapper.scrollTop;
+			if (currentScrollTop <= 40) {
+				// Within one row height of top
+				adjustedStartIndex = 0;
+			}
+
+			const adjustedEndIndex = Math.min(
+				this.displayedRows.length - 1,
+				viewport.endIndex + bufferAdjustment
+			);
+
+			const visibleRows = this.displayedRows.slice(
+				adjustedStartIndex,
+				adjustedEndIndex + 1
+			);
+
+			// Use the optimized renderer with row recycling
 			this.renderer.renderTable(
 				visibleRows,
 				this.selectedRows,
-				viewport.startIndex
+				adjustedStartIndex,
+				this.displayedRows.length
 			);
-		}
-	}, 16);
+
+			// Update state
+			this.lastViewport = {
+				startIndex: adjustedStartIndex,
+				endIndex: adjustedEndIndex,
+			};
+			this.lastRenderTime = currentTime;
+			this.renderThrottleRAF = null;
+		});
+	}
 
 	// Cell editing methods
 	private startCellEdit(
@@ -885,9 +992,25 @@ export class TableView extends Component {
 	}
 
 	private cleanup() {
+		// Cancel any pending scroll animation
+		if (this.scrollRAF) {
+			cancelAnimationFrame(this.scrollRAF);
+			this.scrollRAF = null;
+		}
+
+		// Cancel any pending render
+		if (this.renderThrottleRAF) {
+			cancelAnimationFrame(this.renderThrottleRAF);
+			this.renderThrottleRAF = null;
+		}
+
+		// Clear viewport cache
+		this.lastViewport = null;
+
 		this.selectedRows.clear();
-		this.editingCell = null;
 		this.displayedRows = [];
+		this.filteredTasks = [];
+		this.allTasks = [];
 	}
 
 	/**
@@ -1176,16 +1299,31 @@ export class TableView extends Component {
 	 * Handle cell change from inline editing
 	 */
 	private handleCellChange(rowId: string, columnId: string, newValue: any) {
-		const task = this.allTasks.find((t) => t.id === rowId);
-		if (!task) return;
+		const taskIndex = this.allTasks.findIndex((t) => t.id === rowId);
+		if (taskIndex === -1) {
+			return;
+		}
 
-		// Update task property
+		const task = this.allTasks[taskIndex];
+
+		// Update task property directly on the original task object
+		this.updateTaskProperty(task, columnId, newValue);
+
+		// Create a copy for the callback to maintain the existing interface
 		const updatedTask = { ...task };
-		this.updateTaskProperty(updatedTask, columnId, newValue);
 
 		// Notify task update
 		if (this.onTaskUpdated) {
 			this.onTaskUpdated(updatedTask);
+		}
+
+		// Also update the filteredTasks array if this task is in it
+		const filteredIndex = this.filteredTasks.findIndex(
+			(t) => t.id === rowId
+		);
+		if (filteredIndex !== -1) {
+			// Update the reference to point to the updated task
+			this.filteredTasks[filteredIndex] = task;
 		}
 
 		// Refresh display

@@ -239,6 +239,9 @@ export class DatePickerComponent extends Component {
 
 			const dateStr = current.format("YYYY-MM-DD");
 
+			// Store the full date string for easy comparison later
+			dayEl.setAttribute("data-date", dateStr);
+
 			// Add classes for styling
 			if (!current.isSame(firstDay, "month")) {
 				dayEl.addClass("other-month");
@@ -289,12 +292,11 @@ export class DatePickerComponent extends Component {
 
 			// Highlight selected calendar day
 			this.hostEl.querySelectorAll(".calendar-day").forEach((el) => {
-				const dayText = el.textContent;
-				if (dayText && this.state.selectedDate) {
-					const selectedMoment = moment(this.state.selectedDate);
-					if (dayText === selectedMoment.format("D")) {
-						el.addClass("selected");
-					}
+				const storedDate = (el as HTMLElement).getAttribute(
+					"data-date"
+				);
+				if (storedDate && this.state.selectedDate === storedDate) {
+					el.addClass("selected");
 				}
 			});
 		}

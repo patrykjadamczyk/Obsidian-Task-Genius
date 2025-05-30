@@ -1,4 +1,4 @@
-import { Component, debounce } from "obsidian";
+import { Component } from "obsidian";
 import { VirtualScrollCallbacks, ViewportData } from "./TableTypes";
 
 /**
@@ -16,7 +16,21 @@ export class VirtualScrollManager extends Component {
 	// Scroll handling
 	private lastScrollTop: number = 0;
 	private scrollDirection: "up" | "down" = "down";
-	private debouncedScrollHandler: () => void;
+	private scrollRAF: number | null = null;
+	private pendingScrollUpdate: boolean = false;
+
+	// Performance optimization
+	private lastLoadTriggerTime: number = 0;
+	private loadCooldown: number = 500; // Minimum 500ms between load attempts
+	private isAtBottom: boolean = false;
+	private isAtTop: boolean = true;
+	private maxScrollDelta: number = 1000; // Maximum scroll distance per frame
+	private stabilityThreshold: number = 2; // Minimum change in pixels to trigger update
+
+	// Height stability
+	private heightStabilizer: HTMLElement | null = null;
+	private stableHeight: number = 0;
+	private heightUpdateThrottle: number = 0;
 
 	constructor(
 		private containerEl: HTMLElement,
@@ -33,17 +47,13 @@ export class VirtualScrollManager extends Component {
 			totalHeight: 0,
 			scrollTop: 0,
 		};
-
-		// Create debounced scroll handler
-		this.debouncedScrollHandler = debounce(
-			this.handleScroll.bind(this),
-			16
-		);
 	}
 
 	onload() {
 		this.setupScrollContainer();
 		this.setupEventListeners();
+		this.calculateViewport();
+		this.initializeHeightStabilizer();
 	}
 
 	onunload() {
@@ -76,7 +86,7 @@ export class VirtualScrollManager extends Component {
 		this.registerDomEvent(
 			this.scrollContainer,
 			"scroll",
-			this.debouncedScrollHandler
+			this.onScroll.bind(this)
 		);
 
 		// Handle resize events
@@ -84,100 +94,261 @@ export class VirtualScrollManager extends Component {
 	}
 
 	/**
-	 * Update content and recalculate viewport
+	 * Initialize height stabilizer to prevent scrollbar jitter
+	 */
+	private initializeHeightStabilizer() {
+		// Create a transparent element that maintains consistent height
+		this.heightStabilizer = document.createElement("div");
+		this.heightStabilizer.style.cssText = `
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 1px;
+			height: ${this.totalRows * this.rowHeight}px;
+			pointer-events: none;
+			visibility: hidden;
+			z-index: -1;
+		`;
+		this.scrollContainer.appendChild(this.heightStabilizer);
+		this.stableHeight = this.totalRows * this.rowHeight;
+	}
+
+	/**
+	 * Update content and recalculate viewport with height stability
 	 */
 	public updateContent(totalRowCount: number) {
 		this.totalRows = totalRowCount;
+		this.isAtBottom = false;
+		this.isAtTop = true;
+
+		// Update stable height gradually to prevent jumps
+		const newHeight = this.totalRows * this.rowHeight;
+		if (Math.abs(newHeight - this.stableHeight) > this.rowHeight) {
+			this.updateStableHeight(newHeight);
+		}
+
 		this.calculateViewport();
 		this.updateVirtualHeight();
 	}
 
 	/**
-	 * Handle scroll events
+	 * Update stable height with throttling to prevent frequent changes
+	 */
+	private updateStableHeight(newHeight: number) {
+		const now = performance.now();
+		if (now - this.heightUpdateThrottle < 100) {
+			// Max 10 updates per second
+			return;
+		}
+
+		this.heightUpdateThrottle = now;
+		this.stableHeight = newHeight;
+
+		if (this.heightStabilizer) {
+			this.heightStabilizer.style.height = `${newHeight}px`;
+		}
+	}
+
+	/**
+	 * Handle scroll events with requestAnimationFrame
+	 */
+	private onScroll() {
+		// Set pending flag to prevent multiple RAF calls
+		if (this.pendingScrollUpdate) {
+			return;
+		}
+
+		this.pendingScrollUpdate = true;
+
+		// Cancel any existing RAF
+		if (this.scrollRAF) {
+			cancelAnimationFrame(this.scrollRAF);
+		}
+
+		// Use requestAnimationFrame for smooth updates
+		this.scrollRAF = requestAnimationFrame(() => {
+			this.handleScroll();
+			this.pendingScrollUpdate = false;
+			this.scrollRAF = null;
+		});
+	}
+
+	/**
+	 * Handle scroll logic with improved stability and reduced frequency
 	 */
 	public handleScroll() {
 		const scrollTop = this.scrollContainer.scrollTop;
 		const scrollHeight = this.scrollContainer.scrollHeight;
 		const clientHeight = this.scrollContainer.clientHeight;
 
+		// Prevent excessive scroll handling if user is scrolling too fast
+		const scrollDelta = Math.abs(scrollTop - this.lastScrollTop);
+		if (scrollDelta > this.maxScrollDelta) {
+			// Skip this frame if scrolling too fast, schedule next frame
+			this.scheduleScrollUpdate();
+			return;
+		}
+
+		// Only proceed if scroll position changed significantly
+		if (scrollDelta < this.stabilityThreshold) {
+			return; // Ignore micro-scrolling
+		}
+
+		// More precise boundary detection - aligned with startIndex calculation
+		this.isAtTop = scrollTop <= 1; // Use stricter threshold for top
+		this.isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+
 		// Update scroll direction
 		this.scrollDirection = scrollTop > this.lastScrollTop ? "down" : "up";
 		this.lastScrollTop = scrollTop;
 
-		// Update viewport
+		// Update viewport - only if it results in significant change
 		this.viewport.scrollTop = scrollTop;
-		this.calculateViewport();
+		const viewportChanged = this.calculateViewport();
 
-		// Check if we need to load more data
-		const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
-		if (
-			scrollPercentage > 0.8 &&
-			!this.isLoading &&
-			this.loadedRows < this.totalRows
-		) {
-			this.loadMoreData();
+		// Only notify callback if viewport actually changed
+		if (viewportChanged) {
+			// Throttle callback notifications to reduce render frequency
+			queueMicrotask(() => {
+				this.callbacks.onScroll(scrollTop);
+			});
 		}
 
-		// Notify callback
-		this.callbacks.onScroll(scrollTop);
+		// More conservative load trigger
+		const currentTime = performance.now();
+		const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+		const shouldLoadMore =
+			!this.isLoading &&
+			!this.isAtBottom &&
+			this.scrollDirection === "down" && // Only load when scrolling down
+			this.loadedRows < this.totalRows &&
+			scrollPercentage > 0.85 && // More conservative threshold
+			currentTime - this.lastLoadTriggerTime > this.loadCooldown;
+
+		if (shouldLoadMore) {
+			this.lastLoadTriggerTime = currentTime;
+			this.loadMoreData();
+		}
 	}
 
 	/**
-	 * Calculate visible viewport
+	 * Schedule a scroll update for the next frame
 	 */
-	private calculateViewport() {
+	private scheduleScrollUpdate() {
+		if (this.pendingScrollUpdate) return;
+
+		this.pendingScrollUpdate = true;
+		this.scrollRAF = requestAnimationFrame(() => {
+			this.handleScroll();
+			this.pendingScrollUpdate = false;
+			this.scrollRAF = null;
+		});
+	}
+
+	/**
+	 * Calculate visible viewport with improved stability
+	 */
+	private calculateViewport(): boolean {
 		const scrollTop = this.viewport.scrollTop;
 		const containerHeight = this.scrollContainer.clientHeight;
 
-		// Calculate visible row range
-		const startIndex = Math.max(
-			0,
-			Math.floor(scrollTop / this.rowHeight) - this.bufferSize
-		);
+		// Calculate visible row range with bounds checking
+		// Special handling for top boundary to prevent white space
+		let startIndex: number;
+		if (scrollTop <= this.rowHeight) {
+			// When very close to top, always start from 0 to avoid white space
+			startIndex = 0;
+		} else {
+			startIndex = Math.max(
+				0,
+				Math.floor(scrollTop / this.rowHeight) - this.bufferSize
+			);
+		}
+
 		const visibleRowCount = Math.ceil(containerHeight / this.rowHeight);
 		const endIndex = Math.min(
 			this.totalRows - 1,
 			startIndex + visibleRowCount + this.bufferSize * 2
 		);
 
-		// Update viewport
-		this.viewport.startIndex = startIndex;
-		this.viewport.endIndex = endIndex;
-		this.viewport.totalHeight = this.totalRows * this.rowHeight;
+		// Use a more significant threshold for viewport changes
+		const VIEWPORT_CHANGE_THRESHOLD = 2; // At least 2 row difference to reduce updates
+		const startIndexDiff = Math.abs(this.viewport.startIndex - startIndex);
+		const endIndexDiff = Math.abs(this.viewport.endIndex - endIndex);
 
-		// Update virtual spacer height
-		this.updateVirtualHeight();
+		const viewportChanged =
+			startIndexDiff >= VIEWPORT_CHANGE_THRESHOLD ||
+			endIndexDiff >= VIEWPORT_CHANGE_THRESHOLD;
+
+		if (viewportChanged) {
+			this.viewport.startIndex = startIndex;
+			this.viewport.endIndex = endIndex;
+			this.viewport.totalHeight = this.stableHeight; // Use stable height
+		}
+
+		return viewportChanged;
 	}
 
 	/**
-	 * Update virtual spacer height to maintain scroll position
+	 * Update virtual height using stable height reference
 	 */
 	private updateVirtualHeight() {
-		// For table view, we don't use a virtual spacer
-		// The table rows themselves provide the height
-		// This method is kept for compatibility but does nothing
+		// Use the stable height instead of recalculating
+		this.viewport.totalHeight = this.stableHeight;
 	}
 
 	/**
-	 * Load more data
+	 * Get the expected total content height
+	 */
+	public getExpectedTotalHeight(): number {
+		return this.totalRows * this.rowHeight;
+	}
+
+	/**
+	 * Check if the scroll container height needs adjustment
+	 */
+	public needsHeightAdjustment(): boolean {
+		const expectedHeight = this.getExpectedTotalHeight();
+		const currentHeight = this.scrollContainer.scrollHeight;
+		return Math.abs(currentHeight - expectedHeight) > this.rowHeight;
+	}
+
+	/**
+	 * Load more data with improved state management
 	 */
 	private loadMoreData() {
-		if (this.isLoading) return;
+		if (this.isLoading || this.isAtBottom) return;
+
+		// Don't load if we've already loaded all data
+		if (this.loadedRows >= this.totalRows) {
+			this.isLoading = false;
+			return;
+		}
 
 		this.isLoading = true;
-		this.callbacks.onLoadMore();
+
+		// Use microtask to ensure smooth scrolling
+		queueMicrotask(() => {
+			if (this.callbacks.onLoadMore) {
+				this.callbacks.onLoadMore();
+			}
+			this.loadNextBatch();
+		});
 	}
 
 	/**
-	 * Load next batch of data
+	 * Load next batch with better completion detection
 	 */
 	public loadNextBatch() {
 		const nextBatchSize = Math.min(
 			this.pageSize,
 			this.totalRows - this.loadedRows
 		);
+
 		if (nextBatchSize <= 0) {
 			this.isLoading = false;
+			this.isAtBottom = true; // Mark as bottom reached
 			return;
 		}
 
@@ -185,6 +356,11 @@ export class VirtualScrollManager extends Component {
 		setTimeout(() => {
 			this.loadedRows += nextBatchSize;
 			this.isLoading = false;
+
+			// Check if we've loaded everything
+			if (this.loadedRows >= this.totalRows) {
+				this.isAtBottom = true;
+			}
 
 			// Recalculate viewport after loading
 			this.calculateViewport();
@@ -274,13 +450,17 @@ export class VirtualScrollManager extends Component {
 	}
 
 	/**
-	 * Reset virtual scroll state
+	 * Reset virtual scroll state with improved cleanup
 	 */
 	public reset() {
 		this.totalRows = 0;
 		this.loadedRows = 0;
 		this.isLoading = false;
 		this.lastScrollTop = 0;
+		this.isAtBottom = false;
+		this.isAtTop = true;
+		this.lastLoadTriggerTime = 0;
+
 		this.viewport = {
 			startIndex: 0,
 			endIndex: 0,
@@ -323,26 +503,36 @@ export class VirtualScrollManager extends Component {
 			this.registerDomEvent(
 				this.scrollContainer,
 				"scroll",
-				this.debouncedScrollHandler
+				this.onScroll.bind(this)
 			);
 		} else {
 			this.scrollContainer.removeEventListener(
 				"scroll",
-				this.debouncedScrollHandler
+				this.onScroll.bind(this)
 			);
 		}
 	}
 
 	/**
-	 * Cleanup resources
+	 * Cleanup resources including height stabilizer
 	 */
 	private cleanup() {
+		// Cancel any pending animation frame
+		if (this.scrollRAF) {
+			cancelAnimationFrame(this.scrollRAF);
+			this.scrollRAF = null;
+		}
+
+		// Remove height stabilizer
+		if (this.heightStabilizer && this.heightStabilizer.parentNode) {
+			this.heightStabilizer.parentNode.removeChild(this.heightStabilizer);
+			this.heightStabilizer = null;
+		}
+
 		this.scrollContainer.removeEventListener(
 			"scroll",
-			this.debouncedScrollHandler
+			this.onScroll.bind(this)
 		);
 		window.removeEventListener("resize", this.handleResize.bind(this));
-
-		// No virtual spacer to remove for table view
 	}
 }

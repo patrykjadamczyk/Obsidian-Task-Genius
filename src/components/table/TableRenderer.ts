@@ -16,6 +16,11 @@ export class TableRenderer extends Component {
 	private resizeColumn: string = "";
 	private resizeStartWidth: number = 0;
 
+	// DOM节点缓存池
+	private rowPool: HTMLTableRowElement[] = [];
+	private activeRows: Map<string, HTMLTableRowElement> = new Map();
+	private eventCleanupMap: Map<HTMLElement, Array<() => void>> = new Map();
+
 	// Callback for date changes
 	public onDateChange?: (
 		rowId: string,
@@ -51,6 +56,16 @@ export class TableRenderer extends Component {
 	}
 
 	onunload() {
+		// Clean up all tracked events
+		this.eventCleanupMap.forEach((cleanupFns) => {
+			cleanupFns.forEach((fn) => fn());
+		});
+		this.eventCleanupMap.clear();
+
+		// Clear row pools
+		this.rowPool = [];
+		this.activeRows.clear();
+
 		if (this.resizeObserver) {
 			this.resizeObserver.disconnect();
 		}
@@ -104,64 +119,253 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Render the table body with rows
+	 * Render the table body with rows using improved DOM node recycling
 	 */
 	public renderTable(
 		rows: TableRow[],
 		selectedRows: Set<string>,
-		startIndex: number = 0
+		startIndex: number = 0,
+		totalRows?: number
 	) {
-		this.bodyEl.empty();
+		// Always clear empty state first if it exists
+		this.clearEmptyState();
 
 		if (rows.length === 0) {
+			this.clearAllRows();
 			this.renderEmptyState();
 			return;
 		}
 
-		// If we have a startIndex (virtual scrolling), add spacer for rows above viewport
-		if (startIndex > 0) {
-			const topSpacer = this.bodyEl.createEl(
-				"tr",
-				"virtual-scroll-spacer-top"
-			);
-			const spacerCell = topSpacer.createEl("td");
-			spacerCell.colSpan = this.columns.length;
-			spacerCell.style.height = `${startIndex * 40}px`; // Assuming 40px row height
-			spacerCell.style.padding = "0";
-			spacerCell.style.border = "none";
+		// Handle virtual scroll spacer first
+		this.updateVirtualScrollSpacer(startIndex);
+
+		// Track which row IDs are currently needed
+		const neededRowIds = new Set(rows.map((row) => row.id));
+		const currentRowElements = Array.from(
+			this.bodyEl.querySelectorAll("tr[data-row-id]")
+		);
+
+		// Step 1: Remove rows that are no longer needed
+		const rowsToRemove: string[] = [];
+		this.activeRows.forEach((rowEl, rowId) => {
+			if (!neededRowIds.has(rowId)) {
+				rowsToRemove.push(rowId);
+			}
+		});
+
+		// Return unneeded rows to pool (batch operation)
+		if (rowsToRemove.length > 0) {
+			const fragment = document.createDocumentFragment();
+			rowsToRemove.forEach((rowId) => {
+				const rowEl = this.activeRows.get(rowId);
+				if (rowEl && rowEl.parentNode) {
+					this.activeRows.delete(rowId);
+					fragment.appendChild(rowEl); // Move to fragment (removes from DOM)
+					this.returnRowToPool(rowEl);
+				}
+			});
 		}
 
+		// Step 2: Build a map of current DOM positions
+		const spacerElement = this.bodyEl.querySelector(
+			".virtual-scroll-spacer-top"
+		);
+		const targetPosition = spacerElement ? 1 : 0; // Position after spacer
+
+		// Step 3: Process each needed row
+		const rowsToInsert: { element: HTMLTableRowElement; index: number }[] =
+			[];
+
 		rows.forEach((row, index) => {
-			this.renderRow(row, selectedRows.has(row.id));
+			let rowEl = this.activeRows.get(row.id);
+			const targetIndex = targetPosition + index;
+
+			if (!rowEl) {
+				// Create new row
+				rowEl = this.getRowFromPool();
+				this.activeRows.set(row.id, rowEl);
+				this.updateRow(rowEl, row, selectedRows.has(row.id));
+				rowsToInsert.push({ element: rowEl, index: targetIndex });
+			} else {
+				// Update existing row if needed
+				if (
+					this.shouldUpdateRow(rowEl, row, selectedRows.has(row.id))
+				) {
+					this.updateRow(rowEl, row, selectedRows.has(row.id));
+				} else {
+					// Even if shouldUpdateRow returns false, we still need to check
+					// for tree-specific state changes that might not be caught
+					// This is a safety net for virtual scrolling with tree view
+					if (row.hasChildren) {
+						this.ensureTreeStateConsistency(rowEl, row);
+					}
+				}
+
+				// Check if row needs repositioning
+				const currentIndex = Array.from(this.bodyEl.children).indexOf(
+					rowEl
+				);
+				if (currentIndex !== targetIndex) {
+					rowsToInsert.push({ element: rowEl, index: targetIndex });
+				}
+			}
 		});
+
+		// Step 4: Insert/reposition rows efficiently
+		if (rowsToInsert.length > 0) {
+			// Sort by target index to insert in correct order
+			rowsToInsert.sort((a, b) => a.index - b.index);
+
+			// Use insertBefore for precise positioning
+			const children = Array.from(this.bodyEl.children);
+			rowsToInsert.forEach(({ element, index }) => {
+				const referenceNode = children[index];
+				if (referenceNode && referenceNode !== element) {
+					this.bodyEl.insertBefore(element, referenceNode);
+				} else if (!referenceNode) {
+					this.bodyEl.appendChild(element);
+				}
+			});
+		}
 	}
 
 	/**
-	 * Render a single table row
+	 * Optimized row update check - more precise
 	 */
-	private renderRow(row: TableRow, isSelected: boolean) {
-		const tr = this.bodyEl.createEl("tr", "task-table-row");
-		tr.dataset.rowId = row.id;
+	private shouldUpdateRow(
+		rowEl: HTMLTableRowElement,
+		row: TableRow,
+		isSelected: boolean
+	): boolean {
+		// Quick checks first
+		const currentRowId = rowEl.dataset.rowId;
+		if (currentRowId !== row.id) return true;
 
-		// Add tree level indentation class
+		const wasSelected = rowEl.hasClass("selected");
+		if (wasSelected !== isSelected) return true;
+
+		const currentLevel = parseInt(rowEl.dataset.level || "0");
+		if (currentLevel !== row.level) return true;
+
+		// Check expanded state for tree view
+		const currentExpanded = rowEl.dataset.expanded === "true";
+		if (currentExpanded !== row.expanded) return true;
+
+		// Check if hasChildren state changed
+		const currentHasChildren = rowEl.dataset.hasChildren === "true";
+		if (currentHasChildren !== row.hasChildren) return true;
+
+		// Check if row has the right number of cells
+		const currentCellCount = rowEl.querySelectorAll("td").length;
+		if (currentCellCount !== row.cells.length) return true;
+
+		// Check if cell contents have changed by comparing display values
+		const currentCells = rowEl.querySelectorAll("td");
+		for (let i = 0; i < row.cells.length; i++) {
+			const cell = row.cells[i];
+			const currentCell = currentCells[i];
+
+			if (!currentCell) return true; // Cell missing
+
+			// For editable text cells, check the actual content
+			if (
+				cell.editable &&
+				(cell.columnId === "content" ||
+					cell.columnId === "project" ||
+					cell.columnId === "context")
+			) {
+				const input = currentCell.querySelector("input");
+				const currentValue = input
+					? input.value
+					: currentCell.textContent || "";
+				const newValue = cell.displayValue || "";
+				if (currentValue.trim() !== newValue.trim()) {
+					return true;
+				}
+			}
+			// For tags cells, compare array content
+			else if (cell.columnId === "tags") {
+				const newTags = Array.isArray(cell.value) ? cell.value : [];
+				const currentTagsText = currentCell.textContent || "";
+				const expectedTagsText = newTags.join(", ");
+				if (currentTagsText.trim() !== expectedTagsText.trim()) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Get a row element from the pool or create a new one
+	 */
+	private getRowFromPool(): HTMLTableRowElement {
+		let rowEl = this.rowPool.pop();
+		if (!rowEl) {
+			rowEl = document.createElement("tr");
+			rowEl.addClass("task-table-row");
+		}
+		return rowEl;
+	}
+
+	/**
+	 * Return a row element to the pool for reuse
+	 */
+	private returnRowToPool(rowEl: HTMLTableRowElement) {
+		// Clean up event listeners
+		this.cleanupRowEvents(rowEl);
+
+		// Clear row content and attributes
+		rowEl.empty();
+		rowEl.className = "task-table-row";
+		rowEl.removeAttribute("data-row-id");
+		rowEl.removeAttribute("data-level");
+		rowEl.removeAttribute("data-expanded");
+		rowEl.removeAttribute("data-has-children");
+
+		// Add to pool if not too many
+		if (this.rowPool.length < 100) {
+			// Keep max 100 rows in pool
+			this.rowPool.push(rowEl);
+		} else {
+			// Remove from DOM completely
+			rowEl.remove();
+		}
+	}
+
+	/**
+	 * Update a row element with new data
+	 */
+	private updateRow(
+		rowEl: HTMLTableRowElement,
+		row: TableRow,
+		isSelected: boolean
+	) {
+		// Clean up previous events for this row
+		this.cleanupRowEvents(rowEl);
+
+		// Clear and set basic attributes
+		rowEl.empty();
+		rowEl.dataset.rowId = row.id;
+		rowEl.dataset.level = row.level.toString();
+		rowEl.dataset.expanded = row.expanded.toString();
+		rowEl.dataset.hasChildren = row.hasChildren.toString();
+
+		// Update classes
+		rowEl.className = "task-table-row";
 		if (row.level > 0) {
-			tr.addClass(`task-table-row-level-${row.level}`);
-			tr.addClass("task-table-subtask");
+			rowEl.addClass(`task-table-row-level-${row.level}`);
+			rowEl.addClass("task-table-subtask");
 		}
-
-		// Add parent/child relationship classes
 		if (row.hasChildren) {
-			tr.addClass("task-table-parent");
+			rowEl.addClass("task-table-parent");
 		}
-
-		// Add selection state
 		if (isSelected) {
-			tr.addClass("selected");
+			rowEl.addClass("selected");
 		}
-
-		// Add custom row class if provided
 		if (row.className) {
-			tr.addClass(row.className);
+			rowEl.addClass(row.className);
 		}
 
 		// Render cells
@@ -169,7 +373,7 @@ export class TableRenderer extends Component {
 			const column = this.columns[index];
 			if (!column) return;
 
-			const td = tr.createEl("td", "task-table-cell");
+			const td = rowEl.createEl("td", "task-table-cell");
 			td.dataset.columnId = cell.columnId;
 			td.dataset.rowId = row.id;
 
@@ -177,30 +381,125 @@ export class TableRenderer extends Component {
 			td.style.width = `${column.width}px`;
 			td.style.minWidth = `${Math.min(column.width, 50)}px`;
 
-			// Enhanced tree indentation for content column
+			// Render content based on column type
 			if (column.id === "rowNumber") {
 				this.renderTreeStructure(td, row, cell, column);
 			} else {
-				// For non-content columns, add subtle indentation for subtasks
 				if (row.level > 0) {
 					td.addClass("task-table-subtask-cell");
 					td.style.opacity = "0.9";
 				}
-
-				// Render cell content based on type
 				this.renderCellContent(td, cell, column);
 			}
 
-			// Add custom cell class if provided
 			if (cell.className) {
 				td.addClass(cell.className);
 			}
-
-			// Set text alignment
 			if (column.align) {
 				td.style.textAlign = column.align;
 			}
 		});
+	}
+
+	/**
+	 * Update virtual scroll spacer - simplified to only handle top spacer
+	 */
+	private updateVirtualScrollSpacer(startIndex: number) {
+		// Always clear existing spacers first
+		this.clearVirtualSpacers();
+
+		// Only create spacer if we're truly scrolled down (not just at the edge)
+		if (startIndex <= 0) {
+			return; // No spacers needed when at or near the top
+		}
+
+		// Create top spacer for rows above viewport
+		const topSpacer = this.bodyEl.createEl(
+			"tr",
+			"virtual-scroll-spacer-top"
+		);
+		const topSpacerCell = topSpacer.createEl("td");
+		topSpacerCell.colSpan = this.columns.length;
+		topSpacerCell.style.cssText = `
+			height: ${startIndex * 40}px;
+			padding: 0;
+			margin: 0;
+			border: none;
+			background: transparent;
+			border-collapse: collapse;
+			line-height: 0;
+		`;
+
+		// Insert at the very beginning
+		this.bodyEl.insertBefore(topSpacer, this.bodyEl.firstChild);
+	}
+
+	/**
+	 * Clear existing virtual spacers
+	 */
+	private clearVirtualSpacers() {
+		const spacers = this.bodyEl.querySelectorAll(
+			".virtual-scroll-spacer-top, .virtual-scroll-spacer-bottom"
+		);
+		spacers.forEach((spacer) => spacer.remove());
+	}
+
+	/**
+	 * Clear all rows and return them to pool
+	 */
+	private clearAllRows() {
+		this.activeRows.forEach((rowEl) => {
+			this.returnRowToPool(rowEl);
+		});
+		this.activeRows.clear();
+		this.bodyEl.empty();
+	}
+
+	/**
+	 * Clean up event listeners for a row
+	 */
+	private cleanupRowEvents(element: HTMLElement) {
+		const cleanupFns = this.eventCleanupMap.get(element);
+		if (cleanupFns) {
+			cleanupFns.forEach((fn) => fn());
+			this.eventCleanupMap.delete(element);
+		}
+
+		// Also clean up child elements
+		element.querySelectorAll("*").forEach((child) => {
+			const childCleanup = this.eventCleanupMap.get(child as HTMLElement);
+			if (childCleanup) {
+				childCleanup.forEach((fn) => fn());
+				this.eventCleanupMap.delete(child as HTMLElement);
+			}
+		});
+	}
+
+	/**
+	 * Override registerDomEvent to track cleanup functions
+	 */
+	registerDomEvent<K extends keyof HTMLElementEventMap>(
+		el: HTMLElement | Document | Window,
+		type: K,
+		callback: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
+		options?: boolean | AddEventListenerOptions
+	): void {
+		// Call the appropriate overload based on the element type
+		if (el instanceof Window) {
+			super.registerDomEvent(el, type as any, callback as any, options);
+		} else if (el instanceof Document) {
+			super.registerDomEvent(el, type as any, callback as any, options);
+		} else {
+			super.registerDomEvent(el, type, callback, options);
+
+			// Track cleanup for HTMLElements only
+			if (!this.eventCleanupMap.has(el)) {
+				this.eventCleanupMap.set(el, []);
+			}
+			this.eventCleanupMap.get(el)!.push(() => {
+				el.removeEventListener(type, callback as any, options);
+			});
+		}
 	}
 
 	/**
@@ -607,10 +906,16 @@ export class TableRenderer extends Component {
 
 		if (!rowId) return;
 
-		// Get current date value
-		const currentDate = cell.value
-			? new Date(cell.value as number).toISOString().split("T")[0]
-			: undefined;
+		// Get current date value - fix timezone offset issue
+		let currentDate: string | undefined;
+		if (cell.value) {
+			const date = new Date(cell.value as number);
+			// Use local date methods to avoid timezone offset
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			currentDate = `${year}-${month}-${day}`;
+		}
 
 		// Create date picker popover
 		const popover = new DatePickerPopover(
@@ -749,8 +1054,11 @@ export class TableRenderer extends Component {
 			input.style.padding = "0";
 			input.style.font = "inherit";
 
-			// Store initial value for comparison
-			const originalValue = displayText;
+			// Store initial value for comparison - should match what's shown in the input
+			// For content column, use the cleaned text; for others, use the raw value
+			const originalValue = isContentColumn
+				? displayText // This is the cleaned text that user sees and edits
+				: (cell.value as string) || "";
 
 			// Add auto-suggest for project and context fields
 			if (cell.columnId === "project" && this.app) {
@@ -764,9 +1072,6 @@ export class TableRenderer extends Component {
 			// Handle blur event to save changes
 			this.registerDomEvent(input, "blur", () => {
 				const newValue = input.value.trim();
-
-				console.log("newValue", newValue);
-				console.log("originalValue", originalValue);
 
 				// Only save if value actually changed
 				if (originalValue !== newValue) {
@@ -1050,6 +1355,50 @@ export class TableRenderer extends Component {
 			// The caller should have already verified the value has changed
 			// This method now assumes a change is needed
 			this.onCellChange(rowId, cell.columnId, newValue);
+		}
+	}
+
+	/**
+	 * Clear empty state element if it exists
+	 */
+	private clearEmptyState() {
+		const emptyRow = this.bodyEl.querySelector(".task-table-empty-row");
+		if (emptyRow) {
+			emptyRow.remove();
+		}
+	}
+
+	/**
+	 * Ensure tree state consistency - check and update expansion button states
+	 */
+	private ensureTreeStateConsistency(
+		rowEl: HTMLTableRowElement,
+		row: TableRow
+	) {
+		// Find the expansion button in the row
+		const expandBtn = rowEl.querySelector(
+			".task-table-expand-btn"
+		) as HTMLElement;
+
+		if (expandBtn && row.hasChildren) {
+			// Simple check: just update the icon to ensure it's correct
+			// This is safer than trying to detect the current state
+			const expectedIcon = row.expanded
+				? "chevron-down"
+				: "chevron-right";
+
+			// Always update the icon to ensure consistency
+			expandBtn.empty();
+			setIcon(expandBtn, expectedIcon);
+
+			// Update tooltip text
+			expandBtn.title = row.expanded
+				? row.level > 0
+					? t("Collapse")
+					: t("Collapse subtasks")
+				: row.level > 0
+				? t("Expand")
+				: t("Expand subtasks");
 		}
 	}
 }
