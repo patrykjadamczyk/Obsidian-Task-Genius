@@ -317,6 +317,7 @@ export interface AutoDateManagerSettings {
 export interface SortCriterion {
 	field:
 		| "status"
+		| "completed"
 		| "priority"
 		| "dueDate"
 		| "startDate"
@@ -798,7 +799,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				showRowNumbers: true,
 				enableRowSelection: true,
 				enableMultiSelect: true,
-				defaultSortField: "priority",
+				defaultSortField: "",
 				defaultSortOrder: "asc",
 			} as TableSpecificConfig,
 		},
@@ -863,6 +864,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	sortTasks: true, // Default to enabled
 	sortCriteria: [
 		// Default sorting criteria
+		{ field: "completed", order: "asc" }, // 未完成任务优先 (false < true)
 		{ field: "status", order: "asc" },
 		{ field: "priority", order: "asc" },
 		{ field: "dueDate", order: "asc" },

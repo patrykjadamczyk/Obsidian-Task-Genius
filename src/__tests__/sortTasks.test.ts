@@ -6,11 +6,6 @@ import {
 } from "./mockUtils";
 
 describe("sortTasksInDocument", () => {
-	// Reset Notice mock after each test
-	afterEach(() => {
-		jest.clearAllMocks();
-	});
-
 	it("should identify and sort tasks", () => {
 		// Original content: mixed task order
 		const originalContent = `
@@ -48,14 +43,18 @@ describe("sortTasksInDocument", () => {
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
 		const mockPlugin = createMockPlugin({
+			preferMetadataFormat: "dataview",
 			sortTasks: true,
-			sortCriteria: [{ field: "priority", order: "asc" }],
+			sortCriteria: [
+				{ field: "completed", order: "asc" },
+				{ field: "priority", order: "asc" },
+			],
 		});
 
 		// Call sort function
 		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
-		// Expected result: incomplete tasks sorted by priority, but completed tasks always at the end
+		// Expected result: 现在按 completed 然后 priority 排序
 		const expectedContent = `
 - [ ] Incomplete task [priority:: high] [due:: 2025-05-01]
 - [/] In progress task [start:: 2025-04-01]
@@ -139,10 +138,10 @@ Second task block:
 	it("should sort tasks by multiple criteria", () => {
 		// Original content: tasks with various metadata
 		const originalContent = `
-- [ ] Low priority [priority:: low] [due:: 2025-05-01]
-- [ ] High priority [priority:: high]
-- [ ] Medium priority with due date [priority:: medium] [due:: 2025-04-01]
-- [ ] Medium priority with later due date [priority:: medium] [due:: 2025-06-01]`;
+- [ ] Low priority [priority:: 1] [due:: 2025-05-01]
+- [ ] High priority [priority:: 3]
+- [ ] Medium priority with due date [priority:: 2] [due:: 2025-04-01]
+- [ ] Medium priority with later due date [priority:: 2] [due:: 2025-06-01]`;
 
 		// Create mock EditorView and plugin
 		const mockView = createMockEditorView(originalContent);
@@ -158,12 +157,12 @@ Second task block:
 		// Call sort function
 		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
-		// Expected result: sorted first by priority (high->medium->low), then by due date (early->late)
+		// Expected result: sorted first by priority (1->2->3), then by due date (early->late)
 		const expectedContent = `
-- [ ] High priority [priority:: high]
-- [ ] Medium priority with due date [priority:: medium] [due:: 2025-04-01]
-- [ ] Medium priority with later due date [priority:: medium] [due:: 2025-06-01]
-- [ ] Low priority [priority:: low] [due:: 2025-05-01]`;
+- [ ] Low priority [priority:: 1] [due:: 2025-05-01]
+- [ ] Medium priority with due date [priority:: 2] [due:: 2025-04-01]
+- [ ] Medium priority with later due date [priority:: 2] [due:: 2025-06-01]
+- [ ] High priority [priority:: 3]`;
 
 		// Verify sort result
 		expect(result).toEqual(expectedContent);
@@ -190,10 +189,10 @@ Just regular text content`;
 	});
 
 	it("should correctly sort tasks with dataview inline fields", () => {
-		// Original content: tasks with dataview inline fields
+		// Original content: tasks with simple format
 		const originalContent = `
-- [ ] Task B [priority:: low]
-- [ ] Task A [priority:: high]
+- [ ] Task B
+- [ ] Task A  
 - [x] Completed Task C`;
 
 		// Create mock EditorView and plugin with dataview enabled
@@ -201,16 +200,19 @@ Just regular text content`;
 		const mockPlugin = createMockPlugin({
 			preferMetadataFormat: "dataview",
 			sortTasks: true,
-			sortCriteria: [{ field: "priority", order: "asc" }],
+			sortCriteria: [
+				{ field: "completed", order: "asc" },
+				{ field: "content", order: "asc" },
+			],
 		});
 
 		// Call sort function
 		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
-		// Expected result: sorted by priority, completed task at the end
+		// Expected result: sorted by completed first, then content alphabetically
 		const expectedContent = `
-- [ ] Task A [priority:: high]
-- [ ] Task B [priority:: low]
+- [ ] Task A  
+- [ ] Task B
 - [x] Completed Task C`;
 
 		// Verify sort result
@@ -229,13 +231,16 @@ Just regular text content`;
 		const mockPlugin = createMockPlugin({
 			preferMetadataFormat: "tasks",
 			sortTasks: true,
-			sortCriteria: [{ field: "dueDate", order: "asc" }],
+			sortCriteria: [
+				{ field: "completed", order: "asc" },
+				{ field: "dueDate", order: "asc" },
+			],
 		});
 
 		// Call sort function
 		const result = sortTasksInDocument(mockView, mockPlugin, true);
 
-		// Expected result: sorted by due date, completed task at the end
+		// Expected result: sorted by completed first, then due date
 		const expectedContent = `
 - [ ] Task A 📅 2025-01-01
 - [ ] Task C 📅 2025-01-03

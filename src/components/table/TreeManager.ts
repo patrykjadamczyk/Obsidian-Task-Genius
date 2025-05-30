@@ -1,6 +1,8 @@
 import { Component } from "obsidian";
 import { Task } from "../../types/task";
 import { TreeNode, TableRow, TableCell, TableColumn } from "./TableTypes";
+import { SortCriterion } from "../../common/setting-definition";
+import { sortTasks } from "../../commands/sortTaskCommands";
 import { t } from "../../translations/helper";
 
 /**
@@ -10,10 +12,14 @@ export class TreeManager extends Component {
 	private expandedNodes: Set<string> = new Set();
 	private treeNodes: Map<string, TreeNode> = new Map();
 	private columns: TableColumn[] = [];
+	private currentSortField: string = "";
+	private currentSortOrder: "asc" | "desc" = "asc";
+	private pluginSettings: any; // Plugin settings for sorting
 
-	constructor(columns: TableColumn[]) {
+	constructor(columns: TableColumn[], pluginSettings?: any) {
 		super();
 		this.columns = columns;
+		this.pluginSettings = pluginSettings;
 	}
 
 	onload() {
@@ -32,9 +38,21 @@ export class TreeManager extends Component {
 	}
 
 	/**
-	 * Build tree structure from flat task list
+	 * Build tree structure from flat task list with sorting support
 	 */
-	public buildTreeRows(tasks: Task[]): TableRow[] {
+	public buildTreeRows(
+		tasks: Task[],
+		sortField?: string,
+		sortOrder?: "asc" | "desc"
+	): TableRow[] {
+		// Update sort parameters if provided
+		if (sortField !== undefined) {
+			this.currentSortField = sortField;
+		}
+		if (sortOrder !== undefined) {
+			this.currentSortOrder = sortOrder;
+		}
+
 		// First, build the tree structure
 		const rootNodes = this.buildTreeStructure(tasks);
 
@@ -90,7 +108,7 @@ export class TreeManager extends Component {
 		// Calculate levels
 		this.calculateLevels(rootNodes, 0);
 
-		// Sort children by some criteria (e.g., creation order, priority)
+		// Sort tree nodes recursively using centralized sorting function
 		this.sortTreeNodes(rootNodes);
 
 		return rootNodes;
@@ -109,29 +127,75 @@ export class TreeManager extends Component {
 	}
 
 	/**
-	 * Sort tree nodes recursively
+	 * Sort tree nodes recursively using centralized sorting function
 	 */
 	private sortTreeNodes(nodes: TreeNode[]) {
-		// Sort by priority first, then by creation date
-		nodes.sort((a, b) => {
-			// Priority comparison (higher priority first)
-			const aPriority = a.task.priority || 999;
-			const bPriority = b.task.priority || 999;
-			if (aPriority !== bPriority) {
-				return aPriority - bPriority;
-			}
+		if (nodes.length === 0) return;
 
-			// Creation date comparison (newer first)
-			const aCreated = a.task.createdDate || 0;
-			const bCreated = b.task.createdDate || 0;
-			return bCreated - aCreated;
+		// Extract tasks from nodes for sorting
+		const tasks = nodes.map((node) => node.task);
+
+		// Apply sorting using centralized function
+		let sortedTasks: Task[];
+		if (!this.currentSortField || !this.pluginSettings) {
+			// Default sorting: priority desc, then creation date desc
+			const defaultCriteria: SortCriterion[] = [
+				{ field: "priority", order: "desc" },
+				{ field: "createdDate", order: "desc" },
+			];
+			sortedTasks = this.pluginSettings
+				? sortTasks(tasks, defaultCriteria, this.pluginSettings)
+				: this.fallbackSort(tasks);
+		} else {
+			// Apply the specified sorting
+			const sortCriteria: SortCriterion[] = [
+				{
+					field: this.currentSortField as any,
+					order: this.currentSortOrder,
+				},
+			];
+			sortedTasks = sortTasks(tasks, sortCriteria, this.pluginSettings);
+		}
+
+		// Reorder nodes based on sorted tasks
+		const taskToNodeMap = new Map<string, TreeNode>();
+		nodes.forEach((node) => {
+			taskToNodeMap.set(node.task.id, node);
 		});
 
-		// Recursively sort children
+		// Clear the original nodes array and repopulate with sorted order
+		nodes.length = 0;
+		sortedTasks.forEach((task) => {
+			const node = taskToNodeMap.get(task.id);
+			if (node) {
+				nodes.push(node);
+			}
+		});
+
+		// Recursively sort children with the same criteria
 		nodes.forEach((node) => {
 			if (node.children.length > 0) {
 				this.sortTreeNodes(node.children);
 			}
+		});
+	}
+
+	/**
+	 * Fallback sorting when plugin settings are not available
+	 */
+	private fallbackSort(tasks: Task[]): Task[] {
+		return [...tasks].sort((a, b) => {
+			// Priority comparison (higher priority first)
+			const aPriority = a.priority || 0;
+			const bPriority = b.priority || 0;
+			if (aPriority !== bPriority) {
+				return bPriority - aPriority; // Higher priority first
+			}
+
+			// Creation date comparison (newer first)
+			const aCreated = a.createdDate || 0;
+			const bCreated = b.createdDate || 0;
+			return bCreated - aCreated;
 		});
 	}
 
@@ -415,9 +479,11 @@ export class TreeManager extends Component {
 	private formatPriority(priority?: number): string {
 		if (!priority) return "";
 		const priorityMap: Record<number, string> = {
-			1: t("High"),
-			2: t("Medium"),
-			3: t("Low"),
+			5: t("Highest"),
+			4: t("High"),
+			3: t("Medium"),
+			2: t("Low"),
+			1: t("Lowest"),
 		};
 		return priorityMap[priority] || priority.toString();
 	}

@@ -282,7 +282,22 @@ const createMockTransaction = (options: {
 // Mock App Object - Consolidated version
 const createMockApp = (): App => {
 	const app = new App();
-	// Add any other necessary App mocks here if needed for tests
+
+	// Add workspace mock
+	app.workspace = {
+		getActiveFile: jest.fn(() => ({
+			path: "test.md",
+			name: "test.md",
+		})),
+	} as any;
+
+	// Add metadataCache mock
+	app.metadataCache = {
+		getFileCache: jest.fn(() => ({
+			headings: [],
+		})),
+	} as any;
+
 	return app;
 };
 

@@ -287,11 +287,6 @@ function compareTasks<
 	criteria: SortCriterion[],
 	statusOrder: { [key: string]: number }
 ): number {
-	// First, completed tasks always come last
-	if (taskA.completed !== taskB.completed) {
-		return taskA.completed ? 1 : -1;
-	}
-
 	// 初始化Collator用于文本排序优化
 	const sortCollator = new Intl.Collator(undefined, {
 		usage: "sort",
@@ -322,6 +317,21 @@ function compareTasks<
 			}
 		},
 
+		completed: (a: T, b: T, order: "asc" | "desc") => {
+			// Completed status comparison
+			const aCompleted = a.completed || false;
+			const bCompleted = b.completed || false;
+
+			if (aCompleted === bCompleted) {
+				return 0; // Both have same completion status
+			}
+
+			// For asc: incomplete tasks first (false < true)
+			// For desc: completed tasks first (true > false)
+			const comparison = aCompleted ? 1 : -1;
+			return order === "asc" ? comparison : -comparison;
+		},
+
 		priority: (a: T, b: T, order: "asc" | "desc") => {
 			// Priority comparison: higher number means higher priority (1=Lowest, 5=Highest)
 			const valA = a.priority; // Use undefined/null directly
@@ -346,6 +356,8 @@ function compareTasks<
 				// For desc: 5, 4, 3, 2, 1 (High to Low)
 				comparison = valA - valB;
 			}
+
+			console.log("priority", valA, valB, comparison, order);
 
 			return order === "asc" ? comparison : -comparison;
 		},

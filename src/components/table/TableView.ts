@@ -1,6 +1,9 @@
 import { Component, App, debounce } from "obsidian";
 import { Task } from "../../types/task";
-import { TableSpecificConfig } from "../../common/setting-definition";
+import {
+	TableSpecificConfig,
+	SortCriterion,
+} from "../../common/setting-definition";
 import TaskProgressBarPlugin from "../../index";
 import { t } from "../../translations/helper";
 import { TableColumn, TableRow, TableCell } from "./TableTypes";
@@ -9,6 +12,7 @@ import { TableEditor } from "./TableEditor";
 import { TreeManager } from "./TreeManager";
 import { VirtualScrollManager } from "./VirtualScrollManager";
 import { TableHeader, TableHeaderCallbacks } from "./TableHeader";
+import { sortTasks } from "../../commands/sortTaskCommands";
 import "../../styles/table.css";
 
 export interface TableViewCallbacks {
@@ -325,7 +329,10 @@ export class TableView extends Component {
 
 		// Initialize tree manager if tree view is enabled
 		if (this.config.enableTreeView) {
-			this.treeManager = new TreeManager(this.columns);
+			this.treeManager = new TreeManager(
+				this.columns,
+				this.plugin.settings
+			);
 			this.addChild(this.treeManager);
 		}
 
@@ -393,121 +400,23 @@ export class TableView extends Component {
 		// Apply any additional filters here if needed
 		this.filteredTasks = [...this.allTasks];
 
-		// Sort tasks
+		// Sort tasks using the centralized sorting function
 		if (this.currentSortField) {
-			this.sortTasks(this.currentSortField, this.currentSortOrder);
-		}
-	}
+			const sortCriteria: SortCriterion[] = [
+				{
+					field: this.currentSortField as SortCriterion["field"],
+					order: this.currentSortOrder,
+				},
+			];
+			this.filteredTasks = sortTasks(
+				this.filteredTasks,
+				sortCriteria,
+				this.plugin.settings
+			);
 
-	/**
-	 * Sort tasks by the specified field and order using simple sorting logic
-	 */
-	private sortTasks(field: string, order: "asc" | "desc") {
-		this.filteredTasks.sort((a, b) => {
-			let aValue = this.getTaskFieldValue(a, field);
-			let bValue = this.getTaskFieldValue(b, field);
+			console.log("sort tasks", this.filteredTasks, sortCriteria);
 
-			// Handle null/undefined values
-			if (aValue == null && bValue == null) return 0;
-			if (aValue == null) return order === "asc" ? 1 : -1;
-			if (bValue == null) return order === "asc" ? -1 : 1;
-
-			// Special handling for priority (larger number = higher priority: 5>4>3>2>1)
-			if (field === "priority") {
-				const priorityA =
-					typeof aValue === "number" && aValue > 0 ? aValue : 0; // No priority = 0 (lowest)
-				const priorityB =
-					typeof bValue === "number" && bValue > 0 ? bValue : 0; // No priority = 0 (lowest)
-				const comparison = priorityB - priorityA; // For asc: 5-4-3-2-1-0 (High to Low to None)
-
-				console.log(
-					"priority comparison",
-					comparison,
-					priorityA,
-					priorityB,
-					field
-				);
-				return order === "asc" ? comparison : -comparison;
-			}
-
-			// Special handling for dates (overdue tasks first when ascending)
-			if (
-				field === "dueDate" ||
-				field === "startDate" ||
-				field === "scheduledDate"
-			) {
-				if (typeof aValue === "number" && typeof bValue === "number") {
-					const now = Date.now();
-					const aIsOverdue = aValue < now;
-					const bIsOverdue = bValue < now;
-
-					if (aIsOverdue && bIsOverdue) {
-						// Both overdue - older dates first
-						return aValue - bValue;
-					} else if (aIsOverdue && !bIsOverdue) {
-						// A is overdue, B is not - A comes first
-						return -1;
-					} else if (!aIsOverdue && bIsOverdue) {
-						// B is overdue, A is not - B comes first
-						return 1;
-					} else {
-						// Both future dates - normal comparison
-						const comparison = aValue - bValue;
-						return order === "asc" ? comparison : -comparison;
-					}
-				}
-			}
-
-			// Default comparison
-			let comparison = 0;
-			if (typeof aValue === "string" && typeof bValue === "string") {
-				comparison = aValue.localeCompare(bValue);
-			} else if (
-				typeof aValue === "number" &&
-				typeof bValue === "number"
-			) {
-				comparison = aValue - bValue;
-			} else {
-				comparison = String(aValue).localeCompare(String(bValue));
-			}
-
-			return order === "asc" ? comparison : -comparison;
-		});
-	}
-
-	/**
-	 * Get the value of a specific field from a task
-	 */
-	private getTaskFieldValue(task: Task, field: string): any {
-		switch (field) {
-			case "status":
-				return task.status;
-			case "content":
-				return task.content;
-			case "priority":
-				return task.priority; // Keep undefined as undefined, don't convert to 0
-			case "dueDate":
-				return task.dueDate;
-			case "startDate":
-				return task.startDate;
-			case "scheduledDate":
-				return task.scheduledDate;
-			case "createdDate":
-				return task.createdDate;
-			case "completedDate":
-				return task.completedDate;
-			case "tags":
-				return task.tags?.join(", ") || "";
-			case "project":
-				return task.project || "";
-			case "context":
-				return task.context || "";
-			case "recurrence":
-				return task.recurrence || "";
-			case "filePath":
-				return task.filePath;
-			default:
-				return "";
+			console.log(this.filteredTasks);
 		}
 	}
 
@@ -517,13 +426,19 @@ export class TableView extends Component {
 	private refreshDisplay() {
 		// Ensure tree manager is initialized if we're in tree view
 		if (this.isTreeView && !this.treeManager) {
-			this.treeManager = new TreeManager(this.columns);
+			this.treeManager = new TreeManager(
+				this.columns,
+				this.plugin.settings
+			);
 			this.addChild(this.treeManager);
 		}
 
 		if (this.isTreeView && this.treeManager) {
+			// Pass current sort parameters to tree manager
 			this.displayedRows = this.treeManager.buildTreeRows(
-				this.filteredTasks
+				this.filteredTasks,
+				this.currentSortField,
+				this.currentSortOrder
 			);
 		} else {
 			this.displayedRows = this.buildFlatRows(this.filteredTasks);
@@ -784,8 +699,9 @@ export class TableView extends Component {
 			return;
 		}
 
-		// Cycle through: asc -> desc -> no sort
+		// Handle sorting logic
 		if (this.currentSortField === columnId) {
+			// Same column clicked - cycle through: asc -> desc -> no sort
 			if (this.currentSortOrder === "asc") {
 				this.currentSortOrder = "desc";
 			} else if (this.currentSortOrder === "desc") {
@@ -794,6 +710,7 @@ export class TableView extends Component {
 				this.currentSortOrder = "asc";
 			}
 		} else {
+			// Different column clicked - clear previous sorting and start with asc
 			this.currentSortField = columnId;
 			this.currentSortOrder = "asc";
 		}

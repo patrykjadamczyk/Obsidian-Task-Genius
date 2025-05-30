@@ -649,7 +649,7 @@ export class TableRenderer extends Component {
 
 		// Build a map of unique mark -> status name to avoid duplicates
 		for (const status of Object.keys(statusMarks)) {
-			const mark = statusMarks[status as keyof typeof statusMarks];
+			const mark = statusMarks[status];
 			// If this mark is not already in the map, add it
 			// This ensures each mark appears only once in the menu
 			if (!Array.from(uniqueStatuses.values()).includes(mark)) {

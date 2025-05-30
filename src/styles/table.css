@@ -185,6 +185,10 @@
 	padding-left: 0;
 }
 
+.task-table-row.task-table-subtask {
+	background-color: var(--background-secondary);
+}
+
 .task-table-expand-btn {
 	cursor: pointer;
 	user-select: none;
