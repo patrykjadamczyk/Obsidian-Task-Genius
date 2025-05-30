@@ -647,17 +647,22 @@ export class TableRenderer extends Component {
 				"task-table-tags-input"
 			);
 			input.type = "text";
-			input.value = tags?.join(", ") || "";
+			const initialValue = tags?.join(", ") || "";
+			input.value = initialValue;
 			input.style.border = "none";
 			input.style.background = "transparent";
 			input.style.width = "100%";
 			input.style.padding = "0";
 			input.style.font = "inherit";
 
+			// Store initial value for comparison
+			const originalTags = [...(tags || [])];
+
+			// Auto focus the input when it's created
+
 			// Add auto-suggest for tags
 			if (this.app) {
 				const allTags = this.getAllValues("tags");
-				console.log(allTags);
 				new TagSuggest(this.app, input, this.plugin!);
 			}
 
@@ -670,7 +675,11 @@ export class TableRenderer extends Component {
 							.map((tag) => tag.trim())
 							.filter((tag) => tag.length > 0)
 					: [];
-				this.saveCellValue(cellEl, cell, newTags);
+
+				// Only save if tags actually changed
+				if (!this.arraysEqual(originalTags, newTags)) {
+					this.saveCellValue(cellEl, cell, newTags);
+				}
 			});
 
 			// Handle Enter key to save and exit
@@ -685,6 +694,10 @@ export class TableRenderer extends Component {
 			// Stop click propagation
 			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
+
+				setTimeout(() => {
+					input.focus();
+				}, 0);
 			});
 		} else {
 			// Display tags as chips
@@ -736,6 +749,9 @@ export class TableRenderer extends Component {
 			input.style.padding = "0";
 			input.style.font = "inherit";
 
+			// Store initial value for comparison
+			const originalValue = displayText;
+
 			// Add auto-suggest for project and context fields
 			if (cell.columnId === "project" && this.app) {
 				new ProjectSuggest(this.app, input, this.plugin);
@@ -748,7 +764,14 @@ export class TableRenderer extends Component {
 			// Handle blur event to save changes
 			this.registerDomEvent(input, "blur", () => {
 				const newValue = input.value.trim();
-				this.saveCellValue(cellEl, cell, newValue);
+
+				console.log("newValue", newValue);
+				console.log("originalValue", originalValue);
+
+				// Only save if value actually changed
+				if (originalValue !== newValue) {
+					this.saveCellValue(cellEl, cell, newValue);
+				}
 			});
 
 			// Handle Enter key to save and exit
@@ -764,6 +787,11 @@ export class TableRenderer extends Component {
 			// Stop click propagation to prevent row selection
 			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
+
+				// Auto focus the input when it's created
+				setTimeout(() => {
+					input.focus();
+				}, 0);
 			});
 		} else {
 			cellEl.textContent = displayText;
@@ -999,22 +1027,29 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Save cell value helper
+	 * Helper method to compare two arrays for equality
+	 */
+	private arraysEqual(arr1: string[], arr2: string[]): boolean {
+		if (arr1.length !== arr2.length) {
+			return false;
+		}
+
+		// Sort both arrays for comparison to ignore order differences
+		const sorted1 = [...arr1].sort();
+		const sorted2 = [...arr2].sort();
+
+		return sorted1.every((value, index) => value === sorted2[index]);
+	}
+
+	/**
+	 * Save cell value helper - now with improved change detection
 	 */
 	private saveCellValue(cellEl: HTMLElement, cell: TableCell, newValue: any) {
 		const rowId = cellEl.dataset.rowId;
 		if (rowId && this.onCellChange) {
-			// Only save if value actually changed
-			const currentValue = Array.isArray(cell.value)
-				? cell.value.join(", ")
-				: cell.displayValue;
-			const newValueStr = Array.isArray(newValue)
-				? newValue.join(", ")
-				: String(newValue);
-
-			if (currentValue !== newValueStr) {
-				this.onCellChange(rowId, cell.columnId, newValue);
-			}
+			// The caller should have already verified the value has changed
+			// This method now assumes a change is needed
+			this.onCellChange(rowId, cell.columnId, newValue);
 		}
 	}
 }
