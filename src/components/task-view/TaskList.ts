@@ -14,6 +14,7 @@ export class TaskListRendererComponent extends Component {
 	// Event handlers to be set by the parent component
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
+	public onTaskUpdate: (task: Task, updatedTask: Task) => Promise<void>;
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
 
 	constructor(
@@ -101,6 +102,11 @@ export class TaskListRendererComponent extends Component {
 			taskComponent.onTaskCompleted = (completedTask) => {
 				if (this.onTaskCompleted) {
 					this.onTaskCompleted(completedTask);
+				}
+			};
+			taskComponent.onTaskUpdate = async (originalTask, updatedTask) => {
+				if (this.onTaskUpdate) {
+					await this.onTaskUpdate(originalTask, updatedTask);
 				}
 			};
 			taskComponent.onTaskContextMenu = (event, task) => {
@@ -200,6 +206,11 @@ export class TaskListRendererComponent extends Component {
 			};
 			treeComponent.onTaskCompleted = (task) => {
 				if (this.onTaskCompleted) this.onTaskCompleted(task);
+			};
+			treeComponent.onTaskUpdate = async (originalTask, updatedTask) => {
+				if (this.onTaskUpdate) {
+					await this.onTaskUpdate(originalTask, updatedTask);
+				}
 			};
 			treeComponent.onTaskContextMenu = (event, task) => {
 				if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);

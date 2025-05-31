@@ -1,0 +1,201 @@
+/* Inline Editor Styles */
+.inline-editor {
+	position: relative;
+}
+
+/* Content Editor */
+.inline-content-editor {
+	width: 100%;
+	min-height: 20px;
+	border: 1px solid var(--interactive-accent);
+	border-radius: var(--radius-s);
+	padding: var(--size-2-2) var(--size-2-3);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-medium);
+	resize: none;
+	outline: none;
+	box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.inline-content-editor:focus {
+	border-color: var(--interactive-accent-hover);
+}
+
+/* Metadata Editor Container */
+.inline-metadata-editor {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--size-2-1);
+	background-color: var(--background-secondary);
+	border: 1px solid var(--interactive-accent);
+	border-radius: var(--radius-s);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Input Fields */
+.inline-project-input,
+.inline-tags-input,
+.inline-context-input,
+.inline-recurrence-input {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-2-1) var(--size-2-3);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	min-width: 150px;
+	outline: none;
+}
+
+.inline-project-input:focus,
+.inline-tags-input:focus,
+.inline-context-input:focus,
+.inline-recurrence-input:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* Date Input */
+.inline-date-input {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-2-1) var(--size-2-3);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	outline: none;
+}
+
+.inline-date-input:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* Priority Select */
+.inline-priority-select {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-2-1) var(--size-2-3);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	outline: none;
+	cursor: pointer;
+}
+
+.inline-priority-select:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* Add Metadata Button */
+.add-metadata-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border: 1px dashed var(--text-muted);
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	opacity: 0.6;
+	transition: all 0.2s ease;
+}
+
+.add-metadata-btn:hover {
+	opacity: 1;
+	border-color: var(--interactive-accent);
+	color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+/* Editable Metadata Items */
+.task-item-metadata .task-date,
+.task-item-metadata .task-project,
+.task-item-metadata .task-tag {
+	cursor: pointer;
+	transition: all 0.2s ease;
+	position: relative;
+}
+
+.task-item-metadata .task-date:hover,
+.task-item-metadata .task-project:hover,
+.task-item-metadata .task-tag:hover {
+	background-color: var(--background-modifier-active-hover);
+	transform: translateY(-1px);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.task-item-metadata .task-date:hover::after,
+.task-item-metadata .task-project:hover::after,
+.task-item-metadata .task-tag:hover::after {
+	content: "Click to edit";
+	position: absolute;
+	bottom: -20px;
+	left: 50%;
+	transform: translateX(-50%);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+/* Content Editable Hover */
+.task-item-content {
+	cursor: pointer;
+	transition: all 0.2s ease;
+	border-radius: var(--radius-s);
+	padding: var(--size-2-1);
+	margin: calc(var(--size-2-1) * -1);
+}
+
+.task-item-content:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.task-item-content:hover::after {
+	content: "Click to edit";
+	position: absolute;
+	bottom: -20px;
+	left: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+/* Animation for smooth transitions */
+.inline-metadata-editor {
+	animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.inline-project-input,
+	.inline-tags-input,
+	.inline-context-input,
+	.inline-recurrence-input {
+		min-width: 120px;
+		font-size: var(--font-ui-smaller);
+	}
+
+	.inline-metadata-editor {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}

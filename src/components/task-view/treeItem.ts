@@ -12,6 +12,7 @@ import {
 import { getRelativeTimeString } from "../../utils/dateUtil";
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
+import { InlineEditor, InlineEditorOptions } from "./InlineEditor";
 
 export class TaskTreeItemComponent extends Component {
 	public element: HTMLElement;
@@ -29,6 +30,7 @@ export class TaskTreeItemComponent extends Component {
 	// Events
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
+	public onTaskUpdate: (task: Task, updatedTask: Task) => Promise<void>;
 	public onToggleExpand: (taskId: string, isExpanded: boolean) => void;
 
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void;
@@ -36,6 +38,7 @@ export class TaskTreeItemComponent extends Component {
 	private markdownRenderer: MarkdownRendererComponent;
 	private contentEl: HTMLElement;
 	private taskMap: Map<string, Task>;
+	private inlineEditor: InlineEditor;
 
 	constructor(
 		task: Task,
@@ -51,6 +54,30 @@ export class TaskTreeItemComponent extends Component {
 		this.viewMode = viewMode;
 		this.indentLevel = indentLevel;
 		this.taskMap = taskMap;
+
+		// Initialize inline editor
+		const editorOptions: InlineEditorOptions = {
+			onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+				if (this.onTaskUpdate) {
+					await this.onTaskUpdate(originalTask, updatedTask);
+					// Update the task reference and re-render
+					this.task = updatedTask;
+					this.updateTaskDisplay();
+				}
+			},
+			onContentEditFinished: (targetEl: HTMLElement) => {
+				// Re-render the markdown content
+				this.renderMarkdown();
+			},
+		};
+
+		this.inlineEditor = new InlineEditor(
+			this.app,
+			this.plugin,
+			this.task,
+			editorOptions
+		);
+		this.addChild(this.inlineEditor);
 	}
 
 	onload() {
@@ -180,6 +207,14 @@ export class TaskTreeItemComponent extends Component {
 			cls: "task-item-content",
 		});
 
+		// Make content clickable for editing
+		this.registerDomEvent(this.contentEl, "click", (e) => {
+			e.stopPropagation();
+			if (!this.inlineEditor.isCurrentlyEditing()) {
+				this.inlineEditor.showContentEditor(this.contentEl);
+			}
+		});
+
 		this.renderMarkdown();
 
 		// Metadata container
@@ -187,168 +222,7 @@ export class TaskTreeItemComponent extends Component {
 			cls: "task-metadata",
 		});
 
-		// Display dates based on task completion status
-		if (!this.task.completed) {
-			// Due date if available
-			if (this.task.dueDate) {
-				const dueEl = metadataEl.createEl("div", {
-					cls: ["task-date", "task-due-date"],
-				});
-				const dueDate = new Date(this.task.dueDate);
-
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-
-				const tomorrow = new Date(today);
-				tomorrow.setDate(tomorrow.getDate() + 1);
-
-				// Format date
-				let dateText = "";
-				if (dueDate.getTime() < today.getTime()) {
-					dateText =
-						t("Overdue") +
-						(this.plugin.settings?.useRelativeTimeForDate
-							? " | " + getRelativeTimeString(dueDate)
-							: "");
-					dueEl.classList.add("task-overdue");
-				} else if (dueDate.getTime() === today.getTime()) {
-					dateText = this.plugin.settings?.useRelativeTimeForDate
-						? getRelativeTimeString(dueDate) || "Today"
-						: "Today";
-					dueEl.classList.add("task-due-today");
-				} else if (dueDate.getTime() === tomorrow.getTime()) {
-					dateText = this.plugin.settings?.useRelativeTimeForDate
-						? getRelativeTimeString(dueDate) || "Tomorrow"
-						: "Tomorrow";
-					dueEl.classList.add("task-due-tomorrow");
-				} else {
-					dateText = dueDate.toLocaleDateString("en-US", {
-						year: "numeric",
-						month: "long",
-						day: "numeric",
-					});
-				}
-
-				dueEl.textContent = dateText;
-				dueEl.setAttribute("aria-label", dueDate.toLocaleDateString());
-			}
-
-			// Scheduled date if available
-			if (this.task.scheduledDate) {
-				const scheduledEl = metadataEl.createEl("div", {
-					cls: ["task-date", "task-scheduled-date"],
-				});
-				const scheduledDate = new Date(this.task.scheduledDate);
-
-				scheduledEl.textContent = this.plugin.settings
-					?.useRelativeTimeForDate
-					? getRelativeTimeString(scheduledDate)
-					: scheduledDate.toLocaleDateString("en-US", {
-							year: "numeric",
-							month: "long",
-							day: "numeric",
-					  });
-				scheduledEl.setAttribute(
-					"aria-label",
-					scheduledDate.toLocaleDateString()
-				);
-			}
-
-			// Start date if available
-			if (this.task.startDate) {
-				const startEl = metadataEl.createEl("div", {
-					cls: ["task-date", "task-start-date"],
-				});
-				const startDate = new Date(this.task.startDate);
-
-				startEl.textContent = this.plugin.settings
-					?.useRelativeTimeForDate
-					? getRelativeTimeString(startDate)
-					: startDate.toLocaleDateString("en-US", {
-							year: "numeric",
-							month: "long",
-							day: "numeric",
-					  });
-				startEl.setAttribute(
-					"aria-label",
-					startDate.toLocaleDateString()
-				);
-			}
-
-			// Recurrence if available
-			if (this.task.recurrence) {
-				const recurrenceEl = metadataEl.createEl("div", {
-					cls: "task-date task-recurrence",
-				});
-				recurrenceEl.textContent = this.task.recurrence;
-			}
-		} else {
-			// For completed tasks, show completion date
-			if (this.task.completedDate) {
-				const completedEl = metadataEl.createEl("div", {
-					cls: ["task-date", "task-done-date"],
-				});
-				const completedDate = new Date(this.task.completedDate);
-
-				completedEl.textContent = this.plugin.settings
-					?.useRelativeTimeForDate
-					? getRelativeTimeString(completedDate)
-					: completedDate.toLocaleDateString("en-US", {
-							year: "numeric",
-							month: "long",
-							day: "numeric",
-					  });
-				completedEl.setAttribute(
-					"aria-label",
-					completedDate.toLocaleDateString()
-				);
-			}
-
-			// Created date if available
-			if (this.task.createdDate) {
-				const createdEl = metadataEl.createEl("div", {
-					cls: ["task-date", "task-created-date"],
-				});
-				const createdDate = new Date(this.task.createdDate);
-
-				createdEl.textContent = this.plugin.settings
-					?.useRelativeTimeForDate
-					? getRelativeTimeString(createdDate)
-					: createdDate.toLocaleDateString("en-US", {
-							year: "numeric",
-							month: "long",
-							day: "numeric",
-					  });
-				createdEl.setAttribute(
-					"aria-label",
-					createdDate.toLocaleDateString()
-				);
-			}
-		}
-
-		// Project badge if available and not in project view
-		if (this.task.project && this.viewMode !== "projects") {
-			const projectEl = metadataEl.createEl("div", {
-				cls: "task-project",
-			});
-			projectEl.textContent =
-				this.task.project.split("/").pop() || this.task.project;
-		}
-
-		if (this.task.tags && this.task.tags.length > 0) {
-			const tagsContainer = metadataEl.createEl("div", {
-				cls: "task-tags-container",
-			});
-
-			this.task.tags
-				.filter((tag) => !tag.startsWith("#project"))
-				.forEach((tag) => {
-					const tagEl = tagsContainer.createEl("span", {
-						cls: "task-tag",
-						text: tag.startsWith("#") ? tag : `#${tag}`,
-					});
-				});
-		}
+		this.renderMetadata(metadataEl);
 
 		// Priority indicator if available
 		if (this.task.priority) {
@@ -363,6 +237,241 @@ export class TaskTreeItemComponent extends Component {
 			priorityEl.textContent = icon;
 			this.parentContainer.appendChild(priorityEl);
 		}
+	}
+
+	private renderMetadata(metadataEl: HTMLElement) {
+		metadataEl.empty();
+
+		// Display dates based on task completion status
+		if (!this.task.completed) {
+			// Due date if available
+			if (this.task.dueDate) {
+				this.renderDateMetadata(metadataEl, "due", this.task.dueDate);
+			}
+
+			// Scheduled date if available
+			if (this.task.scheduledDate) {
+				this.renderDateMetadata(
+					metadataEl,
+					"scheduled",
+					this.task.scheduledDate
+				);
+			}
+
+			// Start date if available
+			if (this.task.startDate) {
+				this.renderDateMetadata(
+					metadataEl,
+					"start",
+					this.task.startDate
+				);
+			}
+
+			// Recurrence if available
+			if (this.task.recurrence) {
+				this.renderRecurrenceMetadata(metadataEl);
+			}
+		} else {
+			// For completed tasks, show completion date
+			if (this.task.completedDate) {
+				this.renderDateMetadata(
+					metadataEl,
+					"completed",
+					this.task.completedDate
+				);
+			}
+
+			// Created date if available
+			if (this.task.createdDate) {
+				this.renderDateMetadata(
+					metadataEl,
+					"created",
+					this.task.createdDate
+				);
+			}
+		}
+
+		// Project badge if available and not in project view
+		if (this.task.project && this.viewMode !== "projects") {
+			this.renderProjectMetadata(metadataEl);
+		}
+
+		// Tags if available
+		if (this.task.tags && this.task.tags.length > 0) {
+			this.renderTagsMetadata(metadataEl);
+		}
+
+		// Add metadata button for adding new metadata
+		this.renderAddMetadataButton(metadataEl);
+	}
+
+	private renderDateMetadata(
+		metadataEl: HTMLElement,
+		type: "due" | "scheduled" | "start" | "completed" | "created",
+		dateValue: number
+	) {
+		const dateEl = metadataEl.createEl("div", {
+			cls: ["task-date", `task-${type}-date`],
+		});
+
+		const date = new Date(dateValue);
+		let dateText = "";
+		let cssClass = "";
+
+		if (type === "due") {
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			const tomorrow = new Date(today);
+			tomorrow.setDate(tomorrow.getDate() + 1);
+
+			// Format date
+			if (date.getTime() < today.getTime()) {
+				dateText =
+					t("Overdue") +
+					(this.plugin.settings?.useRelativeTimeForDate
+						? " | " + getRelativeTimeString(date)
+						: "");
+				cssClass = "task-overdue";
+			} else if (date.getTime() === today.getTime()) {
+				dateText = this.plugin.settings?.useRelativeTimeForDate
+					? getRelativeTimeString(date) || "Today"
+					: "Today";
+				cssClass = "task-due-today";
+			} else if (date.getTime() === tomorrow.getTime()) {
+				dateText = this.plugin.settings?.useRelativeTimeForDate
+					? getRelativeTimeString(date) || "Tomorrow"
+					: "Tomorrow";
+				cssClass = "task-due-tomorrow";
+			} else {
+				dateText = date.toLocaleDateString("en-US", {
+					year: "numeric",
+					month: "long",
+					day: "numeric",
+				});
+			}
+		} else {
+			dateText = this.plugin.settings?.useRelativeTimeForDate
+				? getRelativeTimeString(date)
+				: date.toLocaleDateString("en-US", {
+						year: "numeric",
+						month: "long",
+						day: "numeric",
+				  });
+		}
+
+		if (cssClass) {
+			dateEl.classList.add(cssClass);
+		}
+
+		dateEl.textContent = dateText;
+		dateEl.setAttribute("aria-label", date.toLocaleDateString());
+
+		// Make date clickable for editing
+		this.registerDomEvent(dateEl, "click", (e) => {
+			e.stopPropagation();
+			if (!this.inlineEditor.isCurrentlyEditing()) {
+				const dateString = this.formatDateForInput(date);
+				const fieldType =
+					type === "due"
+						? "dueDate"
+						: type === "scheduled"
+						? "scheduledDate"
+						: type === "start"
+						? "startDate"
+						: null;
+
+				if (fieldType) {
+					this.inlineEditor.showMetadataEditor(
+						dateEl,
+						fieldType,
+						dateString
+					);
+				}
+			}
+		});
+	}
+
+	private renderProjectMetadata(metadataEl: HTMLElement) {
+		const projectEl = metadataEl.createEl("div", {
+			cls: "task-project",
+		});
+		projectEl.textContent =
+			this.task.project?.split("/").pop() || this.task.project || "";
+
+		// Make project clickable for editing
+		this.registerDomEvent(projectEl, "click", (e) => {
+			e.stopPropagation();
+			if (!this.inlineEditor.isCurrentlyEditing()) {
+				this.inlineEditor.showMetadataEditor(
+					projectEl,
+					"project",
+					this.task.project || ""
+				);
+			}
+		});
+	}
+
+	private renderTagsMetadata(metadataEl: HTMLElement) {
+		const tagsContainer = metadataEl.createEl("div", {
+			cls: "task-tags-container",
+		});
+
+		this.task.tags
+			.filter((tag) => !tag.startsWith("#project"))
+			.forEach((tag) => {
+				const tagEl = tagsContainer.createEl("span", {
+					cls: "task-tag",
+					text: tag.startsWith("#") ? tag : `#${tag}`,
+				});
+
+				// Make tag clickable for editing
+				this.registerDomEvent(tagEl, "click", (e) => {
+					e.stopPropagation();
+					if (!this.inlineEditor.isCurrentlyEditing()) {
+						const tagsString = this.task.tags?.join(", ") || "";
+						this.inlineEditor.showMetadataEditor(
+							tagsContainer,
+							"tags",
+							tagsString
+						);
+					}
+				});
+			});
+	}
+
+	private renderRecurrenceMetadata(metadataEl: HTMLElement) {
+		const recurrenceEl = metadataEl.createEl("div", {
+			cls: "task-date task-recurrence",
+		});
+		recurrenceEl.textContent = this.task.recurrence || "";
+
+		// Make recurrence clickable for editing
+		this.registerDomEvent(recurrenceEl, "click", (e) => {
+			e.stopPropagation();
+			if (!this.inlineEditor.isCurrentlyEditing()) {
+				this.inlineEditor.showMetadataEditor(
+					recurrenceEl,
+					"recurrence",
+					this.task.recurrence || ""
+				);
+			}
+		});
+	}
+
+	private renderAddMetadataButton(metadataEl: HTMLElement) {
+		const addButtonContainer = metadataEl.createDiv({
+			cls: "add-metadata-container",
+		});
+
+		this.inlineEditor.showAddMetadataButton(addButtonContainer);
+	}
+
+	private formatDateForInput(date: Date): string {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		return `${year}-${month}-${day}`;
 	}
 
 	private renderMarkdown() {
@@ -381,6 +490,37 @@ export class TaskTreeItemComponent extends Component {
 
 		// Render the markdown content
 		this.markdownRenderer.render(this.task.originalMarkdown);
+	}
+
+	private updateTaskDisplay() {
+		// Update the inline editor's task reference
+		this.inlineEditor.onunload();
+		this.removeChild(this.inlineEditor);
+
+		const editorOptions: InlineEditorOptions = {
+			onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+				if (this.onTaskUpdate) {
+					await this.onTaskUpdate(originalTask, updatedTask);
+					this.task = updatedTask;
+					this.updateTaskDisplay();
+				}
+			},
+			onContentEditFinished: (targetEl: HTMLElement) => {
+				// Re-render the markdown content
+				this.renderMarkdown();
+			},
+		};
+
+		this.inlineEditor = new InlineEditor(
+			this.app,
+			this.plugin,
+			this.task,
+			editorOptions
+		);
+		this.addChild(this.inlineEditor);
+
+		// Re-render the task content
+		this.renderTaskContent();
 	}
 
 	private renderChildTasks() {
