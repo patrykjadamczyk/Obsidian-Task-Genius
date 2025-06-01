@@ -50,6 +50,7 @@ export class ProjectsComponent extends Component {
 		private params: {
 			onTaskSelected?: (task: Task | null) => void;
 			onTaskCompleted?: (task: Task) => void;
+			onTaskUpdate?: (task: Task, updatedTask: Task) => Promise<void>;
 			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
 		} = {}
 	) {
@@ -88,6 +89,11 @@ export class ProjectsComponent extends Component {
 		};
 		this.taskRenderer.onTaskCompleted = (task) => {
 			if (this.params.onTaskCompleted) this.params.onTaskCompleted(task);
+		};
+		this.taskRenderer.onTaskUpdate = async (originalTask, updatedTask) => {
+			if (this.params.onTaskUpdate) {
+				await this.params.onTaskUpdate(originalTask, updatedTask);
+			}
 		};
 		this.taskRenderer.onTaskContextMenu = (event, task) => {
 			if (this.params.onTaskContextMenu)

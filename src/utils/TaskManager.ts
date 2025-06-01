@@ -956,14 +956,6 @@ export class TaskManager extends Component {
 			const indentation = indentMatch ? indentMatch[0] : "";
 			let updatedLine = taskLine;
 
-			// Update content
-			if (originalTask.content !== updatedTask.content) {
-				updatedLine = updatedLine.replace(
-					/(\s*[-*+]\s*\[[^\]]*\]\s*).*$/,
-					`$1${updatedTask.content}`
-				);
-			}
-
 			// Update status if it exists in the updated task
 			if (updatedTask.status) {
 				updatedLine = updatedLine.replace(
@@ -990,6 +982,16 @@ export class TaskManager extends Component {
 					"0"
 				)}-${String(d.getDate()).padStart(2, "0")}`;
 			};
+
+			// --- Update content first, then clean up metadata ---
+			// Extract the checkbox part and use the new content
+			const checkboxMatch = updatedLine.match(
+				/^(\s*[-*+]\s*\[[^\]]*\]\s*)/
+			);
+			const checkboxPart = checkboxMatch ? checkboxMatch[1] : "";
+
+			// Start with the checkbox part + new content
+			updatedLine = checkboxPart + updatedTask.content;
 
 			// --- Remove existing metadata (both formats) ---
 			// Emoji dates
@@ -1040,29 +1042,16 @@ export class TaskManager extends Component {
 			updatedLine = updatedLine.replace(/\[project::\s*[^\]]+\]/gi, "");
 			updatedLine = updatedLine.replace(/\[context::\s*[^\]]+\]/gi, "");
 
-			// --- Clean up the content part after removal ---
-			const contentStartIndex = updatedLine.indexOf("] ") + 2;
-			let taskTextContent = updatedLine
-				.substring(contentStartIndex)
-				.trim();
+			// Remove ALL existing tags to prevent duplication
+			// This includes general hashtags, project tags, and context tags
+			updatedLine = updatedLine.replace(
+				/#[^\u2000-\u206F\u2E00-\u2E7F'!"#$%&()*+,.:;<=>?@^`{|}~\[\]\\\s]+/g,
+				""
+			); // Remove all hashtags
+			updatedLine = updatedLine.replace(/@[^\s@]+/g, ""); // Remove all @ mentions/context tags
 
-			// Simplified tag cleanup - remove ALL tags, project tags, and context tags from content
-			// This approach is more reliable than trying to track specific tags
-
-			// Remove all hashtags (including project tags)
-			taskTextContent = taskTextContent.replace(/#[^\s]+/g, "");
-
-			// Remove all context tags (@mentions)
-			taskTextContent = taskTextContent.replace(/@[^\s]+/g, "");
-
-			// Normalize spaces and clean up
-			taskTextContent = taskTextContent
-				.replace(/\s+/g, " ") // Normalize multiple spaces to single space
-				.trim();
-
-			// Reconstruct the beginning of the line
-			updatedLine =
-				updatedLine.substring(0, contentStartIndex) + taskTextContent;
+			// Clean up extra spaces
+			updatedLine = updatedLine.replace(/\s+/g, " ").trim();
 
 			// --- Add updated metadata ---
 			const metadata = [];
@@ -1272,6 +1261,13 @@ export class TaskManager extends Component {
 						updatedTask
 					);
 			}
+
+			console.log(
+				"updatedLine",
+				updatedLine,
+				taskLine,
+				updatedTask.content
+			);
 
 			// Update the line in the file content
 			if (updatedLine !== taskLine) {

@@ -1,201 +1,312 @@
-/* Inline Editor Styles */
+/* Inline Editor Styles - Optimized for Performance and UX */
 .inline-editor {
 	position: relative;
+	display: inline-block;
+	width: 100%;
 }
 
-/* Content Editor */
+/* Content Editor - More inline appearance */
 .inline-content-editor {
 	width: 100%;
-	min-height: 20px;
-	border: 1px solid var(--interactive-accent);
-	border-radius: var(--radius-s);
-	padding: var(--size-2-2) var(--size-2-3);
-	background-color: var(--background-primary);
+	min-height: 18px;
+	border: none;
+	border-bottom: 1px solid var(--interactive-accent);
+	border-radius: 0;
+	padding: 2px 4px;
+	background-color: transparent;
 	color: var(--text-normal);
-	font-family: var(--font-interface);
-	font-size: var(--font-ui-medium);
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
 	resize: none;
 	outline: none;
-	box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+	transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .inline-content-editor:focus {
-	border-color: var(--interactive-accent-hover);
+	border-bottom-color: var(--interactive-accent-hover);
+	background-color: var(--background-primary-alt);
+	box-shadow: 0 1px 0 0 var(--interactive-accent-hover);
 }
 
-/* Metadata Editor Container */
+/* Embedded Editor Styles - More seamless */
+.inline-embedded-editor-container {
+	width: 100%;
+	min-height: 18px;
+	border: none;
+	border-radius: 0;
+	background-color: transparent;
+}
+
+.inline-embedded-editor {
+	width: 100%;
+	min-height: 18px;
+	background-color: transparent;
+}
+
+.inline-embedded-editor .cm-editor {
+	border: none !important;
+	outline: none !important;
+	background-color: transparent !important;
+	border-bottom: 1px solid var(--interactive-accent) !important;
+}
+
+.inline-embedded-editor .cm-focused {
+	outline: none !important;
+	border-bottom-color: var(--interactive-accent-hover) !important;
+	background-color: var(--background-primary-alt) !important;
+}
+
+.inline-embedded-editor .cm-content {
+	padding: 2px 4px;
+	min-height: 18px;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.inline-embedded-editor .cm-line {
+	padding: 0;
+}
+
+/* Metadata Editor Container - More compact and inline */
 .inline-metadata-editor {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: var(--size-2-2);
-	padding: var(--size-2-1);
-	background-color: var(--background-secondary);
+	gap: 4px;
+	padding: 2px 6px;
+	background-color: var(--background-primary-alt);
 	border: 1px solid var(--interactive-accent);
 	border-radius: var(--radius-s);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	min-width: 120px;
+	max-width: 300px;
+	position: relative;
+	z-index: 100;
 }
 
-/* Input Fields */
+.inline-metadata-editor input {
+	border: unset;
+	outline: unset;
+	padding: 0;
+	height: var(--line-height);
+	background-color: transparent;
+	background: transparent;
+	border-radius: var(--radius-s);
+}
+
+.inline-metadata-editor input:focus {
+	outline: unset;
+	padding: 0;
+	background-color: transparent;
+}
+
+.inline-metadata-editor:has(input) {
+	outline: unset;
+	border: 0;
+	padding: 0;
+	background-color: transparent;
+	border-radius: unset;
+}
+
+/* Metadata Input Fields - More compact */
 .inline-project-input,
 .inline-tags-input,
 .inline-context-input,
+.inline-date-input,
 .inline-recurrence-input {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	padding: var(--size-2-1) var(--size-2-3);
-	background-color: var(--background-primary);
+	flex: 1;
+	padding: 2px 4px;
+	border: none;
+	border-radius: 2px;
+	background-color: transparent;
 	color: var(--text-normal);
+	font-family: inherit;
 	font-size: var(--font-ui-small);
-	min-width: 150px;
 	outline: none;
+	min-width: 80px;
+	transition: background-color 0.15s ease;
 }
 
 .inline-project-input:focus,
 .inline-tags-input:focus,
 .inline-context-input:focus,
+.inline-date-input:focus,
 .inline-recurrence-input:focus {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 1px var(--interactive-accent);
-}
-
-/* Date Input */
-.inline-date-input {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	padding: var(--size-2-1) var(--size-2-3);
 	background-color: var(--background-primary);
-	color: var(--text-normal);
-	font-size: var(--font-ui-small);
-	outline: none;
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
 
-.inline-date-input:focus {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 1px var(--interactive-accent);
-}
-
-/* Priority Select */
 .inline-priority-select {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	padding: var(--size-2-1) var(--size-2-3);
-	background-color: var(--background-primary);
+	padding: 2px 4px;
+	border: none;
+	border-radius: 2px;
+	background-color: transparent;
 	color: var(--text-normal);
+	font-family: inherit;
 	font-size: var(--font-ui-small);
 	outline: none;
 	cursor: pointer;
+	min-width: 80px;
 }
 
 .inline-priority-select:focus {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 1px var(--interactive-accent);
+	background-color: var(--background-primary);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
 
-/* Add Metadata Button */
+/* Add Metadata Button - More subtle */
+.add-metadata-container {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 4px;
+}
+
+.task-list .task-item:not(.tree-task-item):hover .add-metadata-btn {
+	opacity: 1;
+}
+
+.tree-task-item .task-item-container:hover .add-metadata-btn {
+	opacity: 1;
+}
+
 .add-metadata-btn {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 20px;
-	height: 20px;
-	border: 1px dashed var(--text-muted);
-	border-radius: var(--radius-s);
-	background-color: transparent;
+	width: 22px;
+	height: 22px;
+	border: none;
+	border-radius: 2px;
+	background-color: var(--background-secondary);
 	color: var(--text-muted);
 	cursor: pointer;
-	opacity: 0.6;
-	transition: all 0.2s ease;
+	transition: all 0.15s ease;
+	--icon-size: 10px;
+	opacity: 0;
+	padding: 0;
+	margin: 0;
 }
 
 .add-metadata-btn:hover {
-	opacity: 1;
-	border-color: var(--interactive-accent);
-	color: var(--interactive-accent);
 	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	opacity: 1;
 }
 
-/* Editable Metadata Items */
+.add-metadata-btn:active {
+	background-color: var(--background-modifier-active);
+	transform: scale(0.95);
+}
+
+.add-metadata-btn svg {
+	width: 10px;
+	height: 10px;
+}
+
+/* Smooth transitions for better performance */
+.inline-editor * {
+	transition: border-color 0.15s ease, background-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+/* Focus states for better accessibility */
+.inline-editor input:focus,
+.inline-editor textarea:focus,
+.inline-editor select:focus {
+	outline: none;
+}
+
+/* Editable Metadata Items - More subtle hover effects */
 .task-item-metadata .task-date,
 .task-item-metadata .task-project,
 .task-item-metadata .task-tag {
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition: background-color 0.15s ease, transform 0.15s ease;
 	position: relative;
 }
 
 .task-item-metadata .task-date:hover,
 .task-item-metadata .task-project:hover,
 .task-item-metadata .task-tag:hover {
-	background-color: var(--background-modifier-active-hover);
-	transform: translateY(-1px);
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	background-color: var(--background-modifier-hover);
+	transform: none;
 }
 
+/* Remove tooltip on hover for better performance */
 .task-item-metadata .task-date:hover::after,
 .task-item-metadata .task-project:hover::after,
 .task-item-metadata .task-tag:hover::after {
-	content: "Click to edit";
-	position: absolute;
-	bottom: -20px;
-	left: 50%;
-	transform: translateX(-50%);
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
-	white-space: nowrap;
-	pointer-events: none;
+	display: none;
 }
 
-/* Content Editable Hover */
+/* Content Editable Hover - More subtle */
 .task-item-content {
 	cursor: pointer;
-	transition: all 0.2s ease;
-	border-radius: var(--radius-s);
-	padding: var(--size-2-1);
-	margin: calc(var(--size-2-1) * -1);
+	transition: background-color 0.15s ease;
 }
 
-.task-item-content:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.task-item-content:hover::after {
-	content: "Click to edit";
-	position: absolute;
-	bottom: -20px;
-	left: 0;
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
-	pointer-events: none;
-}
-
-/* Animation for smooth transitions */
+/* Animation for smooth transitions - Optimized */
 .inline-metadata-editor {
-	animation: slideIn 0.2s ease-out;
+	animation: fadeInScale 0.15s ease-out;
 }
 
-@keyframes slideIn {
+@keyframes fadeInScale {
 	from {
 		opacity: 0;
-		transform: translateY(-5px);
+		transform: scale(0.95);
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0);
+		transform: scale(1);
 	}
 }
 
-/* Responsive adjustments */
+/* Prevent layout shift during editing */
+.inline-editor-placeholder {
+	min-height: 1em;
+	display: inline-block;
+}
+
+/* Responsive adjustments - Simplified */
 @media (max-width: 768px) {
 	.inline-project-input,
 	.inline-tags-input,
 	.inline-context-input,
 	.inline-recurrence-input {
-		min-width: 120px;
+		min-width: 100px;
 		font-size: var(--font-ui-smaller);
 	}
 
 	.inline-metadata-editor {
-		flex-direction: column;
-		align-items: stretch;
+		max-width: 250px;
+	}
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+	.inline-content-editor,
+	.inline-embedded-editor .cm-editor {
+		border-bottom-width: 2px;
+	}
+
+	.inline-metadata-editor {
+		border-width: 2px;
+	}
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+	.inline-editor *,
+	.task-item-metadata .task-date,
+	.task-item-metadata .task-project,
+	.task-item-metadata .task-tag,
+	.task-item-content,
+	.add-metadata-btn {
+		transition: none;
+	}
+
+	.inline-metadata-editor {
+		animation: none;
 	}
 }

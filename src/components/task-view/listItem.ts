@@ -1,4 +1,4 @@
-import { App, Component, Menu } from "obsidian";
+import { App, Component, Menu, setIcon } from "obsidian";
 import { Task } from "../../types/task";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import "../../styles/task-list.css";
@@ -8,6 +8,7 @@ import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
 import { TaskProgressBarSettings } from "../../common/setting-definition";
 import { InlineEditor, InlineEditorOptions } from "./InlineEditor";
+import { InlineEditorManager } from "./InlineEditorManager";
 
 export class TaskListItemComponent extends Component {
 	public element: HTMLElement;
@@ -26,7 +27,9 @@ export class TaskListItemComponent extends Component {
 	private metadataEl: HTMLElement;
 
 	private settings: TaskProgressBarSettings;
-	private inlineEditor: InlineEditor;
+
+	// Use shared editor manager instead of individual editors
+	private static editorManager: InlineEditorManager | null = null;
 
 	constructor(
 		private task: Task,
@@ -43,29 +46,89 @@ export class TaskListItemComponent extends Component {
 
 		this.settings = this.plugin.settings;
 
-		// Initialize inline editor
+		// Initialize shared editor manager if not exists
+		if (!TaskListItemComponent.editorManager) {
+			TaskListItemComponent.editorManager = new InlineEditorManager(
+				this.app,
+				this.plugin
+			);
+		}
+	}
+
+	/**
+	 * Get the inline editor from the shared manager when needed
+	 */
+	private getInlineEditor(): InlineEditor {
 		const editorOptions: InlineEditorOptions = {
 			onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
 				if (this.onTaskUpdate) {
-					await this.onTaskUpdate(originalTask, updatedTask);
-					// Update the task reference and re-render
-					this.task = updatedTask;
-					this.updateTaskDisplay();
+					console.log(originalTask.content, updatedTask.content);
+					try {
+						await this.onTaskUpdate(originalTask, updatedTask);
+						console.log(
+							"listItem onTaskUpdate completed successfully"
+						);
+						// Don't update task reference here - let onContentEditFinished handle it
+					} catch (error) {
+						console.error("Error in listItem onTaskUpdate:", error);
+						throw error; // Re-throw to let the InlineEditor handle it
+					}
+				} else {
+					console.warn("No onTaskUpdate callback available");
 				}
 			},
-			onContentEditFinished: (targetEl: HTMLElement) => {
-				// Re-render the markdown content
+			onContentEditFinished: (
+				targetEl: HTMLElement,
+				updatedTask: Task
+			) => {
+				// Update the task reference with the saved task
+				this.task = updatedTask;
+
+				// Re-render the markdown content after editing is finished
 				this.renderMarkdown();
+
+				// Now it's safe to update the full display
+				this.updateTaskDisplay();
+
+				// Release the editor from the manager
+				TaskListItemComponent.editorManager?.releaseEditor(
+					this.task.id
+				);
 			},
+			onMetadataEditFinished: (
+				targetEl: HTMLElement,
+				updatedTask: Task,
+				fieldType: string
+			) => {
+				// Update the task reference with the saved task
+				this.task = updatedTask;
+
+				// Update the task display to reflect metadata changes
+				this.updateTaskDisplay();
+
+				// Release the editor from the manager
+				TaskListItemComponent.editorManager?.releaseEditor(
+					this.task.id
+				);
+			},
+			useEmbeddedEditor: true, // Enable Obsidian's embedded editor
 		};
 
-		this.inlineEditor = new InlineEditor(
-			this.app,
-			this.plugin,
+		return TaskListItemComponent.editorManager!.getEditor(
 			this.task,
 			editorOptions
 		);
-		this.addChild(this.inlineEditor);
+	}
+
+	/**
+	 * Check if this task is currently being edited
+	 */
+	private isCurrentlyEditing(): boolean {
+		return (
+			TaskListItemComponent.editorManager?.hasActiveEditor(
+				this.task.id
+			) || false
+		);
 	}
 
 	onload() {
@@ -124,15 +187,11 @@ export class TaskListItemComponent extends Component {
 		this.contentEl = createDiv({
 			cls: "task-item-content",
 		});
+
 		this.containerEl.appendChild(this.contentEl);
 
 		// Make content clickable for editing
-		this.registerDomEvent(this.contentEl, "click", (e) => {
-			e.stopPropagation();
-			if (!this.inlineEditor.isCurrentlyEditing()) {
-				this.inlineEditor.showContentEditor(this.contentEl);
-			}
-		});
+		this.registerContentClickHandler();
 
 		this.renderMarkdown();
 
@@ -277,29 +336,31 @@ export class TaskListItemComponent extends Component {
 		dateEl.textContent = dateText;
 		dateEl.setAttribute("aria-label", date.toLocaleDateString());
 
-		// Make date clickable for editing
-		this.registerDomEvent(dateEl, "click", (e) => {
-			e.stopPropagation();
-			if (!this.inlineEditor.isCurrentlyEditing()) {
-				const dateString = this.formatDateForInput(date);
-				const fieldType =
-					type === "due"
-						? "dueDate"
-						: type === "scheduled"
-						? "scheduledDate"
-						: type === "start"
-						? "startDate"
-						: null;
+		// Make date clickable for editing only if inline editor is enabled
+		if (this.plugin.settings.enableInlineEditor) {
+			this.registerDomEvent(dateEl, "click", (e) => {
+				e.stopPropagation();
+				if (!this.isCurrentlyEditing()) {
+					const dateString = this.formatDateForInput(date);
+					const fieldType =
+						type === "due"
+							? "dueDate"
+							: type === "scheduled"
+							? "scheduledDate"
+							: type === "start"
+							? "startDate"
+							: null;
 
-				if (fieldType) {
-					this.inlineEditor.showMetadataEditor(
-						dateEl,
-						fieldType,
-						dateString
-					);
+					if (fieldType) {
+						this.getInlineEditor().showMetadataEditor(
+							dateEl,
+							fieldType,
+							dateString
+						);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 
 	private renderProjectMetadata() {
@@ -309,17 +370,19 @@ export class TaskListItemComponent extends Component {
 		projectEl.textContent =
 			this.task.project?.split("/").pop() || this.task.project || "";
 
-		// Make project clickable for editing
-		this.registerDomEvent(projectEl, "click", (e) => {
-			e.stopPropagation();
-			if (!this.inlineEditor.isCurrentlyEditing()) {
-				this.inlineEditor.showMetadataEditor(
-					projectEl,
-					"project",
-					this.task.project || ""
-				);
-			}
-		});
+		// Make project clickable for editing only if inline editor is enabled
+		if (this.plugin.settings.enableInlineEditor) {
+			this.registerDomEvent(projectEl, "click", (e) => {
+				e.stopPropagation();
+				if (!this.isCurrentlyEditing()) {
+					this.getInlineEditor().showMetadataEditor(
+						projectEl,
+						"project",
+						this.task.project || ""
+					);
+				}
+			});
+		}
 	}
 
 	private renderTagsMetadata() {
@@ -335,18 +398,20 @@ export class TaskListItemComponent extends Component {
 					text: tag.startsWith("#") ? tag : `#${tag}`,
 				});
 
-				// Make tag clickable for editing
-				this.registerDomEvent(tagEl, "click", (e) => {
-					e.stopPropagation();
-					if (!this.inlineEditor.isCurrentlyEditing()) {
-						const tagsString = this.task.tags?.join(", ") || "";
-						this.inlineEditor.showMetadataEditor(
-							tagsContainer,
-							"tags",
-							tagsString
-						);
-					}
-				});
+				// Make tag clickable for editing only if inline editor is enabled
+				if (this.plugin.settings.enableInlineEditor) {
+					this.registerDomEvent(tagEl, "click", (e) => {
+						e.stopPropagation();
+						if (!this.isCurrentlyEditing()) {
+							const tagsString = this.task.tags?.join(", ") || "";
+							this.getInlineEditor().showMetadataEditor(
+								tagsContainer,
+								"tags",
+								tagsString
+							);
+						}
+					});
+				}
 			});
 	}
 
@@ -356,25 +421,86 @@ export class TaskListItemComponent extends Component {
 		});
 		recurrenceEl.textContent = this.task.recurrence || "";
 
-		// Make recurrence clickable for editing
-		this.registerDomEvent(recurrenceEl, "click", (e) => {
-			e.stopPropagation();
-			if (!this.inlineEditor.isCurrentlyEditing()) {
-				this.inlineEditor.showMetadataEditor(
-					recurrenceEl,
-					"recurrence",
-					this.task.recurrence || ""
-				);
-			}
-		});
+		// Make recurrence clickable for editing only if inline editor is enabled
+		if (this.plugin.settings.enableInlineEditor) {
+			this.registerDomEvent(recurrenceEl, "click", (e) => {
+				e.stopPropagation();
+				if (!this.isCurrentlyEditing()) {
+					this.getInlineEditor().showMetadataEditor(
+						recurrenceEl,
+						"recurrence",
+						this.task.recurrence || ""
+					);
+				}
+			});
+		}
 	}
 
 	private renderAddMetadataButton() {
+		// Only show add metadata button if inline editor is enabled
+		if (!this.plugin.settings.enableInlineEditor) {
+			return;
+		}
+
 		const addButtonContainer = this.metadataEl.createDiv({
 			cls: "add-metadata-container",
 		});
 
-		this.inlineEditor.showAddMetadataButton(addButtonContainer);
+		// Create the add metadata button
+		const addBtn = addButtonContainer.createEl("button", {
+			cls: "add-metadata-btn",
+			attr: { "aria-label": "Add metadata" },
+		});
+		setIcon(addBtn, "plus");
+
+		this.registerDomEvent(addBtn, "click", (e) => {
+			e.stopPropagation();
+			// Show metadata menu directly instead of calling showAddMetadataButton
+			this.showMetadataMenu(addBtn);
+		});
+	}
+
+	private showMetadataMenu(buttonEl: HTMLElement): void {
+		const editor = this.getInlineEditor();
+
+		// Create a temporary menu container
+		const menu = new Menu();
+
+		const availableFields = [
+			{ key: "project", label: "Project", icon: "folder" },
+			{ key: "tags", label: "Tags", icon: "tag" },
+			{ key: "context", label: "Context", icon: "at-sign" },
+			{ key: "dueDate", label: "Due Date", icon: "calendar" },
+			{ key: "startDate", label: "Start Date", icon: "play" },
+			{ key: "scheduledDate", label: "Scheduled Date", icon: "clock" },
+			{ key: "priority", label: "Priority", icon: "alert-triangle" },
+			{ key: "recurrence", label: "Recurrence", icon: "repeat" },
+		];
+
+		availableFields.forEach((field) => {
+			menu.addItem((item: any) => {
+				item.setTitle(field.label)
+					.setIcon(field.icon)
+					.onClick(() => {
+						// Create a temporary container for the metadata editor
+						const tempContainer = buttonEl.parentElement!.createDiv(
+							{
+								cls: "temp-metadata-editor-container",
+							}
+						);
+
+						editor.showMetadataEditor(
+							tempContainer,
+							field.key as any
+						);
+					});
+			});
+		});
+
+		menu.showAtPosition({
+			x: buttonEl.getBoundingClientRect().left,
+			y: buttonEl.getBoundingClientRect().bottom,
+		});
 	}
 
 	private formatDateForInput(date: Date): string {
@@ -390,6 +516,9 @@ export class TaskListItemComponent extends Component {
 			this.removeChild(this.markdownRenderer);
 		}
 
+		// Clear the content element
+		this.contentEl.empty();
+
 		// Create new renderer
 		this.markdownRenderer = new MarkdownRendererComponent(
 			this.app,
@@ -399,36 +528,31 @@ export class TaskListItemComponent extends Component {
 		this.addChild(this.markdownRenderer);
 
 		// Render the markdown content
-		this.markdownRenderer.render(this.task.originalMarkdown);
+		this.markdownRenderer.render(this.task.originalMarkdown || "\u200b");
+
+		// Re-register the click event for editing after rendering
+		this.registerContentClickHandler();
+	}
+
+	/**
+	 * Register click handler for content editing
+	 */
+	private registerContentClickHandler() {
+		// Only enable inline editing if the setting is enabled
+		if (!this.plugin.settings.enableInlineEditor) {
+			return;
+		}
+
+		// Make content clickable for editing
+		this.registerDomEvent(this.contentEl, "click", (e) => {
+			e.stopPropagation();
+			if (!this.isCurrentlyEditing()) {
+				this.getInlineEditor().showContentEditor(this.contentEl);
+			}
+		});
 	}
 
 	private updateTaskDisplay() {
-		// Update the inline editor's task reference
-		this.inlineEditor.onunload();
-		this.removeChild(this.inlineEditor);
-
-		const editorOptions: InlineEditorOptions = {
-			onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
-				if (this.onTaskUpdate) {
-					await this.onTaskUpdate(originalTask, updatedTask);
-					this.task = updatedTask;
-					this.updateTaskDisplay();
-				}
-			},
-			onContentEditFinished: (targetEl: HTMLElement) => {
-				// Re-render the markdown content
-				this.renderMarkdown();
-			},
-		};
-
-		this.inlineEditor = new InlineEditor(
-			this.app,
-			this.plugin,
-			this.task,
-			editorOptions
-		);
-		this.addChild(this.inlineEditor);
-
 		// Re-render the entire task item
 		this.renderTaskItem();
 	}
@@ -470,6 +594,13 @@ export class TaskListItemComponent extends Component {
 	}
 
 	onunload() {
+		// Release editor from manager if this task was being edited
+		if (
+			TaskListItemComponent.editorManager?.hasActiveEditor(this.task.id)
+		) {
+			TaskListItemComponent.editorManager.releaseEditor(this.task.id);
+		}
+
 		this.element.detach();
 	}
 }

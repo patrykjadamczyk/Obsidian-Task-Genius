@@ -285,6 +285,11 @@ export class ContentComponent extends Component {
 			};
 			taskComponent.onTaskUpdate = async (originalTask, updatedTask) => {
 				if (this.params.onTaskUpdate) {
+					console.log(
+						"ContentComponent onTaskUpdate",
+						originalTask.content,
+						updatedTask.content
+					);
 					await this.params.onTaskUpdate(originalTask, updatedTask);
 				}
 			};

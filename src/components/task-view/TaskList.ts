@@ -105,7 +105,18 @@ export class TaskListRendererComponent extends Component {
 				}
 			};
 			taskComponent.onTaskUpdate = async (originalTask, updatedTask) => {
+				console.log(
+					"TaskListRendererComponent onTaskUpdate",
+					this.onTaskUpdate,
+					originalTask.content,
+					updatedTask.content
+				);
 				if (this.onTaskUpdate) {
+					console.log(
+						"TaskListRendererComponent onTaskUpdate",
+						originalTask.content,
+						updatedTask.content
+					);
 					await this.onTaskUpdate(originalTask, updatedTask);
 				}
 			};

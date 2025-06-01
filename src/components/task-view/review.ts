@@ -280,6 +280,7 @@ export class ReviewComponent extends Component {
 		private params: {
 			onTaskSelected?: (task: Task | null) => void;
 			onTaskCompleted?: (task: Task) => void;
+			onTaskUpdate?: (task: Task, updatedTask: Task) => Promise<void>;
 			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
 		} = {}
 	) {
@@ -319,6 +320,11 @@ export class ReviewComponent extends Component {
 		this.taskRenderer.onTaskCompleted = (task) => {
 			if (this.params.onTaskCompleted) this.params.onTaskCompleted(task);
 			// Potentially add review completion logic here later
+		};
+		this.taskRenderer.onTaskUpdate = async (originalTask, updatedTask) => {
+			if (this.params.onTaskUpdate) {
+				await this.params.onTaskUpdate(originalTask, updatedTask);
+			}
 		};
 		this.taskRenderer.onTaskContextMenu = (event, task) => {
 			if (this.params.onTaskContextMenu)

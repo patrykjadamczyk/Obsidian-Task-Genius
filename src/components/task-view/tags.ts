@@ -62,6 +62,7 @@ export class TagsComponent extends Component {
 		private params: {
 			onTaskSelected?: (task: Task | null) => void;
 			onTaskCompleted?: (task: Task) => void;
+			onTaskUpdate?: (task: Task, updatedTask: Task) => Promise<void>;
 			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
 		} = {}
 	) {
@@ -668,6 +669,8 @@ export class TagsComponent extends Component {
 			this.params.onTaskCompleted &&
 				(this.mainTaskRenderer.onTaskCompleted =
 					this.params.onTaskCompleted);
+			this.params.onTaskUpdate &&
+				(this.mainTaskRenderer.onTaskUpdate = this.params.onTaskUpdate);
 			this.params.onTaskContextMenu &&
 				(this.mainTaskRenderer.onTaskContextMenu =
 					this.params.onTaskContextMenu);
@@ -720,6 +723,8 @@ export class TagsComponent extends Component {
 			this.params.onTaskCompleted &&
 				(section.renderer.onTaskCompleted =
 					this.params.onTaskCompleted);
+			this.params.onTaskUpdate &&
+				(section.renderer.onTaskUpdate = this.params.onTaskUpdate);
 			this.params.onTaskContextMenu &&
 				(section.renderer.onTaskContextMenu =
 					this.params.onTaskContextMenu);

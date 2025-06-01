@@ -339,6 +339,11 @@ export class TaskView extends ItemView {
 					this.toggleTaskCompletion(task);
 				},
 				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					console.log(
+						"TaskView onTaskUpdate",
+						originalTask.content,
+						updatedTask.content
+					);
 					await this.handleTaskUpdate(originalTask, updatedTask);
 				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
@@ -380,6 +385,9 @@ export class TaskView extends ItemView {
 				onTaskCompleted: (task: Task) => {
 					this.toggleTaskCompletion(task);
 				},
+				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					await this.handleTaskUpdate(originalTask, updatedTask);
+				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
 					this.handleTaskContextMenu(event, task);
 				},
@@ -400,6 +408,9 @@ export class TaskView extends ItemView {
 				onTaskCompleted: (task: Task) => {
 					this.toggleTaskCompletion(task);
 				},
+				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					await this.handleTaskUpdate(originalTask, updatedTask);
+				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
 					this.handleTaskContextMenu(event, task);
 				},
@@ -419,6 +430,9 @@ export class TaskView extends ItemView {
 				},
 				onTaskCompleted: (task: Task) => {
 					this.toggleTaskCompletion(task);
+				},
+				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					await this.handleTaskUpdate(originalTask, updatedTask);
 				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
 					this.handleTaskContextMenu(event, task);
@@ -1179,6 +1193,16 @@ export class TaskView extends ItemView {
 	private async handleTaskUpdate(originalTask: Task, updatedTask: Task) {
 		const taskManager = this.plugin.taskManager;
 		if (!taskManager) return;
+
+		console.log(
+			"handleTaskUpdate",
+			originalTask.content,
+			updatedTask.content,
+			originalTask.id,
+			updatedTask.id,
+			updatedTask,
+			originalTask
+		);
 
 		try {
 			await taskManager.updateTask(updatedTask);

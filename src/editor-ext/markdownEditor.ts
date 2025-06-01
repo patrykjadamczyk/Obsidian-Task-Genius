@@ -131,6 +131,96 @@ export class EmbeddableMarkdownEditor {
 		container: HTMLElement,
 		options: Partial<MarkdownEditorProps>
 	) {
+		// Store user options first
+		this.options = { ...defaultProperties, ...options };
+		this.initial_value = this.options.value!;
+		this.scope = new Scope(app.scope);
+
+		// Prevent Mod+Enter default behavior
+		this.scope.register(["Mod"], "Enter", () => true);
+
+		// Use monkey-around to safely patch the method
+		const uninstaller = around(EditorClass.prototype, {
+			buildLocalExtensions: (originalMethod: any) =>
+				function (this: any) {
+					const extensions = originalMethod.call(this);
+
+					// Only add our custom extensions if this is our editor instance
+					if (this === self.editor) {
+						// Add placeholder if configured
+						if (self.options.placeholder) {
+							extensions.push(
+								placeholder(self.options.placeholder)
+							);
+						}
+
+						// Add paste event handler
+						extensions.push(
+							EditorView.domEventHandlers({
+								paste: (event) => {
+									self.options.onPaste(event, self);
+								},
+							})
+						);
+
+						console.log("extensions", extensions);
+
+						// Add keyboard handlers
+						extensions.push(
+							Prec.highest(
+								keymap.of([
+									{
+										key: "Enter",
+										run: () => {
+											console.log("Enter key pressed");
+											return self.options.onEnter(
+												self,
+												false,
+												false
+											);
+										},
+										shift: () =>
+											self.options.onEnter(
+												self,
+												false,
+												true
+											),
+									},
+									{
+										key: "Mod-Enter",
+										run: () =>
+											self.options.onEnter(
+												self,
+												true,
+												false
+											),
+										shift: () =>
+											self.options.onEnter(
+												self,
+												true,
+												true
+											),
+									},
+									{
+										key: "Escape",
+										run: () => {
+											self.options.onEscape(self);
+											return true;
+										},
+										preventDefault: true,
+									},
+								])
+							)
+						);
+					}
+
+					return extensions;
+				},
+		});
+
+		// Store reference to self for the patched method
+		const self = this;
+
 		// Create the editor with the app instance
 		this.editor = new EditorClass(app, container, {
 			app,
@@ -139,13 +229,8 @@ export class EmbeddableMarkdownEditor {
 			getMode: () => "source",
 		});
 
-		// Store user options
-		this.options = { ...defaultProperties, ...options };
-		this.initial_value = this.options.value!;
-		this.scope = new Scope(app.scope);
-
-		// Prevent Mod+Enter default behavior
-		this.scope.register(["Mod"], "Enter", () => true);
+		// Register the uninstaller for cleanup
+		this.register(uninstaller);
 
 		// Set up the editor relationship for commands to work
 		if (this.owner) {
@@ -169,6 +254,11 @@ export class EmbeddableMarkdownEditor {
 			})
 		);
 
+		console.log(
+			"onBlur",
+			this.options.onBlur,
+			this.editor.editor?.cm?.contentDOM
+		);
 		// Set up blur event handler
 		if (
 			this.options.onBlur !== defaultProperties.onBlur &&
@@ -203,62 +293,14 @@ export class EmbeddableMarkdownEditor {
 			});
 		}
 
-		// Override the buildLocalExtensions method to add our custom extensions
-		const originalBuildLocalExtensions =
-			this.editor.buildLocalExtensions.bind(this.editor);
-		this.editor.buildLocalExtensions = () => {
-			const extensions = originalBuildLocalExtensions();
-
-			// Add placeholder if configured
-			if (this.options.placeholder) {
-				extensions.push(placeholder(this.options.placeholder));
-			}
-
-			// Add paste event handler
-			extensions.push(
-				EditorView.domEventHandlers({
-					paste: (event) => {
-						this.options.onPaste(event, this);
-					},
-				})
-			);
-
-			// Add keyboard handlers
-			extensions.push(
-				Prec.highest(
-					keymap.of([
-						{
-							key: "Enter",
-							run: () => this.options.onEnter(this, false, false),
-							shift: () =>
-								this.options.onEnter(this, false, true),
-						},
-						{
-							key: "Mod-Enter",
-							run: () => this.options.onEnter(this, true, false),
-							shift: () => this.options.onEnter(this, true, true),
-						},
-						{
-							key: "Escape",
-							run: () => {
-								this.options.onEscape(this);
-								return true;
-							},
-							preventDefault: true,
-						},
-					])
-				)
-			);
-
-			return extensions;
-		};
-
 		// Override onUpdate to call our onChange handler
 		const originalOnUpdate = this.editor.onUpdate.bind(this.editor);
 		this.editor.onUpdate = (update: ViewUpdate, changed: boolean) => {
 			originalOnUpdate(update, changed);
 			if (changed) this.options.onChange(update);
 		};
+
+		console.log(this.editor);
 	}
 
 	// Get the current editor value

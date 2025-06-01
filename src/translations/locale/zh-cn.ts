@@ -988,7 +988,10 @@ const translations = {
 		"切换此选项以启用排序任务的命令。",
 	"Use relative time for date": "使用相对时间表示日期",
 	"Use relative time for date in task list item, e.g. 'yesterday', 'today', 'tomorrow', 'in 2 days', '3 months ago', etc.":
-		"在任务列表项中使用相对时间表示日期，例如'昨天'、'今天'、'明天'、'2天后'、'3个月前'等。",
+		"在任务列表项中使用相对时间表示日期，例如 '昨天'、'今天'、'明天'、'2天后'、'3个月前' 等。",
+	"Enable inline editor": "启用内联编辑器",
+	"Enable inline editing of task content and metadata directly in task views. When disabled, tasks can only be edited in the source file.":
+		"在任务视图中启用任务内容和元数据的内联编辑。禁用时，任务只能在源文件中编辑。",
 	"Ignore all tasks behind heading": "忽略标题后的所有任务",
 	"Enter the heading to ignore, e.g. '## Project', '## Inbox', separated by comma":
 		"输入要忽略的标题，例如 '## 项目','## 收件箱'，用逗号分隔",

@@ -162,6 +162,11 @@
 	opacity: 0.5;
 }
 
+.task-project:has(input) {
+	background-color: var(--background-modifier-active-hover);
+	color: var(--text-normal);
+}
+
 .task-item:hover .task-project {
 	opacity: 1;
 }
@@ -211,6 +216,10 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--size-2-2);
+}
+
+.task-tags-container:empty {
+	display: none;
 }
 
 .task-tag {
