@@ -416,6 +416,7 @@ export interface TaskProgressBarSettings {
 
 	// View Settings (Updated Structure)
 	enableView: boolean;
+	enableInlineEditor: boolean; // Enable inline editing in task views
 	viewConfiguration: ViewConfig[]; // Manages order, visibility, basic info, AND filter rules
 
 	// Review Settings
@@ -632,6 +633,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// View Defaults (Updated Structure)
 	enableView: true,
+	enableInlineEditor: true, // Enable inline editing by default
 	viewConfiguration: [
 		{
 			id: "inbox",

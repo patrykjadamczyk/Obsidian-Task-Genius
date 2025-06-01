@@ -357,8 +357,6 @@ function compareTasks<
 				comparison = valA - valB;
 			}
 
-			console.log("priority", valA, valB, comparison, order);
-
 			return order === "asc" ? comparison : -comparison;
 		},
 

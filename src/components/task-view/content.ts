@@ -15,6 +15,13 @@ import TaskProgressBarPlugin from "../../index";
 import { filterTasks } from "../../utils/TaskFilterUtils";
 import { sortTasks } from "../../commands/sortTaskCommands"; // 导入 sortTasks 函数
 
+interface ContentComponentParams {
+	onTaskSelected?: (task: Task | null) => void;
+	onTaskCompleted?: (task: Task) => void;
+	onTaskUpdate?: (originalTask: Task, updatedTask: Task) => Promise<void>;
+	onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
+}
+
 export class ContentComponent extends Component {
 	public containerEl: HTMLElement;
 	private headerEl: HTMLElement;
@@ -50,11 +57,7 @@ export class ContentComponent extends Component {
 		private parentEl: HTMLElement,
 		private app: App,
 		private plugin: TaskProgressBarPlugin,
-		private params: {
-			onTaskSelected?: (task: Task | null) => void;
-			onTaskCompleted?: (task: Task) => void;
-			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
-		} = {}
+		private params: ContentComponentParams = {}
 	) {
 		super();
 	}
@@ -280,6 +283,16 @@ export class ContentComponent extends Component {
 			taskComponent.onTaskCompleted = (t) => {
 				if (this.params.onTaskCompleted) this.params.onTaskCompleted(t);
 			};
+			taskComponent.onTaskUpdate = async (originalTask, updatedTask) => {
+				if (this.params.onTaskUpdate) {
+					console.log(
+						"ContentComponent onTaskUpdate",
+						originalTask.content,
+						updatedTask.content
+					);
+					await this.params.onTaskUpdate(originalTask, updatedTask);
+				}
+			};
 			taskComponent.onTaskContextMenu = (e, t) => {
 				if (this.params.onTaskContextMenu)
 					this.params.onTaskContextMenu(e, t);
@@ -329,6 +342,11 @@ export class ContentComponent extends Component {
 			treeComponent.onTaskSelected = this.selectTask.bind(this);
 			treeComponent.onTaskCompleted = (t) => {
 				if (this.params.onTaskCompleted) this.params.onTaskCompleted(t);
+			};
+			treeComponent.onTaskUpdate = async (originalTask, updatedTask) => {
+				if (this.params.onTaskUpdate) {
+					await this.params.onTaskUpdate(originalTask, updatedTask);
+				}
 			};
 			treeComponent.onTaskContextMenu = (e, t) => {
 				if (this.params.onTaskContextMenu)

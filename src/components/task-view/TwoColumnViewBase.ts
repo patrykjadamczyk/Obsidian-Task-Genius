@@ -71,6 +71,7 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 	// Events
 	public onTaskSelected: (task: Task) => void;
 	public onTaskCompleted: (task: Task) => void;
+	public onTaskUpdate: (task: Task, updatedTask: Task) => Promise<void>;
 	public onTaskContextMenu: (event: MouseEvent, task: Task) => void =
 		() => {};
 
@@ -218,6 +219,11 @@ export abstract class TwoColumnViewBase<T extends string> extends Component {
 		};
 		this.taskRenderer.onTaskCompleted = (task) => {
 			if (this.onTaskCompleted) this.onTaskCompleted(task);
+		};
+		this.taskRenderer.onTaskUpdate = async (originalTask, updatedTask) => {
+			if (this.onTaskUpdate) {
+				await this.onTaskUpdate(originalTask, updatedTask);
+			}
 		};
 		this.taskRenderer.onTaskContextMenu = (event, task) => {
 			if (this.onTaskContextMenu) this.onTaskContextMenu(event, task);

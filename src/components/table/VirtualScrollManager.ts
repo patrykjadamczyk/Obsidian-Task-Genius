@@ -24,8 +24,6 @@ export class VirtualScrollManager extends Component {
 	private loadCooldown: number = 500; // Minimum 500ms between load attempts
 	private isAtBottom: boolean = false;
 	private isAtTop: boolean = true;
-	private maxScrollDelta: number = 1000; // Maximum scroll distance per frame
-	private stabilityThreshold: number = 2; // Minimum change in pixels to trigger update
 
 	// Height stability
 	private heightStabilizer: HTMLElement | null = null;
@@ -181,69 +179,44 @@ export class VirtualScrollManager extends Component {
 		const scrollHeight = this.scrollContainer.scrollHeight;
 		const clientHeight = this.scrollContainer.clientHeight;
 
-		// Prevent excessive scroll handling if user is scrolling too fast
+		// Calculate scroll delta for direction detection
 		const scrollDelta = Math.abs(scrollTop - this.lastScrollTop);
-		if (scrollDelta > this.maxScrollDelta) {
-			// Skip this frame if scrolling too fast, schedule next frame
-			this.scheduleScrollUpdate();
-			return;
-		}
-
-		// Only proceed if scroll position changed significantly
-		if (scrollDelta < this.stabilityThreshold) {
-			return; // Ignore micro-scrolling
-		}
-
-		// More precise boundary detection - aligned with startIndex calculation
-		this.isAtTop = scrollTop <= 1; // Use stricter threshold for top
-		this.isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
 
 		// Update scroll direction
 		this.scrollDirection = scrollTop > this.lastScrollTop ? "down" : "up";
 		this.lastScrollTop = scrollTop;
 
-		// Update viewport - only if it results in significant change
+		// Update viewport - always calculate to ensure consistency
 		this.viewport.scrollTop = scrollTop;
 		const viewportChanged = this.calculateViewport();
 
-		// Only notify callback if viewport actually changed
-		if (viewportChanged) {
-			// Throttle callback notifications to reduce render frequency
-			queueMicrotask(() => {
-				this.callbacks.onScroll(scrollTop);
-			});
+		// Always notify callback for scroll position changes to ensure smooth rendering
+		// Remove the excessive throttling that was causing white screens
+		if (viewportChanged || scrollDelta > 0) {
+			// Use immediate callback instead of queueMicrotask to reduce delay
+			this.callbacks.onScroll(scrollTop);
 		}
 
-		// More conservative load trigger
+		// Boundary detection
+		this.isAtTop = scrollTop <= 1;
+		this.isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+
+		// Load more data logic - keep this conservative
 		const currentTime = performance.now();
 		const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
 
 		const shouldLoadMore =
 			!this.isLoading &&
 			!this.isAtBottom &&
-			this.scrollDirection === "down" && // Only load when scrolling down
+			this.scrollDirection === "down" &&
 			this.loadedRows < this.totalRows &&
-			scrollPercentage > 0.85 && // More conservative threshold
+			scrollPercentage > 0.85 &&
 			currentTime - this.lastLoadTriggerTime > this.loadCooldown;
 
 		if (shouldLoadMore) {
 			this.lastLoadTriggerTime = currentTime;
 			this.loadMoreData();
 		}
-	}
-
-	/**
-	 * Schedule a scroll update for the next frame
-	 */
-	private scheduleScrollUpdate() {
-		if (this.pendingScrollUpdate) return;
-
-		this.pendingScrollUpdate = true;
-		this.scrollRAF = requestAnimationFrame(() => {
-			this.handleScroll();
-			this.pendingScrollUpdate = false;
-			this.scrollRAF = null;
-		});
 	}
 
 	/**
@@ -272,8 +245,8 @@ export class VirtualScrollManager extends Component {
 			startIndex + visibleRowCount + this.bufferSize * 2
 		);
 
-		// Use a more significant threshold for viewport changes
-		const VIEWPORT_CHANGE_THRESHOLD = 2; // At least 2 row difference to reduce updates
+		// Reduce threshold for viewport changes to ensure responsive rendering during fast scrolling
+		const VIEWPORT_CHANGE_THRESHOLD = 1; // Reduced from 2 to 1 for more responsive updates
 		const startIndexDiff = Math.abs(this.viewport.startIndex - startIndex);
 		const endIndexDiff = Math.abs(this.viewport.endIndex - endIndex);
 

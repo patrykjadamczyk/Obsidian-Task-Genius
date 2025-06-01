@@ -744,39 +744,30 @@ export class TableView extends Component {
 				const currentTime = performance.now();
 				const deltaTime = currentTime - this.lastScrollTime;
 
-				if (deltaTime > 16) {
-					// Minimum 16ms between updates
-					const currentScrollTop = this.tableWrapper.scrollTop;
-					const previousScrollTop =
-						this.virtualScroll.getViewport().scrollTop;
-					this.scrollVelocity =
-						(currentScrollTop - previousScrollTop) / deltaTime;
-					this.lastScrollTime = currentTime;
+				// Remove time-based throttling for immediate responsiveness
+				const currentScrollTop = this.tableWrapper.scrollTop;
+				const previousScrollTop =
+					this.virtualScroll.getViewport().scrollTop;
+				this.scrollVelocity =
+					(currentScrollTop - previousScrollTop) /
+					Math.max(deltaTime, 1);
+				this.lastScrollTime = currentTime;
 
-					// Let virtual scroll manager handle the scroll logic first
-					this.virtualScroll.handleScroll();
+				// Let virtual scroll manager handle the scroll logic first
+				this.virtualScroll.handleScroll();
 
-					// Get viewport and check if it actually changed
-					const viewport = this.virtualScroll.getViewport();
+				// Get viewport and check if it actually changed
+				const viewport = this.virtualScroll.getViewport();
 
-					// Only re-render if viewport changed significantly AND enough time has passed
-					const viewportChanged =
-						!this.lastViewport ||
-						Math.abs(
-							this.lastViewport.startIndex - viewport.startIndex
-						) >= 2 ||
-						Math.abs(
-							this.lastViewport.endIndex - viewport.endIndex
-						) >= 2;
+				// Always render if viewport changed, no matter how small the change
+				const viewportChanged =
+					!this.lastViewport ||
+					this.lastViewport.startIndex !== viewport.startIndex ||
+					this.lastViewport.endIndex !== viewport.endIndex;
 
-					const timeSinceLastRender =
-						currentTime - this.lastRenderTime;
-					const shouldRender =
-						viewportChanged && timeSinceLastRender > 33; // Max 30fps for rendering
-
-					if (shouldRender) {
-						this.performRender(viewport, currentTime);
-					}
+				// Remove render throttling for immediate response
+				if (viewportChanged) {
+					this.performRender(viewport, currentTime);
 				}
 			}
 
@@ -791,58 +782,57 @@ export class TableView extends Component {
 		// Cancel any pending render
 		if (this.renderThrottleRAF) {
 			cancelAnimationFrame(this.renderThrottleRAF);
+			this.renderThrottleRAF = null;
 		}
 
-		this.renderThrottleRAF = requestAnimationFrame(() => {
-			// Conservative buffer adjustment
-			let bufferAdjustment = 0;
-			if (Math.abs(this.scrollVelocity) > 4) {
-				// Even higher threshold
-				bufferAdjustment = Math.min(
-					3,
-					Math.floor(Math.abs(this.scrollVelocity) / 3)
-				); // Smaller buffer
-			}
-
-			// Calculate visible range with buffer
-			let adjustedStartIndex = Math.max(
-				0,
-				viewport.startIndex - bufferAdjustment
+		// Execute rendering immediately for better responsiveness
+		// More aggressive buffer adjustment for fast scrolling
+		let bufferAdjustment = 0;
+		if (Math.abs(this.scrollVelocity) > 1) {
+			// Reduced threshold from 2 to 1 for earlier buffer adjustment
+			bufferAdjustment = Math.min(
+				8, // Increased from 5 to 8 for even larger buffer
+				Math.floor(Math.abs(this.scrollVelocity) / 1.5) // Reduced divisor for more aggressive buffering
 			);
+		}
 
-			// Special check: if we're very close to the top, force startIndex to 0
-			const currentScrollTop = this.tableWrapper.scrollTop;
-			if (currentScrollTop <= 40) {
-				// Within one row height of top
-				adjustedStartIndex = 0;
-			}
+		// Calculate visible range with buffer
+		let adjustedStartIndex = Math.max(
+			0,
+			viewport.startIndex - bufferAdjustment
+		);
 
-			const adjustedEndIndex = Math.min(
-				this.displayedRows.length - 1,
-				viewport.endIndex + bufferAdjustment
-			);
+		// Special check: if we're very close to the top, force startIndex to 0
+		const currentScrollTop = this.tableWrapper.scrollTop;
+		if (currentScrollTop <= 40) {
+			// Within one row height of top
+			adjustedStartIndex = 0;
+		}
 
-			const visibleRows = this.displayedRows.slice(
-				adjustedStartIndex,
-				adjustedEndIndex + 1
-			);
+		const adjustedEndIndex = Math.min(
+			this.displayedRows.length - 1,
+			viewport.endIndex + bufferAdjustment
+		);
 
-			// Use the optimized renderer with row recycling
-			this.renderer.renderTable(
-				visibleRows,
-				this.selectedRows,
-				adjustedStartIndex,
-				this.displayedRows.length
-			);
+		const visibleRows = this.displayedRows.slice(
+			adjustedStartIndex,
+			adjustedEndIndex + 1
+		);
 
-			// Update state
-			this.lastViewport = {
-				startIndex: adjustedStartIndex,
-				endIndex: adjustedEndIndex,
-			};
-			this.lastRenderTime = currentTime;
-			this.renderThrottleRAF = null;
-		});
+		// Use the optimized renderer with row recycling
+		this.renderer.renderTable(
+			visibleRows,
+			this.selectedRows,
+			adjustedStartIndex,
+			this.displayedRows.length
+		);
+
+		// Update state
+		this.lastViewport = {
+			startIndex: adjustedStartIndex,
+			endIndex: adjustedEndIndex,
+		};
+		this.lastRenderTime = currentTime;
 	}
 
 	// Cell editing methods

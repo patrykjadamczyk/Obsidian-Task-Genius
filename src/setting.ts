@@ -3258,6 +3258,21 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName(t("Enable inline editor"))
+			.setDesc(
+				t(
+					"Enable inline editing of task content and metadata directly in task views. When disabled, tasks can only be edited in the source file."
+				)
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.enableInlineEditor);
+				toggle.onChange((value) => {
+					this.plugin.settings.enableInlineEditor = value;
+					this.applySettingsUpdate();
+				});
+			});
+
+		new Setting(containerEl)
 			.setName(t("Ignore all tasks behind heading"))
 			.setDesc(
 				t(

@@ -1,6 +1,44 @@
 import { AbstractInputSuggest, App, prepareFuzzySearch, TFile } from "obsidian";
 import TaskProgressBarPlugin from "../index";
 
+// Global cache for autocomplete data to avoid repeated expensive operations
+interface GlobalAutoCompleteCache {
+	tags: string[];
+	projects: string[];
+	contexts: string[];
+	lastUpdate: number;
+}
+
+let globalCache: GlobalAutoCompleteCache | null = null;
+const CACHE_DURATION = 30000; // 30 seconds
+
+// Helper function to get cached data
+function getCachedData(plugin: TaskProgressBarPlugin): GlobalAutoCompleteCache {
+	const now = Date.now();
+
+	if (!globalCache || now - globalCache.lastUpdate > CACHE_DURATION) {
+		// Fetch fresh data
+		const tags = Object.keys(plugin.app.metadataCache.getTags() || {}).map(
+			(tag) => tag.substring(1) // Remove # prefix
+		);
+
+		const { projects, contexts } =
+			plugin.taskManager?.getAvailableContextOrProjects() || {
+				projects: [],
+				contexts: [],
+			};
+
+		globalCache = {
+			tags,
+			projects,
+			contexts,
+			lastUpdate: now,
+		};
+	}
+
+	return globalCache;
+}
+
 abstract class BaseSuggest<T> extends AbstractInputSuggest<T> {
 	constructor(app: App, public inputEl: HTMLInputElement) {
 		super(app, inputEl);
@@ -67,10 +105,9 @@ export class ProjectSuggest extends CustomSuggest {
 		inputEl: HTMLInputElement,
 		plugin: TaskProgressBarPlugin
 	) {
-		// Get project list
-		const projects =
-			plugin.taskManager?.getAvailableContextOrProjects().projects || [];
-		super(app, inputEl, projects);
+		// Get cached project list
+		const cachedData = getCachedData(plugin);
+		super(app, inputEl, cachedData.projects);
 	}
 }
 
@@ -83,10 +120,9 @@ export class ContextSuggest extends CustomSuggest {
 		inputEl: HTMLInputElement,
 		plugin: TaskProgressBarPlugin
 	) {
-		// Get context list
-		const contexts =
-			plugin.taskManager?.getAvailableContextOrProjects().contexts || [];
-		super(app, inputEl, contexts);
+		// Get cached context list
+		const cachedData = getCachedData(plugin);
+		super(app, inputEl, cachedData.contexts);
 	}
 }
 
@@ -99,12 +135,9 @@ export class TagSuggest extends CustomSuggest {
 		inputEl: HTMLInputElement,
 		plugin: TaskProgressBarPlugin
 	) {
-		// Get tag list, removing # prefix
-		const tags = Object.keys(plugin.app.metadataCache.getTags() || {}).map(
-			(tag) => tag.substring(1)
-		);
-
-		super(app, inputEl, tags);
+		// Get cached tag list
+		const cachedData = getCachedData(plugin);
+		super(app, inputEl, cachedData.tags);
 	}
 
 	// Override getSuggestions to handle comma-separated tags

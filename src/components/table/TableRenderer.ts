@@ -6,6 +6,15 @@ import { DatePickerPopover } from "../date-picker/DatePickerPopover";
 import type TaskProgressBarPlugin from "../../index";
 import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
 import { clearAllMarks } from "../MarkdownRenderer";
+
+// Cache for autocomplete data to avoid repeated expensive operations
+interface AutoCompleteCache {
+	tags: string[];
+	projects: string[];
+	contexts: string[];
+	lastUpdate: number;
+}
+
 /**
  * Table renderer component responsible for rendering the table HTML structure
  */
@@ -20,6 +29,14 @@ export class TableRenderer extends Component {
 	private rowPool: HTMLTableRowElement[] = [];
 	private activeRows: Map<string, HTMLTableRowElement> = new Map();
 	private eventCleanupMap: Map<HTMLElement, Array<() => void>> = new Map();
+
+	// AutoComplete optimization
+	private autoCompleteCache: AutoCompleteCache | null = null;
+	private activeSuggests: Map<
+		HTMLInputElement,
+		ContextSuggest | ProjectSuggest | TagSuggest
+	> = new Map();
+	private readonly CACHE_DURATION = 30000; // 30 seconds cache
 
 	// Callback for date changes
 	public onDateChange?: (
@@ -62,6 +79,12 @@ export class TableRenderer extends Component {
 		});
 		this.eventCleanupMap.clear();
 
+		// Clean up active suggests
+		this.activeSuggests.forEach((suggest) => {
+			suggest.close();
+		});
+		this.activeSuggests.clear();
+
 		// Clear row pools
 		this.rowPool = [];
 		this.activeRows.clear();
@@ -69,6 +92,100 @@ export class TableRenderer extends Component {
 		if (this.resizeObserver) {
 			this.resizeObserver.disconnect();
 		}
+	}
+
+	/**
+	 * Get cached autocomplete data or fetch if expired
+	 */
+	private getAutoCompleteData(): AutoCompleteCache {
+		const now = Date.now();
+
+		if (
+			!this.autoCompleteCache ||
+			now - this.autoCompleteCache.lastUpdate > this.CACHE_DURATION
+		) {
+			// Fetch fresh data
+			const tags = Object.keys(
+				this.plugin.app.metadataCache.getTags() || {}
+			).map(
+				(tag) => tag.substring(1) // Remove # prefix
+			);
+
+			const { projects, contexts } =
+				this.plugin.taskManager?.getAvailableContextOrProjects() || {
+					projects: [],
+					contexts: [],
+				};
+
+			this.autoCompleteCache = {
+				tags,
+				projects,
+				contexts,
+				lastUpdate: now,
+			};
+		}
+
+		return this.autoCompleteCache;
+	}
+
+	/**
+	 * Create or reuse autocomplete suggest for input
+	 */
+	private setupAutoComplete(
+		input: HTMLInputElement,
+		type: "tags" | "project" | "context"
+	): void {
+		// Check if this input already has a suggest
+		if (this.activeSuggests.has(input)) {
+			return;
+		}
+
+		const data = this.getAutoCompleteData();
+		let suggest: ContextSuggest | ProjectSuggest | TagSuggest;
+
+		switch (type) {
+			case "tags":
+				suggest = new TagSuggest(this.app, input, this.plugin);
+				// Override the expensive getTags call with cached data
+				(suggest as any).availableChoices = data.tags;
+				break;
+			case "project":
+				suggest = new ProjectSuggest(this.app, input, this.plugin);
+				(suggest as any).availableChoices = data.projects;
+				break;
+			case "context":
+				suggest = new ContextSuggest(this.app, input, this.plugin);
+				(suggest as any).availableChoices = data.contexts;
+				break;
+		}
+
+		this.activeSuggests.set(input, suggest);
+
+		// Clean up when input is removed or loses focus permanently
+		const cleanup = () => {
+			const suggestInstance = this.activeSuggests.get(input);
+			if (suggestInstance) {
+				suggestInstance.close();
+				this.activeSuggests.delete(input);
+			}
+		};
+
+		// Clean up when input is removed from DOM
+		const observer = new MutationObserver((mutations) => {
+			mutations.forEach((mutation) => {
+				mutation.removedNodes.forEach((node) => {
+					if (
+						node === input ||
+						(node instanceof Element && node.contains(input))
+					) {
+						cleanup();
+						observer.disconnect();
+					}
+				});
+			});
+		});
+
+		observer.observe(document.body, { childList: true, subtree: true });
 	}
 
 	/**
@@ -259,9 +376,10 @@ export class TableRenderer extends Component {
 		const currentCellCount = rowEl.querySelectorAll("td").length;
 		if (currentCellCount !== row.cells.length) return true;
 
-		// Check if cell contents have changed by comparing display values
+		// Optimized cell content check - only check key fields that change frequently
 		const currentCells = rowEl.querySelectorAll("td");
-		for (let i = 0; i < row.cells.length; i++) {
+		for (let i = 0; i < Math.min(row.cells.length, 3); i++) {
+			// Only check first 3 cells for performance
 			const cell = row.cells[i];
 			const currentCell = currentCells[i];
 
@@ -316,17 +434,22 @@ export class TableRenderer extends Component {
 		// Clean up event listeners
 		this.cleanupRowEvents(rowEl);
 
-		// Clear row content and attributes
+		// Clear row content and attributes efficiently
 		rowEl.empty();
 		rowEl.className = "task-table-row";
-		rowEl.removeAttribute("data-row-id");
-		rowEl.removeAttribute("data-level");
-		rowEl.removeAttribute("data-expanded");
-		rowEl.removeAttribute("data-has-children");
+
+		// Batch attribute removal
+		const attributesToRemove = [
+			"data-row-id",
+			"data-level",
+			"data-expanded",
+			"data-has-children",
+		];
+		attributesToRemove.forEach((attr) => rowEl.removeAttribute(attr));
 
 		// Add to pool if not too many
-		if (this.rowPool.length < 100) {
-			// Keep max 100 rows in pool
+		if (this.rowPool.length < 50) {
+			// Reduced pool size for better memory usage
 			this.rowPool.push(rowEl);
 		} else {
 			// Remove from DOM completely
@@ -335,7 +458,7 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Update a row element with new data
+	 * Update a row element with new data - optimized version
 	 */
 	private updateRow(
 		rowEl: HTMLTableRowElement,
@@ -345,64 +468,81 @@ export class TableRenderer extends Component {
 		// Clean up previous events for this row
 		this.cleanupRowEvents(rowEl);
 
-		// Clear and set basic attributes
+		// Clear and set basic attributes efficiently
 		rowEl.empty();
-		rowEl.dataset.rowId = row.id;
-		rowEl.dataset.level = row.level.toString();
-		rowEl.dataset.expanded = row.expanded.toString();
-		rowEl.dataset.hasChildren = row.hasChildren.toString();
 
-		// Update classes
-		rowEl.className = "task-table-row";
-		if (row.level > 0) {
-			rowEl.addClass(`task-table-row-level-${row.level}`);
-			rowEl.addClass("task-table-subtask");
-		}
-		if (row.hasChildren) {
-			rowEl.addClass("task-table-parent");
-		}
-		if (isSelected) {
-			rowEl.addClass("selected");
-		}
-		if (row.className) {
-			rowEl.addClass(row.className);
-		}
+		// Batch dataset updates
+		const dataset = rowEl.dataset;
+		dataset.rowId = row.id;
+		dataset.level = row.level.toString();
+		dataset.expanded = row.expanded.toString();
+		dataset.hasChildren = row.hasChildren.toString();
+
+		// Update classes efficiently using a single className assignment
+		const classNames = [
+			"task-table-row",
+			...(row.level > 0
+				? [`task-table-row-level-${row.level}`, "task-table-subtask"]
+				: []),
+			...(row.hasChildren ? ["task-table-parent"] : []),
+			...(isSelected ? ["selected"] : []),
+			...(row.className ? [row.className] : []),
+		];
+		rowEl.className = classNames.join(" ");
+
+		// Pre-calculate common styles to avoid repeated calculations
+		const isSubtask = row.level > 0;
+		const subtaskOpacity = isSubtask ? "0.9" : "";
+
+		// Create document fragment for batch DOM operations
+		const fragment = document.createDocumentFragment();
 
 		// Render cells
 		row.cells.forEach((cell, index) => {
 			const column = this.columns[index];
 			if (!column) return;
 
-			const td = rowEl.createEl("td", "task-table-cell");
+			const td = document.createElement("td");
+			td.className = "task-table-cell";
+
+			// Batch dataset and style updates
 			td.dataset.columnId = cell.columnId;
 			td.dataset.rowId = row.id;
 
-			// Set cell width to match column
-			td.style.width = `${column.width}px`;
-			td.style.minWidth = `${Math.min(column.width, 50)}px`;
+			// Set cell width and styles efficiently
+			td.style.cssText = `width:${column.width}px;min-width:${Math.min(
+				column.width,
+				50
+			)}px;${column.align ? `text-align:${column.align};` : ""}`;
+
+			// Apply subtask styling if needed
+			if (isSubtask) {
+				td.classList.add("task-table-subtask-cell");
+				if (subtaskOpacity) {
+					td.style.opacity = subtaskOpacity;
+				}
+			}
 
 			// Render content based on column type
 			if (column.id === "rowNumber") {
 				this.renderTreeStructure(td, row, cell, column);
 			} else {
-				if (row.level > 0) {
-					td.addClass("task-table-subtask-cell");
-					td.style.opacity = "0.9";
-				}
 				this.renderCellContent(td, cell, column);
 			}
 
 			if (cell.className) {
-				td.addClass(cell.className);
+				td.classList.add(cell.className);
 			}
-			if (column.align) {
-				td.style.textAlign = column.align;
-			}
+
+			fragment.appendChild(td);
 		});
+
+		// Single DOM append operation
+		rowEl.appendChild(fragment);
 	}
 
 	/**
-	 * Update virtual scroll spacer - simplified to only handle top spacer
+	 * Update virtual scroll spacer - simplified and optimized
 	 */
 	private updateVirtualScrollSpacer(startIndex: number) {
 		// Always clear existing spacers first
@@ -414,11 +554,10 @@ export class TableRenderer extends Component {
 		}
 
 		// Create top spacer for rows above viewport
-		const topSpacer = this.bodyEl.createEl(
-			"tr",
-			"virtual-scroll-spacer-top"
-		);
-		const topSpacerCell = topSpacer.createEl("td");
+		const topSpacer = document.createElement("tr");
+		topSpacer.className = "virtual-scroll-spacer-top";
+
+		const topSpacerCell = document.createElement("td");
 		topSpacerCell.colSpan = this.columns.length;
 		topSpacerCell.style.cssText = `
 			height: ${startIndex * 40}px;
@@ -430,14 +569,17 @@ export class TableRenderer extends Component {
 			line-height: 0;
 		`;
 
+		topSpacer.appendChild(topSpacerCell);
+
 		// Insert at the very beginning
 		this.bodyEl.insertBefore(topSpacer, this.bodyEl.firstChild);
 	}
 
 	/**
-	 * Clear existing virtual spacers
+	 * Clear existing virtual spacers - optimized
 	 */
 	private clearVirtualSpacers() {
+		// Use more efficient selector and removal
 		const spacers = this.bodyEl.querySelectorAll(
 			".virtual-scroll-spacer-top, .virtual-scroll-spacer-bottom"
 		);
@@ -448,7 +590,9 @@ export class TableRenderer extends Component {
 	 * Clear all rows and return them to pool
 	 */
 	private clearAllRows() {
-		this.activeRows.forEach((rowEl) => {
+		// Batch cleanup for better performance
+		const rowsToCleanup = Array.from(this.activeRows.values());
+		rowsToCleanup.forEach((rowEl) => {
 			this.returnRowToPool(rowEl);
 		});
 		this.activeRows.clear();
@@ -456,7 +600,7 @@ export class TableRenderer extends Component {
 	}
 
 	/**
-	 * Clean up event listeners for a row
+	 * Clean up event listeners for a row - optimized
 	 */
 	private cleanupRowEvents(element: HTMLElement) {
 		const cleanupFns = this.eventCleanupMap.get(element);
@@ -465,8 +609,11 @@ export class TableRenderer extends Component {
 			this.eventCleanupMap.delete(element);
 		}
 
-		// Also clean up child elements
-		element.querySelectorAll("*").forEach((child) => {
+		// Also clean up child elements - but limit depth for performance
+		const childElements = element.querySelectorAll(
+			"input, button, [data-cleanup]"
+		);
+		childElements.forEach((child) => {
 			const childCleanup = this.eventCleanupMap.get(child as HTMLElement);
 			if (childCleanup) {
 				childCleanup.forEach((fn) => fn());
@@ -954,22 +1101,20 @@ export class TableRenderer extends Component {
 			input.type = "text";
 			const initialValue = tags?.join(", ") || "";
 			input.value = initialValue;
-			input.style.border = "none";
-			input.style.background = "transparent";
-			input.style.width = "100%";
-			input.style.padding = "0";
-			input.style.font = "inherit";
+			input.style.cssText =
+				"border:none;background:transparent;width:100%;padding:0;font:inherit;";
 
 			// Store initial value for comparison
 			const originalTags = [...(tags || [])];
 
-			// Auto focus the input when it's created
-
-			// Add auto-suggest for tags
-			if (this.app) {
-				const allTags = this.getAllValues("tags");
-				new TagSuggest(this.app, input, this.plugin!);
-			}
+			// Setup autocomplete only when user starts typing or focuses
+			let autoCompleteSetup = false;
+			const setupAutoCompleteOnce = () => {
+				if (!autoCompleteSetup && this.app) {
+					autoCompleteSetup = true;
+					this.setupAutoComplete(input, "tags");
+				}
+			};
 
 			// Handle blur event to save changes
 			this.registerDomEvent(input, "blur", () => {
@@ -996,29 +1141,25 @@ export class TableRenderer extends Component {
 				e.stopPropagation();
 			});
 
+			// Setup autocomplete on focus or first input
+			this.registerDomEvent(input, "focus", setupAutoCompleteOnce);
+			this.registerDomEvent(input, "input", setupAutoCompleteOnce);
+
 			// Stop click propagation
 			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
-
-				setTimeout(() => {
-					input.focus();
-				}, 0);
+				// Use requestAnimationFrame instead of setTimeout for better performance
+				requestAnimationFrame(() => input.focus());
 			});
 		} else {
-			// Display tags as chips
+			// Display tags as chips - optimized version
 			if (tags && tags.length > 0) {
-				tags.forEach((tag) => {
-					const tagChip = tagsContainer.createSpan(
-						"task-table-tag-chip"
-					);
-					tagChip.textContent = tag;
-				});
+				// Use a single text content instead of multiple DOM elements for better performance
+				tagsContainer.textContent = tags.join(", ");
+				tagsContainer.addClass("task-table-tags-display");
 			} else {
-				const emptyText = tagsContainer.createSpan(
-					"task-table-tags-empty"
-				);
-				emptyText.textContent = t("No tags");
-				emptyText.addClass("empty-tags");
+				tagsContainer.textContent = "\u00A0"; // Non-breaking space
+				tagsContainer.addClass("empty-tags");
 			}
 		}
 	}
@@ -1048,11 +1189,8 @@ export class TableRenderer extends Component {
 			const input = cellEl.createEl("input", "task-table-text-input");
 			input.type = "text";
 			input.value = displayText;
-			input.style.border = "none";
-			input.style.background = "transparent";
-			input.style.width = "100%";
-			input.style.padding = "0";
-			input.style.font = "inherit";
+			input.style.cssText =
+				"border:none;background:transparent;width:100%;padding:0;font:inherit;";
 
 			// Store initial value for comparison - should match what's shown in the input
 			// For content column, use the cleaned text; for others, use the raw value
@@ -1060,14 +1198,18 @@ export class TableRenderer extends Component {
 				? displayText // This is the cleaned text that user sees and edits
 				: (cell.value as string) || "";
 
-			// Add auto-suggest for project and context fields
-			if (cell.columnId === "project" && this.app) {
-				new ProjectSuggest(this.app, input, this.plugin);
-			}
-
-			if (cell.columnId === "context" && this.app) {
-				new ContextSuggest(this.app, input, this.plugin);
-			}
+			// Setup autocomplete only when user starts typing or focuses
+			let autoCompleteSetup = false;
+			const setupAutoCompleteOnce = () => {
+				if (!autoCompleteSetup && this.app) {
+					autoCompleteSetup = true;
+					if (cell.columnId === "project") {
+						this.setupAutoComplete(input, "project");
+					} else if (cell.columnId === "context") {
+						this.setupAutoComplete(input, "context");
+					}
+				}
+			};
 
 			// Handle blur event to save changes
 			this.registerDomEvent(input, "blur", () => {
@@ -1089,14 +1231,16 @@ export class TableRenderer extends Component {
 				e.stopPropagation();
 			});
 
+			// Setup autocomplete on focus or first input for project/context columns
+			if (cell.columnId === "project" || cell.columnId === "context") {
+				this.registerDomEvent(input, "focus", setupAutoCompleteOnce);
+				this.registerDomEvent(input, "input", setupAutoCompleteOnce);
+			}
+
 			// Stop click propagation to prevent row selection
 			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
-
-				// Auto focus the input when it's created
-				setTimeout(() => {
-					input.focus();
-				}, 0);
+				requestAnimationFrame(() => input.focus());
 			});
 		} else {
 			cellEl.textContent = displayText;
@@ -1115,7 +1259,7 @@ export class TableRenderer extends Component {
 			}
 		}
 
-		// Add tooltip for long text
+		// Add tooltip for long text - only if necessary
 		if (displayText.length > 50) {
 			cellEl.title = displayText;
 		}
