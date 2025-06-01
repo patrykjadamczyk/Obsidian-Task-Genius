@@ -352,21 +352,25 @@ export class TableRenderer extends Component {
 		rowEl.dataset.expanded = row.expanded.toString();
 		rowEl.dataset.hasChildren = row.hasChildren.toString();
 
-		// Update classes
-		rowEl.className = "task-table-row";
+		// Update classes efficiently using a single className assignment
+		let classNames = "task-table-row";
 		if (row.level > 0) {
-			rowEl.addClass(`task-table-row-level-${row.level}`);
-			rowEl.addClass("task-table-subtask");
+			classNames += ` task-table-row-level-${row.level} task-table-subtask`;
 		}
 		if (row.hasChildren) {
-			rowEl.addClass("task-table-parent");
+			classNames += " task-table-parent";
 		}
 		if (isSelected) {
-			rowEl.addClass("selected");
+			classNames += " selected";
 		}
 		if (row.className) {
-			rowEl.addClass(row.className);
+			classNames += ` ${row.className}`;
 		}
+		rowEl.className = classNames;
+
+		// Pre-calculate common styles to avoid repeated calculations
+		const isSubtask = row.level > 0;
+		const subtaskOpacity = isSubtask ? "0.9" : "";
 
 		// Render cells
 		row.cells.forEach((cell, index) => {
@@ -377,26 +381,29 @@ export class TableRenderer extends Component {
 			td.dataset.columnId = cell.columnId;
 			td.dataset.rowId = row.id;
 
-			// Set cell width to match column
-			td.style.width = `${column.width}px`;
-			td.style.minWidth = `${Math.min(column.width, 50)}px`;
+			// Set cell width and styles efficiently
+			td.style.cssText = `width:${column.width}px;min-width:${Math.min(
+				column.width,
+				50
+			)}px;${column.align ? `text-align:${column.align};` : ""}`;
+
+			// Apply subtask styling if needed
+			if (isSubtask) {
+				td.addClass("task-table-subtask-cell");
+				if (subtaskOpacity) {
+					td.style.opacity = subtaskOpacity;
+				}
+			}
 
 			// Render content based on column type
 			if (column.id === "rowNumber") {
 				this.renderTreeStructure(td, row, cell, column);
 			} else {
-				if (row.level > 0) {
-					td.addClass("task-table-subtask-cell");
-					td.style.opacity = "0.9";
-				}
 				this.renderCellContent(td, cell, column);
 			}
 
 			if (cell.className) {
 				td.addClass(cell.className);
-			}
-			if (column.align) {
-				td.style.textAlign = column.align;
 			}
 		});
 	}
@@ -954,21 +961,18 @@ export class TableRenderer extends Component {
 			input.type = "text";
 			const initialValue = tags?.join(", ") || "";
 			input.value = initialValue;
-			input.style.border = "none";
-			input.style.background = "transparent";
-			input.style.width = "100%";
-			input.style.padding = "0";
-			input.style.font = "inherit";
+			input.style.cssText =
+				"border:none;background:transparent;width:100%;padding:0;font:inherit;";
 
 			// Store initial value for comparison
 			const originalTags = [...(tags || [])];
 
-			// Auto focus the input when it's created
-
-			// Add auto-suggest for tags
+			// Defer auto-suggest initialization to reduce immediate rendering cost
 			if (this.app) {
-				const allTags = this.getAllValues("tags");
-				new TagSuggest(this.app, input, this.plugin!);
+				// Use setTimeout to defer expensive auto-suggest setup
+				setTimeout(() => {
+					new TagSuggest(this.app, input, this.plugin!);
+				}, 0);
 			}
 
 			// Handle blur event to save changes
@@ -999,26 +1003,17 @@ export class TableRenderer extends Component {
 			// Stop click propagation
 			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
-
-				setTimeout(() => {
-					input.focus();
-				}, 0);
+				setTimeout(() => input.focus(), 0);
 			});
 		} else {
-			// Display tags as chips
+			// Display tags as chips - optimized version
 			if (tags && tags.length > 0) {
-				tags.forEach((tag) => {
-					const tagChip = tagsContainer.createSpan(
-						"task-table-tag-chip"
-					);
-					tagChip.textContent = tag;
-				});
+				// Use a single text content instead of multiple DOM elements for better performance
+				tagsContainer.textContent = tags.join(", ");
+				tagsContainer.addClass("task-table-tags-display");
 			} else {
-				const emptyText = tagsContainer.createSpan(
-					"task-table-tags-empty"
-				);
-				emptyText.textContent = t("No tags");
-				emptyText.addClass("empty-tags");
+				tagsContainer.textContent = "\u00A0"; // Non-breaking space
+				tagsContainer.addClass("empty-tags");
 			}
 		}
 	}
@@ -1048,11 +1043,8 @@ export class TableRenderer extends Component {
 			const input = cellEl.createEl("input", "task-table-text-input");
 			input.type = "text";
 			input.value = displayText;
-			input.style.border = "none";
-			input.style.background = "transparent";
-			input.style.width = "100%";
-			input.style.padding = "0";
-			input.style.font = "inherit";
+			input.style.cssText =
+				"border:none;background:transparent;width:100%;padding:0;font:inherit;";
 
 			// Store initial value for comparison - should match what's shown in the input
 			// For content column, use the cleaned text; for others, use the raw value
@@ -1060,13 +1052,17 @@ export class TableRenderer extends Component {
 				? displayText // This is the cleaned text that user sees and edits
 				: (cell.value as string) || "";
 
-			// Add auto-suggest for project and context fields
+			// Defer auto-suggest initialization to reduce immediate rendering cost
 			if (cell.columnId === "project" && this.app) {
-				new ProjectSuggest(this.app, input, this.plugin);
+				setTimeout(() => {
+					new ProjectSuggest(this.app, input, this.plugin);
+				}, 0);
 			}
 
 			if (cell.columnId === "context" && this.app) {
-				new ContextSuggest(this.app, input, this.plugin);
+				setTimeout(() => {
+					new ContextSuggest(this.app, input, this.plugin);
+				}, 0);
 			}
 
 			// Handle blur event to save changes
@@ -1092,11 +1088,7 @@ export class TableRenderer extends Component {
 			// Stop click propagation to prevent row selection
 			this.registerDomEvent(input, "click", (e) => {
 				e.stopPropagation();
-
-				// Auto focus the input when it's created
-				setTimeout(() => {
-					input.focus();
-				}, 0);
+				setTimeout(() => input.focus(), 0);
 			});
 		} else {
 			cellEl.textContent = displayText;
@@ -1115,7 +1107,7 @@ export class TableRenderer extends Component {
 			}
 		}
 
-		// Add tooltip for long text
+		// Add tooltip for long text - only if necessary
 		if (displayText.length > 50) {
 			cellEl.title = displayText;
 		}
