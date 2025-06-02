@@ -142,8 +142,23 @@ class DatePickerWidget extends WidgetType {
 				return;
 			}
 
+			const useDataviewFormat =
+				this.plugin.settings.preferMetadataFormat === "dataview";
+			let newText = "";
+
+			if (date) {
+				if (useDataviewFormat) {
+					// For dataview format: reconstruct [xxx:: date] pattern
+					newText = `${this.dateMark}${date}]`;
+				} else {
+					// For tasks format: reconstruct emoji + date pattern
+					newText = `${date}`;
+				}
+			}
+			// If date is empty, newText remains empty which will clear the date
+
 			const transaction = this.view.state.update({
-				changes: { from: this.from, to: this.to, insert: date },
+				changes: { from: this.from, to: this.to, insert: newText },
 				annotations: [dateChangeAnnotation.of(true)],
 			});
 
@@ -169,57 +184,85 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 		public isDestroyed: boolean = false;
 
 		// Date matcher
-		private readonly dateMatch: MatchDecorator;
+		private readonly dateMatch = new MatchDecorator({
+			regexp: this.createDateRegex(plugin.settings.preferMetadataFormat),
+			decorate: (
+				add,
+				from: number,
+				to: number,
+				match: RegExpExecArray,
+				view: EditorView
+			) => {
+				try {
+					if (!this.shouldRender(view, from, to)) {
+						return;
+					}
+
+					console.log(match);
+
+					const useDataviewFormat =
+						this.plugin.settings.preferMetadataFormat ===
+						"dataview";
+					let fullMatch: string;
+					let dateMark: string;
+
+					if (useDataviewFormat) {
+						// For dataview format: match[0] is full match, match[1] is [xxx::, match[2] is date
+						fullMatch = match[0]; // e.g., "[start:: 2024-01-01]"
+						dateMark = match[1]; // e.g., "[start:: "
+					} else {
+						// For tasks format: match[0] is full match, match[1] is emoji, match[2] is date
+						fullMatch = match[0]; // e.g., "📅 2024-01-01"
+						dateMark = match[1]; // e.g., "📅"
+					}
+
+					add(
+						from,
+						to,
+						Decoration.replace({
+							widget: new DatePickerWidget(
+								app,
+								plugin,
+								view,
+								from,
+								to,
+								fullMatch,
+								dateMark
+							),
+						})
+					);
+				} catch (error) {
+					console.warn("Error decorating date:", error);
+				}
+			},
+		});
 
 		constructor(view: EditorView) {
 			this.view = view;
 			this.plugin = plugin;
-
-			// Determine which marker to use based on settings
-			let marker: string;
-			if (plugin.settings.preferMetadataFormat === "dataview") {
-				marker = "\\[due::"; // escape [ for regex
-			} else {
-				marker = "📅";
-			}
-			this.dateMatch = new MatchDecorator({
-				regexp: new RegExp(
-					`(${marker})\\s*\\d{4}-\\d{2}-\\d{2}`,
-					"g"
-				),
-				decorate: (
-					add,
-					from: number,
-					to: number,
-					match: RegExpExecArray,
-					view: EditorView
-				) => {
-					try {
-						if (!this.shouldRender(view, from, to)) {
-							return;
-						}
-
-						add(
-							from,
-							to,
-							Decoration.replace({
-								widget: new DatePickerWidget(
-									app,
-									plugin,
-									view,
-									from,
-									to,
-									match[0],
-									match[1]
-								),
-							})
-						);
-					} catch (error) {
-						console.warn("Error decorating date:", error);
-					}
-				},
-			});
 			this.updateDecorations(view);
+		}
+
+		/**
+		 * Create date regex based on preferMetadataFormat setting
+		 */
+		private createDateRegex(preferMetadataFormat: string): RegExp {
+			const useDataviewFormat = preferMetadataFormat === "dataview";
+
+			if (useDataviewFormat) {
+				// For dataview format: match [xxx:: yyyy-mm-dd] pattern
+				return new RegExp(
+					`(\\[[^\\]]+::\\s*)(\\d{4}-\\d{2}-\\d{2})\\]`,
+					"g"
+				);
+			} else {
+				// For tasks format: match emoji + date pattern
+				// Using Unicode property escapes to match all emojis
+				return new RegExp(
+					`([\\p{Emoji}\\p{Emoji_Modifier}\\p{Emoji_Component}\\p{Emoji_Modifier_Base}\\p{Emoji_Presentation}])\\s*(\\d{4}-\\d{2}-\\d{2})`,
+					"gu"
+				);
+			}
 		}
 
 		update(update: ViewUpdate): void {

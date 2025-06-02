@@ -569,25 +569,57 @@ export class TaskTreeItemComponent extends Component {
 			{ key: "recurrence", label: "Recurrence", icon: "repeat" },
 		];
 
-		availableFields.forEach((field) => {
-			menu.addItem((item: any) => {
-				item.setTitle(field.label)
-					.setIcon(field.icon)
-					.onClick(() => {
-						// Create a temporary container for the metadata editor
-						const tempContainer = buttonEl.parentElement!.createDiv(
-							{
-								cls: "temp-metadata-editor-container",
-							}
-						);
-
-						editor.showMetadataEditor(
-							tempContainer,
-							field.key as any
-						);
-					});
-			});
+		// Filter out fields that already have values
+		const fieldsToShow = availableFields.filter((field) => {
+			switch (field.key) {
+				case "project":
+					return !this.task.project;
+				case "tags":
+					return !this.task.tags || this.task.tags.length === 0;
+				case "context":
+					return !this.task.context;
+				case "dueDate":
+					return !this.task.dueDate;
+				case "startDate":
+					return !this.task.startDate;
+				case "scheduledDate":
+					return !this.task.scheduledDate;
+				case "priority":
+					return !this.task.priority;
+				case "recurrence":
+					return !this.task.recurrence;
+				default:
+					return true;
+			}
 		});
+
+		// If no fields are available to add, show a message
+		if (fieldsToShow.length === 0) {
+			menu.addItem((item) => {
+				item.setTitle(
+					"All metadata fields are already set"
+				).setDisabled(true);
+			});
+		} else {
+			fieldsToShow.forEach((field) => {
+				menu.addItem((item: any) => {
+					item.setTitle(field.label)
+						.setIcon(field.icon)
+						.onClick(() => {
+							// Create a temporary container for the metadata editor
+							const tempContainer =
+								buttonEl.parentElement!.createDiv({
+									cls: "temp-metadata-editor-container",
+								});
+
+							editor.showMetadataEditor(
+								tempContainer,
+								field.key as any
+							);
+						});
+				});
+			});
+		}
 
 		menu.showAtPosition({
 			x: buttonEl.getBoundingClientRect().left,

@@ -17,53 +17,68 @@ import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import { t } from "../translations/helper";
 export const priorityChangeAnnotation = Annotation.define();
 
-// Priority definitions
+// Priority definitions for emoji format (Tasks plugin style)
 export const TASK_PRIORITIES = {
 	highest: {
 		emoji: "🔺",
 		text: t("Highest priority"),
 		regex: "🔺",
+		dataviewValue: "highest",
+		numericValue: 5,
 	},
 	high: {
 		emoji: "⏫",
 		text: t("High priority"),
 		regex: "⏫",
+		dataviewValue: "high",
+		numericValue: 4,
 	},
 	medium: {
 		emoji: "🔼",
 		text: t("Medium priority"),
 		regex: "🔼",
+		dataviewValue: "medium",
+		numericValue: 3,
 	},
 	none: {
 		emoji: "",
 		text: t("No priority"),
 		regex: "",
+		dataviewValue: "none",
+		numericValue: 0,
 	},
 	low: {
 		emoji: "🔽",
 		text: t("Low priority"),
 		regex: "🔽",
+		dataviewValue: "low",
+		numericValue: 2,
 	},
 	lowest: {
 		emoji: "⏬️",
 		text: t("Lowest priority"),
 		regex: "⏬️",
+		dataviewValue: "lowest",
+		numericValue: 1,
 	},
 };
 
-// Task plugin format priorities
+// Task plugin format priorities (letter format)
 export const LETTER_PRIORITIES = {
 	A: {
 		text: t("Priority A"),
 		regex: "\\[#A\\]",
+		numericValue: 4,
 	},
 	B: {
 		text: t("Priority B"),
 		regex: "\\[#B\\]",
+		numericValue: 3,
 	},
 	C: {
 		text: t("Priority C"),
 		regex: "\\[#C\\]",
+		numericValue: 2,
 	},
 };
 
@@ -77,21 +92,79 @@ const letterPriorityRegex = Object.values(LETTER_PRIORITIES)
 	.map((p) => p.regex)
 	.join("|");
 
-// Dataview priorities regex
-const dataviewPriorityRegex = /\[priority::\s*(highest|high|medium|none|low|lowest)\]/i;
+// Dataview priorities regex - improved to handle various formats
+const dataviewPriorityRegex =
+	/\[priority::\s*(highest|high|medium|none|low|lowest|\d+)\]/gi;
 
-// Helper to detect mode for a given line
-function detectPriorityMode(lineText: string): 'tasks' | 'dataview' | 'letter' | 'none' {
-	if (/\[priority::\s*(highest|high|medium|none|low|lowest)\]/i.test(lineText)) {
-		return 'dataview';
+// Priority mode detection type
+type PriorityMode = "tasks" | "dataview" | "letter" | "none";
+
+// Helper to detect priority mode for a given line
+function detectPriorityMode(
+	lineText: string,
+	useDataviewFormat: boolean
+): PriorityMode {
+	// Create non-global version for testing to avoid side effects
+	const dataviewTestRegex =
+		/\[priority::\s*(highest|high|medium|none|low|lowest|\d+)\]/i;
+
+	// If user prefers dataview format, prioritize dataview detection
+	if (useDataviewFormat) {
+		if (dataviewTestRegex.test(lineText)) {
+			return "dataview";
+		}
 	}
+
+	// Check for emoji priorities (Tasks plugin format)
 	if (/(🔺|⏫|🔼|🔽|⏬️)/.test(lineText)) {
-		return 'tasks';
+		return "tasks";
 	}
+
+	// Check for letter priorities
 	if (/\[#([ABC])\]/.test(lineText)) {
-		return 'letter';
+		return "letter";
 	}
-	return 'none';
+
+	// Check for dataview format if not preferred but present
+	if (!useDataviewFormat && dataviewTestRegex.test(lineText)) {
+		return "dataview";
+	}
+
+	return "none";
+}
+
+// Helper to get priority display text based on mode and value
+function getPriorityDisplayText(priority: string, mode: PriorityMode): string {
+	switch (mode) {
+		case "dataview":
+			// Extract the priority value from dataview format
+			const match = priority.match(/\[priority::\s*(\w+|\d+)\]/i);
+			if (match) {
+				const value = match[1].toLowerCase();
+				const taskPriority = Object.values(TASK_PRIORITIES).find(
+					(p) => p.dataviewValue === value
+				);
+				return taskPriority
+					? `${taskPriority.emoji} ${taskPriority.text}`
+					: priority;
+			}
+			return priority;
+		case "tasks":
+			const taskPriority = Object.values(TASK_PRIORITIES).find(
+				(p) => p.emoji === priority
+			);
+			return taskPriority
+				? `${taskPriority.emoji} ${taskPriority.text}`
+				: priority;
+		case "letter":
+			const letter = priority.match(/\[#([ABC])\]/)?.[1];
+			const letterPriority = letter
+				? LETTER_PRIORITIES[letter as keyof typeof LETTER_PRIORITIES]
+				: null;
+			return letterPriority ? letterPriority.text : priority;
+		default:
+			return priority;
+	}
 }
 
 class PriorityWidget extends WidgetType {
@@ -102,7 +175,7 @@ class PriorityWidget extends WidgetType {
 		readonly from: number,
 		readonly to: number,
 		readonly currentPriority: string,
-		readonly isLetterFormat: boolean
+		readonly mode: PriorityMode
 	) {
 		super();
 	}
@@ -112,7 +185,7 @@ class PriorityWidget extends WidgetType {
 			this.from === other.from &&
 			this.to === other.to &&
 			this.currentPriority === other.currentPriority &&
-			this.isLetterFormat === other.isLetterFormat
+			this.mode === other.mode
 		);
 	}
 
@@ -125,13 +198,9 @@ class PriorityWidget extends WidgetType {
 				},
 			});
 
-			// Get the line text to detect mode
-			const line = this.view.state.doc.lineAt(this.from);
-			const mode = detectPriorityMode(line.text);
-
 			let prioritySpan: HTMLElement;
 
-			if (this.isLetterFormat) {
+			if (this.mode === "letter") {
 				// Create spans for letter format priority [#A]
 				const leftBracket = document.createElement("span");
 				leftBracket.classList.add(
@@ -166,7 +235,7 @@ class PriorityWidget extends WidgetType {
 				wrapper.appendChild(leftBracket);
 				wrapper.appendChild(prioritySpan);
 				wrapper.appendChild(rightBracket);
-			} else if (mode === 'dataview') {
+			} else if (this.mode === "dataview") {
 				prioritySpan = document.createElement("span");
 				prioritySpan.classList.add("task-priority-dataview");
 				prioritySpan.textContent = this.currentPriority;
@@ -178,7 +247,7 @@ class PriorityWidget extends WidgetType {
 				wrapper.appendChild(prioritySpan);
 			}
 
-			// Attach click event to the inner span (like datePicker)
+			// Attach click event to the inner span
 			prioritySpan.addEventListener("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
@@ -200,47 +269,56 @@ class PriorityWidget extends WidgetType {
 	private showPriorityMenu(e: MouseEvent) {
 		try {
 			const menu = new Menu();
-			const line = this.view.state.doc.lineAt(this.from);
-			const mode = detectPriorityMode(line.text);
+			const useDataviewFormat =
+				this.plugin.settings.preferMetadataFormat === "dataview";
 
-			if (this.isLetterFormat) {
+			if (this.mode === "letter") {
 				// Only show letter priorities
 				Object.entries(LETTER_PRIORITIES).forEach(([key, priority]) => {
 					menu.addItem((item) => {
 						item.setTitle(priority.text);
 						item.onClick(() => {
-							this.setPriority(`[#${key}]`, 'letter');
+							this.setPriority(`[#${key}]`, "letter");
 						});
 					});
 				});
 				menu.addItem((item) => {
 					item.setTitle(t("Remove Priority"));
 					item.onClick(() => {
-						this.removePriority('letter');
+						this.removePriority("letter");
 					});
 				});
 			} else {
-				// Only show the 6 levels (Highest, High, Medium, None, Low, Lowest)
+				// Show the 6 priority levels based on user preference, excluding 'none'
 				Object.entries(TASK_PRIORITIES).forEach(([key, priority]) => {
-					if (key === "none") {
+					if (key !== "none") {
 						menu.addItem((item) => {
-							item.setTitle(t("Remove Priority"));
+							const displayText = useDataviewFormat
+								? priority.text
+								: `${priority.emoji} ${priority.text}`;
+							item.setTitle(displayText);
 							item.onClick(() => {
-								this.removePriority(mode === 'dataview' ? 'dataview' : 'tasks');
-							});
-						});
-					} else {
-						menu.addItem((item) => {
-							item.setTitle(mode === 'dataview' ? priority.text : `${priority.emoji} ${priority.text}`);
-							item.onClick(() => {
-								if (mode === 'dataview') {
-									this.setPriority(`[priority:: ${key}]`, 'dataview');
+								if (useDataviewFormat) {
+									this.setPriority(
+										`[priority:: ${priority.dataviewValue}]`,
+										"dataview"
+									);
 								} else {
-									this.setPriority(priority.emoji, 'tasks');
+									this.setPriority(priority.emoji, "tasks");
 								}
 							});
 						});
 					}
+				});
+
+				// Add "Remove Priority" option at the bottom
+				menu.addItem((item) => {
+					item.setTitle(t("Remove Priority"));
+					item.onClick(() => {
+						this.removePriority(
+							useDataviewFormat ? "dataview" : "tasks"
+						);
+					});
 				});
 			}
 
@@ -250,7 +328,7 @@ class PriorityWidget extends WidgetType {
 		}
 	}
 
-	private setPriority(priority: string, mode: 'tasks' | 'dataview' | 'letter') {
+	private setPriority(priority: string, mode: PriorityMode) {
 		try {
 			// Validate view state before making changes
 			if (!this.view || this.view.state.doc.length < this.to) {
@@ -261,31 +339,11 @@ class PriorityWidget extends WidgetType {
 			const line = this.view.state.doc.lineAt(this.from);
 			let newLine = line.text;
 
-			if (mode === 'dataview') {
-				// Replace or insert [priority:: ...]
-				if (/\[priority::\s*\w+\]/i.test(newLine)) {
-					newLine = newLine.replace(/\[priority::\s*\w+\]/i, priority);
-				} else {
-					// Insert at end
-					newLine = newLine.trimEnd() + ' ' + priority;
-				}
-			} else if (mode === 'tasks') {
-				// Replace emoji priority
-				if (/(🔺|⏫|🔼|🔽|⏬️)/.test(newLine)) {
-					newLine = newLine.replace(/(🔺|⏫|🔼|🔽|⏬️)/, priority);
-				} else {
-					// Insert at end
-					newLine = newLine.trimEnd() + ' ' + priority;
-				}
-			} else if (mode === 'letter') {
-				// Replace or insert [#A], [#B], [#C]
-				if (/\[#([ABC])\]/.test(newLine)) {
-					newLine = newLine.replace(/\[#([ABC])\]/, priority);
-				} else {
-					// Insert at end
-					newLine = newLine.trimEnd() + ' ' + priority;
-				}
-			}
+			// Remove existing priority first
+			newLine = this.removeExistingPriority(newLine);
+
+			// Add new priority at the end
+			newLine = newLine.trimEnd() + " " + priority;
 
 			const transaction = this.view.state.update({
 				changes: { from: line.from, to: line.to, insert: newLine },
@@ -297,22 +355,17 @@ class PriorityWidget extends WidgetType {
 		}
 	}
 
-	private removePriority(mode: 'tasks' | 'dataview' | 'letter') {
+	private removePriority(mode: PriorityMode) {
 		try {
 			// Validate view state before making changes
 			if (!this.view || this.view.state.doc.length < this.to) {
 				console.warn("Invalid view state, skipping priority removal");
 				return;
 			}
+
 			const line = this.view.state.doc.lineAt(this.from);
-			let newLine = line.text;
-			if (mode === 'dataview') {
-				newLine = newLine.replace(/\[priority::\s*\w+\]/i, '').trimEnd();
-			} else if (mode === 'tasks') {
-				newLine = newLine.replace(/(🔺|⏫|🔼|🔽|⏬️)/, '').trimEnd();
-			} else if (mode === 'letter') {
-				newLine = newLine.replace(/\[#([ABC])\]/, '').trimEnd();
-			}
+			const newLine = this.removeExistingPriority(line.text).trimEnd();
+
 			const transaction = this.view.state.update({
 				changes: { from: line.from, to: line.to, insert: newLine },
 				annotations: [priorityChangeAnnotation.of(true)],
@@ -321,6 +374,24 @@ class PriorityWidget extends WidgetType {
 		} catch (error) {
 			console.error("Error removing priority:", error);
 		}
+	}
+
+	private removeExistingPriority(lineText: string): string {
+		let newLine = lineText;
+
+		// Remove dataview priority
+		newLine = newLine.replace(/\[priority::\s*\w+\]/i, "");
+
+		// Remove emoji priorities
+		newLine = newLine.replace(/(🔺|⏫|🔼|🔽|⏬️)/g, "");
+
+		// Remove letter priorities
+		newLine = newLine.replace(/\[#([ABC])\]/g, "");
+
+		// Clean up extra spaces
+		newLine = newLine.replace(/\s+/g, " ");
+
+		return newLine;
 	}
 }
 
@@ -338,7 +409,7 @@ export function priorityPickerExtension(
 		public readonly plugin: TaskProgressBarPlugin;
 		decorations: DecorationSet = Decoration.none;
 		private lastUpdate: number = 0;
-		private readonly updateThreshold: number = 50; // Increased threshold for better stability
+		private readonly updateThreshold: number = 50;
 		public isDestroyed: boolean = false;
 
 		// Emoji priorities matcher
@@ -356,6 +427,15 @@ export function priorityPickerExtension(
 						return;
 					}
 
+					const useDataviewFormat =
+						this.plugin.settings.preferMetadataFormat ===
+						"dataview";
+					const line = this.view.state.doc.lineAt(from);
+					const mode = detectPriorityMode(
+						line.text,
+						useDataviewFormat
+					);
+
 					add(
 						from,
 						to,
@@ -367,7 +447,7 @@ export function priorityPickerExtension(
 								from,
 								to,
 								match[0],
-								false
+								mode
 							),
 						})
 					);
@@ -403,7 +483,7 @@ export function priorityPickerExtension(
 								from,
 								to,
 								match[0],
-								true
+								"letter"
 							),
 						})
 					);
@@ -415,7 +495,7 @@ export function priorityPickerExtension(
 
 		// Dataview priorities matcher
 		private readonly dataviewMatch = new MatchDecorator({
-			regexp: /\[priority::\s*(highest|high|medium|none|low|lowest)\]/gi,
+			regexp: dataviewPriorityRegex,
 			decorate: (
 				add,
 				from: number,
@@ -438,7 +518,7 @@ export function priorityPickerExtension(
 								from,
 								to,
 								match[0],
-								false
+								"dataview"
 							),
 						})
 					);
@@ -500,9 +580,25 @@ export function priorityPickerExtension(
 			}
 
 			try {
+				const useDataviewFormat =
+					this.plugin.settings.preferMetadataFormat === "dataview";
+
 				// Use incremental update when possible for better performance
 				if (update && !update.docChanged && this.decorations.size > 0) {
-					// Try to update emoji decorations
+					// Update decorations based on user preference
+					if (useDataviewFormat) {
+						// Prioritize dataview decorations
+						const dataviewDecos = this.dataviewMatch.updateDeco(
+							update,
+							this.decorations
+						);
+						if (dataviewDecos.size > 0) {
+							this.decorations = dataviewDecos;
+							return;
+						}
+					}
+
+					// Try emoji decorations
 					const emojiDecos = this.emojiMatch.updateDeco(
 						update,
 						this.decorations
@@ -512,40 +608,71 @@ export function priorityPickerExtension(
 						return;
 					}
 
-					// If no emoji decorations, try dataview format
-					const dataviewDecos = this.dataviewMatch.updateDeco(
-						update,
-						this.decorations
-					);
-					if (dataviewDecos.size > 0) {
-						this.decorations = dataviewDecos;
-						return;
-					}
-
-					// If no dataview decorations, try letter format
+					// Try letter decorations
 					const letterDecos = this.letterMatch.updateDeco(
 						update,
 						this.decorations
 					);
-					this.decorations = letterDecos;
+					if (letterDecos.size > 0) {
+						this.decorations = letterDecos;
+						return;
+					}
+
+					// Try dataview decorations if not preferred
+					if (!useDataviewFormat) {
+						const dataviewDecos = this.dataviewMatch.updateDeco(
+							update,
+							this.decorations
+						);
+						this.decorations = dataviewDecos;
+					}
 				} else {
 					// Create new decorations from scratch
-					// First try emoji priorities
-					const emojiDecos = this.emojiMatch.createDeco(view);
-					if (emojiDecos.size > 0) {
-						this.decorations = emojiDecos;
-						return;
+					let decorations = Decoration.none;
+
+					if (useDataviewFormat) {
+						// Prioritize dataview format
+						decorations = this.dataviewMatch.createDeco(view);
+						if (decorations.size === 0) {
+							// Fallback to emoji format
+							decorations = this.emojiMatch.createDeco(view);
+						}
+					} else {
+						// Prioritize emoji format
+						decorations = this.emojiMatch.createDeco(view);
+						if (decorations.size === 0) {
+							// Fallback to dataview format
+							decorations = this.dataviewMatch.createDeco(view);
+						}
 					}
 
-					// If no emoji priorities found, check for dataview priorities
-					const dataviewDecos = this.dataviewMatch.createDeco(view);
-					if (dataviewDecos.size > 0) {
-						this.decorations = dataviewDecos;
-						return;
+					// Always check for letter format as it's independent
+					const letterDecos = this.letterMatch.createDeco(view);
+					if (letterDecos.size > 0) {
+						// Merge letter decorations with existing decorations
+						const ranges: {
+							from: number;
+							to: number;
+							value: Decoration;
+						}[] = [];
+						const iter = letterDecos.iter();
+						while (iter.value !== null) {
+							ranges.push({
+								from: iter.from,
+								to: iter.to,
+								value: iter.value,
+							});
+							iter.next();
+						}
+
+						if (ranges.length > 0) {
+							decorations = decorations.update({
+								add: ranges,
+							});
+						}
 					}
 
-					// If no dataview priorities found, check for letter priorities
-					this.decorations = this.letterMatch.createDeco(view);
+					this.decorations = decorations;
 				}
 			} catch (e) {
 				console.warn(

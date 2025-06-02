@@ -1882,23 +1882,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// Date mark setting
-		new Setting(containerEl)
-			.setName(t("Date mark"))
-			.setDesc(
-				t(
-					"Emoji mark to identify dates. You can use multiple emoji separated by commas."
-				)
-			)
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.dateMark)
-					.onChange(async (value) => {
-						this.plugin.settings.dateMark = value;
-						this.applySettingsUpdate();
-					})
-			);
-
 		// Recurrence date base setting
 		new Setting(containerEl)
 			.setName(t("Recurrence date calculation"))
