@@ -549,6 +549,46 @@
 	display: none;
 }
 
+/* --- Drag and Drop Styles --- */
+.calendar-event-ghost {
+	/* Style for the placeholder when dragging */
+	background-color: var(--background-secondary-alt) !important;
+	border: 2px dashed var(--background-modifier-border) !important;
+	opacity: 0.5 !important;
+	box-shadow: none !important;
+}
+
+.calendar-event-dragging {
+	/* Style for the element being dragged */
+	opacity: 0.9 !important;
+	box-shadow: var(--shadow-l) !important;
+	transform: rotate(2deg) !important;
+	z-index: 1000 !important;
+}
+
+/* Make calendar events draggable */
+.calendar-events-container .calendar-event {
+	cursor: grab;
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.calendar-events-container .calendar-event:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-s);
+}
+
+.calendar-events-container .calendar-event:active {
+	cursor: grabbing;
+}
+
+/* Sortable container styles */
+.calendar-events-container,
+.calendar-day-events-container {
+	min-height: 20px; /* Ensure there's always a drop zone */
+	border-radius: var(--radius-s);
+	transition: background-color 0.2s ease;
+}
+
 @container (max-width: 600px) {
 	.full-calendar-container .calendar-view-switcher button {
 		display: none;

@@ -7,6 +7,7 @@ import {
 } from "../../../common/setting-definition"; // Import helper
 import TaskProgressBarPlugin from "../../../index"; // Import plugin type for settings access
 import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Import base class and options type
+import Sortable from "sortablejs";
 
 /**
  * Renders the month view grid as a component.
@@ -15,6 +16,7 @@ export class MonthView extends CalendarViewComponent {
 	private currentDate: moment.Moment;
 	private app: App; // Keep app reference if needed directly
 	private plugin: TaskProgressBarPlugin; // Keep plugin reference if needed directly
+	private sortableInstances: Sortable[] = []; // Store sortable instances for cleanup
 
 	constructor(
 		app: App,
@@ -194,6 +196,9 @@ export class MonthView extends CalendarViewComponent {
 		this.registerDomEvent(gridContainer, "mouseover", (ev) => {
 			this.debounceHover(ev);
 		});
+
+		// Initialize drag and drop functionality
+		this.initializeDragAndDrop(dayCells);
 	}
 
 	// Update methods to allow changing data after initial render
@@ -218,4 +223,106 @@ export class MonthView extends CalendarViewComponent {
 			}
 		}
 	}, 200);
+
+	/**
+	 * Initialize drag and drop functionality for calendar events
+	 */
+	private initializeDragAndDrop(dayCells: { [key: string]: HTMLElement }): void {
+		// Clean up existing sortable instances
+		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances = [];
+
+		// Initialize sortable for each day's events container
+		Object.entries(dayCells).forEach(([dateStr, dayCell]) => {
+			const eventsContainer = dayCell.querySelector('.calendar-events-container') as HTMLElement;
+			if (eventsContainer) {
+				const sortableInstance = Sortable.create(eventsContainer, {
+					group: 'calendar-events',
+					animation: 150,
+					ghostClass: 'calendar-event-ghost',
+					dragClass: 'calendar-event-dragging',
+					onEnd: (event) => {
+						this.handleDragEnd(event, dateStr);
+					}
+				});
+				this.sortableInstances.push(sortableInstance);
+			}
+		});
+	}
+
+	/**
+	 * Handle drag end event to update task dates
+	 */
+	private async handleDragEnd(event: Sortable.SortableEvent, originalDateStr: string): Promise<void> {
+		const eventEl = event.item;
+		const eventId = eventEl.dataset.eventId;
+		const targetContainer = event.to;
+		const targetDateCell = targetContainer.closest('.calendar-day-cell');
+
+		if (!eventId || !targetDateCell) {
+			console.warn('Could not determine event ID or target date for drag operation');
+			return;
+		}
+
+		const targetDateStr = targetDateCell.getAttribute('data-date');
+		if (!targetDateStr || targetDateStr === originalDateStr) {
+			// No date change, nothing to do
+			return;
+		}
+
+		// Find the calendar event
+		const calendarEvent = this.events.find(e => e.id === eventId);
+		if (!calendarEvent) {
+			console.warn(`Calendar event with ID ${eventId} not found`);
+			return;
+		}
+
+		try {
+			await this.updateTaskDate(calendarEvent, targetDateStr);
+			console.log(`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`);
+		} catch (error) {
+			console.error('Failed to update task date:', error);
+			// Revert the visual change by re-rendering
+			this.render();
+		}
+	}
+
+	/**
+	 * Update task date based on the target date
+	 */
+	private async updateTaskDate(calendarEvent: CalendarEvent, targetDateStr: string): Promise<void> {
+		const targetDate = moment(targetDateStr).valueOf();
+		const taskManager = this.plugin.taskManager;
+
+		if (!taskManager) {
+			throw new Error('Task manager not available');
+		}
+
+		// Create updated task with new date
+		const updatedTask = { ...calendarEvent };
+
+		// Determine which date field to update based on what the task currently has
+		if (calendarEvent.dueDate) {
+			updatedTask.dueDate = targetDate;
+		} else if (calendarEvent.scheduledDate) {
+			updatedTask.scheduledDate = targetDate;
+		} else if (calendarEvent.startDate) {
+			updatedTask.startDate = targetDate;
+		} else {
+			// Default to due date if no date is set
+			updatedTask.dueDate = targetDate;
+		}
+
+		// Update the task
+		await taskManager.updateTask(updatedTask);
+	}
+
+	/**
+	 * Clean up sortable instances when component is destroyed
+	 */
+	onunload(): void {
+		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances = [];
+		super.onunload();
+	}
 }
