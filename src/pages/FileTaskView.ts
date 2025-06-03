@@ -1506,7 +1506,7 @@ class PropertyMappingModal extends Modal {
 
 		// Add save and cancel buttons
 		const buttonContainer = contentEl.createDiv({
-			cls: "modal-button-container",
+			cls: "tg-modal-button-container modal-button-container",
 		});
 
 		const saveButton = buttonContainer.createEl("button", {

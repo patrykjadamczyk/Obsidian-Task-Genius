@@ -385,14 +385,14 @@
 	background-color: var(--background-secondary-alt);
 }
 
-.modal-button-container {
+.tg-modal-button-container {
 	display: flex;
 	justify-content: flex-end;
 	gap: 10px;
 	margin-top: 20px;
 }
 
-.modal-button-container button {
+.tg-modal-button-container button {
 	padding: 6px 12px;
 	border-radius: 4px;
 	font-size: 14px;
@@ -400,7 +400,7 @@
 	cursor: pointer;
 }
 
-.modal-button-container button.mod-warning {
+.tg-modal-button-container button.mod-warning {
 	background-color: var(--background-modifier-error);
 	color: white;
 }

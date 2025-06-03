@@ -1052,8 +1052,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						`This will override your current task status settings with the ${value} theme. Do you want to continue?`
 					);
 
-					const buttonContainer = modal.contentEl.createDiv();
-					buttonContainer.addClass("modal-button-container");
+					const buttonContainer = modal.contentEl.createDiv({
+						cls: "tg-modal-button-container modal-button-container"
+					});
 
 					const cancelButton = buttonContainer.createEl("button");
 					cancelButton.setText(t("Cancel"));
@@ -1456,8 +1457,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							)
 						);
 
-						const buttonContainer = modal.contentEl.createDiv();
-						buttonContainer.addClass("modal-button-container");
+						const buttonContainer = modal.contentEl.createDiv({
+							cls: "tg-modal-button-container modal-button-container"
+						});
 
 						const cancelButton = buttonContainer.createEl("button");
 						cancelButton.setText(t("Cancel"));
@@ -2070,8 +2072,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 								)
 							);
 
-							const buttonContainer = modal.contentEl.createDiv();
-							buttonContainer.addClass("modal-button-container");
+							const buttonContainer = modal.contentEl.createDiv({
+								cls: "tg-modal-button-container modal-button-container",
+							});
 
 							const cancelButton =
 								buttonContainer.createEl("button");
@@ -2396,8 +2399,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 								)
 							);
 
-							const buttonContainer = modal.contentEl.createDiv();
-							buttonContainer.addClass("modal-button-container");
+							const buttonContainer = modal.contentEl.createDiv({
+								cls: "tg-modal-button-container modal-button-container",
+							});
 
 							const cancelButton =
 								buttonContainer.createEl("button");
