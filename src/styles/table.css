@@ -159,7 +159,6 @@
 
 .task-table-cell {
 	padding: 8px 12px;
-	border-right: 1px solid var(--background-modifier-border);
 	vertical-align: middle;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -178,7 +177,7 @@
 .task-table-tree-indent {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
+	gap: 4px; 
 }
 
 .task-table-cell:has(.task-table-expand-btn) {
