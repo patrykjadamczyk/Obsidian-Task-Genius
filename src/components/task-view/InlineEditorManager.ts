@@ -237,14 +237,5 @@ export class InlineEditorManager extends Component {
 	onunload() {
 		// Clean up all active editors
 		this.forceReleaseAllEditors();
-
-		// Log final stats for debugging
-		if (
-			this.plugin.settings &&
-			"debugMode" in this.plugin.settings &&
-			this.plugin.settings.debugMode
-		) {
-			console.log("InlineEditorManager final stats:", this.getStats());
-		}
 	}
 }
