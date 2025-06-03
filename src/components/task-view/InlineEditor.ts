@@ -151,10 +151,10 @@ export class InlineEditor extends Component {
 					onEscape: (editor: any) => {
 						this.cancelContentEdit(targetEl);
 					},
-					onBlur: (editor: any) => {
+					onBlur: () => {
 						this.finishContentEdit(targetEl).catch(console.error);
 					},
-					onChange: (update: any) => {
+					onChange: () => {
 						// Update task content immediately but don't save
 						this.task.content = this.embeddedEditor?.value || "";
 					},
@@ -256,8 +256,6 @@ export class InlineEditor extends Component {
 			"mousedown",
 			this.boundHandlers.stopPropagation
 		);
-
-		console.log("fieldType", fieldType);
 
 		switch (fieldType) {
 			case "project":
@@ -715,8 +713,6 @@ export class InlineEditor extends Component {
 			}
 		});
 
-		console.log("fieldsToShow", fieldsToShow);
-
 		// If no fields are available to add, show a message
 		if (fieldsToShow.length === 0) {
 			menu.addItem((item) => {
@@ -753,20 +749,12 @@ export class InlineEditor extends Component {
 		// Check if there are actual changes
 		const hasChanges = this.hasTaskChanges(this.originalTask, this.task);
 		if (!hasChanges) {
-			console.log("No changes detected, skipping save");
 			return true;
 		}
-
-		console.log("Content comparison:", {
-			original: this.originalTask.content,
-			current: this.task.content,
-			changed: this.originalTask.content !== this.task.content,
-		});
 
 		this.isSaving = true;
 		try {
 			await this.options.onTaskUpdate(this.originalTask, this.task);
-			console.log("Task update successful");
 			this.originalTask = { ...this.task };
 			return true;
 		} catch (error) {
@@ -845,6 +833,8 @@ export class InlineEditor extends Component {
 
 		// Save the task and wait for completion
 		const saveSuccess = await this.saveTask();
+
+		console.log("save success", saveSuccess)
 
 		if (!saveSuccess) {
 			console.error("Failed to save task, not finishing edit");

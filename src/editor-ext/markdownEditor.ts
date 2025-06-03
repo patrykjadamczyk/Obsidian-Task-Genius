@@ -139,6 +139,9 @@ export class EmbeddableMarkdownEditor {
 		// Prevent Mod+Enter default behavior
 		this.scope.register(["Mod"], "Enter", () => true);
 
+		// Store reference to self for the patched method BEFORE using it
+		const self = this;
+
 		// Use monkey-around to safely patch the method
 		const uninstaller = around(EditorClass.prototype, {
 			buildLocalExtensions: (originalMethod: any) =>
@@ -154,16 +157,25 @@ export class EmbeddableMarkdownEditor {
 							);
 						}
 
-						// Add paste event handler
+						// Add paste, blur, and focus event handlers
 						extensions.push(
 							EditorView.domEventHandlers({
 								paste: (event) => {
 									self.options.onPaste(event, self);
 								},
+								blur: () => {
+									// Always trigger blur callback and let it handle the logic
+									app.keymap.popScope(self.scope);
+									if (self.options.onBlur) {
+										self.options.onBlur(self);
+									}
+								},
+								focusin: () => {
+									app.keymap.pushScope(self.scope);
+									app.workspace.activeEditor = self.owner;
+								},
 							})
 						);
-
-						console.log("extensions", extensions);
 
 						// Add keyboard handlers
 						extensions.push(
@@ -172,7 +184,6 @@ export class EmbeddableMarkdownEditor {
 									{
 										key: "Enter",
 										run: () => {
-											console.log("Enter key pressed");
 											return self.options.onEnter(
 												self,
 												false,
@@ -218,9 +229,6 @@ export class EmbeddableMarkdownEditor {
 				},
 		});
 
-		// Store reference to self for the patched method
-		const self = this;
-
 		// Create the editor with the app instance
 		this.editor = new EditorClass(app, container, {
 			app,
@@ -254,29 +262,7 @@ export class EmbeddableMarkdownEditor {
 			})
 		);
 
-		console.log(
-			"onBlur",
-			this.options.onBlur,
-			this.editor.editor?.cm?.contentDOM
-		);
-		// Set up blur event handler
-		if (
-			this.options.onBlur !== defaultProperties.onBlur &&
-			this.editor.editor?.cm?.contentDOM
-		) {
-			this.editor.editor.cm.contentDOM.addEventListener("blur", () => {
-				app.keymap.popScope(this.scope);
-				if (this._loaded) this.options.onBlur(this);
-			});
-		}
-
-		// Set up focus event handler
-		if (this.editor.editor?.cm?.contentDOM) {
-			this.editor.editor.cm.contentDOM.addEventListener("focusin", () => {
-				app.keymap.pushScope(this.scope);
-				app.workspace.activeEditor = this.owner;
-			});
-		}
+		// Blur and focus event handlers are now handled via EditorView.domEventHandlers in buildLocalExtensions
 
 		// Apply custom class if provided
 		if (options.cls && this.editorEl) {
@@ -299,8 +285,6 @@ export class EmbeddableMarkdownEditor {
 			originalOnUpdate(update, changed);
 			if (changed) this.options.onChange(update);
 		};
-
-		console.log(this.editor);
 	}
 
 	// Get the current editor value
