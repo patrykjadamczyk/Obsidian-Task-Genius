@@ -1387,9 +1387,10 @@ export class TaskManager extends Component {
 
 			// Remove each tag from the content
 			for (const tag of uniqueTags) {
-				// Create a regex that looks for the tag preceded by whitespace or at start, and followed by word boundary
+				// Create a regex that looks for the tag preceded by whitespace or at start, and followed by whitespace or end
+				// Don't use \b as it doesn't work with Unicode characters like Chinese
 				const tagRegex = new RegExp(
-					`(^|\\s)${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+					`(^|\\s)${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=\\s|$)`,
 					"g"
 				);
 				cleanContent = cleanContent.replace(tagRegex, " ").trim();
@@ -1403,7 +1404,7 @@ export class TaskManager extends Component {
 				`(^|\\s)${projectTag.replace(
 					/[.*+?^${}()|[\]\\]/g,
 					"\\$&"
-				)}\\b`,
+				)}(?=\\s|$)`,
 				"g"
 			);
 			cleanContent = cleanContent.replace(projectTagRegex, " ").trim();
@@ -1416,7 +1417,7 @@ export class TaskManager extends Component {
 				`(^|\\s)${contextTag.replace(
 					/[.*+?^${}()|[\]\\]/g,
 					"\\$&"
-				)}\\b`,
+				)}(?=\\s|$)`,
 				"g"
 			);
 			cleanContent = cleanContent.replace(contextTagRegex, " ").trim();
