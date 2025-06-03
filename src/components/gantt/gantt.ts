@@ -602,7 +602,15 @@ export class GanttComponent extends Component {
 				return 1;
 			}
 
-			return a.content.localeCompare(b.content);
+			// Handle content comparison with null/empty values
+			const contentA = a.content?.trim() || null;
+			const contentB = b.content?.trim() || null;
+
+			if (!contentA && !contentB) return 0;
+			if (!contentA) return 1; // A is empty, goes to end
+			if (!contentB) return -1; // B is empty, goes to end
+
+			return contentA.localeCompare(contentB);
 		});
 	}
 

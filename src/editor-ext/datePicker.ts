@@ -149,10 +149,12 @@ class DatePickerWidget extends WidgetType {
 			if (date) {
 				if (useDataviewFormat) {
 					// For dataview format: reconstruct [xxx:: date] pattern
+					// dateMark contains the prefix like "[due:: " so we add date and closing bracket
 					newText = `${this.dateMark}${date}]`;
 				} else {
 					// For tasks format: reconstruct emoji + date pattern
-					newText = `${date}`;
+					// dateMark contains the emoji, so we add space and date
+					newText = `${this.dateMark} ${date}`;
 				}
 			}
 			// If date is empty, newText remains empty which will clear the date
@@ -197,8 +199,6 @@ export function datePickerExtension(app: App, plugin: TaskProgressBarPlugin) {
 					if (!this.shouldRender(view, from, to)) {
 						return;
 					}
-
-					console.log(match);
 
 					const useDataviewFormat =
 						this.plugin.settings.preferMetadataFormat ===

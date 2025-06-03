@@ -1366,41 +1366,42 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					});
 			});
 
-		if (!this.plugin.settings.enableTaskStatusSwitcher) {
-			return;
+		if (this.plugin.settings.enableTaskStatusSwitcher) {
+			new Setting(containerEl)
+				.setName(t("Enable custom task marks"))
+				.setDesc(
+					t(
+						"Replace default checkboxes with styled text marks that follow your task status cycle when clicked."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(this.plugin.settings.enableCustomTaskMarks)
+						.onChange(async (value) => {
+							this.plugin.settings.enableCustomTaskMarks = value;
+							this.applySettingsUpdate();
+						});
+				});
+
+			new Setting(containerEl)
+				.setName(t("Enable text mark in source mode"))
+				.setDesc(
+					t(
+						"Make the text mark in source mode follow the task status cycle when clicked."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(
+							this.plugin.settings.enableTextMarkInSourceMode
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.enableTextMarkInSourceMode =
+								value;
+							this.applySettingsUpdate();
+						});
+				});
 		}
-
-		new Setting(containerEl)
-			.setName(t("Enable custom task marks"))
-			.setDesc(
-				t(
-					"Replace default checkboxes with styled text marks that follow your task status cycle when clicked."
-				)
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.enableCustomTaskMarks)
-					.onChange(async (value) => {
-						this.plugin.settings.enableCustomTaskMarks = value;
-						this.applySettingsUpdate();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName(t("Enable text mark in source mode"))
-			.setDesc(
-				t(
-					"Make the text mark in source mode follow the task status cycle when clicked."
-				)
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.enableTextMarkInSourceMode)
-					.onChange(async (value) => {
-						this.plugin.settings.enableTextMarkInSourceMode = value;
-						this.applySettingsUpdate();
-					});
-			});
 
 		new Setting(containerEl)
 			.setName(t("Enable cycle complete status"))
@@ -1415,318 +1416,332 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.enableCycleCompleteStatus = value;
 						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					});
 			});
 
-		new Setting(containerEl)
-			.setName(t("Task status cycle and marks"))
-			.setDesc(
-				t(
-					"Define task states and their corresponding marks. The order from top to bottom defines the cycling sequence."
+		if (this.plugin.settings.enableCycleCompleteStatus) {
+			new Setting(containerEl)
+				.setName(t("Task status cycle and marks"))
+				.setDesc(
+					t(
+						"Define task states and their corresponding marks. The order from top to bottom defines the cycling sequence."
+					)
 				)
-			)
-			.addDropdown((dropdown) => {
-				dropdown.addOption("custom", "Custom");
-				for (const statusCollection of allStatusCollections) {
-					dropdown.addOption(statusCollection, statusCollection);
-				}
-
-				// Set default value to custom
-				dropdown.setValue("custom");
-
-				dropdown.onChange(async (value) => {
-					if (value === "custom") {
-						return;
+				.addDropdown((dropdown) => {
+					dropdown.addOption("custom", "Custom");
+					for (const statusCollection of allStatusCollections) {
+						dropdown.addOption(statusCollection, statusCollection);
 					}
 
-					// Confirm before applying the theme
-					const modal = new Modal(this.app);
-					modal.titleEl.setText(`Apply ${value} Theme?`);
+					// Set default value to custom
+					dropdown.setValue("custom");
 
-					const content = modal.contentEl.createDiv();
-					content.setText(
-						t(
-							`This will override your current task status settings with the selected theme. Do you want to continue?`
-						)
-					);
-
-					const buttonContainer = modal.contentEl.createDiv();
-					buttonContainer.addClass("modal-button-container");
-
-					const cancelButton = buttonContainer.createEl("button");
-					cancelButton.setText(t("Cancel"));
-					cancelButton.addEventListener("click", () => {
-						dropdown.setValue("custom");
-						modal.close();
-					});
-
-					const confirmButton = buttonContainer.createEl("button");
-					confirmButton.setText(t("Apply Theme"));
-					confirmButton.addClass("mod-cta");
-					confirmButton.addEventListener("click", async () => {
-						modal.close();
-
-						// Apply the selected theme's task statuses
-						try {
-							// Import the function dynamically based on the selected theme
-							const functionName =
-								value.toLowerCase() + "SupportedStatuses";
-							const statusesModule = await import(
-								"./common/task-status"
-							);
-
-							// Use type assertion for the dynamic function access
-							const getStatuses = (statusesModule as any)[
-								functionName
-							];
-
-							if (typeof getStatuses === "function") {
-								const statuses = getStatuses();
-
-								// Update cycle and marks
-								const cycle =
-									this.plugin.settings.taskStatusCycle;
-								const marks =
-									this.plugin.settings.taskStatusMarks;
-								const excludeMarks =
-									this.plugin.settings.excludeMarksFromCycle;
-
-								// Clear existing cycle, marks and excludeMarks
-								cycle.length = 0;
-								Object.keys(marks).forEach(
-									(key) => delete marks[key]
-								);
-								excludeMarks.length = 0;
-
-								// Add new statuses to cycle and marks
-								for (const [symbol, name, type] of statuses) {
-									const realName = (name as string)
-										.split("/")[0]
-										.trim();
-									// Add to cycle if not already included
-									if (!cycle.includes(realName)) {
-										cycle.push(realName);
-									}
-
-									// Add to marks
-									marks[realName] = symbol;
-
-									// Add to excludeMarks if not space or x
-									if (symbol !== " " && symbol !== "x") {
-										excludeMarks.push(realName);
-									}
-								}
-
-								// Also update the main taskStatuses object based on the theme
-								const statusMap: Record<string, string[]> = {
-									completed: [],
-									inProgress: [],
-									abandoned: [],
-									notStarted: [],
-									planned: [],
-								};
-								for (const [symbol, _, type] of statuses) {
-									if (type in statusMap) {
-										statusMap[
-											type as keyof typeof statusMap
-										].push(symbol);
-									}
-								}
-								// Corrected loop and assignment for TaskStatusConfig here too
-								for (const type of Object.keys(
-									statusMap
-								) as Array<
-									keyof import("./common/setting-definition").TaskStatusConfig
-								>) {
-									if (
-										type in
-											this.plugin.settings.taskStatuses &&
-										statusMap[type] &&
-										statusMap[type].length > 0
-									) {
-										this.plugin.settings.taskStatuses[
-											type
-										] = statusMap[type].join("|");
-									}
-								}
-
-								// Save settings and refresh the display
-								this.applySettingsUpdate();
-								this.display();
-							}
-						} catch (error) {
-							console.error(
-								"Failed to apply task status theme:",
-								error
-							);
+					dropdown.onChange(async (value) => {
+						if (value === "custom") {
+							return;
 						}
-					});
 
-					modal.open();
+						// Confirm before applying the theme
+						const modal = new Modal(this.app);
+						modal.titleEl.setText(`Apply ${value} Theme?`);
+
+						const content = modal.contentEl.createDiv();
+						content.setText(
+							t(
+								`This will override your current task status settings with the selected theme. Do you want to continue?`
+							)
+						);
+
+						const buttonContainer = modal.contentEl.createDiv();
+						buttonContainer.addClass("modal-button-container");
+
+						const cancelButton = buttonContainer.createEl("button");
+						cancelButton.setText(t("Cancel"));
+						cancelButton.addEventListener("click", () => {
+							dropdown.setValue("custom");
+							modal.close();
+						});
+
+						const confirmButton =
+							buttonContainer.createEl("button");
+						confirmButton.setText(t("Apply Theme"));
+						confirmButton.addClass("mod-cta");
+						confirmButton.addEventListener("click", async () => {
+							modal.close();
+
+							// Apply the selected theme's task statuses
+							try {
+								// Import the function dynamically based on the selected theme
+								const functionName =
+									value.toLowerCase() + "SupportedStatuses";
+								const statusesModule = await import(
+									"./common/task-status"
+								);
+
+								// Use type assertion for the dynamic function access
+								const getStatuses = (statusesModule as any)[
+									functionName
+								];
+
+								if (typeof getStatuses === "function") {
+									const statuses = getStatuses();
+
+									// Update cycle and marks
+									const cycle =
+										this.plugin.settings.taskStatusCycle;
+									const marks =
+										this.plugin.settings.taskStatusMarks;
+									const excludeMarks =
+										this.plugin.settings
+											.excludeMarksFromCycle;
+
+									// Clear existing cycle, marks and excludeMarks
+									cycle.length = 0;
+									Object.keys(marks).forEach(
+										(key) => delete marks[key]
+									);
+									excludeMarks.length = 0;
+
+									// Add new statuses to cycle and marks
+									for (const [
+										symbol,
+										name,
+										type,
+									] of statuses) {
+										const realName = (name as string)
+											.split("/")[0]
+											.trim();
+										// Add to cycle if not already included
+										if (!cycle.includes(realName)) {
+											cycle.push(realName);
+										}
+
+										// Add to marks
+										marks[realName] = symbol;
+
+										// Add to excludeMarks if not space or x
+										if (symbol !== " " && symbol !== "x") {
+											excludeMarks.push(realName);
+										}
+									}
+
+									// Also update the main taskStatuses object based on the theme
+									const statusMap: Record<string, string[]> =
+										{
+											completed: [],
+											inProgress: [],
+											abandoned: [],
+											notStarted: [],
+											planned: [],
+										};
+									for (const [symbol, _, type] of statuses) {
+										if (type in statusMap) {
+											statusMap[
+												type as keyof typeof statusMap
+											].push(symbol);
+										}
+									}
+									// Corrected loop and assignment for TaskStatusConfig here too
+									for (const type of Object.keys(
+										statusMap
+									) as Array<
+										keyof import("./common/setting-definition").TaskStatusConfig
+									>) {
+										if (
+											type in
+												this.plugin.settings
+													.taskStatuses &&
+											statusMap[type] &&
+											statusMap[type].length > 0
+										) {
+											this.plugin.settings.taskStatuses[
+												type
+											] = statusMap[type].join("|");
+										}
+									}
+
+									// Save settings and refresh the display
+									this.applySettingsUpdate();
+									this.display();
+								}
+							} catch (error) {
+								console.error(
+									"Failed to apply task status theme:",
+									error
+								);
+							}
+						});
+
+						modal.open();
+					});
 				});
+
+			// Create a container for the task states list
+			const taskStatesContainer = containerEl.createDiv({
+				cls: "task-states-container",
 			});
 
-		// Create a container for the task states list
-		const taskStatesContainer = containerEl.createDiv({
-			cls: "task-states-container",
-		});
+			// Function to refresh the task states list
+			const refreshTaskStatesList = () => {
+				// Clear the container
+				taskStatesContainer.empty();
 
-		// Function to refresh the task states list
-		const refreshTaskStatesList = () => {
-			// Clear the container
-			taskStatesContainer.empty();
+				// Get current cycle and marks
+				const cycle = this.plugin.settings.taskStatusCycle;
+				const marks = this.plugin.settings.taskStatusMarks;
 
-			// Get current cycle and marks
-			const cycle = this.plugin.settings.taskStatusCycle;
-			const marks = this.plugin.settings.taskStatusMarks;
+				// Initialize excludeMarksFromCycle if it doesn't exist
+				if (!this.plugin.settings.excludeMarksFromCycle) {
+					this.plugin.settings.excludeMarksFromCycle = [];
+				}
 
-			// Initialize excludeMarksFromCycle if it doesn't exist
-			if (!this.plugin.settings.excludeMarksFromCycle) {
-				this.plugin.settings.excludeMarksFromCycle = [];
-			}
-
-			// Add each status in the cycle
-			cycle.forEach((state, index) => {
-				const stateRow = taskStatesContainer.createDiv({
-					cls: "task-state-row",
-				});
-
-				// Create the setting
-				const stateSetting = new Setting(stateRow)
-					.setName(`Status #${index + 1}`)
-					.addText((text) => {
-						text.setValue(state)
-							.setPlaceholder(t("Status name"))
-							.onChange((value) => {
-								// Update the state name in both cycle and marks
-								const oldState = cycle[index];
-								cycle[index] = value;
-
-								// If the old state had a mark, preserve it with the new name
-								if (oldState in marks) {
-									marks[value] = marks[oldState];
-									delete marks[oldState];
-								}
-
-								this.applySettingsUpdate();
-							});
-					})
-					.addText((text) => {
-						text.setValue(marks[state] || " ")
-							.setPlaceholder("Mark")
-							.onChange((value) => {
-								// Only use the first character
-								const mark = value.trim().charAt(0) || " ";
-								marks[state] = mark;
-								this.applySettingsUpdate();
-							});
-						text.inputEl.maxLength = 1;
-						text.inputEl.style.width = "40px";
+				// Add each status in the cycle
+				cycle.forEach((state, index) => {
+					const stateRow = taskStatesContainer.createDiv({
+						cls: "task-state-row",
 					});
 
-				// Add toggle for including in cycle
-				stateSetting.addToggle((toggle) => {
-					toggle
-						.setTooltip(t("Include in cycle"))
-						.setValue(
-							!this.plugin.settings.excludeMarksFromCycle.includes(
-								state
+					// Create the setting
+					const stateSetting = new Setting(stateRow)
+						.setName(`Status #${index + 1}`)
+						.addText((text) => {
+							text.setValue(state)
+								.setPlaceholder(t("Status name"))
+								.onChange((value) => {
+									// Update the state name in both cycle and marks
+									const oldState = cycle[index];
+									cycle[index] = value;
+
+									// If the old state had a mark, preserve it with the new name
+									if (oldState in marks) {
+										marks[value] = marks[oldState];
+										delete marks[oldState];
+									}
+
+									this.applySettingsUpdate();
+								});
+						})
+						.addText((text) => {
+							text.setValue(marks[state] || " ")
+								.setPlaceholder("Mark")
+								.onChange((value) => {
+									// Only use the first character
+									const mark = value.trim().charAt(0) || " ";
+									marks[state] = mark;
+									this.applySettingsUpdate();
+								});
+							text.inputEl.maxLength = 1;
+							text.inputEl.style.width = "40px";
+						});
+
+					// Add toggle for including in cycle
+					stateSetting.addToggle((toggle) => {
+						toggle
+							.setTooltip(t("Include in cycle"))
+							.setValue(
+								!this.plugin.settings.excludeMarksFromCycle.includes(
+									state
+								)
 							)
-						)
-						.onChange((value) => {
-							if (!value) {
-								// Add to exclude list if not already there
-								if (
-									!this.plugin.settings.excludeMarksFromCycle.includes(
-										state
-									)
-								) {
-									this.plugin.settings.excludeMarksFromCycle.push(
-										state
-									);
+							.onChange((value) => {
+								if (!value) {
+									// Add to exclude list if not already there
+									if (
+										!this.plugin.settings.excludeMarksFromCycle.includes(
+											state
+										)
+									) {
+										this.plugin.settings.excludeMarksFromCycle.push(
+											state
+										);
+									}
+								} else {
+									// Remove from exclude list
+									this.plugin.settings.excludeMarksFromCycle =
+										this.plugin.settings.excludeMarksFromCycle.filter(
+											(s) => s !== state
+										);
 								}
-							} else {
-								// Remove from exclude list
-								this.plugin.settings.excludeMarksFromCycle =
-									this.plugin.settings.excludeMarksFromCycle.filter(
-										(s) => s !== state
-									);
-							}
-							this.applySettingsUpdate();
-						});
-				});
+								this.applySettingsUpdate();
+							});
+					});
 
-				// Add buttons for moving up/down and removing
-				stateSetting.addExtraButton((button) => {
-					button
-						.setIcon("arrow-up")
-						.setTooltip(t("Move up"))
-						.onClick(() => {
-							if (index > 0) {
-								// Swap with the previous item
-								[cycle[index - 1], cycle[index]] = [
-									cycle[index],
-									cycle[index - 1],
-								];
+					// Add buttons for moving up/down and removing
+					stateSetting.addExtraButton((button) => {
+						button
+							.setIcon("arrow-up")
+							.setTooltip(t("Move up"))
+							.onClick(() => {
+								if (index > 0) {
+									// Swap with the previous item
+									[cycle[index - 1], cycle[index]] = [
+										cycle[index],
+										cycle[index - 1],
+									];
+									this.applySettingsUpdate();
+									refreshTaskStatesList();
+								}
+							});
+						button.extraSettingsEl.style.marginRight = "0";
+					});
+
+					stateSetting.addExtraButton((button) => {
+						button
+							.setIcon("arrow-down")
+							.setTooltip(t("Move down"))
+							.onClick(() => {
+								if (index < cycle.length - 1) {
+									// Swap with the next item
+									[cycle[index], cycle[index + 1]] = [
+										cycle[index + 1],
+										cycle[index],
+									];
+									this.applySettingsUpdate();
+									refreshTaskStatesList();
+								}
+							});
+						button.extraSettingsEl.style.marginRight = "0";
+					});
+
+					stateSetting.addExtraButton((button) => {
+						button
+							.setIcon("trash")
+							.setTooltip(t("Remove"))
+							.onClick(() => {
+								// Remove from cycle
+								cycle.splice(index, 1);
+								delete marks[state];
 								this.applySettingsUpdate();
 								refreshTaskStatesList();
-							}
-						});
-					button.extraSettingsEl.style.marginRight = "0";
+							});
+						button.extraSettingsEl.style.marginRight = "0";
+					});
 				});
 
-				stateSetting.addExtraButton((button) => {
+				// Add button to add new status
+				const addButtonContainer = taskStatesContainer.createDiv();
+				new Setting(addButtonContainer).addButton((button) => {
 					button
-						.setIcon("arrow-down")
-						.setTooltip(t("Move down"))
+						.setButtonText(t("Add Status"))
+						.setCta()
 						.onClick(() => {
-							if (index < cycle.length - 1) {
-								// Swap with the next item
-								[cycle[index], cycle[index + 1]] = [
-									cycle[index + 1],
-									cycle[index],
-								];
-								this.applySettingsUpdate();
-								refreshTaskStatesList();
-							}
-						});
-					button.extraSettingsEl.style.marginRight = "0";
-				});
-
-				stateSetting.addExtraButton((button) => {
-					button
-						.setIcon("trash")
-						.setTooltip(t("Remove"))
-						.onClick(() => {
-							// Remove from cycle
-							cycle.splice(index, 1);
-							delete marks[state];
+							// Add a new status to the cycle with a default mark
+							const newStatus = `STATUS_${cycle.length + 1}`;
+							cycle.push(newStatus);
+							marks[newStatus] = " ";
 							this.applySettingsUpdate();
 							refreshTaskStatesList();
 						});
-					button.extraSettingsEl.style.marginRight = "0";
 				});
-			});
+			};
 
-			// Add button to add new status
-			const addButtonContainer = taskStatesContainer.createDiv();
-			new Setting(addButtonContainer).addButton((button) => {
-				button
-					.setButtonText(t("Add Status"))
-					.setCta()
-					.onClick(() => {
-						// Add a new status to the cycle with a default mark
-						const newStatus = `STATUS_${cycle.length + 1}`;
-						cycle.push(newStatus);
-						marks[newStatus] = " ";
-						this.applySettingsUpdate();
-						refreshTaskStatesList();
-					});
-			});
-		};
-
-		// Initial render of the task states list
-		refreshTaskStatesList();
+			// Initial render of the task states list
+			refreshTaskStatesList();
+		}
 
 		// Auto Date Manager Settings
 		new Setting(containerEl)

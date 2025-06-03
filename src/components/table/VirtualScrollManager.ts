@@ -433,6 +433,7 @@ export class VirtualScrollManager extends Component {
 		this.isAtBottom = false;
 		this.isAtTop = true;
 		this.lastLoadTriggerTime = 0;
+		this.stableHeight = 0;
 
 		this.viewport = {
 			startIndex: 0,
@@ -441,7 +442,21 @@ export class VirtualScrollManager extends Component {
 			totalHeight: 0,
 			scrollTop: 0,
 		};
+
+		// Cancel any pending scroll RAF
+		if (this.scrollRAF) {
+			cancelAnimationFrame(this.scrollRAF);
+			this.scrollRAF = null;
+		}
+
+		// Reset height stabilizer
+		if (this.heightStabilizer) {
+			this.heightStabilizer.style.height = "0px";
+		}
+
+		// Scroll to top and recalculate viewport
 		this.scrollToTop("auto");
+		this.calculateViewport();
 	}
 
 	/**

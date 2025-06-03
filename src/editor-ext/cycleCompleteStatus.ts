@@ -355,6 +355,8 @@ export function handleCycleCompleteStatusTransaction(
 		return tr;
 	}
 
+	console.log(tr.changes, "changes");
+
 	// Check for markdown link insertion (cmd+k)
 	if (tr.isUserEvent("input.autocomplete")) {
 		// Look for typical markdown link pattern [text]() in the changes

@@ -341,23 +341,22 @@ function compareTasks<
 			const bHasPriority =
 				valB !== undefined && valB !== null && valB > 0;
 
-			let comparison = 0;
+			// Handle null/empty values - empty values should always go to the end
 			if (!aHasPriority && !bHasPriority) {
-				comparison = 0; // Both lack priority
+				return 0; // Both lack priority
 			} else if (!aHasPriority) {
 				// A lacks priority - no priority tasks go to the end
-				comparison = 1;
+				return 1;
 			} else if (!bHasPriority) {
 				// B lacks priority - no priority tasks go to the end
-				comparison = -1;
+				return -1;
 			} else {
 				// Both have numeric priorities - simple numeric comparison
 				// For asc: 1, 2, 3, 4, 5 (Low to High)
 				// For desc: 5, 4, 3, 2, 1 (High to Low)
-				comparison = valA - valB;
+				const comparison = valA - valB;
+				return order === "asc" ? comparison : -comparison;
 			}
-
-			return order === "asc" ? comparison : -comparison;
 		},
 
 		dueDate: (a: T, b: T, order: "asc" | "desc") => {
@@ -383,54 +382,83 @@ function compareTasks<
 		content: (a: T, b: T, order: "asc" | "desc") => {
 			// 使用Collator进行更智能的文本比较，代替简单的localeCompare
 			// 首先检查content是否存在
-			if (!a.content && !b.content) return 0;
-			if (!a.content) return order === "asc" ? 1 : -1;
-			if (!b.content) return order === "asc" ? -1 : 1;
+			const contentA = a.content?.trim() || null;
+			const contentB = b.content?.trim() || null;
 
-			const comparison = sortCollator.compare(a.content, b.content);
+			// Handle null/empty values - empty values should always go to the end
+			if (!contentA && !contentB) return 0;
+			if (!contentA) return 1; // A is empty, goes to end
+			if (!contentB) return -1; // B is empty, goes to end
+
+			const comparison = sortCollator.compare(contentA, contentB);
 			return order === "asc" ? comparison : -comparison;
 		},
 
 		tags: (a: T, b: T, order: "asc" | "desc") => {
 			// Sort by tags - convert array to string for comparison
-			const tagsA = Array.isArray((a as any).tags)
+			const tagsA = Array.isArray((a as any).tags) && (a as any).tags.length > 0
 				? (a as any).tags.join(", ")
-				: "";
-			const tagsB = Array.isArray((b as any).tags)
+				: null;
+			const tagsB = Array.isArray((b as any).tags) && (b as any).tags.length > 0
 				? (b as any).tags.join(", ")
-				: "";
+				: null;
+
+			// Handle null/empty values - empty values should always go to the end
+			if (!tagsA && !tagsB) return 0;
+			if (!tagsA) return 1; // A is empty, goes to end
+			if (!tagsB) return -1; // B is empty, goes to end
 
 			const comparison = sortCollator.compare(tagsA, tagsB);
 			return order === "asc" ? comparison : -comparison;
 		},
 
 		project: (a: T, b: T, order: "asc" | "desc") => {
-			const projectA = (a as any).project || "";
-			const projectB = (b as any).project || "";
+			const projectA = (a as any).project?.trim() || null;
+			const projectB = (b as any).project?.trim() || null;
+
+			// Handle null/empty values - empty values should always go to the end
+			if (!projectA && !projectB) return 0;
+			if (!projectA) return 1; // A is empty, goes to end
+			if (!projectB) return -1; // B is empty, goes to end
 
 			const comparison = sortCollator.compare(projectA, projectB);
 			return order === "asc" ? comparison : -comparison;
 		},
 
 		context: (a: T, b: T, order: "asc" | "desc") => {
-			const contextA = (a as any).context || "";
-			const contextB = (b as any).context || "";
+			const contextA = (a as any).context?.trim() || null;
+			const contextB = (b as any).context?.trim() || null;
+
+			// Handle null/empty values - empty values should always go to the end
+			if (!contextA && !contextB) return 0;
+			if (!contextA) return 1; // A is empty, goes to end
+			if (!contextB) return -1; // B is empty, goes to end
 
 			const comparison = sortCollator.compare(contextA, contextB);
 			return order === "asc" ? comparison : -comparison;
 		},
 
 		recurrence: (a: T, b: T, order: "asc" | "desc") => {
-			const recurrenceA = (a as any).recurrence || "";
-			const recurrenceB = (b as any).recurrence || "";
+			const recurrenceA = (a as any).recurrence?.trim() || null;
+			const recurrenceB = (b as any).recurrence?.trim() || null;
+
+			// Handle null/empty values - empty values should always go to the end
+			if (!recurrenceA && !recurrenceB) return 0;
+			if (!recurrenceA) return 1; // A is empty, goes to end
+			if (!recurrenceB) return -1; // B is empty, goes to end
 
 			const comparison = sortCollator.compare(recurrenceA, recurrenceB);
 			return order === "asc" ? comparison : -comparison;
 		},
 
 		filePath: (a: T, b: T, order: "asc" | "desc") => {
-			const filePathA = (a as any).filePath || "";
-			const filePathB = (b as any).filePath || "";
+			const filePathA = (a as any).filePath?.trim() || null;
+			const filePathB = (b as any).filePath?.trim() || null;
+
+			// Handle null/empty values - empty values should always go to the end
+			if (!filePathA && !filePathB) return 0;
+			if (!filePathA) return 1; // A is empty, goes to end
+			if (!filePathB) return -1; // B is empty, goes to end
 
 			const comparison = sortCollator.compare(filePathA, filePathB);
 			return order === "asc" ? comparison : -comparison;

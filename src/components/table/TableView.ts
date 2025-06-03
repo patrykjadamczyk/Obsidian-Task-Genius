@@ -394,6 +394,29 @@ export class TableView extends Component {
 	}
 
 	/**
+	 * Force a complete table refresh - useful when sorting issues are detected
+	 */
+	public forceRefresh() {
+		// Clear all cached rows and force complete re-render
+		if (this.renderer) {
+			this.renderer.forceClearCache();
+		}
+
+		// Reset virtual scroll if enabled
+		if (this.virtualScroll) {
+			this.virtualScroll.reset();
+		}
+
+		// Clear selections
+		this.selectedRows.clear();
+
+		// Re-apply sorting and refresh
+		this.applyFiltersAndSort();
+		this.refreshDisplay();
+		this.updateSortIndicators();
+	}
+
+	/**
 	 * Apply current filters and sorting to the task list
 	 */
 	private applyFiltersAndSort() {
@@ -443,6 +466,9 @@ export class TableView extends Component {
 		} else {
 			this.displayedRows = this.buildFlatRows(this.filteredTasks);
 		}
+
+		// Clear any existing selection that might be invalid after sorting
+		this.selectedRows.clear();
 
 		// If virtual scrolling is enabled and we have many rows, use virtual rendering
 		if (
@@ -715,9 +741,31 @@ export class TableView extends Component {
 			this.currentSortOrder = "asc";
 		}
 
+		// Reset virtual scroll state when sorting changes to ensure proper re-rendering
+		if (this.virtualScroll) {
+			this.virtualScroll.reset();
+		}
+
 		this.applyFiltersAndSort();
 		this.refreshDisplay();
 		this.updateSortIndicators();
+
+		// Debug logging to help identify sorting issues
+		console.log(`Table sorted by ${this.currentSortField} (${this.currentSortOrder})`);
+		console.log(`Filtered tasks count: ${this.filteredTasks.length}`);
+		console.log(`Displayed rows count: ${this.displayedRows.length}`);
+
+		// Fallback: If the table doesn't seem to be updating properly, force a complete refresh
+		// This is a safety net for any edge cases in the rendering logic
+		setTimeout(() => {
+			const currentRowCount = this.bodyEl.querySelectorAll("tr[data-row-id]").length;
+			const expectedRowCount = this.displayedRows.length;
+
+			if (currentRowCount !== expectedRowCount && expectedRowCount > 0) {
+				console.warn(`Table row count mismatch detected. Expected: ${expectedRowCount}, Actual: ${currentRowCount}. Forcing refresh.`);
+				this.forceRefresh();
+			}
+		}, 100); // Small delay to allow rendering to complete
 	}
 
 	private handleKeyDown(event: KeyboardEvent) {

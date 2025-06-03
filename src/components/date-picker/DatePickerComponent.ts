@@ -63,7 +63,8 @@ export class DatePickerComponent extends Component {
 		this.state.selectedDate = date;
 		this.updateSelectedDateDisplay();
 		if (this.onDateChange && date) {
-			this.onDateChange(`${this.state.dateMark} ${date}`);
+			// Only pass the date string, let the caller handle formatting
+			this.onDateChange(date);
 		}
 	}
 

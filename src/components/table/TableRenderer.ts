@@ -304,19 +304,9 @@ export class TableRenderer extends Component {
 				this.updateRow(rowEl, row, selectedRows.has(row.id));
 				rowsToInsert.push({ element: rowEl, index: targetIndex });
 			} else {
-				// Update existing row if needed
-				if (
-					this.shouldUpdateRow(rowEl, row, selectedRows.has(row.id))
-				) {
-					this.updateRow(rowEl, row, selectedRows.has(row.id));
-				} else {
-					// Even if shouldUpdateRow returns false, we still need to check
-					// for tree-specific state changes that might not be caught
-					// This is a safety net for virtual scrolling with tree view
-					if (row.hasChildren) {
-						this.ensureTreeStateConsistency(rowEl, row);
-					}
-				}
+				// Always update existing rows to ensure they reflect current sort order
+				// This is crucial for proper re-rendering after sorting
+				this.updateRow(rowEl, row, selectedRows.has(row.id));
 
 				// Check if row needs repositioning
 				const currentIndex = Array.from(this.bodyEl.children).indexOf(
@@ -1434,6 +1424,29 @@ export class TableRenderer extends Component {
 	public updateColumns(newColumns: TableColumn[]) {
 		this.columns = newColumns;
 		this.renderHeader();
+	}
+
+	/**
+	 * Force clear all cached rows and DOM elements - useful for complete refresh
+	 */
+	public forceClearCache() {
+		// Clear all active rows
+		this.activeRows.clear();
+
+		// Clear row pool
+		this.rowPool = [];
+
+		// Clear all event cleanup maps
+		this.eventCleanupMap.clear();
+
+		// Clear active suggests
+		this.activeSuggests.forEach((suggest) => {
+			suggest.close();
+		});
+		this.activeSuggests.clear();
+
+		// Clear the table body completely
+		this.bodyEl.empty();
 	}
 
 	/**
