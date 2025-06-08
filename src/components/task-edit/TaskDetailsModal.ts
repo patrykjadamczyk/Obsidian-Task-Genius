@@ -71,11 +71,11 @@ export class TaskDetailsModal extends Modal {
 				(event.value === "x" || event.value === "X")
 			) {
 				updatedTask.completed = true;
-				updatedTask.completedDate = Date.now();
+				updatedTask.metadata.completedDate = Date.now();
 			} else if (event.field === "status") {
 				// If status is changing to something else, mark as not completed
 				updatedTask.completed = false;
-				updatedTask.completedDate = undefined;
+				delete updatedTask.metadata.completedDate;
 			}
 
 			this.task = updatedTask;

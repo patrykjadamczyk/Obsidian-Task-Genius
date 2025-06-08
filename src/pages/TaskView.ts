@@ -1064,9 +1064,9 @@ export class TaskView extends ItemView {
 						item.onClick(() => {
 							console.log("status", status, mark);
 							if (!task.completed && mark.toLowerCase() === "x") {
-								task.completedDate = Date.now();
+								task.metadata.completedDate = Date.now();
 							} else {
-								task.completedDate = undefined;
+								task.metadata.completedDate = undefined;
 							}
 							this.updateTask(task, {
 								...task,
@@ -1168,7 +1168,7 @@ export class TaskView extends ItemView {
 		const updatedTask = { ...task, completed: !task.completed };
 
 		if (updatedTask.completed) {
-			updatedTask.completedDate = Date.now();
+			updatedTask.metadata.completedDate = Date.now();
 			const completedMark = (
 				this.plugin.settings.taskStatuses.completed || "x"
 			).split("|")[0];
@@ -1176,7 +1176,7 @@ export class TaskView extends ItemView {
 				updatedTask.status = completedMark;
 			}
 		} else {
-			updatedTask.completedDate = undefined;
+			updatedTask.metadata.completedDate = undefined;
 			const notStartedMark =
 				this.plugin.settings.taskStatuses.notStarted || " ";
 			if (updatedTask.status.toLowerCase() === "x") {
@@ -1316,7 +1316,10 @@ export class TaskView extends ItemView {
 						...taskToUpdate,
 						status: newStatusMark,
 						completed: isCompleted,
-						completedDate: completedDate,
+						metadata: {
+							...taskToUpdate.metadata,
+							completedDate: completedDate,
+						},
 					});
 					console.log(
 						`Task ${taskId} status update processed by TaskView.`

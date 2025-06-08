@@ -442,12 +442,12 @@ export class CalendarComponent extends Component {
 			// Use the first available date field based on preference.
 			// The PRD mentions using dueDate primarily, with an option for scheduled/start.
 			// Let's stick to dueDate for now as primary.
-			if (task[primaryDateField]) {
-				eventDate = task[primaryDateField];
-			} else if (task.scheduledDate) {
-				eventDate = task.scheduledDate;
-			} else if (task.startDate) {
-				eventDate = task.startDate;
+			if (task.metadata[primaryDateField]) {
+				eventDate = task.metadata[primaryDateField];
+			} else if (task.metadata.scheduledDate) {
+				eventDate = task.metadata.scheduledDate;
+			} else if (task.metadata.startDate) {
+				eventDate = task.metadata.startDate;
 			}
 			// We could add completedDate here if we want to show completed tasks based on completion time
 
@@ -461,13 +461,17 @@ export class CalendarComponent extends Component {
 				let end: Date | undefined = undefined;
 				let effectiveStart = start; // Use the primary date as start by default
 				if (
-					task.startDate &&
-					task.dueDate &&
-					task.startDate !== task.dueDate
+					task.metadata.startDate &&
+					task.metadata.dueDate &&
+					task.metadata.startDate !== task.metadata.dueDate
 				) {
 					// Ensure start is actually before due date
-					const sMoment = moment(task.startDate).startOf("day");
-					const dMoment = moment(task.dueDate).startOf("day");
+					const sMoment = moment(task.metadata.startDate).startOf(
+						"day"
+					);
+					const dMoment = moment(task.metadata.dueDate).startOf(
+						"day"
+					);
 					if (sMoment.isBefore(dMoment)) {
 						// FullCalendar and similar often expect the 'end' date to be exclusive
 						// for all-day events. So an event ending on the 15th would have end=16th.

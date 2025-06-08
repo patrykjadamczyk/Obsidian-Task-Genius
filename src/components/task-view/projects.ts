@@ -247,11 +247,11 @@ export class ProjectsComponent extends Component {
 
 		// Build a map of projects to task IDs
 		this.allTasks.forEach((task) => {
-			if (task.project) {
-				if (!this.allProjectsMap.has(task.project)) {
-					this.allProjectsMap.set(task.project, new Set());
+			if (task.metadata.project) {
+				if (!this.allProjectsMap.has(task.metadata.project)) {
+					this.allProjectsMap.set(task.metadata.project, new Set());
 				}
-				this.allProjectsMap.get(task.project)?.add(task.id);
+				this.allProjectsMap.get(task.metadata.project)?.add(task.id);
 			}
 		});
 
@@ -452,15 +452,15 @@ export class ProjectsComponent extends Component {
 				}
 
 				// Then by priority (high to low)
-				const priorityA = a.priority || 0;
-				const priorityB = b.priority || 0;
+				const priorityA = a.metadata.priority || 0;
+				const priorityB = b.metadata.priority || 0;
 				if (priorityA !== priorityB) {
 					return priorityB - priorityA;
 				}
 
 				// Then by due date (early to late)
-				const dueDateA = a.dueDate || Number.MAX_SAFE_INTEGER;
-				const dueDateB = b.dueDate || Number.MAX_SAFE_INTEGER;
+				const dueDateA = a.metadata.dueDate || Number.MAX_SAFE_INTEGER;
+				const dueDateB = b.metadata.dueDate || Number.MAX_SAFE_INTEGER;
 				return dueDateA - dueDateB;
 			});
 		}
@@ -516,7 +516,7 @@ export class ProjectsComponent extends Component {
 		if (taskIndex !== -1) {
 			const oldTask = this.allTasks[taskIndex];
 			// Check if project assignment changed, which affects the sidebar/filtering
-			if (oldTask.project !== updatedTask.project) {
+			if (oldTask.metadata.project !== updatedTask.metadata.project) {
 				needsFullRefresh = true;
 			}
 			this.allTasks[taskIndex] = updatedTask;

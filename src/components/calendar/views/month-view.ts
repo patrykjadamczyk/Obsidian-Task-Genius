@@ -227,23 +227,27 @@ export class MonthView extends CalendarViewComponent {
 	/**
 	 * Initialize drag and drop functionality for calendar events
 	 */
-	private initializeDragAndDrop(dayCells: { [key: string]: HTMLElement }): void {
+	private initializeDragAndDrop(dayCells: {
+		[key: string]: HTMLElement;
+	}): void {
 		// Clean up existing sortable instances
-		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.sortableInstances = [];
 
 		// Initialize sortable for each day's events container
 		Object.entries(dayCells).forEach(([dateStr, dayCell]) => {
-			const eventsContainer = dayCell.querySelector('.calendar-events-container') as HTMLElement;
+			const eventsContainer = dayCell.querySelector(
+				".calendar-events-container"
+			) as HTMLElement;
 			if (eventsContainer) {
 				const sortableInstance = Sortable.create(eventsContainer, {
-					group: 'calendar-events',
+					group: "calendar-events",
 					animation: 150,
-					ghostClass: 'calendar-event-ghost',
-					dragClass: 'calendar-event-dragging',
+					ghostClass: "calendar-event-ghost",
+					dragClass: "calendar-event-dragging",
 					onEnd: (event) => {
 						this.handleDragEnd(event, dateStr);
-					}
+					},
 				});
 				this.sortableInstances.push(sortableInstance);
 			}
@@ -253,25 +257,30 @@ export class MonthView extends CalendarViewComponent {
 	/**
 	 * Handle drag end event to update task dates
 	 */
-	private async handleDragEnd(event: Sortable.SortableEvent, originalDateStr: string): Promise<void> {
+	private async handleDragEnd(
+		event: Sortable.SortableEvent,
+		originalDateStr: string
+	): Promise<void> {
 		const eventEl = event.item;
 		const eventId = eventEl.dataset.eventId;
 		const targetContainer = event.to;
-		const targetDateCell = targetContainer.closest('.calendar-day-cell');
+		const targetDateCell = targetContainer.closest(".calendar-day-cell");
 
 		if (!eventId || !targetDateCell) {
-			console.warn('Could not determine event ID or target date for drag operation');
+			console.warn(
+				"Could not determine event ID or target date for drag operation"
+			);
 			return;
 		}
 
-		const targetDateStr = targetDateCell.getAttribute('data-date');
+		const targetDateStr = targetDateCell.getAttribute("data-date");
 		if (!targetDateStr || targetDateStr === originalDateStr) {
 			// No date change, nothing to do
 			return;
 		}
 
 		// Find the calendar event
-		const calendarEvent = this.events.find(e => e.id === eventId);
+		const calendarEvent = this.events.find((e) => e.id === eventId);
 		if (!calendarEvent) {
 			console.warn(`Calendar event with ID ${eventId} not found`);
 			return;
@@ -279,9 +288,11 @@ export class MonthView extends CalendarViewComponent {
 
 		try {
 			await this.updateTaskDate(calendarEvent, targetDateStr);
-			console.log(`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`);
+			console.log(
+				`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`
+			);
 		} catch (error) {
-			console.error('Failed to update task date:', error);
+			console.error("Failed to update task date:", error);
 			// Revert the visual change by re-rendering
 			this.render();
 		}
@@ -290,27 +301,30 @@ export class MonthView extends CalendarViewComponent {
 	/**
 	 * Update task date based on the target date
 	 */
-	private async updateTaskDate(calendarEvent: CalendarEvent, targetDateStr: string): Promise<void> {
+	private async updateTaskDate(
+		calendarEvent: CalendarEvent,
+		targetDateStr: string
+	): Promise<void> {
 		const targetDate = moment(targetDateStr).valueOf();
 		const taskManager = this.plugin.taskManager;
 
 		if (!taskManager) {
-			throw new Error('Task manager not available');
+			throw new Error("Task manager not available");
 		}
 
 		// Create updated task with new date
 		const updatedTask = { ...calendarEvent };
 
 		// Determine which date field to update based on what the task currently has
-		if (calendarEvent.dueDate) {
-			updatedTask.dueDate = targetDate;
-		} else if (calendarEvent.scheduledDate) {
-			updatedTask.scheduledDate = targetDate;
-		} else if (calendarEvent.startDate) {
-			updatedTask.startDate = targetDate;
+		if (calendarEvent.metadata.dueDate) {
+			updatedTask.metadata.dueDate = targetDate;
+		} else if (calendarEvent.metadata.scheduledDate) {
+			updatedTask.metadata.scheduledDate = targetDate;
+		} else if (calendarEvent.metadata.startDate) {
+			updatedTask.metadata.startDate = targetDate;
 		} else {
 			// Default to due date if no date is set
-			updatedTask.dueDate = targetDate;
+			updatedTask.metadata.dueDate = targetDate;
 		}
 
 		// Update the task
@@ -321,7 +335,7 @@ export class MonthView extends CalendarViewComponent {
 	 * Clean up sortable instances when component is destroyed
 	 */
 	onunload(): void {
-		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.sortableInstances = [];
 		super.onunload();
 	}

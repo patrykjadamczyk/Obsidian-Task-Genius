@@ -143,7 +143,7 @@ export class TaskMetadataEditor extends Component {
 			pane,
 			t("Due Date"),
 			"dueDate",
-			this.getDateString(this.task.dueDate)
+			this.getDateString(this.task.metadata.dueDate)
 		);
 	}
 
@@ -152,13 +152,13 @@ export class TaskMetadataEditor extends Component {
 			pane,
 			t("Start Date"),
 			"startDate",
-			this.getDateString(this.task.startDate)
+			this.getDateString(this.task.metadata.startDate)
 		);
 		this.createDateEditor(
 			pane,
 			t("Scheduled Date"),
 			"scheduledDate",
-			this.getDateString(this.task.scheduledDate)
+			this.getDateString(this.task.metadata.scheduledDate)
 		);
 		this.createRecurrenceEditor(pane);
 	}
@@ -201,19 +201,19 @@ export class TaskMetadataEditor extends Component {
 			datesContainer,
 			t("Due Date"),
 			"dueDate",
-			this.getDateString(this.task.dueDate)
+			this.getDateString(this.task.metadata.dueDate)
 		);
 		this.createDateEditor(
 			datesContainer,
 			t("Start Date"),
 			"startDate",
-			this.getDateString(this.task.startDate)
+			this.getDateString(this.task.metadata.startDate)
 		);
 		this.createDateEditor(
 			datesContainer,
 			t("Scheduled Date"),
 			"scheduledDate",
-			this.getDateString(this.task.scheduledDate)
+			this.getDateString(this.task.metadata.scheduledDate)
 		);
 
 		// Recurrence rule editor
@@ -280,7 +280,9 @@ export class TaskMetadataEditor extends Component {
 
 		priorityDropdown.selectEl.addClass("priority-select");
 
-		const taskPriority = this.getPriorityString(this.task.priority);
+		const taskPriority = this.getPriorityString(
+			this.task.metadata.priority
+		);
 		priorityDropdown.setValue(taskPriority || "");
 	}
 
@@ -340,7 +342,7 @@ export class TaskMetadataEditor extends Component {
 
 		const projectInput = new TextComponent(fieldContainer)
 			.setPlaceholder(t("Project name"))
-			.setValue(this.task.project || "")
+			.setValue(this.task.metadata.project || "")
 			.onChange((value) => {
 				this.notifyMetadataChange("project", value);
 			});
@@ -365,7 +367,9 @@ export class TaskMetadataEditor extends Component {
 		const tagsInput = new TextComponent(fieldContainer)
 			.setPlaceholder(t("e.g. #tag1, #tag2"))
 			.setValue(
-				Array.isArray(this.task.tags) ? this.task.tags.join(", ") : ""
+				Array.isArray(this.task.metadata.tags)
+					? this.task.metadata.tags.join(", ")
+					: ""
 			);
 
 		this.registerDomEvent(tagsInput.inputEl, "blur", () => {
@@ -392,8 +396,8 @@ export class TaskMetadataEditor extends Component {
 		const contextInput = new TextComponent(fieldContainer)
 			.setPlaceholder(t("e.g. @home, @work"))
 			.setValue(
-				Array.isArray(this.task.context)
-					? this.task.context.join(", ")
+				Array.isArray(this.task.metadata.context)
+					? this.task.metadata.context.join(", ")
 					: ""
 			);
 
@@ -420,7 +424,7 @@ export class TaskMetadataEditor extends Component {
 
 		const recurrenceInput = new TextComponent(fieldContainer)
 			.setPlaceholder(t("e.g. every day, every week"))
-			.setValue(this.task.recurrence || "")
+			.setValue(this.task.metadata.recurrence || "")
 			.onChange((value) => {
 				this.notifyMetadataChange("recurrence", value);
 			});

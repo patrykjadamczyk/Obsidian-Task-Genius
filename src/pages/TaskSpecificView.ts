@@ -864,9 +864,9 @@ export class TaskSpecificView extends ItemView {
 						item.onClick(() => {
 							console.log("status", status, mark);
 							if (!task.completed && mark.toLowerCase() === "x") {
-								task.completedDate = Date.now();
+								task.metadata.completedDate = Date.now();
 							} else {
-								task.completedDate = undefined;
+								task.metadata.completedDate = undefined;
 							}
 							this.updateTask(task, {
 								...task,
@@ -998,7 +998,10 @@ export class TaskSpecificView extends ItemView {
 		const updatedTask = { ...task, completed: !task.completed };
 
 		if (updatedTask.completed) {
-			updatedTask.completedDate = Date.now();
+			// 设置完成时间到任务元数据中
+			if (updatedTask.metadata) {
+				updatedTask.metadata.completedDate = Date.now();
+			}
 			const completedMark = (
 				this.plugin.settings.taskStatuses.completed || "x"
 			).split("|")[0];
@@ -1006,7 +1009,10 @@ export class TaskSpecificView extends ItemView {
 				updatedTask.status = completedMark;
 			}
 		} else {
-			updatedTask.completedDate = undefined;
+			// 清除完成时间
+			if (updatedTask.metadata) {
+				updatedTask.metadata.completedDate = undefined;
+			}
 			const notStartedMark =
 				this.plugin.settings.taskStatuses.notStarted || " ";
 			if (updatedTask.status.toLowerCase() === "x") {
@@ -1138,13 +1144,20 @@ export class TaskSpecificView extends ItemView {
 				taskToUpdate.completed !== isCompleted
 			) {
 				try {
-					// Use updateTask to ensure consistency and UI updates
-					await this.updateTask(taskToUpdate, {
+					// 创建更新的任务对象，将 completedDate 设置到 metadata 中
+					const updatedTaskData = {
 						...taskToUpdate,
 						status: newStatusMark,
 						completed: isCompleted,
-						completedDate: completedDate,
-					});
+					};
+
+					// 确保 metadata 存在并设置 completedDate
+					if (updatedTaskData.metadata) {
+						updatedTaskData.metadata.completedDate = completedDate;
+					}
+
+					// Use updateTask to ensure consistency and UI updates
+					await this.updateTask(taskToUpdate, updatedTaskData);
 					console.log(
 						`Task ${taskId} status update processed by TaskSpecificView.`
 					);

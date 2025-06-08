@@ -176,37 +176,37 @@ export class TaskDetailsComponent extends Component {
 		const metaEl = this.contentEl.createDiv({ cls: "details-metadata" });
 
 		// // Add metadata fields
-		// if (task.project) {
-		// 	this.addMetadataField(metaEl, "Project", task.project);
+		// if (task.metadata.project) {
+		// 	this.addMetadataField(metaEl, "Project", task.metadata.project);
 		// }
 
-		// if (task.dueDate) {
-		// 	const dueDateText = new Date(task.dueDate).toLocaleDateString();
+		// if (task.metadata.dueDate) {
+		// 	const dueDateText = new Date(task.metadata.dueDate).toLocaleDateString();
 		// 	this.addMetadataField(metaEl, "Due Date", dueDateText);
 		// }
 
-		// if (task.startDate) {
-		// 	const startDateText = new Date(task.startDate).toLocaleDateString();
+		// if (task.metadata.startDate) {
+		// 	const startDateText = new Date(task.metadata.startDate).toLocaleDateString();
 		// 	this.addMetadataField(metaEl, "Start Date", startDateText);
 		// }
 
-		// if (task.scheduledDate) {
+		// if (task.metadata.scheduledDate) {
 		// 	const scheduledDateText = new Date(
-		// 		task.scheduledDate
+		// 		task.metadata.scheduledDate
 		// 	).toLocaleDateString();
 		// 	this.addMetadataField(metaEl, "Scheduled Date", scheduledDateText);
 		// }
 
-		// if (task.completedDate) {
+		// if (task.metadata.completedDate) {
 		// 	const completedDateText = new Date(
-		// 		task.completedDate
+		// 		task.metadata.completedDate
 		// 	).toLocaleDateString();
 		// 	this.addMetadataField(metaEl, "Completed", completedDateText);
 		// }
 
-		// if (task.priority) {
+		// if (task.metadata.priority) {
 		// 	let priorityText = "Low";
-		// 	switch (task.priority) {
+		// 	switch (task.metadata.priority) {
 		// 		case 1:
 		// 			priorityText = "Lowest";
 		// 			break;
@@ -228,16 +228,16 @@ export class TaskDetailsComponent extends Component {
 		// 	this.addMetadataField(metaEl, "Priority", priorityText);
 		// }
 
-		// if (task.tags && task.tags.length > 0) {
-		// 	this.addMetadataField(metaEl, "Tags", task.tags.join(", "));
+		// if (task.metadata.tags && task.metadata.tags.length > 0) {
+		// 	this.addMetadataField(metaEl, "Tags", task.metadata.tags.join(", "));
 		// }
 
-		// if (task.context) {
-		// 	this.addMetadataField(metaEl, "Context", task.context);
+		// if (task.metadata.context) {
+		// 	this.addMetadataField(metaEl, "Context", task.metadata.context);
 		// }
 
-		// if (task.recurrence) {
-		// 	this.addMetadataField(metaEl, "Recurrence", task.recurrence);
+		// if (task.metadata.recurrence) {
+		// 	this.addMetadataField(metaEl, "Recurrence", task.metadata.recurrence);
 		// }
 
 		// Task file location
@@ -304,15 +304,17 @@ export class TaskDetailsComponent extends Component {
 			t("Project")
 		);
 		const projectInput = new TextComponent(projectField);
-		projectInput.setValue(task.project || "");
+		projectInput.setValue(task.metadata.project || "");
 
 		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
 
 		// Tags field
 		const tagsField = this.createFormField(this.editFormEl, t("Tags"));
 		const tagsInput = new TextComponent(tagsField);
-		console.log("tagsInput", tagsInput, task.tags);
-		tagsInput.setValue(task.tags ? task.tags.join(", ") : "");
+		console.log("tagsInput", tagsInput, task.metadata.tags);
+		tagsInput.setValue(
+			task.metadata.tags ? task.metadata.tags.join(", ") : ""
+		);
 		tagsField
 			.createSpan({ cls: "field-description" })
 			.setText(
@@ -327,7 +329,7 @@ export class TaskDetailsComponent extends Component {
 			t("Context")
 		);
 		const contextInput = new TextComponent(contextField);
-		contextInput.setValue(task.context || "");
+		contextInput.setValue(task.metadata.context || "");
 
 		new ContextSuggest(this.app, contextInput.inputEl, this.plugin);
 
@@ -343,8 +345,8 @@ export class TaskDetailsComponent extends Component {
 		priorityDropdown.addOption("3", "🔼 " + t("Medium"));
 		priorityDropdown.addOption("4", "⏫ " + t("High"));
 		priorityDropdown.addOption("5", "🔺 " + t("Highest"));
-		if (task.priority) {
-			priorityDropdown.setValue(task.priority.toString());
+		if (task.metadata.priority) {
+			priorityDropdown.setValue(task.metadata.priority.toString());
 		} else {
 			priorityDropdown.setValue("");
 		}
@@ -358,9 +360,9 @@ export class TaskDetailsComponent extends Component {
 			type: "date",
 			cls: "date-input",
 		});
-		if (task.dueDate) {
+		if (task.metadata.dueDate) {
 			// Use local date to avoid timezone issues
-			const date = new Date(task.dueDate);
+			const date = new Date(task.metadata.dueDate);
 			const year = date.getFullYear();
 			const month = String(date.getMonth() + 1).padStart(2, "0");
 			const day = String(date.getDate()).padStart(2, "0");
@@ -376,9 +378,9 @@ export class TaskDetailsComponent extends Component {
 			type: "date",
 			cls: "date-input",
 		});
-		if (task.startDate) {
+		if (task.metadata.startDate) {
 			// Use local date to avoid timezone issues
-			const date = new Date(task.startDate);
+			const date = new Date(task.metadata.startDate);
 			const year = date.getFullYear();
 			const month = String(date.getMonth() + 1).padStart(2, "0");
 			const day = String(date.getDate()).padStart(2, "0");
@@ -394,9 +396,9 @@ export class TaskDetailsComponent extends Component {
 			type: "date",
 			cls: "date-input",
 		});
-		if (task.scheduledDate) {
+		if (task.metadata.scheduledDate) {
 			// Use local date to avoid timezone issues
-			const date = new Date(task.scheduledDate);
+			const date = new Date(task.metadata.scheduledDate);
 			const year = date.getFullYear();
 			const month = String(date.getMonth() + 1).padStart(2, "0");
 			const day = String(date.getDate()).padStart(2, "0");
@@ -409,7 +411,7 @@ export class TaskDetailsComponent extends Component {
 			t("Recurrence")
 		);
 		const recurrenceInput = new TextComponent(recurrenceField);
-		recurrenceInput.setValue(task.recurrence || "");
+		recurrenceInput.setValue(task.metadata.recurrence || "");
 		recurrenceField
 			.createSpan({ cls: "field-description" })
 			.setText(t("e.g. every day, every 2 weeks"));
@@ -421,22 +423,30 @@ export class TaskDetailsComponent extends Component {
 
 			// Update task properties
 			updatedTask.content = contentInput.getValue();
-			updatedTask.project = projectInput.getValue() || undefined;
 
-			// Parse tags
+			// Update metadata properties
+			const metadata = { ...updatedTask.metadata };
+
+			// Parse and update project
+			const projectValue = projectInput.getValue();
+			metadata.project = projectValue || undefined;
+
+			// Parse and update tags
 			const tagsValue = tagsInput.getValue();
-			updatedTask.tags = tagsValue
+			metadata.tags = tagsValue
 				? tagsValue
 						.split(",")
 						.map((tag) => tag.trim())
 						.filter((tag) => tag)
 				: [];
 
-			updatedTask.context = contextInput.getValue() || undefined;
+			// Update context
+			const contextValue = contextInput.getValue();
+			metadata.context = contextValue || undefined;
 
-			// Parse priority
+			// Parse and update priority
 			const priorityValue = priorityDropdown.getValue();
-			updatedTask.priority = priorityValue
+			metadata.priority = priorityValue
 				? parseInt(priorityValue)
 				: undefined;
 
@@ -447,17 +457,17 @@ export class TaskDetailsComponent extends Component {
 				const [year, month, day] = dueDateValue.split("-").map(Number);
 				const newDueDate = new Date(year, month - 1, day).getTime();
 				// Only update if the date has changed or is different from the original
-				if (task.dueDate !== newDueDate) {
-					updatedTask.dueDate = newDueDate;
+				if (task.metadata.dueDate !== newDueDate) {
+					metadata.dueDate = newDueDate;
 				} else {
-					updatedTask.dueDate = task.dueDate;
+					metadata.dueDate = task.metadata.dueDate;
 				}
-			} else if (!dueDateValue && task.dueDate) {
+			} else if (!dueDateValue && task.metadata.dueDate) {
 				// Only update if field was cleared and previously had a value
-				updatedTask.dueDate = undefined;
+				metadata.dueDate = undefined;
 			} else {
 				// Keep original value if both are empty/undefined
-				updatedTask.dueDate = task.dueDate;
+				metadata.dueDate = task.metadata.dueDate;
 			}
 
 			const startDateValue = startDateInput.value;
@@ -468,17 +478,17 @@ export class TaskDetailsComponent extends Component {
 					.map(Number);
 				const newStartDate = new Date(year, month - 1, day).getTime();
 				// Only update if the date has changed or is different from the original
-				if (task.startDate !== newStartDate) {
-					updatedTask.startDate = newStartDate;
+				if (task.metadata.startDate !== newStartDate) {
+					metadata.startDate = newStartDate;
 				} else {
-					updatedTask.startDate = task.startDate;
+					metadata.startDate = task.metadata.startDate;
 				}
-			} else if (!startDateValue && task.startDate) {
+			} else if (!startDateValue && task.metadata.startDate) {
 				// Only update if field was cleared and previously had a value
-				updatedTask.startDate = undefined;
+				metadata.startDate = undefined;
 			} else {
 				// Keep original value if both are empty/undefined
-				updatedTask.startDate = task.startDate;
+				metadata.startDate = task.metadata.startDate;
 			}
 
 			const scheduledDateValue = scheduledDateInput.value;
@@ -493,28 +503,33 @@ export class TaskDetailsComponent extends Component {
 					day
 				).getTime();
 				// Only update if the date has changed or is different from the original
-				if (task.scheduledDate !== newScheduledDate) {
-					updatedTask.scheduledDate = newScheduledDate;
+				if (task.metadata.scheduledDate !== newScheduledDate) {
+					metadata.scheduledDate = newScheduledDate;
 				} else {
-					updatedTask.scheduledDate = task.scheduledDate;
+					metadata.scheduledDate = task.metadata.scheduledDate;
 				}
-			} else if (!scheduledDateValue && task.scheduledDate) {
+			} else if (!scheduledDateValue && task.metadata.scheduledDate) {
 				// Only update if field was cleared and previously had a value
-				updatedTask.scheduledDate = undefined;
+				metadata.scheduledDate = undefined;
 			} else {
 				// Keep original value if both are empty/undefined
-				updatedTask.scheduledDate = task.scheduledDate;
+				metadata.scheduledDate = task.metadata.scheduledDate;
 			}
 
-			updatedTask.recurrence = recurrenceInput.getValue() || undefined;
+			// Update recurrence
+			const recurrenceValue = recurrenceInput.getValue();
+			metadata.recurrence = recurrenceValue || undefined;
+
+			// Assign updated metadata back to task
+			updatedTask.metadata = metadata;
 
 			// Check if any task data has changed before updating
 			const hasChanges = this.hasTaskChanges(task, updatedTask);
 
 			console.log(
 				"dueDate",
-				task.dueDate,
-				updatedTask.dueDate,
+				task.metadata.dueDate,
+				metadata.dueDate,
 				hasChanges
 			);
 

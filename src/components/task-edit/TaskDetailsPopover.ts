@@ -81,25 +81,27 @@ export class TaskDetailsPopover
 			};
 
 			// Update the internal task reference
-
 			// Only update completed status and completedDate if the status field is changing to a completed state
 			if (
 				event.field === "status" &&
 				(event.value === "x" || event.value === "X")
 			) {
 				updatedTask.completed = true;
-				updatedTask.completedDate = Date.now();
+				updatedTask.metadata.completedDate = Date.now();
 			} else if (event.field === "status") {
 				// If status is changing to something else, mark as not completed
 				updatedTask.completed = false;
-				updatedTask.completedDate = undefined;
+				delete updatedTask.metadata.completedDate;
 			}
 
 			this.task = {
 				...this.task,
 				[event.field]: event.value,
 				completed: updatedTask.completed,
-				completedDate: updatedTask.completedDate,
+				metadata: {
+					...this.task.metadata,
+					...updatedTask.metadata,
+				},
 			};
 
 			// Update the task with all changes

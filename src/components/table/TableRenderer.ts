@@ -1462,7 +1462,7 @@ export class TableRenderer extends Component {
 		allTasks.forEach((task) => {
 			switch (columnType) {
 				case "tags":
-					task.tags?.forEach((tag) => {
+					task.metadata.tags?.forEach((tag) => {
 						if (tag && tag.trim()) {
 							// Remove # prefix if present
 							const cleanTag = tag.startsWith("#")
@@ -1473,13 +1473,13 @@ export class TableRenderer extends Component {
 					});
 					break;
 				case "project":
-					if (task.project && task.project.trim()) {
-						values.add(task.project);
+					if (task.metadata.project && task.metadata.project.trim()) {
+						values.add(task.metadata.project);
 					}
 					break;
 				case "context":
-					if (task.context && task.context.trim()) {
-						values.add(task.context);
+					if (task.metadata.context && task.metadata.context.trim()) {
+						values.add(task.metadata.context);
 					}
 					break;
 			}
