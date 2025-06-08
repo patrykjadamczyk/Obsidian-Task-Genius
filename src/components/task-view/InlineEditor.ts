@@ -8,6 +8,8 @@ import {
 	EmbeddableMarkdownEditor,
 } from "../../editor-ext/markdownEditor";
 import "../../styles/inline-editor.css";
+import { getEffectiveProject, isProjectReadonly } from "../../utils/taskUtil";
+import { t } from "../../translations/helper";
 
 export interface InlineEditorOptions {
 	onTaskUpdate: (task: Task, updatedTask: Task) => Promise<void>;
@@ -301,12 +303,59 @@ export class InlineEditor extends Component {
 		container: HTMLElement,
 		currentValue?: string
 	): void {
+		// Get effective project and readonly status
+		const effectiveProject = getEffectiveProject(this.task);
+		const isReadonly = isProjectReadonly(this.task);
+
 		const input = container.createEl("input", {
 			type: "text",
 			cls: "inline-project-input",
-			value: currentValue || "",
+			value: effectiveProject || "",
 			placeholder: "Enter project name",
 		});
+
+		// Add visual indicator for tgProject
+		if (this.task.metadata.tgProject) {
+			const tgProject = this.task.metadata.tgProject;
+			const indicator = container.createDiv({
+				cls: "project-source-indicator inline-indicator",
+			});
+
+			// Create indicator text based on tgProject type
+			let indicatorText = "";
+			let indicatorIcon = "";
+
+			switch (tgProject.type) {
+				case "path":
+					indicatorText = t("Auto from path");
+					indicatorIcon = "📁";
+					break;
+				case "metadata":
+					indicatorText = t("Auto from metadata");
+					indicatorIcon = "📄";
+					break;
+				case "config":
+					indicatorText = t("Auto from config");
+					indicatorIcon = "⚙️";
+					break;
+				default:
+					indicatorText = t("Auto-assigned");
+					indicatorIcon = "🔗";
+			}
+
+			indicator.innerHTML = `<span class="indicator-icon">${indicatorIcon}</span> <span class="indicator-text">${indicatorText}</span>`;
+
+			if (isReadonly) {
+				indicator.addClass("readonly-indicator");
+				input.disabled = true;
+				input.title = t(
+					"This project is automatically assigned and cannot be changed"
+				);
+			} else {
+				indicator.addClass("override-indicator");
+				input.title = t("You can override the auto-assigned project");
+			}
+		}
 
 		this.activeInput = input;
 
@@ -328,8 +377,14 @@ export class InlineEditor extends Component {
 
 		this.setupInputEvents(input, updateProject, "project");
 
-		// Add autocomplete
-		this.activeSuggest = new ProjectSuggest(this.app, input, this.plugin);
+		// Add autocomplete only if not readonly
+		if (!isReadonly) {
+			this.activeSuggest = new ProjectSuggest(
+				this.app,
+				input,
+				this.plugin
+			);
+		}
 
 		// Focus and select
 		input.focus();

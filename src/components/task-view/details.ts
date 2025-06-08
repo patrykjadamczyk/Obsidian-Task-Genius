@@ -19,6 +19,7 @@ import { clearAllMarks } from "../MarkdownRenderer";
 import { StatusComponent } from "../StatusComponent";
 import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
 import { FileTask } from "../../types/file-task";
+import { getEffectiveProject, isProjectReadonly } from "../../utils/taskUtil";
 
 function getStatus(task: Task, settings: TaskProgressBarSettings) {
 	const status = Object.keys(settings.taskStatuses).find((key) => {
@@ -303,8 +304,70 @@ export class TaskDetailsComponent extends Component {
 			this.editFormEl,
 			t("Project")
 		);
+
+		// Get effective project and readonly status
+		const effectiveProject = getEffectiveProject(task);
+		const isReadonly = isProjectReadonly(task);
+
 		const projectInput = new TextComponent(projectField);
-		projectInput.setValue(task.metadata.project || "");
+		projectInput.setValue(effectiveProject || "");
+
+		// Add visual indicator for tgProject
+		if (task.metadata.tgProject) {
+			const tgProject = task.metadata.tgProject;
+			const indicator = projectField.createDiv({
+				cls: "project-source-indicator",
+			});
+
+			// Create indicator text based on tgProject type
+			let indicatorText = "";
+			let indicatorIcon = "";
+
+			switch (tgProject.type) {
+				case "path":
+					indicatorText =
+						t("Auto-assigned from path") + `: ${tgProject.source}`;
+					indicatorIcon = "📁";
+					break;
+				case "metadata":
+					indicatorText =
+						t("Auto-assigned from file metadata") +
+						`: ${tgProject.source}`;
+					indicatorIcon = "📄";
+					break;
+				case "config":
+					indicatorText =
+						t("Auto-assigned from config file") +
+						`: ${tgProject.source}`;
+					indicatorIcon = "⚙️";
+					break;
+				default:
+					indicatorText =
+						t("Auto-assigned") + `: ${tgProject.source}`;
+					indicatorIcon = "🔗";
+			}
+
+			indicator.innerHTML = `<span class="indicator-icon">${indicatorIcon}</span> <span class="indicator-text">${indicatorText}</span>`;
+
+			if (isReadonly) {
+				indicator.addClass("readonly-indicator");
+				projectInput.setDisabled(true);
+				projectField.createDiv({
+					cls: "field-description readonly-description",
+					text: t(
+						"This project is automatically assigned and cannot be changed"
+					),
+				});
+			} else {
+				indicator.addClass("override-indicator");
+				projectField.createDiv({
+					cls: "field-description override-description",
+					text: t(
+						"You can override the auto-assigned project by entering a different value"
+					),
+				});
+			}
+		}
 
 		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
 

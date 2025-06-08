@@ -1272,6 +1272,21 @@ const translations = {
 	"Advanced Filtering": "Advanced Filtering",
 	"Use advanced multi-group filtering with complex conditions":
 		"Use advanced multi-group filtering with complex conditions",
+
+	// Project auto-assignment translations
+	"Auto-assigned from path": "Auto-assigned from path",
+	"Auto-assigned from file metadata": "Auto-assigned from file metadata",
+	"Auto-assigned from config file": "Auto-assigned from config file",
+	"Auto-assigned": "Auto-assigned",
+	"Auto from path": "Auto from path",
+	"Auto from metadata": "Auto from metadata",
+	"Auto from config": "Auto from config",
+	"This project is automatically assigned and cannot be changed":
+		"This project is automatically assigned and cannot be changed",
+	"You can override the auto-assigned project by entering a different value":
+		"You can override the auto-assigned project by entering a different value",
+	"You can override the auto-assigned project":
+		"You can override the auto-assigned project",
 };
 
 export default translations;

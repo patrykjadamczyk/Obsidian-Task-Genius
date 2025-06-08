@@ -523,12 +523,26 @@ export function extractTags(
  * Get the effective project name from a task, prioritizing original project over tgProject
  */
 export function getEffectiveProject(task: Task): string | undefined {
-	if (task.metadata.project) {
+	// Handle undefined or null metadata
+	if (!task.metadata) {
+		return undefined;
+	}
+
+	// Check original project - must be non-empty and not just whitespace
+	if (task.metadata.project && task.metadata.project.trim()) {
 		return task.metadata.project;
 	}
-	if (task.metadata.tgProject) {
+
+	// Check tgProject - must exist, be an object, and have a non-empty name
+	if (
+		task.metadata.tgProject &&
+		typeof task.metadata.tgProject === "object" &&
+		task.metadata.tgProject.name &&
+		task.metadata.tgProject.name.trim()
+	) {
 		return task.metadata.tgProject.name;
 	}
+
 	return undefined;
 }
 
@@ -536,14 +550,26 @@ export function getEffectiveProject(task: Task): string | undefined {
  * Check if the project is read-only (from tgProject)
  */
 export function isProjectReadonly(task: Task): boolean {
-	// If there's an original project, it's always editable
-	if (task.metadata.project) {
+	// Handle undefined or null metadata
+	if (!task.metadata) {
 		return false;
 	}
-	// If only tgProject exists, check its readonly flag
-	if (task.metadata.tgProject) {
+
+	// If there's an original project that's not empty/whitespace, it's always editable
+	if (task.metadata.project && task.metadata.project.trim()) {
+		return false;
+	}
+
+	// If only tgProject exists and is valid, check its readonly flag
+	if (
+		task.metadata.tgProject &&
+		typeof task.metadata.tgProject === "object" &&
+		task.metadata.tgProject.name &&
+		task.metadata.tgProject.name.trim()
+	) {
 		return task.metadata.tgProject.readonly || false;
 	}
+
 	return false;
 }
 
@@ -551,5 +577,25 @@ export function isProjectReadonly(task: Task): boolean {
  * Check if a task has any project (original or tgProject)
  */
 export function hasProject(task: Task): boolean {
-	return !!(task.metadata.project || task.metadata.tgProject);
+	// Handle undefined or null metadata
+	if (!task.metadata) {
+		return false;
+	}
+
+	// Check if original project exists and is not empty/whitespace
+	if (task.metadata.project && task.metadata.project.trim()) {
+		return true;
+	}
+
+	// Check if tgProject exists, is valid object, and has non-empty name
+	if (
+		task.metadata.tgProject &&
+		typeof task.metadata.tgProject === "object" &&
+		task.metadata.tgProject.name &&
+		task.metadata.tgProject.name.trim()
+	) {
+		return true;
+	}
+
+	return false;
 }

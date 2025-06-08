@@ -1219,6 +1219,20 @@ const translations = {
 	"Advanced Filtering": "高级过滤器",
 	"Use advanced multi-group filtering with complex conditions":
 		"使用高级多组过滤器，支持复杂条件",
+
+	// Project auto-assignment translations
+	"Auto-assigned from path": "从路径自动分配",
+	"Auto-assigned from file metadata": "从文件元数据自动分配",
+	"Auto-assigned from config file": "从配置文件自动分配",
+	"Auto-assigned": "自动分配",
+	"Auto from path": "路径自动",
+	"Auto from metadata": "元数据自动",
+	"Auto from config": "配置自动",
+	"This project is automatically assigned and cannot be changed":
+		"此项目是自动分配的，无法更改",
+	"You can override the auto-assigned project by entering a different value":
+		"您可以通过输入不同的值来覆盖自动分配的项目",
+	"You can override the auto-assigned project": "您可以覆盖自动分配的项目",
 };
 
 export default translations;

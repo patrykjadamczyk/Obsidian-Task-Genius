@@ -47,14 +47,16 @@ export class MarkdownTaskParser {
 	parse(
 		input: string,
 		filePath: string = "",
-		fileMetadata?: Record<string, any>
+		fileMetadata?: Record<string, any>,
+		projectConfigData?: Record<string, any>,
+		tgProject?: TgProject
 	): EnhancedTask[] {
 		this.reset();
 		this.fileMetadata = fileMetadata;
 
-		// Load project config for this file path if enhanced project is enabled
-		if (this.config.projectConfig?.enableEnhancedProject) {
-			this.loadProjectConfig(filePath);
+		// Store project config data if provided
+		if (projectConfigData) {
+			this.projectConfigCache = projectConfigData;
 		}
 
 		const lines = input.split(/\r?\n/);
@@ -116,8 +118,9 @@ export class MarkdownTaskParser {
 				// Inherit metadata from file frontmatter
 				const inheritedMetadata = this.inheritFileMetadata(metadata);
 
-				// Determine tgProject for this task
-				const tgProject = this.determineTgProject(filePath);
+				// Use provided tgProject or determine from config
+				const taskTgProject =
+					tgProject || this.determineTgProject(filePath);
 
 				// Check for multiline comments
 				const [comment, linesToSkip] =
@@ -150,7 +153,7 @@ export class MarkdownTaskParser {
 					listMarker,
 					filePath,
 					originalMarkdown: line,
-					tgProject,
+					tgProject: taskTgProject,
 
 					// Legacy fields for backward compatibility
 					line: i,
@@ -204,9 +207,17 @@ export class MarkdownTaskParser {
 	parseLegacy(
 		input: string,
 		filePath: string = "",
-		fileMetadata?: Record<string, any>
+		fileMetadata?: Record<string, any>,
+		projectConfigData?: Record<string, any>,
+		tgProject?: TgProject
 	): Task[] {
-		const enhancedTasks = this.parse(input, filePath, fileMetadata);
+		const enhancedTasks = this.parse(
+			input,
+			filePath,
+			fileMetadata,
+			projectConfigData,
+			tgProject
+		);
 		return enhancedTasks.map((task) => this.convertToLegacyTask(task));
 	}
 
