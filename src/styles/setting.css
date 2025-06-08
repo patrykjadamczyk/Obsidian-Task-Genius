@@ -1140,3 +1140,16 @@
 .tasks-warning-text a:hover {
 	color: var(--text-on-accent);
 }
+
+.task-genius-format-examples {
+	display: flex;
+	flex-direction: column;
+	padding: var(--size-4-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.task-genius-format-examples strong {
+	font-size: var(--font-ui-small);
+}

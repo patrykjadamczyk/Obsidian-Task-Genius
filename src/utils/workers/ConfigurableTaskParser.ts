@@ -182,6 +182,18 @@ export class MarkdownTaskParser {
 		return enhancedTasks.map((task) => this.convertToLegacyTask(task));
 	}
 
+	/**
+	 * Parse a single task line
+	 */
+	parseTask(line: string, filePath: string = "", lineNum: number = 0): Task {
+		const enhancedTask = this.parse(line, filePath);
+		return this.convertToLegacyTask({
+			...enhancedTask[0],
+			line: lineNum,
+			id: `${filePath}-L${lineNum}`,
+		});
+	}
+
 	private reset(): void {
 		this.tasks = [];
 		this.indentStack = [];

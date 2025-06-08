@@ -2,7 +2,7 @@
  * High-performance task indexer implementation
  *
  * This indexer focuses solely on indexing and querying tasks.
- * It does not handle parsing - that is delegated to other components.
+ * Parsing is handled by external components.
  */
 
 import {
@@ -43,6 +43,9 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	private indexQueue: TFile[] = [];
 	private isProcessingQueue = false;
 
+	// Callback for external parsing
+	private parseFileCallback?: (file: TFile) => Promise<Task[]>;
+
 	constructor(
 		private app: App,
 		private vault: Vault,
@@ -53,6 +56,15 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 
 		// Setup file change listeners for incremental updates
 		this.setupEventListeners();
+	}
+
+	/**
+	 * Set the callback function for parsing files
+	 */
+	public setParseFileCallback(
+		callback: (file: TFile) => Promise<Task[]>
+	): void {
+		this.parseFileCallback = callback;
 	}
 
 	/**
@@ -130,18 +142,21 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		this.isProcessingQueue = true;
 		const file = this.indexQueue.shift();
 
-		if (file) {
-			// Note: This method no longer parses tasks itself
-			// It should be called by external components that provide parsed tasks
-			console.warn(
-				`TaskIndexer.indexFile called directly for ${file.path}. This is deprecated - use updateIndexWithTasks instead.`
-			);
-
-			// Process next file after a small delay
-			setTimeout(() => this.processIndexQueue(), 50);
-		} else {
-			this.isProcessingQueue = false;
+		if (file && this.parseFileCallback) {
+			try {
+				// Use the external parsing callback
+				const tasks = await this.parseFileCallback(file);
+				this.updateIndexWithTasks(file.path, tasks);
+			} catch (error) {
+				console.error(
+					`Error processing file ${file.path} in queue:`,
+					error
+				);
+			}
 		}
+
+		// Process next file after a small delay
+		setTimeout(() => this.processIndexQueue(), 50);
 	}
 
 	/**
@@ -176,13 +191,22 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	}
 
 	/**
-	 * Index a single file
-	 * This is now deprecated - use updateIndexWithTasks instead
+	 * Index a single file using external parsing
+	 * @deprecated Use updateIndexWithTasks with external parsing instead
 	 */
 	public async indexFile(file: TFile): Promise<void> {
-		console.warn(
-			`TaskIndexer.indexFile is deprecated for ${file.path}. Use updateIndexWithTasks instead.`
-		);
+		if (this.parseFileCallback) {
+			try {
+				const tasks = await this.parseFileCallback(file);
+				this.updateIndexWithTasks(file.path, tasks);
+			} catch (error) {
+				console.error(`Error indexing file ${file.path}:`, error);
+			}
+		} else {
+			console.warn(
+				`No parse callback set for indexFile. Use setParseFileCallback() or updateIndexWithTasks() instead.`
+			);
+		}
 	}
 
 	/**

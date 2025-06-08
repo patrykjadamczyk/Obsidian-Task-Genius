@@ -32,7 +32,7 @@ import {
 	TASK_REGEX,
 } from "../common/regex-define";
 import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
-import { TaskParserConfig, MetadataParseMode } from "../types/TaskParserConfig";
+import { getConfig } from "../common/task-parser-config";
 
 /**
  * Metadata format type for backward compatibility
@@ -49,77 +49,7 @@ let cachedParser: MarkdownTaskParser | null = null;
  */
 function getParser(format: MetadataFormat): MarkdownTaskParser {
 	if (!cachedParser) {
-		const config: TaskParserConfig = {
-			// Basic parsing controls
-			parseTags: true,
-			parseMetadata: true,
-			parseHeadings: false, // taskUtil functions are for single-line parsing
-			parseComments: false, // Not needed for single-line parsing
-
-			// Metadata format preference
-			metadataParseMode:
-				format === "dataview"
-					? MetadataParseMode.DataviewOnly
-					: MetadataParseMode.Both,
-
-			// Status mapping (standard task states)
-			statusMapping: {
-				todo: " ",
-				done: "x",
-				cancelled: "-",
-				forwarded: ">",
-				scheduled: "<",
-				important: "!",
-				question: "?",
-				incomplete: "/",
-				paused: "p",
-				pro: "P",
-				con: "C",
-				quote: "Q",
-				note: "N",
-				bookmark: "b",
-				information: "i",
-				savings: "S",
-				idea: "I",
-				location: "l",
-				phone: "k",
-				win: "w",
-				key: "K",
-			},
-
-			// Emoji to metadata mapping
-			emojiMapping: {
-				"📅": "due",
-				"🛫": "start_date",
-				"⏳": "scheduled",
-				"✅": "completed_date",
-				"➕": "created_date",
-				"🔁": "recurrence",
-				"🔺": "priority",
-				"⏫": "priority",
-				"🔼": "priority",
-				"🔽": "priority",
-				"⏬": "priority",
-			},
-
-			// Special tag prefixes for project/context
-			specialTagPrefixes: {
-				project: "project",
-				area: "area",
-				context: "context",
-			},
-
-			// Performance and parsing limits
-			maxParseIterations: 1000,
-			maxMetadataIterations: 50,
-			maxStackSize: 100,
-			maxStackOperations: 100,
-			maxIndentSize: 256,
-			maxTagLength: 100,
-			maxEmojiValueLength: 50,
-		};
-
-		cachedParser = new MarkdownTaskParser(config);
+		cachedParser = new MarkdownTaskParser(getConfig(format));
 	}
 	return cachedParser;
 }

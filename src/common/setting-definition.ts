@@ -404,6 +404,11 @@ export interface TaskProgressBarSettings {
 	dailyNotePath: string;
 	preferMetadataFormat: "dataview" | "tasks";
 
+	// Task Parser Configuration
+	projectTagPrefix: Record<"dataview" | "tasks", string>; // Configurable project tag prefix (default: "project")
+	contextTagPrefix: Record<"dataview" | "tasks", string>; // Configurable context tag prefix (default: "context")
+	areaTagPrefix: Record<"dataview" | "tasks", string>; // Configurable area tag prefix (default: "area")
+
 	// Date Settings
 	useRelativeTimeForDate: boolean;
 
@@ -619,6 +624,20 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	useAsDateType: "due",
 	dailyNotePath: "",
 	preferMetadataFormat: "tasks",
+
+	// Task Parser Configuration
+	projectTagPrefix: {
+		tasks: "project",
+		dataview: "project",
+	},
+	contextTagPrefix: {
+		tasks: "@",
+		dataview: "context",
+	},
+	areaTagPrefix: {
+		tasks: "area",
+		dataview: "area",
+	},
 
 	// Date Settings
 	useRelativeTimeForDate: false,

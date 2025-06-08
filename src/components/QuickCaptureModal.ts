@@ -607,18 +607,38 @@ export class QuickCaptureModal extends Modal {
 		// Add project if set
 		if (this.taskMetadata.project) {
 			if (useDataviewFormat) {
-				metadata.push(`[project:: ${this.taskMetadata.project}]`);
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
+				metadata.push(
+					`[${projectPrefix}:: ${this.taskMetadata.project}]`
+				);
 			} else {
-				metadata.push(`#project/${this.taskMetadata.project}`);
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
+				metadata.push(`#${projectPrefix}/${this.taskMetadata.project}`);
 			}
 		}
 
 		// Add context if set
 		if (this.taskMetadata.context) {
 			if (useDataviewFormat) {
-				metadata.push(`[context:: ${this.taskMetadata.context}]`);
+				const contextPrefix =
+					this.plugin.settings.contextTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "context";
+				metadata.push(
+					`[${contextPrefix}:: ${this.taskMetadata.context}]`
+				);
 			} else {
-				metadata.push(`@${this.taskMetadata.context}`);
+				const contextPrefix =
+					this.plugin.settings.contextTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "@";
+				metadata.push(`${contextPrefix}${this.taskMetadata.context}`);
 			}
 		}
 

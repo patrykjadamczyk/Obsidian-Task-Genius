@@ -752,6 +752,26 @@ const translations = {
 	"Prefer metadata format of task": "Prefer metadata format of task",
 	"You can choose dataview format or tasks format, that will influence both index and save format.":
 		"You can choose dataview format or tasks format, that will influence both index and save format.",
+	"Task Parser Configuration": "Task Parser Configuration",
+	"Configure how task metadata is parsed and recognized.":
+		"Configure how task metadata is parsed and recognized.",
+	"Project tag prefix": "Project tag prefix",
+	"Customize the prefix used for project tags (e.g., 'project' for #project/myproject). Changes require reindexing.":
+		"Customize the prefix used for project tags (e.g., 'project' for #project/myproject). Changes require reindexing.",
+	"Customize the prefix used for project tags in dataview format (e.g., 'project' for [project:: myproject]). Changes require reindexing.":
+		"Customize the prefix used for project tags in dataview format (e.g., 'project' for [project:: myproject]). Changes require reindexing.",
+	"Context tag prefix": "Context tag prefix",
+	"Customize the prefix used for context tags in dataview format (e.g., 'context' for [context:: home]). Note: emoji format always uses @ prefix. Changes require reindexing.":
+		"Customize the prefix used for context tags in dataview format (e.g., 'context' for [context:: home]). Note: emoji format always uses @ prefix. Changes require reindexing.",
+	"Context tags in emoji format always use @ prefix (not configurable). This setting only affects dataview format. Changes require reindexing.":
+		"Context tags in emoji format always use @ prefix (not configurable). This setting only affects dataview format. Changes require reindexing.",
+	"Area tag prefix": "Area tag prefix",
+	"Customize the prefix used for area tags (e.g., 'area' for #area/work). Changes require reindexing.":
+		"Customize the prefix used for area tags (e.g., 'area' for #area/work). Changes require reindexing.",
+	"Customize the prefix used for area tags in dataview format (e.g., 'area' for [area:: work]). Changes require reindexing.":
+		"Customize the prefix used for area tags in dataview format (e.g., 'area' for [area:: work]). Changes require reindexing.",
+	"Format Examples:": "Format Examples:",
+	"always uses @ prefix": "always uses @ prefix",
 	"Open in new tab": "Open in new tab",
 	"Open settings": "Open settings",
 	"Hide in sidebar": "Hide in sidebar",

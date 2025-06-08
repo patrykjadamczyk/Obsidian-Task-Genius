@@ -74,35 +74,44 @@ export class TaskDetailsPopover
 
 		// Listen for metadata change events
 		this.metadataEditor.onMetadataChange = async (event) => {
-			// Create a base task object with the updated field
-			const updatedTask = {
-				...this.task,
-				[event.field]: event.value,
-			};
+			// Determine if the field is a top-level task property or metadata property
+			const topLevelFields = ["status", "completed", "content"];
+			const isTopLevelField = topLevelFields.includes(event.field);
 
-			// Update the internal task reference
-			// Only update completed status and completedDate if the status field is changing to a completed state
+			// Create a base task object with the updated field
+			const updatedTask = { ...this.task };
+
+			if (isTopLevelField) {
+				// Update top-level task property
+				(updatedTask as any)[event.field] = event.value;
+			} else {
+				// Update metadata property
+				updatedTask.metadata = {
+					...this.task.metadata,
+					[event.field]: event.value,
+				};
+			}
+
+			// Handle special status field logic
 			if (
 				event.field === "status" &&
 				(event.value === "x" || event.value === "X")
 			) {
 				updatedTask.completed = true;
-				updatedTask.metadata.completedDate = Date.now();
+				updatedTask.metadata = {
+					...updatedTask.metadata,
+					completedDate: Date.now(),
+				};
 			} else if (event.field === "status") {
 				// If status is changing to something else, mark as not completed
 				updatedTask.completed = false;
-				delete updatedTask.metadata.completedDate;
+				const { completedDate, ...metadataWithoutCompletedDate } =
+					updatedTask.metadata;
+				updatedTask.metadata = metadataWithoutCompletedDate;
 			}
 
-			this.task = {
-				...this.task,
-				[event.field]: event.value,
-				completed: updatedTask.completed,
-				metadata: {
-					...this.task.metadata,
-					...updatedTask.metadata,
-				},
-			};
+			// Update the internal task reference
+			this.task = updatedTask;
 
 			// Update the task with all changes
 			this.debounceUpdateTask(updatedTask);

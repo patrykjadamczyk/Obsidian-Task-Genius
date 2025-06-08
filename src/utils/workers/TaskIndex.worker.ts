@@ -14,86 +14,7 @@ import {
 } from "./TaskIndexWorkerMessage";
 import { parse } from "date-fns/parse";
 import { MarkdownTaskParser } from "./ConfigurableTaskParser";
-import {
-	TaskParserConfig,
-	MetadataParseMode,
-} from "../../types/TaskParserConfig";
-
-/**
- * Create parser configuration from worker settings
- */
-function createParserConfig(settings: TaskWorkerSettings): TaskParserConfig {
-	const preferDataview = settings.preferMetadataFormat === "dataview";
-
-	return {
-		// Basic parsing controls
-		parseTags: true,
-		parseMetadata: true,
-		parseHeadings: true,
-		parseComments: true,
-
-		// Metadata format preference
-		metadataParseMode: preferDataview
-			? MetadataParseMode.DataviewOnly
-			: MetadataParseMode.Both,
-
-		// Status mapping (standard task states)
-		statusMapping: {
-			todo: " ",
-			done: "x",
-			cancelled: "-",
-			forwarded: ">",
-			scheduled: "<",
-			important: "!",
-			question: "?",
-			incomplete: "/",
-			paused: "p",
-			pro: "P",
-			con: "C",
-			quote: "Q",
-			note: "N",
-			bookmark: "b",
-			information: "i",
-			savings: "S",
-			idea: "I",
-			location: "l",
-			phone: "k",
-			win: "w",
-			key: "K",
-		},
-
-		// Emoji to metadata mapping (prefer emoji format when not using dataview)
-		emojiMapping: {
-			"📅": "due",
-			"🛫": "start_date",
-			"⏳": "scheduled",
-			"✅": "completed_date",
-			"➕": "created_date",
-			"🔁": "recurrence",
-			"🔺": "priority",
-			"⏫": "priority",
-			"🔼": "priority",
-			"🔽": "priority",
-			"⏬": "priority",
-		},
-
-		// Special tag prefixes for project/context
-		specialTagPrefixes: {
-			project: "project",
-			area: "area",
-			context: "context",
-		},
-
-		// Performance limits
-		maxParseIterations: 10000,
-		maxMetadataIterations: 100,
-		maxStackSize: 1000,
-		maxStackOperations: 1000,
-		maxIndentSize: 256,
-		maxTagLength: 100,
-		maxEmojiValueLength: 50,
-	};
-}
+import { getConfig } from "../../common/task-parser-config";
 
 /**
  * Enhanced task parsing using configurable parser
@@ -104,8 +25,9 @@ function parseTasksWithConfigurableParser(
 	settings: TaskWorkerSettings
 ): Task[] {
 	try {
-		const config = createParserConfig(settings);
-		const parser = new MarkdownTaskParser(config);
+		const parser = new MarkdownTaskParser(
+			getConfig(settings.preferMetadataFormat)
+		);
 
 		// Use the parseLegacy method to get Task[] format for compatibility
 		const tasks = parser.parseLegacy(content, filePath);

@@ -12,9 +12,8 @@ import { TaskWorkerManager } from "./workers/TaskWorkerManager";
 import { LocalStorageCache } from "./persister";
 import TaskProgressBarPlugin from "../index";
 import { RRule, RRuleSet, rrulestr } from "rrule";
-import { getMetadataProperty, setMetadataProperty } from "./taskMigrationUtils";
 import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
-import { TaskParserConfig, MetadataParseMode } from "../types/TaskParserConfig";
+import { getConfig } from "../common/task-parser-config";
 
 /**
  * TaskManager options
@@ -80,7 +79,15 @@ export class TaskManager extends Component {
 		this.persister = new LocalStorageCache(this.app.appId);
 
 		// Initialize configurable task parser for main thread fallback
-		this.taskParser = new MarkdownTaskParser(this.createParserConfig());
+		this.taskParser = new MarkdownTaskParser(
+			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
+		);
+
+		// Set up the indexer's parse callback to use our parser
+		this.indexer.setParseFileCallback(async (file: TFile) => {
+			const content = await this.vault.cachedRead(file);
+			return this.parseFileWithConfigurableParser(file.path, content);
+		});
 
 		// Preload tasks from persister to improve initialization speed
 		this.preloadTasksFromCache();
@@ -111,83 +118,6 @@ export class TaskManager extends Component {
 		if (this.workerManager) {
 			this.addChild(this.workerManager);
 		}
-	}
-
-	/**
-	 * Create parser configuration based on plugin settings
-	 */
-	private createParserConfig(): TaskParserConfig {
-		const preferDataview =
-			this.plugin.settings.preferMetadataFormat === "dataview";
-
-		return {
-			// Basic parsing controls
-			parseTags: true,
-			parseMetadata: true,
-			parseHeadings: true,
-			parseComments: true,
-
-			// Metadata format preference
-			metadataParseMode: preferDataview
-				? MetadataParseMode.DataviewOnly
-				: MetadataParseMode.Both,
-
-			// Status mapping (standard task states)
-			statusMapping: {
-				todo: " ",
-				done: "x",
-				cancelled: "-",
-				forwarded: ">",
-				scheduled: "<",
-				important: "!",
-				question: "?",
-				incomplete: "/",
-				paused: "p",
-				pro: "P",
-				con: "C",
-				quote: "Q",
-				note: "N",
-				bookmark: "b",
-				information: "i",
-				savings: "S",
-				idea: "I",
-				location: "l",
-				phone: "k",
-				win: "w",
-				key: "K",
-			},
-
-			// Emoji to metadata mapping (prefer emoji format when not using dataview)
-			emojiMapping: {
-				"📅": "due",
-				"🛫": "start_date",
-				"⏳": "scheduled",
-				"✅": "completed_date",
-				"➕": "created_date",
-				"🔁": "recurrence",
-				"🔺": "priority",
-				"⏫": "priority",
-				"🔼": "priority",
-				"🔽": "priority",
-				"⏬": "priority",
-			},
-
-			// Special tag prefixes for project/context
-			specialTagPrefixes: {
-				project: "project",
-				area: "area",
-				context: "context",
-			},
-
-			// Performance and parsing limits
-			maxParseIterations: 10000,
-			maxMetadataIterations: 100,
-			maxStackSize: 1000,
-			maxStackOperations: 1000,
-			maxIndentSize: 256,
-			maxTagLength: 100,
-			maxEmojiValueLength: 50,
-		};
 	}
 
 	/**
@@ -1214,9 +1144,23 @@ export class TaskManager extends Component {
 				""
 			); // Allow 'repeat' or 'recurrence'
 
-			// Dataview Project and Context
-			updatedLine = updatedLine.replace(/\[project::\s*[^\]]+\]/gi, "");
-			updatedLine = updatedLine.replace(/\[context::\s*[^\]]+\]/gi, "");
+			// Dataview Project and Context (using configurable prefixes)
+			const projectPrefix =
+				this.plugin.settings.projectTagPrefix[
+					this.plugin.settings.preferMetadataFormat
+				] || "project";
+			const contextPrefix =
+				this.plugin.settings.contextTagPrefix[
+					this.plugin.settings.preferMetadataFormat
+				] || "@";
+			updatedLine = updatedLine.replace(
+				new RegExp(`\\[${projectPrefix}::\\s*[^\\]]+\\]`, "gi"),
+				""
+			);
+			updatedLine = updatedLine.replace(
+				new RegExp(`\\[${contextPrefix}::\\s*[^\\]]+\\]`, "gi"),
+				""
+			);
 
 			// Remove ALL existing tags to prevent duplication
 			// This includes general hashtags, project tags, and context tags
@@ -1248,10 +1192,14 @@ export class TaskManager extends Component {
 				updatedTask.metadata.tags.length > 0
 			) {
 				// Filter out project and context tags, and ensure uniqueness
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
 				const generalTags = updatedTask.metadata.tags.filter((tag) => {
 					if (typeof tag !== "string") return false;
 					// Skip project tags - they'll be handled separately
-					if (tag.startsWith("#project/")) return false;
+					if (tag.startsWith(`#${projectPrefix}/`)) return false;
 					// Skip context tags if they match the current context
 					if (
 						tag.startsWith("@") &&
@@ -1278,12 +1226,20 @@ export class TaskManager extends Component {
 			// 2. Project
 			if (updatedTask.metadata.project) {
 				if (useDataviewFormat) {
-					const projectField = `[project:: ${updatedTask.metadata.project}]`;
+					const projectPrefix =
+						this.plugin.settings.projectTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						] || "project";
+					const projectField = `[${projectPrefix}:: ${updatedTask.metadata.project}]`;
 					if (!metadata.includes(projectField)) {
 						metadata.push(projectField);
 					}
 				} else {
-					const projectTag = `#project/${updatedTask.metadata.project}`;
+					const projectPrefix =
+						this.plugin.settings.projectTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						] || "project";
+					const projectTag = `#${projectPrefix}/${updatedTask.metadata.project}`;
 					if (!metadata.includes(projectTag)) {
 						metadata.push(projectTag);
 					}
@@ -1293,11 +1249,16 @@ export class TaskManager extends Component {
 			// 3. Context
 			if (updatedTask.metadata.context) {
 				if (useDataviewFormat) {
-					const contextField = `[context:: ${updatedTask.metadata.context}]`;
+					const contextPrefix =
+						this.plugin.settings.contextTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						] || "context";
+					const contextField = `[${contextPrefix}:: ${updatedTask.metadata.context}]`;
 					if (!metadata.includes(contextField)) {
 						metadata.push(contextField);
 					}
 				} else {
+					// For emoji format, always use @ prefix (not configurable)
 					const contextTag = `@${updatedTask.metadata.context}`;
 					if (!metadata.includes(contextTag)) {
 						metadata.push(contextTag);
@@ -1587,7 +1548,11 @@ export class TaskManager extends Component {
 
 		// Remove project tags that might not be in the tags array
 		if (completedTask.metadata.project) {
-			const projectTag = `#project/${completedTask.metadata.project}`;
+			const projectPrefix =
+				this.plugin.settings.projectTagPrefix[
+					this.plugin.settings.preferMetadataFormat
+				] || "project";
+			const projectTag = `#${projectPrefix}/${completedTask.metadata.project}`;
 			const projectTagRegex = new RegExp(
 				`(^|\\s)${projectTag.replace(
 					/[.*+?^${}()|[\]\\]/g,
@@ -1625,16 +1590,24 @@ export class TaskManager extends Component {
 			completedTask.metadata.tags &&
 			completedTask.metadata.tags.length > 0
 		) {
+			const projectPrefix =
+				this.plugin.settings.projectTagPrefix[
+					this.plugin.settings.preferMetadataFormat
+				] || "project";
+			const contextPrefix =
+				this.plugin.settings.contextTagPrefix[
+					this.plugin.settings.preferMetadataFormat
+				] || "@";
 			const tagsToAdd = completedTask.metadata.tags.filter((tag) => {
 				// Skip non-string tags
 				if (typeof tag !== "string") return false;
 				// Skip project tags (handled separately)
-				if (tag.startsWith("#project/")) return false;
+				if (tag.startsWith(`#${projectPrefix}/`)) return false;
 				// Skip context tags (handled separately)
 				if (
-					tag.startsWith("@") &&
+					tag.startsWith(contextPrefix) &&
 					completedTask.metadata.context &&
-					tag === `@${completedTask.metadata.context}`
+					tag === `${contextPrefix}${completedTask.metadata.context}`
 				)
 					return false;
 				return true;
@@ -1652,9 +1625,19 @@ export class TaskManager extends Component {
 		// 2. Project
 		if (completedTask.metadata.project) {
 			if (useDataviewFormat) {
-				metadata.push(`[project:: ${completedTask.metadata.project}]`);
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
+				metadata.push(
+					`[${projectPrefix}:: ${completedTask.metadata.project}]`
+				);
 			} else {
-				const projectTag = `#project/${completedTask.metadata.project}`;
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
+				const projectTag = `#${projectPrefix}/${completedTask.metadata.project}`;
 				// Only add project tag if it's not already added in the tags section
 				if (!metadata.includes(projectTag)) {
 					metadata.push(projectTag);
@@ -1665,9 +1648,20 @@ export class TaskManager extends Component {
 		// 3. Context
 		if (completedTask.metadata.context) {
 			if (useDataviewFormat) {
-				metadata.push(`[context:: ${completedTask.metadata.context}]`);
+				const contextPrefix =
+					this.plugin.settings.contextTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "context";
+				metadata.push(
+					`[${contextPrefix}:: ${completedTask.metadata.context}]`
+				);
 			} else {
-				const contextTag = `@${completedTask.metadata.context}`;
+				const contextPrefix =
+					this.plugin.settings.contextTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "@";
+				// For emoji format, always use @ prefix (not configurable)
+				const contextTag = `${contextPrefix}${completedTask.metadata.context}`;
 				// Only add context tag if it's not already in the metadata
 				if (!metadata.includes(contextTag)) {
 					metadata.push(contextTag);

@@ -1053,7 +1053,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					);
 
 					const buttonContainer = modal.contentEl.createDiv({
-						cls: "tg-modal-button-container modal-button-container"
+						cls: "tg-modal-button-container modal-button-container",
 					});
 
 					const cancelButton = buttonContainer.createEl("button");
@@ -1458,7 +1458,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						);
 
 						const buttonContainer = modal.contentEl.createDiv({
-							cls: "tg-modal-button-container modal-button-container"
+							cls: "tg-modal-button-container modal-button-container",
 						});
 
 						const cancelButton = buttonContainer.createEl("button");
@@ -3160,8 +3160,143 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							| "dataview"
 							| "tasks";
 						this.applySettingsUpdate();
+						// Re-render the settings to update prefix configuration UI
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					});
 			});
+
+		// Task Parser Configuration Section
+		new Setting(containerEl)
+			.setName(t("Task Parser Configuration"))
+			.setDesc(t("Configure how task metadata is parsed and recognized."))
+			.setHeading();
+
+		// Get current metadata format to show appropriate settings
+		const isDataviewFormat =
+			this.plugin.settings.preferMetadataFormat === "dataview";
+
+		// Project tag prefix
+		new Setting(containerEl)
+			.setName(t("Project tag prefix"))
+			.setDesc(
+				isDataviewFormat
+					? t(
+							"Customize the prefix used for project tags in dataview format (e.g., 'project' for [project:: myproject]). Changes require reindexing."
+					  )
+					: t(
+							"Customize the prefix used for project tags (e.g., 'project' for #project/myproject). Changes require reindexing."
+					  )
+			)
+			.addText((text) => {
+				text.setPlaceholder("project")
+					.setValue(
+						this.plugin.settings.projectTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.projectTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						] = value || "project";
+						this.applySettingsUpdate();
+					});
+			});
+
+		// Context tag prefix with special handling
+		new Setting(containerEl)
+			.setName(t("Context tag prefix"))
+			.setDesc(
+				isDataviewFormat
+					? t(
+							"Customize the prefix used for context tags in dataview format (e.g., 'context' for [context:: home]). Changes require reindexing."
+					  )
+					: t(
+							"Customize the prefix used for context tags (e.g., '@home' for @home). Changes require reindexing."
+					  )
+			)
+			.addText((text) => {
+				text.setPlaceholder("context")
+					.setValue(
+						this.plugin.settings.contextTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.contextTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						] = value || (isDataviewFormat ? "context" : "@");
+						this.applySettingsUpdate();
+					});
+			});
+
+		// Area tag prefix
+		new Setting(containerEl)
+			.setName(t("Area tag prefix"))
+			.setDesc(
+				isDataviewFormat
+					? t(
+							"Customize the prefix used for area tags in dataview format (e.g., 'area' for [area:: work]). Changes require reindexing."
+					  )
+					: t(
+							"Customize the prefix used for area tags (e.g., 'area' for #area/work). Changes require reindexing."
+					  )
+			)
+			.addText((text) => {
+				text.setPlaceholder("area")
+					.setValue(
+						this.plugin.settings.areaTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					)
+					.onChange(async (value) => {
+						this.plugin.settings.areaTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						] = value || "area";
+						this.applySettingsUpdate();
+					});
+			});
+
+		// Add format examples section
+		const exampleContainer = containerEl.createDiv({
+			cls: "task-genius-format-examples",
+		});
+		exampleContainer.createEl("strong", { text: t("Format Examples:") });
+
+		if (isDataviewFormat) {
+			exampleContainer.createEl("br");
+			exampleContainer.createEl("span", {
+				text: `• ${t("Project")}: [${
+					this.plugin.settings.projectTagPrefix
+				}:: myproject]`,
+			});
+			exampleContainer.createEl("span", {
+				text: `• ${t("Context")}: [${
+					this.plugin.settings.contextTagPrefix
+				}:: home]`,
+			});
+			exampleContainer.createEl("span", {
+				text: `• ${t("Area")}: [${
+					this.plugin.settings.areaTagPrefix
+				}:: work]`,
+			});
+		} else {
+			exampleContainer.createEl("br");
+			exampleContainer.createEl("span", {
+				text: `• ${t("Project")}: #${
+					this.plugin.settings.projectTagPrefix
+				}/myproject`,
+			});
+			exampleContainer.createEl("span", {
+				text: `• ${t("Context")}: @home (${t("always uses @ prefix")})`,
+			});
+			exampleContainer.createEl("span", {
+				text: `• ${t("Area")}: #${
+					this.plugin.settings.areaTagPrefix
+				}/work`,
+			});
+		}
 
 		new Setting(containerEl)
 			.setName(t("Use daily note path as date"))

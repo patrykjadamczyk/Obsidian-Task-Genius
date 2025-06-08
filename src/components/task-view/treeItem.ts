@@ -492,8 +492,12 @@ export class TaskTreeItemComponent extends Component {
 			cls: "task-tags-container",
 		});
 
+		const projectPrefix =
+			this.plugin.settings.projectTagPrefix[
+				this.plugin.settings.preferMetadataFormat
+			] || "project";
 		this.task.metadata.tags
-			.filter((tag) => !tag.startsWith("#project"))
+			.filter((tag) => !tag.startsWith(`#${projectPrefix}`))
 			.forEach((tag) => {
 				const tagEl = tagsContainer.createEl("span", {
 					cls: "task-tag",
