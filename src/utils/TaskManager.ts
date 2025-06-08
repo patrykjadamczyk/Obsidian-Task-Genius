@@ -14,6 +14,7 @@ import TaskProgressBarPlugin from "../index";
 import { RRule, RRuleSet, rrulestr } from "rrule";
 import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
 import { getConfig } from "../common/task-parser-config";
+import { getEffectiveProject } from "./taskUtil";
 
 /**
  * TaskManager options
@@ -930,7 +931,8 @@ export class TaskManager extends Component {
 
 		for (const task of allTasks) {
 			if (task.metadata.context) contextSet.add(task.metadata.context);
-			if (task.metadata.project) projectSet.add(task.metadata.project);
+			const effectiveProject = getEffectiveProject(task);
+			if (effectiveProject) projectSet.add(effectiveProject);
 		}
 
 		return {

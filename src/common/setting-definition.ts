@@ -339,6 +339,48 @@ export interface BetaTestSettings {
 	enableBaseView: boolean;
 }
 
+/** Project path mapping configuration */
+export interface ProjectPathMapping {
+	/** Path pattern (supports glob patterns) */
+	pathPattern: string;
+	/** Project name for this path */
+	projectName: string;
+	/** Whether this mapping is enabled */
+	enabled: boolean;
+}
+
+/** Project metadata configuration */
+export interface ProjectMetadataConfig {
+	/** Metadata key to use for project name */
+	metadataKey: string;
+	/** Whether to inherit from file frontmatter */
+	inheritFromFrontmatter: boolean;
+	/** Whether this config is enabled */
+	enabled: boolean;
+}
+
+/** Project configuration file settings */
+export interface ProjectConfigFile {
+	/** Name of the project configuration file */
+	fileName: string;
+	/** Whether to search recursively up the directory tree */
+	searchRecursively: boolean;
+	/** Whether this feature is enabled */
+	enabled: boolean;
+}
+
+/** Enhanced project configuration */
+export interface ProjectConfiguration {
+	/** Path-based project mappings */
+	pathMappings: ProjectPathMapping[];
+	/** Metadata-based project configuration */
+	metadataConfig: ProjectMetadataConfig;
+	/** Project configuration file settings */
+	configFile: ProjectConfigFile;
+	/** Whether to enable enhanced project features */
+	enableEnhancedProject: boolean;
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -408,6 +450,9 @@ export interface TaskProgressBarSettings {
 	projectTagPrefix: Record<"dataview" | "tasks", string>; // Configurable project tag prefix (default: "project")
 	contextTagPrefix: Record<"dataview" | "tasks", string>; // Configurable context tag prefix (default: "context")
 	areaTagPrefix: Record<"dataview" | "tasks", string>; // Configurable area tag prefix (default: "area")
+
+	// Enhanced Project Configuration
+	projectConfig: ProjectConfiguration;
 
 	// Date Settings
 	useRelativeTimeForDate: boolean;
@@ -637,6 +682,22 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	areaTagPrefix: {
 		tasks: "area",
 		dataview: "area",
+	},
+
+	// Enhanced Project Configuration
+	projectConfig: {
+		enableEnhancedProject: false,
+		pathMappings: [],
+		metadataConfig: {
+			metadataKey: "project",
+			inheritFromFrontmatter: true,
+			enabled: false,
+		},
+		configFile: {
+			fileName: "project.md",
+			searchRecursively: true,
+			enabled: false,
+		},
 	},
 
 	// Date Settings

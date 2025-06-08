@@ -22,15 +22,22 @@ import { getConfig } from "../../common/task-parser-config";
 function parseTasksWithConfigurableParser(
 	filePath: string,
 	content: string,
-	settings: TaskWorkerSettings
+	settings: TaskWorkerSettings,
+	fileMetadata?: Record<string, any>
 ): Task[] {
 	try {
-		const parser = new MarkdownTaskParser(
-			getConfig(settings.preferMetadataFormat)
-		);
+		const config = getConfig(settings.preferMetadataFormat);
+
+		// Add project configuration to parser config
+		if (settings.projectConfig) {
+			config.projectConfig = settings.projectConfig;
+		}
+
+		const parser = new MarkdownTaskParser(config);
 
 		// Use the parseLegacy method to get Task[] format for compatibility
-		const tasks = parser.parseLegacy(content, filePath);
+		// Pass file metadata to the parser
+		const tasks = parser.parseLegacy(content, filePath, fileMetadata);
 
 		// Apply heading filters if specified
 		return tasks.filter((task) => {
@@ -173,15 +180,23 @@ function processFile(
 	filePath: string,
 	content: string,
 	stats: FileStats,
-	settings: TaskWorkerSettings
+	settings: TaskWorkerSettings,
+	metadata?: { fileCache?: any }
 ): TaskParseResult {
 	const startTime = performance.now();
 	try {
+		// Extract frontmatter metadata if available
+		let fileMetadata: Record<string, any> | undefined;
+		if (metadata?.fileCache?.frontmatter) {
+			fileMetadata = metadata.fileCache.frontmatter;
+		}
+
 		// Use the configurable parser
 		const tasks = parseTasksWithConfigurableParser(
 			filePath,
 			content,
-			settings
+			settings,
+			fileMetadata
 		);
 		const completedTasks = tasks.filter((t) => t.completed).length;
 
@@ -247,7 +262,12 @@ function processFile(
  * Process a batch of files
  */
 function processBatch(
-	files: { path: string; content: string; stats: FileStats }[],
+	files: {
+		path: string;
+		content: string;
+		stats: FileStats;
+		metadata?: { fileCache?: any };
+	}[],
 	settings: TaskWorkerSettings
 ): BatchIndexResult {
 	const startTime = performance.now();
@@ -261,7 +281,8 @@ function processBatch(
 				file.path,
 				file.content,
 				file.stats,
-				settings
+				settings,
+				file.metadata
 			);
 			totalTasks += parseResult.stats.totalTasks;
 			results.push({
@@ -304,6 +325,7 @@ self.onmessage = async (event) => {
 			dailyNotePath: "",
 			ignoreHeading: "",
 			focusHeading: "",
+			projectConfig: undefined,
 		};
 
 		if (message.type === "parseTasks") {

@@ -5,6 +5,7 @@ import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
 import { TwoColumnSpecificConfig } from "../../common/setting-definition";
 import "../../styles/property-view.css";
+import { getEffectiveProject } from "../../utils/taskUtil";
 
 /**
  * A two-column view that displays task properties in the left column
@@ -107,7 +108,8 @@ export class TaskPropertyTwoColumnView extends TwoColumnViewBase<string> {
 			case "tags":
 				return task.metadata.tags || [];
 			case "project":
-				return task.metadata.project ? [task.metadata.project] : [];
+				const effectiveProject = getEffectiveProject(task);
+				return effectiveProject ? [effectiveProject] : [];
 			case "priority":
 				return task.metadata.priority !== undefined
 					? [task.metadata.priority.toString()]

@@ -22,6 +22,7 @@ import {
 	KanbanSpecificConfig,
 	KanbanColumnConfig,
 } from "../../common/setting-definition";
+import { getEffectiveProject } from "../../utils/taskUtil";
 
 // CSS classes for drop indicators
 const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";
@@ -598,11 +599,12 @@ export class KanbanComponent extends Component {
 				});
 				return tagColumns;
 			case "project":
-				// Get unique projects from all tasks
+				// Get unique projects from all tasks (including tgProject)
 				const allProjects = new Set<string>();
 				this.tasks.forEach((task) => {
-					if (task.metadata.project) {
-						allProjects.add(task.metadata.project);
+					const effectiveProject = getEffectiveProject(task);
+					if (effectiveProject) {
+						allProjects.add(effectiveProject);
 					}
 				});
 				const projectColumns = Array.from(allProjects).map(
@@ -1076,9 +1078,9 @@ export class KanbanComponent extends Component {
 					);
 				case "project":
 					if (value === null || value === "") {
-						return !task.metadata.project;
+						return !getEffectiveProject(task);
 					}
-					return task.metadata.project === value;
+					return getEffectiveProject(task) === value;
 				case "context":
 					if (value === null || value === "") {
 						return !task.metadata.context;
@@ -1318,7 +1320,7 @@ export class KanbanComponent extends Component {
 				}
 				return "";
 			case "project":
-				return task.metadata.project || "";
+				return getEffectiveProject(task) || "";
 			case "context":
 				return task.metadata.context || "";
 			case "priority":

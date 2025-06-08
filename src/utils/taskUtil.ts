@@ -518,3 +518,38 @@ export function extractTags(
 
 	return finalContent;
 }
+
+/**
+ * Get the effective project name from a task, prioritizing original project over tgProject
+ */
+export function getEffectiveProject(task: Task): string | undefined {
+	if (task.metadata.project) {
+		return task.metadata.project;
+	}
+	if (task.metadata.tgProject) {
+		return task.metadata.tgProject.name;
+	}
+	return undefined;
+}
+
+/**
+ * Check if the project is read-only (from tgProject)
+ */
+export function isProjectReadonly(task: Task): boolean {
+	// If there's an original project, it's always editable
+	if (task.metadata.project) {
+		return false;
+	}
+	// If only tgProject exists, check its readonly flag
+	if (task.metadata.tgProject) {
+		return task.metadata.tgProject.readonly || false;
+	}
+	return false;
+}
+
+/**
+ * Check if a task has any project (original or tgProject)
+ */
+export function hasProject(task: Task): boolean {
+	return !!(task.metadata.project || task.metadata.tgProject);
+}

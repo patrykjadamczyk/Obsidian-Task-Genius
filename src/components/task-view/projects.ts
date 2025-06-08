@@ -11,6 +11,7 @@ import "../../styles/project-view.css";
 import { TaskListRendererComponent } from "./TaskList";
 import TaskProgressBarPlugin from "../../index";
 import { sortTasks } from "../../commands/sortTaskCommands";
+import { getEffectiveProject } from "../../utils/taskUtil";
 
 interface SelectedProjects {
 	projects: string[];
@@ -247,11 +248,12 @@ export class ProjectsComponent extends Component {
 
 		// Build a map of projects to task IDs
 		this.allTasks.forEach((task) => {
-			if (task.metadata.project) {
-				if (!this.allProjectsMap.has(task.metadata.project)) {
-					this.allProjectsMap.set(task.metadata.project, new Set());
+			const effectiveProject = getEffectiveProject(task);
+			if (effectiveProject) {
+				if (!this.allProjectsMap.has(effectiveProject)) {
+					this.allProjectsMap.set(effectiveProject, new Set());
 				}
-				this.allProjectsMap.get(task.metadata.project)?.add(task.id);
+				this.allProjectsMap.get(effectiveProject)?.add(task.id);
 			}
 		});
 

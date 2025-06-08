@@ -4,6 +4,7 @@ import { MarkdownRendererComponent } from "../MarkdownRenderer"; // Adjust path
 import TaskProgressBarPlugin from "../../index"; // Adjust path
 import { KanbanSpecificConfig } from "../../common/setting-definition";
 import { createTaskCheckbox } from "../task-view/details";
+import { getEffectiveProject } from "../../utils/taskUtil";
 
 export class KanbanCardComponent extends Component {
 	public element: HTMLElement;
@@ -144,7 +145,7 @@ export class KanbanCardComponent extends Component {
 		}
 
 		// Project (if not grouped by project already) - Kanban might inherently group by status
-		if (this.task.metadata.project) this.renderProject();
+		if (getEffectiveProject(this.task)) this.renderProject();
 
 		// Tags
 		if (this.task.metadata.tags && this.task.metadata.tags.length > 0)
@@ -202,23 +203,29 @@ export class KanbanCardComponent extends Component {
 	}
 
 	private renderProject() {
+		const effectiveProject = getEffectiveProject(this.task);
+		if (!effectiveProject) return;
+
 		const projectEl = this.metadataEl.createEl("div", {
 			cls: ["task-project", "clickable-metadata"],
 		});
-		projectEl.textContent = this.task.metadata.project || "";
-		projectEl.setAttribute(
-			"aria-label",
-			`Project: ${this.task.metadata.project}`
-		);
+
+		// Add visual indicator for tgProject
+		if (!this.task.metadata.project && this.task.metadata.tgProject) {
+			projectEl.addClass("task-project-tg");
+			projectEl.title = `Project from ${
+				this.task.metadata.tgProject.type
+			}: ${this.task.metadata.tgProject.source || ""}`;
+		}
+
+		projectEl.textContent = effectiveProject;
+		projectEl.setAttribute("aria-label", `Project: ${effectiveProject}`);
 
 		// Make project clickable for filtering
 		this.registerDomEvent(projectEl, "click", (ev) => {
 			ev.stopPropagation();
-			if (this.params.onFilterApply && this.task.metadata.project) {
-				this.params.onFilterApply(
-					"project",
-					this.task.metadata.project
-				);
+			if (this.params.onFilterApply && effectiveProject) {
+				this.params.onFilterApply("project", effectiveProject);
 			}
 		});
 	}

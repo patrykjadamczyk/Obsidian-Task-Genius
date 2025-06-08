@@ -17,6 +17,7 @@ import { t } from "../../translations/helper";
 import { ProjectSuggest, TagSuggest, ContextSuggest } from "../AutoComplete";
 import { StatusComponent } from "../StatusComponent";
 import { format } from "date-fns";
+import { getEffectiveProject, isProjectReadonly } from "../../utils/taskUtil";
 
 export interface MetadataChangeEvent {
 	field: string;
@@ -340,18 +341,42 @@ export class TaskMetadataEditor extends Component {
 		const fieldLabel = fieldContainer.createDiv({ cls: "field-label" });
 		fieldLabel.setText(t("Project"));
 
+		const effectiveProject = getEffectiveProject(this.task);
+		const isReadonly = isProjectReadonly(this.task);
+
 		const projectInput = new TextComponent(fieldContainer)
 			.setPlaceholder(t("Project name"))
-			.setValue(this.task.metadata.project || "")
+			.setValue(effectiveProject || "")
+			.setDisabled(isReadonly)
 			.onChange((value) => {
-				this.notifyMetadataChange("project", value);
+				if (!isReadonly) {
+					this.notifyMetadataChange("project", value);
+				}
 			});
 
+		// Add visual indicator for tgProject
+		if (isReadonly && this.task.metadata.tgProject) {
+			fieldContainer.addClass("project-readonly");
+			const indicator = fieldContainer.createDiv({
+				cls: "project-source-indicator",
+				text: `From ${this.task.metadata.tgProject.type}: ${
+					this.task.metadata.tgProject.source || ""
+				}`,
+			});
+		}
+
 		this.registerDomEvent(projectInput.inputEl, "blur", () => {
-			this.notifyMetadataChange("project", projectInput.inputEl.value);
+			if (!isReadonly) {
+				this.notifyMetadataChange(
+					"project",
+					projectInput.inputEl.value
+				);
+			}
 		});
 
-		new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
+		if (!isReadonly) {
+			new ProjectSuggest(this.app, projectInput.inputEl, this.plugin);
+		}
 	}
 
 	/**

@@ -43,6 +43,8 @@ export interface StandardTaskMetadata {
 	project?: string;
 	/** Context for the task (e.g. @home, @work) */
 	context?: string;
+	/** Area for the task (e.g. #area/work, #area/personal) */
+	area?: string;
 	/** Priority level (1-3, higher is more important) */
 	priority?: number;
 
@@ -61,6 +63,21 @@ export interface StandardTaskMetadata {
 
 	/** Task belongs to which heading */
 	heading?: string[];
+
+	/** Task Genius enhanced project information */
+	tgProject?: TgProject;
+}
+
+/** Task Genius Project interface */
+export interface TgProject {
+	/** Type of project source */
+	type: "path" | "metadata" | "config";
+	/** Project name */
+	name: string;
+	/** Source path or metadata key */
+	source?: string;
+	/** Whether this project is read-only (cannot be edited inline) */
+	readonly?: boolean;
 }
 
 /** Extensible task interface with generic metadata support */

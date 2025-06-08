@@ -67,7 +67,7 @@ export const getConfig = (
 			"⏬": "priority",
 		},
 
-		// Special tag prefixes for project/context (now configurable)
+		// Special tag prefixes for project/context/area (now configurable)
 		specialTagPrefixes: {
 			[projectPrefix]: "project",
 			[areaPrefix]: "area",
@@ -76,12 +76,15 @@ export const getConfig = (
 
 		// Performance and parsing limits
 		maxParseIterations: 1000,
-		maxMetadataIterations: 50,
-		maxStackSize: 100,
-		maxStackOperations: 100,
-		maxIndentSize: 256,
+		maxMetadataIterations: 100,
 		maxTagLength: 100,
-		maxEmojiValueLength: 50,
+		maxEmojiValueLength: 200,
+		maxStackOperations: 1000,
+		maxStackSize: 100,
+		maxIndentSize: 8,
+
+		// Enhanced project configuration
+		projectConfig: plugin?.settings?.projectConfig,
 	};
 
 	return config;

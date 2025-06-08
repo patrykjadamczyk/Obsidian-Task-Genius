@@ -11,6 +11,7 @@ import {
 } from "../../types/TaskParserConfig";
 import { parseLocalDate } from "../dateUtil";
 import { TASK_REGEX } from "../../common/regex-define";
+import { TgProject } from "../../types/task";
 
 export class MarkdownTaskParser {
 	private config: TaskParserConfig;
@@ -22,6 +23,8 @@ export class MarkdownTaskParser {
 	}> = [];
 	private currentHeading?: string;
 	private currentHeadingLevel?: number;
+	private fileMetadata?: Record<string, any>; // Store file frontmatter metadata
+	private projectConfigCache?: Record<string, any>; // Cache for project config files
 
 	constructor(config: TaskParserConfig) {
 		this.config = config;
@@ -41,8 +44,19 @@ export class MarkdownTaskParser {
 	/**
 	 * Parse markdown content and return enhanced tasks
 	 */
-	parse(input: string, filePath: string = ""): EnhancedTask[] {
+	parse(
+		input: string,
+		filePath: string = "",
+		fileMetadata?: Record<string, any>
+	): EnhancedTask[] {
 		this.reset();
+		this.fileMetadata = fileMetadata;
+
+		// Load project config for this file path if enhanced project is enabled
+		if (this.config.projectConfig?.enableEnhancedProject) {
+			this.loadProjectConfig(filePath);
+		}
+
 		const lines = input.split(/\r?\n/);
 		let i = 0;
 		let parseIteration = 0;
@@ -99,6 +113,12 @@ export class MarkdownTaskParser {
 				const [cleanedContent, metadata, tags] =
 					this.extractMetadataAndTags(taskContent);
 
+				// Inherit metadata from file frontmatter
+				const inheritedMetadata = this.inheritFileMetadata(metadata);
+
+				// Determine tgProject for this task
+				const tgProject = this.determineTgProject(filePath);
+
 				// Check for multiline comments
 				const [comment, linesToSkip] =
 					this.config.parseComments && i + 1 < lines.length
@@ -120,7 +140,7 @@ export class MarkdownTaskParser {
 					indentLevel,
 					parentId,
 					childrenIds: [],
-					metadata,
+					metadata: inheritedMetadata,
 					tags,
 					comment,
 					lineNumber: i + 1,
@@ -130,28 +150,32 @@ export class MarkdownTaskParser {
 					listMarker,
 					filePath,
 					originalMarkdown: line,
+					tgProject,
 
 					// Legacy fields for backward compatibility
 					line: i,
 					children: [],
-					priority: this.extractLegacyPriority(metadata),
-					startDate: this.extractLegacyDate(metadata, "start_date"),
-					dueDate: this.extractLegacyDate(metadata, "due"),
+					priority: this.extractLegacyPriority(inheritedMetadata),
+					startDate: this.extractLegacyDate(
+						inheritedMetadata,
+						"start_date"
+					),
+					dueDate: this.extractLegacyDate(inheritedMetadata, "due"),
 					scheduledDate: this.extractLegacyDate(
-						metadata,
+						inheritedMetadata,
 						"scheduled"
 					),
 					completedDate: this.extractLegacyDate(
-						metadata,
+						inheritedMetadata,
 						"completed_date"
 					),
 					createdDate: this.extractLegacyDate(
-						metadata,
+						inheritedMetadata,
 						"created_date"
 					),
-					recurrence: metadata.recurrence,
-					project: metadata.project,
-					context: metadata.context,
+					recurrence: inheritedMetadata.recurrence,
+					project: inheritedMetadata.project,
+					context: inheritedMetadata.context,
 				};
 
 				if (parentId && this.tasks.length > 0) {
@@ -177,8 +201,12 @@ export class MarkdownTaskParser {
 	/**
 	 * Parse and return legacy Task format for compatibility
 	 */
-	parseLegacy(input: string, filePath: string = ""): Task[] {
-		const enhancedTasks = this.parse(input, filePath);
+	parseLegacy(
+		input: string,
+		filePath: string = "",
+		fileMetadata?: Record<string, any>
+	): Task[] {
+		const enhancedTasks = this.parse(input, filePath, fileMetadata);
 		return enhancedTasks.map((task) => this.convertToLegacyTask(task));
 	}
 
@@ -332,10 +360,14 @@ export class MarkdownTaskParser {
 					const [tag, beforeContent, afterRemaining] = tagMatch;
 
 					// Check if it's a special tag format (prefix/value)
-					const slashPos = tag.indexOf("/");
+					// Remove # prefix for checking special tags
+					const tagWithoutHash = tag.startsWith("#")
+						? tag.substring(1)
+						: tag;
+					const slashPos = tagWithoutHash.indexOf("/");
 					if (slashPos !== -1) {
-						const prefix = tag.substring(0, slashPos);
-						const value = tag.substring(slashPos + 1);
+						const prefix = tagWithoutHash.substring(0, slashPos);
+						const value = tagWithoutHash.substring(slashPos + 1);
 
 						const metadataKey =
 							this.config.specialTagPrefixes[prefix];
@@ -493,10 +525,45 @@ export class MarkdownTaskParser {
 		}
 
 		if (tagEnd > 0) {
-			const fullTag = afterHash.substring(0, tagEnd);
+			const fullTag = "#" + afterHash.substring(0, tagEnd); // Include # prefix
 			const before = content.substring(0, hashPos);
 			const after = content.substring(hashPos + 1 + tagEnd);
 			return [fullTag, before, after];
+		}
+
+		return null;
+	}
+
+	private extractContext(content: string): [string, string, string] | null {
+		const atPos = content.indexOf("@");
+		if (atPos === -1) return null;
+
+		// Check if it's a word start
+		const isWordStart =
+			atPos === 0 ||
+			content[atPos - 1].match(/\s/) ||
+			!content[atPos - 1].match(/[a-zA-Z0-9#@$%^&*]/);
+
+		if (!isWordStart) return null;
+
+		const afterAt = content.substring(atPos + 1);
+		let contextEnd = 0;
+
+		// Find context end
+		for (let i = 0; i < afterAt.length; i++) {
+			const char = afterAt[i];
+			if (char.match(/[a-zA-Z0-9\-_]/)) {
+				contextEnd = i + 1;
+			} else {
+				break;
+			}
+		}
+
+		if (contextEnd > 0) {
+			const context = afterAt.substring(0, contextEnd);
+			const before = content.substring(0, atPos);
+			const after = content.substring(atPos + 1 + contextEnd);
+			return [context, before, after];
 		}
 
 		return null;
@@ -530,6 +597,20 @@ export class MarkdownTaskParser {
 				}
 			}
 
+			// Check context (@symbol)
+			if (!foundMatch && this.config.parseTags) {
+				const contextMatch = this.extractContext(remaining);
+				if (contextMatch) {
+					const [context, beforeContent, afterRemaining] =
+						contextMatch;
+					metadata.context = context;
+					cleanedContent += beforeContent;
+					remaining = afterRemaining;
+					foundMatch = true;
+					continue;
+				}
+			}
+
 			// Check tags
 			if (!foundMatch && this.config.parseTags) {
 				const tagMatch = this.extractTag(remaining);
@@ -537,10 +618,14 @@ export class MarkdownTaskParser {
 					const [tag, beforeContent, afterRemaining] = tagMatch;
 
 					// Check special tag format
-					const slashPos = tag.indexOf("/");
+					// Remove # prefix for checking special tags
+					const tagWithoutHash = tag.startsWith("#")
+						? tag.substring(1)
+						: tag;
+					const slashPos = tagWithoutHash.indexOf("/");
 					if (slashPos !== -1) {
-						const prefix = tag.substring(0, slashPos);
-						const value = tag.substring(slashPos + 1);
+						const prefix = tagWithoutHash.substring(0, slashPos);
+						const value = tagWithoutHash.substring(slashPos + 1);
 
 						const metadataKey =
 							this.config.specialTagPrefixes[prefix];
@@ -753,13 +838,122 @@ export class MarkdownTaskParser {
 				recurrence: enhancedTask.recurrence,
 				project: enhancedTask.project,
 				context: enhancedTask.context,
+				area: enhancedTask.metadata.area,
 				heading: Array.isArray(enhancedTask.heading)
 					? enhancedTask.heading
 					: enhancedTask.heading
 					? [enhancedTask.heading]
 					: [],
 				parent: enhancedTask.parentId,
+				tgProject: enhancedTask.tgProject,
 			},
 		};
+	}
+
+	/**
+	 * Load project configuration for the given file path
+	 */
+	private loadProjectConfig(filePath: string): void {
+		if (!this.config.projectConfig) return;
+
+		// This is a simplified implementation for the worker environment
+		// In a real implementation, you would need to pass project config data
+		// from the main thread or implement file reading in the worker
+		this.projectConfigCache = {};
+	}
+
+	/**
+	 * Determine tgProject for a task based on various sources
+	 */
+	private determineTgProject(filePath: string): TgProject | undefined {
+		if (!this.config.projectConfig?.enableEnhancedProject) {
+			return undefined;
+		}
+
+		const config = this.config.projectConfig;
+
+		// 1. Check path-based mappings
+		if (config.pathMappings && config.pathMappings.length > 0) {
+			for (const mapping of config.pathMappings) {
+				if (!mapping.enabled) continue;
+
+				// Simple path matching (in a real implementation, you'd use glob patterns)
+				if (filePath.includes(mapping.pathPattern)) {
+					return {
+						type: "path",
+						name: mapping.projectName,
+						source: mapping.pathPattern,
+						readonly: true,
+					};
+				}
+			}
+		}
+
+		// 2. Check file metadata
+		if (config.metadataConfig?.enabled && this.fileMetadata) {
+			const metadataKey = config.metadataConfig.metadataKey || "project";
+			const projectFromMetadata = this.fileMetadata[metadataKey];
+
+			if (
+				projectFromMetadata &&
+				typeof projectFromMetadata === "string"
+			) {
+				return {
+					type: "metadata",
+					name: projectFromMetadata,
+					source: metadataKey,
+					readonly: true,
+				};
+			}
+		}
+
+		// 3. Check project config file
+		if (config.configFile?.enabled && this.projectConfigCache) {
+			const projectFromConfig = this.projectConfigCache.project;
+
+			if (projectFromConfig && typeof projectFromConfig === "string") {
+				return {
+					type: "config",
+					name: projectFromConfig,
+					source: config.configFile.fileName,
+					readonly: true,
+				};
+			}
+		}
+
+		return undefined;
+	}
+
+	/**
+	 * Inherit metadata from file frontmatter
+	 */
+	private inheritFileMetadata(
+		taskMetadata: Record<string, string>
+	): Record<string, string> {
+		if (
+			!this.fileMetadata ||
+			!this.config.projectConfig?.metadataConfig?.inheritFromFrontmatter
+		) {
+			return taskMetadata;
+		}
+
+		const inherited = { ...taskMetadata };
+
+		// Inherit common metadata fields if not already present in task
+		const inheritableFields = [
+			"dueDate",
+			"startDate",
+			"scheduledDate",
+			"priority",
+			"context",
+		];
+
+		for (const field of inheritableFields) {
+			if (!inherited[field] && this.fileMetadata[field]) {
+				inherited[field] = String(this.fileMetadata[field]);
+			}
+		}
+
+		return inherited;
 	}
 }

@@ -359,7 +359,10 @@ export class TaskTreeItemComponent extends Component {
 		}
 
 		// Project badge if available and not in project view
-		if (this.task.metadata.project && this.viewMode !== "projects") {
+		if (
+			(this.task.metadata.project || this.task.metadata.tgProject) &&
+			this.viewMode !== "projects"
+		) {
 			this.renderProjectMetadata(metadataEl);
 		}
 
@@ -463,16 +466,37 @@ export class TaskTreeItemComponent extends Component {
 	}
 
 	private renderProjectMetadata(metadataEl: HTMLElement) {
+		// Determine which project to display: original project or tgProject
+		let projectName: string | undefined;
+		let isReadonly = false;
+
+		if (this.task.metadata.project) {
+			// Use original project if available
+			projectName = this.task.metadata.project;
+		} else if (this.task.metadata.tgProject) {
+			// Use tgProject as fallback
+			projectName = this.task.metadata.tgProject.name;
+			isReadonly = this.task.metadata.tgProject.readonly || false;
+		}
+
+		if (!projectName) return;
+
 		const projectEl = metadataEl.createEl("div", {
 			cls: "task-project",
 		});
-		projectEl.textContent =
-			this.task.metadata.project?.split("/").pop() ||
-			this.task.metadata.project ||
-			"";
 
-		// Make project clickable for editing only if inline editor is enabled
-		if (this.plugin.settings.enableInlineEditor) {
+		// Add a visual indicator for tgProject
+		if (!this.task.metadata.project && this.task.metadata.tgProject) {
+			projectEl.addClass("task-project-tg");
+			projectEl.title = `Project from ${
+				this.task.metadata.tgProject.type
+			}: ${this.task.metadata.tgProject.source || ""}`;
+		}
+
+		projectEl.textContent = projectName.split("/").pop() || projectName;
+
+		// Make project clickable for editing only if inline editor is enabled and not readonly
+		if (this.plugin.settings.enableInlineEditor && !isReadonly) {
 			this.registerDomEvent(projectEl, "click", (e) => {
 				e.stopPropagation();
 				if (!this.isCurrentlyEditing()) {

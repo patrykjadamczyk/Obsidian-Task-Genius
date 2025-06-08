@@ -25,6 +25,26 @@ export interface TaskParserConfig {
 	emojiMapping: Record<string, string>; // Emoji to metadata key mapping, e.g. "📅" -> "due"
 	metadataParseMode: MetadataParseMode; // Metadata parsing mode
 	specialTagPrefixes: Record<string, string>; // Special tag prefix mapping, e.g. "project" -> "project"
+
+	// Enhanced project configuration
+	projectConfig?: {
+		enableEnhancedProject: boolean;
+		pathMappings: Array<{
+			pathPattern: string;
+			projectName: string;
+			enabled: boolean;
+		}>;
+		metadataConfig: {
+			metadataKey: string;
+			inheritFromFrontmatter: boolean;
+			enabled: boolean;
+		};
+		configFile: {
+			fileName: string;
+			searchRecursively: boolean;
+			enabled: boolean;
+		};
+	};
 }
 
 export interface EnhancedTask {
@@ -59,6 +79,9 @@ export interface EnhancedTask {
 	recurrence?: string;
 	project?: string;
 	context?: string;
+
+	// Enhanced project information
+	tgProject?: import("./task").TgProject;
 }
 
 export function createDefaultParserConfig(): TaskParserConfig {
