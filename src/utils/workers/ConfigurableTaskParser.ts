@@ -353,6 +353,20 @@ export class MarkdownTaskParser {
 				}
 			}
 
+			// Check context (@symbol)
+			if (!foundMatch && this.config.parseTags) {
+				const contextMatch = this.extractContext(remaining);
+				if (contextMatch) {
+					const [context, beforeContent, afterRemaining] =
+						contextMatch;
+					metadata.context = context;
+					cleanedContent += beforeContent;
+					remaining = afterRemaining;
+					foundMatch = true;
+					continue;
+				}
+			}
+
 			// Check tags and special tags
 			if (!foundMatch && this.config.parseTags) {
 				const tagMatch = this.extractTag(remaining);
@@ -603,8 +617,21 @@ export class MarkdownTaskParser {
 				if (contextMatch) {
 					const [context, beforeContent, afterRemaining] =
 						contextMatch;
+
+					// Recursively process the content before context
+					const [beforeCleaned, beforeMetadata, beforeTags] =
+						this.extractTagsOnly(beforeContent);
+
+					// Merge metadata and tags from before content
+					for (const tag of beforeTags) {
+						tags.push(tag);
+					}
+					for (const [k, v] of Object.entries(beforeMetadata)) {
+						metadata[k] = v;
+					}
+
 					metadata.context = context;
-					cleanedContent += beforeContent;
+					cleanedContent += beforeCleaned;
 					remaining = afterRemaining;
 					foundMatch = true;
 					continue;

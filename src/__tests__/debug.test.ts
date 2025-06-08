@@ -32,6 +32,7 @@ describe("Debug Complex Task Parsing", () => {
 		const tasks = parser.parseLegacy(content, "test.md");
 
 		console.log("Parsed task:", JSON.stringify(tasks[0], null, 2));
+		console.log("Config specialTagPrefixes:", config.specialTagPrefixes);
 
 		expect(tasks).toHaveLength(1);
 		expect(tasks[0].content).toBe("Complex task");
@@ -46,6 +47,14 @@ describe("Debug Complex Task Parsing", () => {
 				tasks: "project",
 				dataview: "project",
 			},
+			contextTagPrefix: {
+				tasks: "@",
+				dataview: "context",
+			},
+			areaTagPrefix: {
+				tasks: "area",
+				dataview: "area",
+			},
 		});
 
 		const config = getConfig("tasks", mockPlugin);
@@ -55,6 +64,7 @@ describe("Debug Complex Task Parsing", () => {
 		const tasks = parser.parseLegacy(content, "test.md");
 
 		console.log("Simple task:", JSON.stringify(tasks[0], null, 2));
+		console.log("Config specialTagPrefixes:", config.specialTagPrefixes);
 
 		expect(tasks).toHaveLength(1);
 		expect(tasks[0].content).toBe("Simple task");
