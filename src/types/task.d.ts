@@ -4,8 +4,8 @@
 
 import { Component, EventRef, TFile } from "obsidian";
 
-/** Core task data structure */
-export interface Task {
+/** Base task interface with only core required fields */
+export interface BaseTask {
 	/** Unique identifier for the task */
 	id: string;
 	/** Task content text */
@@ -20,7 +20,10 @@ export interface Task {
 	status: string;
 	/** Original markdown text */
 	originalMarkdown: string;
+}
 
+/** Standard task metadata interface */
+export interface StandardTaskMetadata {
 	/** Creation date (optional) */
 	createdDate?: number;
 	/** Start date for the task (Tasks plugin compatible) */
@@ -58,6 +61,52 @@ export interface Task {
 
 	/** Task belongs to which heading */
 	heading?: string[];
+}
+
+/** Extensible task interface with generic metadata support */
+export interface Task<
+	TMetadata extends StandardTaskMetadata = StandardTaskMetadata
+> extends BaseTask {
+	/** Task metadata */
+	metadata: TMetadata;
+}
+
+/** Extended metadata interface for future expansion */
+export interface ExtendedMetadata extends StandardTaskMetadata {
+	/** Custom fields for future extensions */
+	customFields?: Record<string, unknown>;
+}
+
+/** Legacy Task type for backward compatibility during migration */
+export type LegacyTask = BaseTask & StandardTaskMetadata;
+
+/** Helper type to extract all possible field names from Task and its metadata */
+export type TaskFieldName = keyof BaseTask | keyof StandardTaskMetadata;
+
+/** Utility functions for working with tasks */
+export namespace TaskUtils {
+	/** Get a property value from a task, handling both old and new structures */
+	export function getTaskProperty<K extends TaskFieldName>(
+		task: Task | LegacyTask,
+		key: K
+	): K extends keyof BaseTask
+		? BaseTask[K]
+		: K extends keyof StandardTaskMetadata
+		? StandardTaskMetadata[K]
+		: unknown;
+
+	/** Set a property value on a task, handling both old and new structures */
+	export function setTaskProperty<K extends keyof StandardTaskMetadata>(
+		task: Task,
+		key: K,
+		value: StandardTaskMetadata[K]
+	): void;
+
+	/** Create a new task with the new structure from legacy data */
+	export function createTaskFromLegacy(legacyData: LegacyTask): Task;
+
+	/** Convert a task to legacy format for backward compatibility */
+	export function taskToLegacy(task: Task): LegacyTask;
 }
 
 /** High-performance cache structure for tasks */
@@ -121,7 +170,7 @@ export interface TaskFilter {
 
 /** Sort criteria for task lists */
 export interface SortingCriteria {
-	field: keyof Task;
+	field: TaskFieldName;
 	direction: "asc" | "desc";
 }
 

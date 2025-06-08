@@ -729,23 +729,25 @@ export class MarkdownTaskParser {
 			completed: enhancedTask.completed,
 			status: enhancedTask.rawStatus,
 			originalMarkdown: enhancedTask.originalMarkdown,
-			tags: enhancedTask.tags,
-			children: enhancedTask.children,
-			priority: enhancedTask.priority,
-			startDate: enhancedTask.startDate,
-			dueDate: enhancedTask.dueDate,
-			scheduledDate: enhancedTask.scheduledDate,
-			completedDate: enhancedTask.completedDate,
-			createdDate: enhancedTask.createdDate,
-			recurrence: enhancedTask.recurrence,
-			project: enhancedTask.project,
-			context: enhancedTask.context,
-			heading: Array.isArray(enhancedTask.heading)
-				? enhancedTask.heading
-				: enhancedTask.heading
-				? [enhancedTask.heading]
-				: [],
-			parent: enhancedTask.parentId,
-		} as Task;
+			metadata: {
+				tags: enhancedTask.tags,
+				children: enhancedTask.children,
+				priority: enhancedTask.priority,
+				startDate: enhancedTask.startDate,
+				dueDate: enhancedTask.dueDate,
+				scheduledDate: enhancedTask.scheduledDate,
+				completedDate: enhancedTask.completedDate,
+				createdDate: enhancedTask.createdDate,
+				recurrence: enhancedTask.recurrence,
+				project: enhancedTask.project,
+				context: enhancedTask.context,
+				heading: Array.isArray(enhancedTask.heading)
+					? enhancedTask.heading
+					: enhancedTask.heading
+					? [enhancedTask.heading]
+					: [],
+				parent: enhancedTask.parentId,
+			},
+		};
 	}
 }

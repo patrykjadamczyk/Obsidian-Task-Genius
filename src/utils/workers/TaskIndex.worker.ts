@@ -129,13 +129,13 @@ function extractDates(
 			| "completedDate"
 			| "createdDate"
 	): boolean => {
-		if (task[fieldName] !== undefined) return false; // Already assigned
+		if (task.metadata[fieldName] !== undefined) return false; // Already assigned
 
 		const match = remainingContent.match(regex);
 		if (match && match[1]) {
 			const dateVal = parseLocalDate(match[1]);
 			if (dateVal !== undefined) {
-				task[fieldName] = dateVal; // Direct assignment is type-safe
+				task.metadata[fieldName] = dateVal; // Direct assignment is type-safe
 				remainingContent = remainingContent.replace(match[0], "");
 				return true;
 			}
@@ -203,7 +203,7 @@ function extractRecurrence(
 	if (useDataview) {
 		match = remainingContent.match(DV_RECURRENCE_REGEX);
 		if (match && match[1]) {
-			task.recurrence = match[1].trim();
+			task.metadata.recurrence = match[1].trim();
 			remainingContent = remainingContent.replace(match[0], "");
 			return remainingContent; // Found preferred format
 		}
@@ -212,7 +212,7 @@ function extractRecurrence(
 	// Try emoji format (primary or fallback)
 	match = remainingContent.match(EMOJI_RECURRENCE_REGEX);
 	if (match && match[1]) {
-		task.recurrence = match[1].trim();
+		task.metadata.recurrence = match[1].trim();
 		remainingContent = remainingContent.replace(match[0], "");
 	}
 
@@ -234,13 +234,13 @@ function extractPriority(
 			const priorityValue = match[1].trim().toLowerCase();
 			const mappedPriority = PRIORITY_MAP[priorityValue];
 			if (mappedPriority !== undefined) {
-				task.priority = mappedPriority;
+				task.metadata.priority = mappedPriority;
 				remainingContent = remainingContent.replace(match[0], "");
 				return remainingContent;
 			} else {
 				const numericPriority = parseInt(priorityValue, 10);
 				if (!isNaN(numericPriority)) {
-					task.priority = numericPriority;
+					task.metadata.priority = numericPriority;
 					remainingContent = remainingContent.replace(match[0], "");
 					return remainingContent;
 				}
@@ -251,8 +251,8 @@ function extractPriority(
 	// Try emoji format (primary or fallback)
 	match = remainingContent.match(EMOJI_PRIORITY_REGEX);
 	if (match && match[1]) {
-		task.priority = PRIORITY_MAP[match[1]] ?? undefined;
-		if (task.priority !== undefined) {
+		task.metadata.priority = PRIORITY_MAP[match[1]] ?? undefined;
+		if (task.metadata.priority !== undefined) {
 			remainingContent = remainingContent.replace(match[0], "");
 		}
 	}
@@ -272,7 +272,7 @@ function extractProject(
 	if (useDataview) {
 		match = remainingContent.match(DV_PROJECT_REGEX);
 		if (match && match[1]) {
-			task.project = match[1].trim();
+			task.metadata.project = match[1].trim();
 			remainingContent = remainingContent.replace(match[0], "");
 			return remainingContent; // Found preferred format
 		}
@@ -282,7 +282,7 @@ function extractProject(
 	const projectTagRegex = new RegExp(EMOJI_PROJECT_PREFIX + "([\\w/-]+)");
 	match = remainingContent.match(projectTagRegex);
 	if (match && match[1]) {
-		task.project = match[1].trim();
+		task.metadata.project = match[1].trim();
 		// Do not remove here; let tag extraction handle it
 	}
 
@@ -301,7 +301,7 @@ function extractContext(
 	if (useDataview) {
 		match = remainingContent.match(DV_CONTEXT_REGEX);
 		if (match && match[1]) {
-			task.context = match[1].trim();
+			task.metadata.context = match[1].trim();
 			remainingContent = remainingContent.replace(match[0], "");
 			return remainingContent; // Found preferred format
 		}
@@ -333,7 +333,7 @@ function extractContext(
 
 		// Only process if not inside a wiki link
 		if (!isInsideWikiLink) {
-			task.context = contextMatch[1].trim();
+			task.metadata.context = contextMatch[1].trim();
 			// Remove the first matched context tag here to avoid it being parsed as a general tag
 			remainingContent = remainingContent.replace(contextMatch[0], "");
 		}
@@ -453,23 +453,25 @@ function extractTags(
 
 	// Find all #tags in the content with links and inline code replaced by placeholders
 	const tagMatches = processedContent.match(EMOJI_TAG_REGEX) || [];
-	task.tags = tagMatches.map((tag) => tag.trim());
+	task.metadata.tags = tagMatches.map((tag) => tag.trim());
 
 	// If using 'tasks' (emoji) format, derive project from tags if not set
 	// Also make sure project wasn't already set by DV format before falling back
-	if (!useDataview && !task.project) {
-		const projectTag = task.tags.find(
+	if (!useDataview && !task.metadata.project) {
+		const projectTag = task.metadata.tags.find(
 			(tag) =>
 				typeof tag === "string" && tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 		if (projectTag) {
-			task.project = projectTag.substring(EMOJI_PROJECT_PREFIX.length);
+			task.metadata.project = projectTag.substring(
+				EMOJI_PROJECT_PREFIX.length
+			);
 		}
 	}
 
 	// If using Dataview format, filter out any remaining #project/ tags from the tag list
 	if (useDataview) {
-		task.tags = task.tags.filter(
+		task.metadata.tags = task.metadata.tags.filter(
 			(tag) =>
 				typeof tag === "string" && !tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
@@ -477,7 +479,7 @@ function extractTags(
 
 	// Remove found tags (including potentially #project/ tags if format is 'tasks') from the original remaining content
 	let contentWithoutTagsOrContext = remainingContent;
-	for (const tag of task.tags) {
+	for (const tag of task.metadata.tags) {
 		// Ensure the tag is not empty or just '#' before creating regex
 		if (tag && tag !== "#") {
 			const escapedTag = tag.replace(/[.*+?^${}()|[\\\]]/g, "\\$&");
@@ -640,18 +642,20 @@ function parseTasksFromContent(
 				completed,
 				status: status,
 				originalMarkdown: line,
-				tags: [],
-				children: [],
-				priority: undefined,
-				startDate: undefined,
-				dueDate: undefined,
-				scheduledDate: undefined,
-				completedDate: undefined,
-				createdDate: undefined,
-				recurrence: undefined,
-				project: undefined,
-				context: undefined,
-				heading: [...headings], // 复制当前标题层级
+				metadata: {
+					tags: [],
+					children: [],
+					priority: undefined,
+					startDate: undefined,
+					dueDate: undefined,
+					scheduledDate: undefined,
+					completedDate: undefined,
+					createdDate: undefined,
+					recurrence: undefined,
+					project: undefined,
+					context: undefined,
+					heading: [...headings], // 复制当前标题层级
+				},
 			};
 
 			// Extract metadata in order
@@ -773,21 +777,24 @@ function processFile(
 						dailyNotePath: settings.dailyNotePath,
 					});
 					if (dateFromPath) {
-						if (settings.useAsDateType === "due" && !task.dueDate) {
-							task.dueDate = dateFromPath;
+						if (
+							settings.useAsDateType === "due" &&
+							!task.metadata.dueDate
+						) {
+							task.metadata.dueDate = dateFromPath;
 						} else if (
 							settings.useAsDateType === "start" &&
-							!task.startDate
+							!task.metadata.startDate
 						) {
-							task.startDate = dateFromPath;
+							task.metadata.startDate = dateFromPath;
 						} else if (
 							settings.useAsDateType === "scheduled" &&
-							!task.scheduledDate
+							!task.metadata.scheduledDate
 						) {
-							task.scheduledDate = dateFromPath;
+							task.metadata.scheduledDate = dateFromPath;
 						}
 
-						task.useAsDateType = settings.useAsDateType;
+						task.metadata.useAsDateType = settings.useAsDateType;
 					}
 				}
 			}
@@ -937,11 +944,11 @@ function buildTaskHierarchy(tasks: Task[]): void {
 		}
 		if (taskStack.length > 0) {
 			const parentTask = taskStack[taskStack.length - 1].task;
-			currentTask.parent = parentTask.id;
-			if (!parentTask.children) {
-				parentTask.children = [];
+			currentTask.metadata.parent = parentTask.id;
+			if (!parentTask.metadata.children) {
+				parentTask.metadata.children = [];
 			}
-			parentTask.children.push(currentTask.id);
+			parentTask.metadata.children.push(currentTask.id);
 		}
 		taskStack.push({ task: currentTask, indent: currentIndent });
 	}

@@ -44,13 +44,13 @@ export function extractDates(
 			| "completedDate"
 			| "createdDate"
 	): boolean => {
-		if (task[fieldName] !== undefined) return false; // Already assigned
+		if (task.metadata[fieldName] !== undefined) return false; // Already assigned
 
 		const match = remainingContent.match(regex);
 		if (match && match[1]) {
 			const dateVal = parseLocalDate(match[1]);
 			if (dateVal !== undefined) {
-				task[fieldName] = dateVal; // Direct assignment is type-safe
+				task.metadata[fieldName] = dateVal; // Direct assignment is type-safe
 				remainingContent = remainingContent.replace(match[0], "");
 				return true;
 			}
@@ -118,7 +118,7 @@ export function extractRecurrence(
 	if (useDataview) {
 		match = remainingContent.match(DV_RECURRENCE_REGEX);
 		if (match && match[1]) {
-			task.recurrence = match[1].trim();
+			task.metadata.recurrence = match[1].trim();
 			remainingContent = remainingContent.replace(match[0], "");
 			return remainingContent; // Found preferred format
 		}
@@ -127,7 +127,7 @@ export function extractRecurrence(
 	// Try emoji format (primary or fallback)
 	match = remainingContent.match(EMOJI_RECURRENCE_REGEX);
 	if (match && match[1]) {
-		task.recurrence = match[1].trim();
+		task.metadata.recurrence = match[1].trim();
 		remainingContent = remainingContent.replace(match[0], "");
 	}
 
@@ -149,13 +149,13 @@ export function extractPriority(
 			const priorityValue = match[1].trim().toLowerCase();
 			const mappedPriority = PRIORITY_MAP[priorityValue];
 			if (mappedPriority !== undefined) {
-				task.priority = mappedPriority;
+				task.metadata.priority = mappedPriority;
 				remainingContent = remainingContent.replace(match[0], "");
 				return remainingContent;
 			} else {
 				const numericPriority = parseInt(priorityValue, 10);
 				if (!isNaN(numericPriority)) {
-					task.priority = numericPriority;
+					task.metadata.priority = numericPriority;
 					remainingContent = remainingContent.replace(match[0], "");
 					return remainingContent;
 				}
@@ -166,8 +166,8 @@ export function extractPriority(
 	// Try emoji format (primary or fallback)
 	match = remainingContent.match(EMOJI_PRIORITY_REGEX);
 	if (match && match[1]) {
-		task.priority = PRIORITY_MAP[match[1]] ?? undefined;
-		if (task.priority !== undefined) {
+		task.metadata.priority = PRIORITY_MAP[match[1]] ?? undefined;
+		if (task.metadata.priority !== undefined) {
 			remainingContent = remainingContent.replace(match[0], "");
 		}
 	}
@@ -187,7 +187,7 @@ export function extractProject(
 	if (useDataview) {
 		match = remainingContent.match(DV_PROJECT_REGEX);
 		if (match && match[1]) {
-			task.project = match[1].trim();
+			task.metadata.project = match[1].trim();
 			remainingContent = remainingContent.replace(match[0], "");
 			return remainingContent; // Found preferred format
 		}
@@ -197,7 +197,7 @@ export function extractProject(
 	const projectTagRegex = new RegExp(EMOJI_PROJECT_PREFIX + "([\\w/-]+)");
 	match = remainingContent.match(projectTagRegex);
 	if (match && match[1]) {
-		task.project = match[1].trim();
+		task.metadata.project = match[1].trim();
 		// Do not remove here; let tag extraction handle it
 	}
 
@@ -216,7 +216,7 @@ export function extractContext(
 	if (useDataview) {
 		match = remainingContent.match(DV_CONTEXT_REGEX);
 		if (match && match[1]) {
-			task.context = match[1].trim();
+			task.metadata.context = match[1].trim();
 			remainingContent = remainingContent.replace(match[0], "");
 			return remainingContent; // Found preferred format
 		}
@@ -248,7 +248,7 @@ export function extractContext(
 
 		// Only process if not inside a wiki link
 		if (!isInsideWikiLink) {
-			task.context = contextMatch[1].trim();
+			task.metadata.context = contextMatch[1].trim();
 			// Remove the first matched context tag here to avoid it being parsed as a general tag
 			remainingContent = remainingContent.replace(contextMatch[0], "");
 		}
@@ -368,31 +368,33 @@ export function extractTags(
 
 	// Find all #tags in the content with links and inline code replaced by placeholders
 	const tagMatches = processedContent.match(EMOJI_TAG_REGEX) || [];
-	task.tags = tagMatches.map((tag) => tag.trim());
+	task.metadata.tags = tagMatches.map((tag) => tag.trim());
 
 	// If using 'tasks' (emoji) format, derive project from tags if not set
 	// Also make sure project wasn't already set by DV format before falling back
-	if (!useDataview && !task.project) {
-		const projectTag = task.tags.find(
-			(tag) =>
+	if (!useDataview && !task.metadata.project) {
+		const projectTag = task.metadata.tags.find(
+			(tag: string) =>
 				typeof tag === "string" && tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 		if (projectTag) {
-			task.project = projectTag.substring(EMOJI_PROJECT_PREFIX.length);
+			task.metadata.project = projectTag.substring(
+				EMOJI_PROJECT_PREFIX.length
+			);
 		}
 	}
 
 	// If using Dataview format, filter out any remaining #project/ tags from the tag list
 	if (useDataview) {
-		task.tags = task.tags.filter(
-			(tag) =>
+		task.metadata.tags = task.metadata.tags.filter(
+			(tag: string) =>
 				typeof tag === "string" && !tag.startsWith(EMOJI_PROJECT_PREFIX)
 		);
 	}
 
 	// Remove found tags (including potentially #project/ tags if format is 'tasks') from the original remaining content
 	let contentWithoutTagsOrContext = remainingContent;
-	for (const tag of task.tags) {
+	for (const tag of task.metadata.tags) {
 		// Ensure the tag is not empty or just '#' before creating regex
 		if (tag && tag !== "#") {
 			const escapedTag = tag.replace(/[.*+?^${}()|[\\\]]/g, "\\$&");
@@ -469,18 +471,20 @@ export function parseTaskLine(
 		completed,
 		status: status,
 		originalMarkdown: line,
-		tags: [],
-		children: [],
-		priority: undefined,
-		startDate: undefined,
-		dueDate: undefined,
-		scheduledDate: undefined,
-		completedDate: undefined,
-		createdDate: undefined,
-		recurrence: undefined,
-		project: undefined,
-		context: undefined,
-		heading: [],
+		metadata: {
+			tags: [],
+			children: [],
+			priority: undefined,
+			startDate: undefined,
+			dueDate: undefined,
+			scheduledDate: undefined,
+			completedDate: undefined,
+			createdDate: undefined,
+			recurrence: undefined,
+			project: undefined,
+			context: undefined,
+			heading: [],
+		},
 	};
 
 	// Extract metadata in order

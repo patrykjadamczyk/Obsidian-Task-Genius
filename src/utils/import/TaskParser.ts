@@ -131,11 +131,11 @@ export class TaskParser extends Component {
 				if (task && listItem.parent >= 0) {
 					const parentTask = tasksByLine[listItem.parent];
 					if (parentTask) {
-						task.parent = parentTask.id;
-						if (!parentTask.children) {
-							parentTask.children = [];
+						task.metadata.parent = parentTask.id;
+						if (!parentTask.metadata.children) {
+							parentTask.metadata.children = [];
 						}
-						parentTask.children.push(task.id);
+						parentTask.metadata.children.push(task.id);
 					}
 				}
 			}
@@ -181,11 +181,11 @@ export class TaskParser extends Component {
 
 			if (taskStack.length > 0) {
 				const parentTask = taskStack[taskStack.length - 1].task;
-				currentTask.parent = parentTask.id;
-				if (!parentTask.children) {
-					parentTask.children = [];
+				currentTask.metadata.parent = parentTask.id;
+				if (!parentTask.metadata.children) {
+					parentTask.metadata.children = [];
 				}
-				parentTask.children.push(currentTask.id);
+				parentTask.metadata.children.push(currentTask.id);
 			}
 
 			taskStack.push({ task: currentTask, indent: currentIndent });

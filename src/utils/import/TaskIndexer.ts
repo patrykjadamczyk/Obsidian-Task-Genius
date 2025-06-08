@@ -286,45 +286,45 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		this.taskCache.completed.set(task.completed, completedTasks);
 
 		// Update tag index
-		for (const tag of task.tags) {
+		for (const tag of task.metadata.tags) {
 			let tagTasks = this.taskCache.tags.get(tag) || new Set();
 			tagTasks.add(task.id);
 			this.taskCache.tags.set(tag, tagTasks);
 		}
 
 		// Update project index
-		if (task.project) {
+		if (task.metadata.project) {
 			let projectTasks =
-				this.taskCache.projects.get(task.project) || new Set();
+				this.taskCache.projects.get(task.metadata.project) || new Set();
 			projectTasks.add(task.id);
-			this.taskCache.projects.set(task.project, projectTasks);
+			this.taskCache.projects.set(task.metadata.project, projectTasks);
 		}
 
 		// Update context index
-		if (task.context) {
+		if (task.metadata.context) {
 			let contextTasks =
-				this.taskCache.contexts.get(task.context) || new Set();
+				this.taskCache.contexts.get(task.metadata.context) || new Set();
 			contextTasks.add(task.id);
-			this.taskCache.contexts.set(task.context, contextTasks);
+			this.taskCache.contexts.set(task.metadata.context, contextTasks);
 		}
 
 		// Update date indexes
-		if (task.dueDate) {
-			const dateStr = formatDateForIndex(task.dueDate);
+		if (task.metadata.dueDate) {
+			const dateStr = formatDateForIndex(task.metadata.dueDate);
 			let dueTasks = this.taskCache.dueDate.get(dateStr) || new Set();
 			dueTasks.add(task.id);
 			this.taskCache.dueDate.set(dateStr, dueTasks);
 		}
 
-		if (task.startDate) {
-			const dateStr = formatDateForIndex(task.startDate);
+		if (task.metadata.startDate) {
+			const dateStr = formatDateForIndex(task.metadata.startDate);
 			let startTasks = this.taskCache.startDate.get(dateStr) || new Set();
 			startTasks.add(task.id);
 			this.taskCache.startDate.set(dateStr, startTasks);
 		}
 
-		if (task.scheduledDate) {
-			const dateStr = formatDateForIndex(task.scheduledDate);
+		if (task.metadata.scheduledDate) {
+			const dateStr = formatDateForIndex(task.metadata.scheduledDate);
 			let scheduledTasks =
 				this.taskCache.scheduledDate.get(dateStr) || new Set();
 			scheduledTasks.add(task.id);
@@ -332,11 +332,12 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		}
 
 		// Update priority index
-		if (task.priority !== undefined) {
+		if (task.metadata.priority !== undefined) {
 			let priorityTasks =
-				this.taskCache.priority.get(task.priority) || new Set();
+				this.taskCache.priority.get(task.metadata.priority) ||
+				new Set();
 			priorityTasks.add(task.id);
-			this.taskCache.priority.set(task.priority, priorityTasks);
+			this.taskCache.priority.set(task.metadata.priority, priorityTasks);
 		}
 	}
 
@@ -354,7 +355,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		}
 
 		// Remove from tag index
-		for (const tag of task.tags) {
+		for (const tag of task.metadata.tags) {
 			const tagTasks = this.taskCache.tags.get(tag);
 			if (tagTasks) {
 				tagTasks.delete(task.id);
@@ -365,30 +366,34 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		}
 
 		// Remove from project index
-		if (task.project) {
-			const projectTasks = this.taskCache.projects.get(task.project);
+		if (task.metadata.project) {
+			const projectTasks = this.taskCache.projects.get(
+				task.metadata.project
+			);
 			if (projectTasks) {
 				projectTasks.delete(task.id);
 				if (projectTasks.size === 0) {
-					this.taskCache.projects.delete(task.project);
+					this.taskCache.projects.delete(task.metadata.project);
 				}
 			}
 		}
 
 		// Remove from context index
-		if (task.context) {
-			const contextTasks = this.taskCache.contexts.get(task.context);
+		if (task.metadata.context) {
+			const contextTasks = this.taskCache.contexts.get(
+				task.metadata.context
+			);
 			if (contextTasks) {
 				contextTasks.delete(task.id);
 				if (contextTasks.size === 0) {
-					this.taskCache.contexts.delete(task.context);
+					this.taskCache.contexts.delete(task.metadata.context);
 				}
 			}
 		}
 
 		// Remove from date indexes
-		if (task.dueDate) {
-			const dateStr = formatDateForIndex(task.dueDate);
+		if (task.metadata.dueDate) {
+			const dateStr = formatDateForIndex(task.metadata.dueDate);
 			const dueTasks = this.taskCache.dueDate.get(dateStr);
 			if (dueTasks) {
 				dueTasks.delete(task.id);
@@ -398,8 +403,8 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 			}
 		}
 
-		if (task.startDate) {
-			const dateStr = formatDateForIndex(task.startDate);
+		if (task.metadata.startDate) {
+			const dateStr = formatDateForIndex(task.metadata.startDate);
 			const startTasks = this.taskCache.startDate.get(dateStr);
 			if (startTasks) {
 				startTasks.delete(task.id);
@@ -409,8 +414,8 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 			}
 		}
 
-		if (task.scheduledDate) {
-			const dateStr = formatDateForIndex(task.scheduledDate);
+		if (task.metadata.scheduledDate) {
+			const dateStr = formatDateForIndex(task.metadata.scheduledDate);
 			const scheduledTasks = this.taskCache.scheduledDate.get(dateStr);
 			if (scheduledTasks) {
 				scheduledTasks.delete(task.id);
@@ -421,12 +426,14 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		}
 
 		// Remove from priority index
-		if (task.priority !== undefined) {
-			const priorityTasks = this.taskCache.priority.get(task.priority);
+		if (task.metadata.priority !== undefined) {
+			const priorityTasks = this.taskCache.priority.get(
+				task.metadata.priority
+			);
 			if (priorityTasks) {
 				priorityTasks.delete(task.id);
 				if (priorityTasks.size === 0) {
-					this.taskCache.priority.delete(task.priority);
+					this.taskCache.priority.delete(task.metadata.priority);
 				}
 			}
 		}
@@ -828,23 +835,32 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 			// Default sorting: priority desc, due date asc
 			return [...tasks].sort((a, b) => {
 				// First by priority (high to low)
-				const priorityA = a.priority || 0;
-				const priorityB = b.priority || 0;
+				const priorityA = a.metadata.priority || 0;
+				const priorityB = b.metadata.priority || 0;
 				if (priorityA !== priorityB) {
 					return priorityB - priorityA;
 				}
 
 				// Then by due date (earliest first)
-				const dueDateA = a.dueDate || Number.MAX_SAFE_INTEGER;
-				const dueDateB = b.dueDate || Number.MAX_SAFE_INTEGER;
+				const dueDateA = a.metadata.dueDate || Number.MAX_SAFE_INTEGER;
+				const dueDateB = b.metadata.dueDate || Number.MAX_SAFE_INTEGER;
 				return dueDateA - dueDateB;
 			});
 		}
 
 		return [...tasks].sort((a, b) => {
 			for (const { field, direction } of sortBy) {
-				const valueA = a[field];
-				const valueB = b[field];
+				let valueA: any;
+				let valueB: any;
+
+				// Check if field is in base task or metadata
+				if (field in a) {
+					valueA = (a as any)[field];
+					valueB = (b as any)[field];
+				} else {
+					valueA = (a.metadata as any)[field];
+					valueB = (b.metadata as any)[field];
+				}
 
 				// Handle undefined values
 				if (valueA === undefined && valueB === undefined) {
