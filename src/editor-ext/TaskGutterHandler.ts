@@ -6,6 +6,7 @@
 import { EditorView } from "@codemirror/view";
 import { gutter, GutterMarker } from "./patchedGutter";
 import { Extension } from "@codemirror/state";
+import { RangeSetBuilder } from "@codemirror/state";
 import {
 	App,
 	Modal,
@@ -18,128 +19,223 @@ import { Task } from "../types/task";
 import TaskProgressBarPlugin from "../index";
 import { TaskDetailsModal } from "../components/task-edit/TaskDetailsModal";
 import { TaskDetailsPopover } from "../components/task-edit/TaskDetailsPopover";
-import { TaskParser } from "../utils/import/TaskParser";
+import { CoreTaskParser } from "../utils/parsing/CoreTaskParser";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import "../styles/task-gutter.css";
 
 const taskRegex = /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s+(.*)$/m;
 
-// Task icon marker
-class TaskGutterMarker extends GutterMarker {
-	text: string;
-	lineNum: number;
-	view: EditorView;
-	app: App;
-	plugin: TaskProgressBarPlugin;
-
-	constructor(
-		text: string,
-		lineNum: number,
-		view: EditorView,
-		app: App,
-		plugin: TaskProgressBarPlugin
-	) {
+class TaskMarker extends GutterMarker {
+	constructor(public task: Task) {
 		super();
-		this.text = text;
-		this.lineNum = lineNum;
-		this.view = view;
-		this.app = app;
-		this.plugin = plugin;
 	}
 
-	toDOM() {
-		const markerEl = createEl("div");
-		const button = new ExtraButtonComponent(markerEl)
-			.setIcon("calendar-check")
-			.onClick(() => {
-				const lineText = this.view.state.doc.line(this.lineNum).text;
-				const file = this.app.workspace.getActiveFile();
+	toDOM(view: EditorView): HTMLElement {
+		const marker = document.createElement("div");
+		marker.className = "task-gutter-marker";
 
-				if (!file || !taskRegex.test(lineText)) return false;
+		const icon = document.createElement("span");
+		icon.className = "task-gutter-icon";
 
-				// Check if the line is in a codeblock or frontmatter
-				const line = this.view.state.doc.line(this.lineNum);
-				const syntaxNode = syntaxTree(this.view.state).resolveInner(
-					line.from + 1
-				);
-				const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
+		// Set icon based on task status
+		if (this.task.completed) {
+			icon.textContent = "✓";
+			marker.classList.add("completed");
+		} else if (
+			this.task.metadata.priority &&
+			this.task.metadata.priority > 3
+		) {
+			icon.textContent = "!";
+			marker.classList.add("high-priority");
+		} else {
+			icon.textContent = "○";
+			marker.classList.add("pending");
+		}
 
-				if (nodeProps) {
-					const props = nodeProps.split(" ");
-					if (
-						props.includes("hmd-codeblock") ||
-						props.includes("hmd-frontmatter")
-					) {
-						return false;
-					}
-				}
+		marker.appendChild(icon);
+		return marker;
+	}
 
-				const lineNum = this.view.state.doc.line(this.lineNum).number;
-				const task = getTaskFromLine(
-					this.plugin,
-					file.path,
-					lineText,
-					lineNum - 1
-				);
+	eq(other: GutterMarker): boolean {
+		return (
+			other instanceof TaskMarker &&
+			this.task.id === other.task.id &&
+			this.task.completed === other.task.completed &&
+			this.task.metadata.priority === other.task.metadata.priority
+		);
+	}
 
-				if (task) {
-					showTaskDetails(
-						this.view,
-						this.app,
-						this.plugin,
-						task,
-						button.extraSettingsEl
-					);
-					return true;
-				}
-
-				return false;
-			});
-
-		button.extraSettingsEl.toggleClass("task-gutter-marker", true);
-		return button.extraSettingsEl;
+	destroy(dom: HTMLElement): void {
+		// Clean up any event listeners if needed
 	}
 }
 
-/**
- * Shows task details.
- * Decides whether to show a Popover or a Modal based on the platform type.
- */
-const showTaskDetails = (
-	view: EditorView,
-	app: App,
-	plugin: TaskProgressBarPlugin,
-	task: Task,
-	extraSettingsEl: HTMLElement
-) => {
-	// Task update callback function
-	const onTaskUpdated = async (updatedTask: Task) => {
-		if (plugin.taskManager) {
-			await plugin.taskManager.updateTask(updatedTask);
-		}
-	};
+class TaskGutterCompartment {
+	private plugin: TaskProgressBarPlugin;
+	private enabled: boolean = false;
 
-	if (Platform.isDesktop) {
-		// Desktop environment - show Popover
-		const popover = new TaskDetailsPopover(app, plugin, task);
-		const rect = extraSettingsEl.getBoundingClientRect();
-		popover.showAtPosition({
-			x: rect.left,
-			y: rect.bottom + 10,
-		});
-	} else {
-		// Mobile environment - show Modal
-		const modal = new TaskDetailsModal(app, plugin, task, onTaskUpdated);
-		modal.open();
+	constructor(plugin: TaskProgressBarPlugin) {
+		this.plugin = plugin;
 	}
-};
 
-// Task parser instance
-let taskParser: TaskParser | null = null;
+	enable(): Extension {
+		if (this.enabled) return [];
+
+		this.enabled = true;
+		return [
+			gutter({
+				class: "task-gutter",
+				lineMarker: (view, line) => this.getLineMarker(view, line),
+				domEventHandlers: {
+					click: (view, line, event) =>
+						this.handleClick(view, line, event as MouseEvent),
+					contextmenu: (view, line, event) =>
+						this.handleContextMenu(view, line, event as MouseEvent),
+				},
+			}),
+		];
+	}
+
+	disable(): void {
+		this.enabled = false;
+	}
+
+	private getLineMarker(view: EditorView, line: any): GutterMarker | null {
+		const lineText = view.state.doc.lineAt(line.from).text;
+		const lineNumber = view.state.doc.lineAt(line.from).number;
+		const filePath = this.plugin.app.workspace.getActiveFile()?.path || "";
+
+		// Skip if not a task
+		if (!taskRegex.test(lineText)) return null;
+
+		// Check if the line is in a codeblock or frontmatter
+		const syntaxNode = syntaxTree(view.state).resolveInner(line.from + 1);
+		const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
+
+		if (nodeProps) {
+			const props = nodeProps.split(" ");
+			if (
+				props.includes("hmd-codeblock") ||
+				props.includes("hmd-frontmatter")
+			) {
+				return null;
+			}
+		}
+
+		const task = getTaskFromLine(
+			this.plugin,
+			filePath,
+			lineText,
+			lineNumber - 1
+		);
+		if (task) {
+			return new TaskMarker(task);
+		}
+
+		return null;
+	}
+
+	private handleClick(
+		view: EditorView,
+		line: any,
+		event: MouseEvent
+	): boolean {
+		const lineText = view.state.doc.lineAt(line.from).text;
+		const lineNumber = view.state.doc.lineAt(line.from).number;
+		const filePath = this.plugin.app.workspace.getActiveFile()?.path || "";
+		const task = getTaskFromLine(
+			this.plugin,
+			filePath,
+			lineText,
+			lineNumber - 1
+		);
+
+		if (task) {
+			if (Platform.isMobile) {
+				this.showTaskDetailsModal(task);
+			} else {
+				this.showTaskDetailsPopover(task, event);
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	private handleContextMenu(
+		view: EditorView,
+		line: any,
+		event: MouseEvent
+	): boolean {
+		const lineText = view.state.doc.lineAt(line.from).text;
+		const lineNumber = view.state.doc.lineAt(line.from).number;
+		const filePath = this.plugin.app.workspace.getActiveFile()?.path || "";
+		const task = getTaskFromLine(
+			this.plugin,
+			filePath,
+			lineText,
+			lineNumber - 1
+		);
+
+		if (task) {
+			this.showContextMenu(task, event);
+			return true;
+		}
+
+		return false;
+	}
+
+	private showTaskDetailsModal(task: Task): void {
+		new TaskDetailsModal(this.plugin.app, this.plugin, task).open();
+	}
+
+	private showTaskDetailsPopover(task: Task, event: MouseEvent): void {
+		const popover = new TaskDetailsPopover(
+			this.plugin.app,
+			this.plugin,
+			task
+		);
+		popover.showAtPosition({
+			x: event.clientX,
+			y: event.clientY,
+		});
+	}
+
+	private showContextMenu(task: Task, event: MouseEvent): void {
+		const menu = new Menu();
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle(
+				task.completed ? "Mark as incomplete" : "Mark as complete"
+			)
+				.setIcon(task.completed ? "circle" : "check-circle")
+				.onClick(() => {
+					// Toggle task completion
+					const updatedTask = { ...task, completed: !task.completed };
+					this.plugin.taskManager.updateTask(updatedTask);
+				});
+		});
+
+		menu.addSeparator();
+
+		menu.addItem((item: MenuItem) => {
+			item.setTitle("Edit task")
+				.setIcon("edit")
+				.onClick(() => {
+					this.showTaskDetailsModal(task);
+				});
+		});
+
+		menu.showAtMouseEvent(event);
+	}
+}
+
+// Core task parser instance - shared across the module
+let taskParser: CoreTaskParser | null = null;
 
 /**
- * Parses a task from the line content.
+ * Parses a task from the line content using the unified core parser.
  */
 const getTaskFromLine = (
 	plugin: TaskProgressBarPlugin,
@@ -147,13 +243,18 @@ const getTaskFromLine = (
 	line: string,
 	lineNum: number
 ): Task | null => {
-	// Lazily load the task parser
+	// Lazily load the task parser with plugin settings
 	if (!taskParser) {
-		taskParser = new TaskParser();
+		taskParser = new CoreTaskParser({
+			preferMetadataFormat:
+				plugin.settings.preferMetadataFormat || "tasks",
+			parseHeadings: false, // Don't need heading context for single line parsing
+			parseHierarchy: false, // Don't need hierarchy for single line parsing
+		});
 	}
 
 	try {
-		return taskParser.parseTask(line, filePath, lineNum);
+		return taskParser.parseTaskLine(filePath, line, lineNum);
 	} catch (error) {
 		console.error("Error parsing task:", error);
 		return null;
@@ -161,48 +262,10 @@ const getTaskFromLine = (
 };
 
 /**
- * Task Gutter Extension
+ * Reset the parser when settings change
  */
-export function taskGutterExtension(
-	app: App,
-	plugin: TaskProgressBarPlugin
-): Extension {
-	// Create a regular expression to identify task lines
+export const resetTaskParser = (): void => {
+	taskParser = null;
+};
 
-	return [
-		gutter({
-			class: "task-gutter",
-			lineMarker(view, line) {
-				const lineText = view.state.doc.lineAt(line.from).text;
-				const lineNumber = view.state.doc.lineAt(line.from).number;
-
-				// Skip if not a task
-				if (!taskRegex.test(lineText)) return null;
-
-				// Check if the line is in a codeblock or frontmatter
-				const syntaxNode = syntaxTree(view.state).resolveInner(
-					line.from + 1
-				);
-				const nodeProps = syntaxNode.type.prop(tokenClassNodeProp);
-
-				if (nodeProps) {
-					const props = nodeProps.split(" ");
-					if (
-						props.includes("hmd-codeblock") ||
-						props.includes("hmd-frontmatter")
-					) {
-						return null;
-					}
-				}
-
-				return new TaskGutterMarker(
-					lineText,
-					lineNumber,
-					view,
-					app,
-					plugin
-				);
-			},
-		}),
-	];
-}
+export { TaskGutterCompartment };

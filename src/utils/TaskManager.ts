@@ -13,6 +13,8 @@ import { LocalStorageCache } from "./persister";
 import TaskProgressBarPlugin from "../index";
 import { RRule, RRuleSet, rrulestr } from "rrule";
 import { getMetadataProperty, setMetadataProperty } from "./taskMigrationUtils";
+import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
+import { TaskParserConfig, MetadataParseMode } from "../types/TaskParserConfig";
 
 /**
  * TaskManager options
@@ -53,6 +55,8 @@ export class TaskManager extends Component {
 	private updateEventPending: boolean = false;
 	/** Local-storage backed cache of metadata objects. */
 	persister: LocalStorageCache;
+	/** Configurable task parser for main thread fallback */
+	private taskParser: MarkdownTaskParser;
 
 	/**
 	 * Create a new task manager
@@ -74,6 +78,9 @@ export class TaskManager extends Component {
 			this.metadataCache
 		);
 		this.persister = new LocalStorageCache(this.app.appId);
+
+		// Initialize configurable task parser for main thread fallback
+		this.taskParser = new MarkdownTaskParser(this.createParserConfig());
 
 		// Preload tasks from persister to improve initialization speed
 		this.preloadTasksFromCache();
@@ -103,6 +110,144 @@ export class TaskManager extends Component {
 		this.addChild(this.indexer);
 		if (this.workerManager) {
 			this.addChild(this.workerManager);
+		}
+	}
+
+	/**
+	 * Create parser configuration based on plugin settings
+	 */
+	private createParserConfig(): TaskParserConfig {
+		const preferDataview =
+			this.plugin.settings.preferMetadataFormat === "dataview";
+
+		return {
+			// Basic parsing controls
+			parseTags: true,
+			parseMetadata: true,
+			parseHeadings: true,
+			parseComments: true,
+
+			// Metadata format preference
+			metadataParseMode: preferDataview
+				? MetadataParseMode.DataviewOnly
+				: MetadataParseMode.Both,
+
+			// Status mapping (standard task states)
+			statusMapping: {
+				todo: " ",
+				done: "x",
+				cancelled: "-",
+				forwarded: ">",
+				scheduled: "<",
+				important: "!",
+				question: "?",
+				incomplete: "/",
+				paused: "p",
+				pro: "P",
+				con: "C",
+				quote: "Q",
+				note: "N",
+				bookmark: "b",
+				information: "i",
+				savings: "S",
+				idea: "I",
+				location: "l",
+				phone: "k",
+				win: "w",
+				key: "K",
+			},
+
+			// Emoji to metadata mapping (prefer emoji format when not using dataview)
+			emojiMapping: {
+				"📅": "due",
+				"🛫": "start_date",
+				"⏳": "scheduled",
+				"✅": "completed_date",
+				"➕": "created_date",
+				"🔁": "recurrence",
+				"🔺": "priority",
+				"⏫": "priority",
+				"🔼": "priority",
+				"🔽": "priority",
+				"⏬": "priority",
+			},
+
+			// Special tag prefixes for project/context
+			specialTagPrefixes: {
+				project: "project",
+				area: "area",
+				context: "context",
+			},
+
+			// Performance and parsing limits
+			maxParseIterations: 10000,
+			maxMetadataIterations: 100,
+			maxStackSize: 1000,
+			maxStackOperations: 1000,
+			maxIndentSize: 256,
+			maxTagLength: 100,
+			maxEmojiValueLength: 50,
+		};
+	}
+
+	/**
+	 * Parse a file using the configurable parser
+	 */
+	private parseFileWithConfigurableParser(
+		filePath: string,
+		content: string
+	): Task[] {
+		try {
+			// Use configurable parser for enhanced parsing
+			const tasks = this.taskParser.parseLegacy(content, filePath);
+
+			// Apply heading filters if specified in settings
+			return tasks.filter((task) => {
+				// Filter by ignore heading
+				if (
+					this.plugin.settings.ignoreHeading &&
+					task.metadata.heading
+				) {
+					const headings = Array.isArray(task.metadata.heading)
+						? task.metadata.heading
+						: [task.metadata.heading];
+
+					if (
+						headings.some((h) =>
+							h.includes(this.plugin.settings.ignoreHeading)
+						)
+					) {
+						return false;
+					}
+				}
+
+				// Filter by focus heading
+				if (
+					this.plugin.settings.focusHeading &&
+					task.metadata.heading
+				) {
+					const headings = Array.isArray(task.metadata.heading)
+						? task.metadata.heading
+						: [task.metadata.heading];
+
+					if (
+						!headings.some((h) =>
+							h.includes(this.plugin.settings.focusHeading)
+						)
+					) {
+						return false;
+					}
+				}
+
+				return true;
+			});
+		} catch (error) {
+			console.error(
+				`Error parsing file ${filePath} with configurable parser:`,
+				error
+			);
+			// Return empty array as fallback
+			return [];
 		}
 	}
 
@@ -574,10 +719,17 @@ export class TaskManager extends Component {
 						);
 						cachedCount++;
 					} else {
-						// Cache doesn't exist or is outdated, use main thread processing
-						await this.indexer.indexFile(file);
-						// Get processed tasks and store to cache
-						const tasks = this.getTasksForFile(file.path);
+						// Cache doesn't exist or is outdated, use main thread processing with configurable parser
+						const content = await this.vault.cachedRead(file);
+						const tasks = this.parseFileWithConfigurableParser(
+							file.path,
+							content
+						);
+
+						// Update index with parsed tasks
+						this.indexer.updateIndexWithTasks(file.path, tasks);
+
+						// Store to cache
 						if (tasks.length > 0) {
 							await this.persister.storeFile(file.path, tasks);
 							this.log(
@@ -593,8 +745,24 @@ export class TaskManager extends Component {
 					}
 				} catch (error) {
 					console.error(`Error processing file ${file.path}:`, error);
-					// Fall back to main thread processing in case of error
-					await this.indexer.indexFile(file);
+					// Fall back to main thread processing with configurable parser
+					try {
+						const content = await this.vault.cachedRead(file);
+						const tasks = this.parseFileWithConfigurableParser(
+							file.path,
+							content
+						);
+						this.indexer.updateIndexWithTasks(file.path, tasks);
+
+						if (tasks.length > 0) {
+							await this.persister.storeFile(file.path, tasks);
+						}
+					} catch (fallbackError) {
+						console.error(
+							`Fallback parsing also failed for ${file.path}:`,
+							fallbackError
+						);
+					}
 					importedCount++;
 				}
 			}
@@ -671,10 +839,17 @@ export class TaskManager extends Component {
 				await this.processFileWithWorker(file);
 			}
 		} else {
-			// Use main thread indexing
-			await this.indexer.indexFile(file);
+			// Use main thread indexing with configurable parser
+			const content = await this.vault.cachedRead(file);
+			const tasks = this.parseFileWithConfigurableParser(
+				file.path,
+				content
+			);
+
+			// Update index with parsed tasks
+			this.indexer.updateIndexWithTasks(file.path, tasks);
+
 			// Cache the results
-			const tasks = this.getTasksForFile(file.path);
 			if (tasks.length > 0) {
 				await this.persister.storeFile(file.path, tasks);
 				this.log(

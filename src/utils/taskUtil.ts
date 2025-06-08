@@ -1,3 +1,10 @@
+/**
+ * Task Utility Functions
+ *
+ * This module provides utility functions for task operations.
+ * Parsing logic has been moved to ConfigurableTaskParser.
+ */
+
 import { PRIORITY_MAP } from "../common/default-symbol";
 import { parseLocalDate } from "./dateUtil";
 import { Task } from "../types/task";
@@ -24,8 +31,146 @@ import {
 	EMOJI_TAG_REGEX,
 	TASK_REGEX,
 } from "../common/regex-define";
+import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
+import { TaskParserConfig, MetadataParseMode } from "../types/TaskParserConfig";
 
-export type MetadataFormat = "tasks" | "dataview"; // Define the type for clarity
+/**
+ * Metadata format type for backward compatibility
+ */
+export type MetadataFormat = "tasks" | "dataview";
+
+/**
+ * Cached parser instance for performance
+ */
+let cachedParser: MarkdownTaskParser | null = null;
+
+/**
+ * Get or create a parser instance with the given format
+ */
+function getParser(format: MetadataFormat): MarkdownTaskParser {
+	if (!cachedParser) {
+		const config: TaskParserConfig = {
+			// Basic parsing controls
+			parseTags: true,
+			parseMetadata: true,
+			parseHeadings: false, // taskUtil functions are for single-line parsing
+			parseComments: false, // Not needed for single-line parsing
+
+			// Metadata format preference
+			metadataParseMode:
+				format === "dataview"
+					? MetadataParseMode.DataviewOnly
+					: MetadataParseMode.Both,
+
+			// Status mapping (standard task states)
+			statusMapping: {
+				todo: " ",
+				done: "x",
+				cancelled: "-",
+				forwarded: ">",
+				scheduled: "<",
+				important: "!",
+				question: "?",
+				incomplete: "/",
+				paused: "p",
+				pro: "P",
+				con: "C",
+				quote: "Q",
+				note: "N",
+				bookmark: "b",
+				information: "i",
+				savings: "S",
+				idea: "I",
+				location: "l",
+				phone: "k",
+				win: "w",
+				key: "K",
+			},
+
+			// Emoji to metadata mapping
+			emojiMapping: {
+				"📅": "due",
+				"🛫": "start_date",
+				"⏳": "scheduled",
+				"✅": "completed_date",
+				"➕": "created_date",
+				"🔁": "recurrence",
+				"🔺": "priority",
+				"⏫": "priority",
+				"🔼": "priority",
+				"🔽": "priority",
+				"⏬": "priority",
+			},
+
+			// Special tag prefixes for project/context
+			specialTagPrefixes: {
+				project: "project",
+				area: "area",
+				context: "context",
+			},
+
+			// Performance and parsing limits
+			maxParseIterations: 1000,
+			maxMetadataIterations: 50,
+			maxStackSize: 100,
+			maxStackOperations: 100,
+			maxIndentSize: 256,
+			maxTagLength: 100,
+			maxEmojiValueLength: 50,
+		};
+
+		cachedParser = new MarkdownTaskParser(config);
+	}
+	return cachedParser;
+}
+
+/**
+ * Reset the cached parser (call when settings change)
+ */
+export function resetTaskUtilParser(): void {
+	cachedParser = null;
+}
+
+/**
+ * Parse a single task line using the configurable parser
+ *
+ * @deprecated Use MarkdownTaskParser directly for better performance and features
+ */
+export function parseTaskLine(
+	filePath: string,
+	line: string,
+	lineNumber: number,
+	format: MetadataFormat
+): Task | null {
+	const parser = getParser(format);
+
+	// Parse the single line as content
+	const tasks = parser.parseLegacy(line, filePath);
+
+	// Return the first task if any are found
+	if (tasks.length > 0) {
+		const task = tasks[0];
+		// Override line number to match the expected behavior
+		task.line = lineNumber;
+		return task;
+	}
+
+	return null;
+}
+
+/**
+ * Parse tasks from content using the configurable parser
+ *
+ * @deprecated Use MarkdownTaskParser.parseLegacy directly for better performance and features
+ */
+export function parseTasksFromContent(
+	path: string,
+	content: string,
+	format: MetadataFormat
+): Task[] {
+	const parser = getParser(format);
+	return parser.parseLegacy(content, path);
+}
 
 export function extractDates(
 	task: Task,
@@ -442,78 +587,4 @@ export function extractTags(
 	finalContent = finalContent.replace(/\s{2,}/g, " ").trim();
 
 	return finalContent;
-}
-
-/**
- * Parse a single task line using regex and metadata format preference
- */
-export function parseTaskLine(
-	filePath: string,
-	line: string,
-	lineNumber: number,
-	format: MetadataFormat
-): Task | null {
-	const taskMatch = line.match(TASK_REGEX);
-
-	if (!taskMatch) return null;
-
-	const [fullMatch, , , , status, contentWithMetadata] = taskMatch;
-	if (status === undefined || contentWithMetadata === undefined) return null;
-
-	const completed = status.toLowerCase() === "x";
-	const id = `${filePath}-L${lineNumber}`;
-
-	const task: Task = {
-		id,
-		content: contentWithMetadata.trim(), // Will be set after extraction
-		filePath,
-		line: lineNumber,
-		completed,
-		status: status,
-		originalMarkdown: line,
-		metadata: {
-			tags: [],
-			children: [],
-			priority: undefined,
-			startDate: undefined,
-			dueDate: undefined,
-			scheduledDate: undefined,
-			completedDate: undefined,
-			createdDate: undefined,
-			recurrence: undefined,
-			project: undefined,
-			context: undefined,
-			heading: [],
-		},
-	};
-
-	// Extract metadata in order
-	let remainingContent = contentWithMetadata;
-	remainingContent = extractDates(task, remainingContent, format);
-	remainingContent = extractRecurrence(task, remainingContent, format);
-	remainingContent = extractPriority(task, remainingContent, format);
-	remainingContent = extractProject(task, remainingContent, format); // Extract project before context/tags
-	remainingContent = extractContext(task, remainingContent, format);
-	remainingContent = extractTags(task, remainingContent, format); // Tags last
-
-	task.content = remainingContent.replace(/\s{2,}/g, " ").trim();
-
-	return task;
-}
-
-export function parseTasksFromContent(
-	path: string,
-	content: string,
-	format: MetadataFormat
-): Task[] {
-	const tasks: Task[] = [];
-	const lines = content.split("\n");
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		const task = parseTaskLine(path, line, i + 1, format);
-		if (task) {
-			tasks.push(task);
-		}
-	}
-	return tasks;
 }

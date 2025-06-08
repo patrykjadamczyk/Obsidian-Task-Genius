@@ -1,5 +1,8 @@
 /**
  * High-performance task indexer implementation
+ *
+ * This indexer focuses solely on indexing and querying tasks.
+ * It does not handle parsing - that is delegated to other components.
  */
 
 import {
@@ -16,9 +19,7 @@ import {
 	TaskCache,
 	TaskFilter,
 	TaskIndexer as TaskIndexerInterface,
-	TaskParserConfig,
 } from "../../types/task";
-import { TaskParser } from "./TaskParser";
 
 /**
  * Utility to format a date for index keys (YYYY-MM-DD)
@@ -32,11 +33,10 @@ function formatDateForIndex(date: number): string {
 }
 
 /**
- * Implementation of the task indexer that focuses only on task-related data
+ * Implementation of the task indexer that focuses only on indexing and querying
  */
 export class TaskIndexer extends Component implements TaskIndexerInterface {
 	private taskCache: TaskCache;
-	private parser: TaskParser;
 	private lastIndexTime: Map<string, number> = new Map();
 
 	// Queue for throttling file indexing
@@ -46,16 +46,13 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	constructor(
 		private app: App,
 		private vault: Vault,
-		private metadataCache: MetadataCache,
-		config?: Partial<TaskParserConfig>
+		private metadataCache: MetadataCache
 	) {
 		super();
 		this.taskCache = this.initEmptyCache();
-		this.parser = new TaskParser(config);
-		this.addChild(this.parser);
 
-		// // Setup file change listeners for incremental updates
-		// this.setupEventListeners();
+		// Setup file change listeners for incremental updates
+		this.setupEventListeners();
 	}
 
 	/**
@@ -134,7 +131,11 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		const file = this.indexQueue.shift();
 
 		if (file) {
-			await this.indexFile(file);
+			// Note: This method no longer parses tasks itself
+			// It should be called by external components that provide parsed tasks
+			console.warn(
+				`TaskIndexer.indexFile called directly for ${file.path}. This is deprecated - use updateIndexWithTasks instead.`
+			);
 
 			// Process next file after a small delay
 			setTimeout(() => this.processIndexQueue(), 50);
@@ -145,27 +146,14 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 
 	/**
 	 * Initialize the task indexer
+	 * Note: This no longer does any parsing - external components must provide tasks
 	 */
 	public async initialize(): Promise<void> {
 		// Start with an empty cache
 		this.taskCache = this.initEmptyCache();
 
-		// Get all markdown files
-		const files = this.vault.getMarkdownFiles();
-
-		// Index the files in batches to avoid UI freezing
-		const batchSize = 20;
-		for (let i = 0; i < files.length; i += batchSize) {
-			const batch = files.slice(i, i + batchSize);
-
-			await Promise.all(batch.map((file) => this.indexFile(file)));
-
-			// Yield to main thread after each batch
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		}
-
 		console.log(
-			`Task indexing complete: ${this.taskCache.tasks.size} tasks found`
+			`Task indexer initialized with empty cache. Use updateIndexWithTasks to populate.`
 		);
 	}
 
@@ -178,50 +166,28 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 
 	/**
 	 * Index all files in the vault
+	 * This is now a no-op - external components should handle parsing and call updateIndexWithTasks
 	 */
 	public async indexAllFiles(): Promise<void> {
+		console.warn(
+			"TaskIndexer.indexAllFiles is deprecated. Use external parsing components instead."
+		);
 		await this.initialize();
 	}
 
 	/**
 	 * Index a single file
-	 *
-	 * This is an optimized version that only handles updating the index,
-	 * not parsing the tasks. Actual task parsing should be done by a worker
-	 * and the results passed directly to updateIndexWithTasks.
+	 * This is now deprecated - use updateIndexWithTasks instead
 	 */
 	public async indexFile(file: TFile): Promise<void> {
-		try {
-			// Skip if file has not been modified since last indexing
-			const fileStats = await this.vault.adapter.stat(file.path);
-			const lastMtime = this.lastIndexTime.get(file.path);
-
-			if (lastMtime && fileStats?.mtime && fileStats.mtime <= lastMtime) {
-				return;
-			}
-
-			// Read file content
-			const fileContent = await this.vault.cachedRead(file);
-			const metadata = this.metadataCache.getFileCache(file);
-
-			// Parse tasks - in the main indexer we still need to do this
-			// But in normal operations, this should be done by a worker
-			const tasks = await this.parser.parseTasksFromFile(
-				file,
-				fileContent,
-				metadata ?? undefined
-			);
-
-			// Update the index with the parsed tasks
-			this.updateIndexWithTasks(file.path, tasks);
-		} catch (error) {
-			console.error(`Error indexing file ${file.path}:`, error);
-		}
+		console.warn(
+			`TaskIndexer.indexFile is deprecated for ${file.path}. Use updateIndexWithTasks instead.`
+		);
 	}
 
 	/**
-	 * Update the index with tasks parsed by a worker
-	 * This method should be called after task parsing is done
+	 * Update the index with tasks parsed by external components
+	 * This is the primary method for updating the index
 	 */
 	public updateIndexWithTasks(filePath: string, tasks: Task[]): void {
 		// Remove existing tasks for this file first
@@ -245,7 +211,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	}
 
 	/**
-	 * Update index for a modified file - just an alias for indexFile
+	 * Update index for a modified file - just an alias for deprecated indexFile
 	 */
 	public async updateIndex(file: TFile): Promise<void> {
 		await this.indexFile(file);
@@ -914,24 +880,30 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 	}
 
 	/**
-	 * Create a new task
+	 * Create a new task - Not implemented (handled by external components)
 	 */
 	public async createTask(taskData: Partial<Task>): Promise<Task> {
-		throw new Error("Not implemented");
+		throw new Error(
+			"Task creation should be handled by external components"
+		);
 	}
 
 	/**
-	 * Update an existing task
+	 * Update an existing task - Not implemented (handled by external components)
 	 */
 	public async updateTask(task: Task): Promise<void> {
-		throw new Error("Not implemented");
+		throw new Error(
+			"Task updates should be handled by external components"
+		);
 	}
 
 	/**
-	 * Delete a task
+	 * Delete a task - Not implemented (handled by external components)
 	 */
 	public async deleteTask(taskId: string): Promise<void> {
-		throw new Error("Not implemented");
+		throw new Error(
+			"Task deletion should be handled by external components"
+		);
 	}
 
 	/**
@@ -943,7 +915,6 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 
 	/**
 	 * Set the cache from an external source (e.g. persisted cache)
-	 * @param cache The task cache to set
 	 */
 	public setCache(cache: TaskCache): void {
 		this.taskCache = cache;
