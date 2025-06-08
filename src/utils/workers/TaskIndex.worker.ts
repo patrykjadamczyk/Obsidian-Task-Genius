@@ -1,5 +1,6 @@
 /**
  * Web worker for background processing of task indexing
+ * Enhanced with configurable task parser
  */
 
 import { FileStats } from "obsidian"; // Assuming ListItemCache is not directly available/serializable to worker, rely on regex
@@ -39,10 +40,74 @@ import {
 	EMOJI_TAG_REGEX,
 } from "../../common/regex-define";
 import { PRIORITY_MAP } from "../../common/default-symbol";
+import { MarkdownTaskParser } from "./ConfigurableTaskParser";
+import {
+	TaskParserConfig,
+	MetadataParseMode,
+	createDefaultParserConfig,
+} from "../../types/TaskParserConfig";
 
 type MetadataFormat = "tasks" | "dataview"; // Define the type for clarity
 
-// --- Refactored Metadata Extraction Functions ---
+// --- Helper function to create parser config from legacy settings ---
+function createParserConfigFromSettings(
+	settings: TaskWorkerSettings
+): TaskParserConfig {
+	const config = createDefaultParserConfig();
+
+	// Map legacy preferMetadataFormat to new MetadataParseMode
+	switch (settings.preferMetadataFormat) {
+		case "dataview":
+			config.metadataParseMode = MetadataParseMode.DataviewOnly;
+			break;
+		case "tasks":
+			config.metadataParseMode = MetadataParseMode.EmojiOnly;
+			break;
+		default:
+			config.metadataParseMode = MetadataParseMode.Both;
+			break;
+	}
+
+	// Enable all parsing by default for backward compatibility
+	config.parseMetadata = true;
+	config.parseTags = true;
+	config.parseComments = true;
+	config.parseHeadings = true;
+
+	return config;
+}
+
+/**
+ * Enhanced task parsing using configurable parser
+ */
+function parseTasksWithConfigurableParser(
+	filePath: string,
+	content: string,
+	settings: TaskWorkerSettings
+): Task[] {
+	try {
+		const parserConfig = createParserConfigFromSettings(settings);
+		const parser = new MarkdownTaskParser(parserConfig);
+
+		// Use legacy parse method for backward compatibility
+		return parser.parseLegacy(content, filePath);
+	} catch (error) {
+		console.warn(
+			"Enhanced parser failed, falling back to legacy parser:",
+			error
+		);
+		// Fallback to legacy parsing if new parser fails
+		return parseTasksFromContent(
+			filePath,
+			content,
+			settings.preferMetadataFormat,
+			settings.ignoreHeading,
+			settings.focusHeading
+		);
+	}
+}
+
+// --- Legacy Metadata Extraction Functions (kept for fallback) ---
 
 // Each function now takes task, content, and format, returns remaining content
 // They modify the task object directly.
@@ -662,7 +727,7 @@ function extractDateFromPath(
 }
 
 /**
- * Process a single file - NOW ACCEPTS METADATA FORMAT
+ * Process a single file - Enhanced with configurable parser
  */
 function processFile(
 	filePath: string,
@@ -672,13 +737,25 @@ function processFile(
 ): TaskParseResult {
 	const startTime = performance.now();
 	try {
-		const tasks = parseTasksFromContent(
-			filePath,
-			content,
-			settings.preferMetadataFormat,
-			settings.ignoreHeading,
-			settings.focusHeading
-		);
+		// Try enhanced configurable parser first
+		let tasks: Task[];
+		try {
+			tasks = parseTasksWithConfigurableParser(
+				filePath,
+				content,
+				settings
+			);
+		} catch (error) {
+			console.warn("Enhanced parser failed, using legacy parser:", error);
+			// Fallback to legacy parser
+			tasks = parseTasksFromContent(
+				filePath,
+				content,
+				settings.preferMetadataFormat,
+				settings.ignoreHeading,
+				settings.focusHeading
+			);
+		}
 		const completedTasks = tasks.filter((t) => t.completed).length;
 		try {
 			if (
