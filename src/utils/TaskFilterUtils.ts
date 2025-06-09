@@ -469,6 +469,30 @@ export function filterTasks(
 	const viewConfig = getViewSettingOrDefault(plugin, viewId);
 	const filterRules = viewConfig.filterRules || {};
 
+	// --- 过滤 badge 类型的 ICS 任务（仅在非日历视图中） ---
+	// Badge 任务只应该在日历视图中显示，其他视图应该过滤掉
+	// 检查是否为日历相关的视图ID
+	const isCalendarView =
+		viewId === "calendar" ||
+		(typeof viewId === "string" && viewId.startsWith("calendar"));
+
+	if (!isCalendarView) {
+		filtered = filtered.filter((task) => {
+			// 检查是否为 ICS 任务
+			const isIcsTask = (task as any).source?.type === "ics";
+			if (!isIcsTask) {
+				return true; // 非 ICS 任务保留
+			}
+
+			// 检查是否为 badge 类型
+			const icsTask = task as any; // 类型断言为包含 icsEvent 的任务
+			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
+
+			// 如果是 badge 类型的 ICS 任务，则过滤掉（返回 false）
+			return !showAsBadge;
+		});
+	}
+
 	// --- 基本筛选：隐藏已完成和空白任务 ---
 	// 注意：这些是基础过滤条件，始终应用
 	if (viewConfig.hideCompletedAndAbandonedTasks) {

@@ -42,6 +42,7 @@ describe("ICS Manager", () => {
 				refreshInterval: 60,
 				showAllDayEvents: true,
 				showTimedEvents: true,
+				showType: "event",
 			},
 		],
 		enableBackgroundRefresh: false, // Disable for testing
@@ -114,6 +115,7 @@ describe("ICS Manager", () => {
 						refreshInterval: 60,
 						showAllDayEvents: true,
 						showTimedEvents: true,
+						showType: "event" as const,
 					},
 				],
 			};
@@ -165,6 +167,7 @@ describe("ICS Manager", () => {
 						refreshInterval: 60,
 						showAllDayEvents: true,
 						showTimedEvents: true,
+						showType: "event" as const,
 					},
 				],
 			};
@@ -196,6 +199,340 @@ describe("ICS Manager", () => {
 			const tasks = icsManager.convertEventsToTasks(mockEvents);
 			expect(Array.isArray(tasks)).toBe(true);
 			expect(tasks.length).toBe(0);
+		});
+	});
+
+	describe("Text Replacement", () => {
+		test("should apply text replacements to event summary", () => {
+			// Create a test source with text replacement rules
+			const sourceWithReplacements: IcsSource = {
+				id: "test-replacement",
+				name: "Test Replacement Source",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				textReplacements: [
+					{
+						id: "remove-prefix",
+						name: "Remove Meeting Prefix",
+						enabled: true,
+						target: "summary",
+						pattern: "^Meeting: ",
+						replacement: "",
+						flags: "g",
+					},
+					{
+						id: "replace-location",
+						name: "Replace Room Numbers",
+						enabled: true,
+						target: "location",
+						pattern: "Room (\\d+)",
+						replacement: "Conference Room $1",
+						flags: "gi",
+					},
+				],
+			};
+
+			// Create a mock event
+			const mockEvent = {
+				uid: "test-event-1",
+				summary: "Meeting: Weekly Standup",
+				description: "Team standup meeting",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				dtend: new Date("2024-01-15T11:00:00Z"),
+				allDay: false,
+				location: "Room 101",
+				source: sourceWithReplacements,
+			};
+
+			// Create a manager with the test source
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithReplacements],
+			});
+
+			// Convert event to task (this will apply text replacements)
+			const task = testManager.convertEventsToTasks([mockEvent])[0];
+
+			// Verify replacements were applied
+			expect(task.content).toBe("Weekly Standup"); // "Meeting: " prefix removed
+			expect(task.metadata.context).toBe("Conference Room 101"); // "Room 101" -> "Conference Room 101"
+			expect(task.icsEvent.summary).toBe("Weekly Standup");
+			expect(task.icsEvent.location).toBe("Conference Room 101");
+		});
+
+		test("should apply multiple replacements in sequence", () => {
+			const sourceWithMultipleReplacements: IcsSource = {
+				id: "test-multiple",
+				name: "Test Multiple Replacements",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				textReplacements: [
+					{
+						id: "replace-1",
+						name: "First Replacement",
+						enabled: true,
+						target: "summary",
+						pattern: "URGENT",
+						replacement: "Important",
+						flags: "gi",
+					},
+					{
+						id: "replace-2",
+						name: "Second Replacement",
+						enabled: true,
+						target: "summary",
+						pattern: "Important",
+						replacement: "High Priority",
+						flags: "g",
+					},
+				],
+			};
+
+			const mockEvent = {
+				uid: "test-event-2",
+				summary: "URGENT: System Maintenance",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				allDay: false,
+				source: sourceWithMultipleReplacements,
+			};
+
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithMultipleReplacements],
+			});
+
+			const task = testManager.convertEventsToTasks([mockEvent])[0];
+
+			// Should apply both replacements in sequence: URGENT -> Important -> High Priority
+			expect(task.content).toBe("High Priority: System Maintenance");
+		});
+
+		test("should apply replacements to all fields when target is 'all'", () => {
+			const sourceWithAllTarget: IcsSource = {
+				id: "test-all-target",
+				name: "Test All Target",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				textReplacements: [
+					{
+						id: "replace-all",
+						name: "Replace All Occurrences",
+						enabled: true,
+						target: "all",
+						pattern: "old",
+						replacement: "new",
+						flags: "gi",
+					},
+				],
+			};
+
+			const mockEvent = {
+				uid: "test-event-3",
+				summary: "Old Meeting in Old Room",
+				description: "This is an old description",
+				location: "Old Building",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				allDay: false,
+				source: sourceWithAllTarget,
+			};
+
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithAllTarget],
+			});
+
+			const task = testManager.convertEventsToTasks([mockEvent])[0];
+
+			// All fields should have "old" replaced with "new"
+			expect(task.content).toBe("new Meeting in new Room");
+			expect(task.icsEvent.description).toBe(
+				"This is an new description"
+			);
+			expect(task.icsEvent.location).toBe("new Building");
+		});
+
+		test("should skip disabled replacement rules", () => {
+			const sourceWithDisabledRule: IcsSource = {
+				id: "test-disabled",
+				name: "Test Disabled Rule",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				textReplacements: [
+					{
+						id: "disabled-rule",
+						name: "Disabled Rule",
+						enabled: false, // This rule is disabled
+						target: "summary",
+						pattern: "Test",
+						replacement: "Demo",
+						flags: "g",
+					},
+					{
+						id: "enabled-rule",
+						name: "Enabled Rule",
+						enabled: true,
+						target: "summary",
+						pattern: "Meeting",
+						replacement: "Session",
+						flags: "g",
+					},
+				],
+			};
+
+			const mockEvent = {
+				uid: "test-event-4",
+				summary: "Test Meeting",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				allDay: false,
+				source: sourceWithDisabledRule,
+			};
+
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithDisabledRule],
+			});
+
+			const task = testManager.convertEventsToTasks([mockEvent])[0];
+
+			// Only the enabled rule should be applied
+			expect(task.content).toBe("Test Session"); // "Meeting" -> "Session", but "Test" unchanged
+		});
+
+		test("should handle invalid regex patterns gracefully", () => {
+			const sourceWithInvalidRegex: IcsSource = {
+				id: "test-invalid-regex",
+				name: "Test Invalid Regex",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				textReplacements: [
+					{
+						id: "invalid-regex",
+						name: "Invalid Regex",
+						enabled: true,
+						target: "summary",
+						pattern: "[invalid regex", // Invalid regex pattern
+						replacement: "replaced",
+						flags: "g",
+					},
+				],
+			};
+
+			const mockEvent = {
+				uid: "test-event-5",
+				summary: "Original Text",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				allDay: false,
+				source: sourceWithInvalidRegex,
+			};
+
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithInvalidRegex],
+			});
+
+			// Should not throw an error, and text should remain unchanged
+			expect(() => {
+				const task = testManager.convertEventsToTasks([mockEvent])[0];
+				expect(task.content).toBe("Original Text"); // Should remain unchanged
+			}).not.toThrow();
+		});
+
+		test("should work with capture groups in replacement", () => {
+			const sourceWithCaptureGroups: IcsSource = {
+				id: "test-capture-groups",
+				name: "Test Capture Groups",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				textReplacements: [
+					{
+						id: "capture-groups",
+						name: "Use Capture Groups",
+						enabled: true,
+						target: "summary",
+						pattern: "(\\w+) Meeting with (\\w+)",
+						replacement: "$2 and $1 Discussion",
+						flags: "g",
+					},
+				],
+			};
+
+			const mockEvent = {
+				uid: "test-event-6",
+				summary: "Weekly Meeting with John",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				allDay: false,
+				source: sourceWithCaptureGroups,
+			};
+
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithCaptureGroups],
+			});
+
+			const task = testManager.convertEventsToTasks([mockEvent])[0];
+
+			// Should swap the captured groups
+			expect(task.content).toBe("John and Weekly Discussion");
+		});
+
+		test("should handle events without text replacements", () => {
+			const sourceWithoutReplacements: IcsSource = {
+				id: "test-no-replacements",
+				name: "Test No Replacements",
+				url: "https://example.com/test.ics",
+				enabled: true,
+				refreshInterval: 60,
+				showAllDayEvents: true,
+				showTimedEvents: true,
+				showType: "event",
+				// No textReplacements property
+			};
+
+			const mockEvent = {
+				uid: "test-event-7",
+				summary: "Original Summary",
+				description: "Original Description",
+				location: "Original Location",
+				dtstart: new Date("2024-01-15T10:00:00Z"),
+				allDay: false,
+				source: sourceWithoutReplacements,
+			};
+
+			const testManager = new IcsManager({
+				...testConfig,
+				sources: [sourceWithoutReplacements],
+			});
+
+			const task = testManager.convertEventsToTasks([mockEvent])[0];
+
+			// Text should remain unchanged
+			expect(task.content).toBe("Original Summary");
+			expect(task.icsEvent.description).toBe("Original Description");
+			expect(task.icsEvent.location).toBe("Original Location");
 		});
 	});
 
@@ -246,6 +583,7 @@ describe("ICS Manager Integration", () => {
 					refreshInterval: 60,
 					showAllDayEvents: true,
 					showTimedEvents: true,
+					showType: "event" as const,
 				},
 			],
 			enableBackgroundRefresh: false, // Disable for testing

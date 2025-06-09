@@ -59,6 +59,10 @@ export class CalendarComponent extends Component {
 	// Track the currently active view component
 	private activeViewComponent: CalendarView | null = null;
 
+	// Performance optimization: Cache badge events by date
+	private badgeEventsCache: Map<string, CalendarEvent[]> = new Map();
+	private badgeEventsCacheVersion: number = 0;
+
 	constructor(
 		app: App,
 		plugin: TaskProgressBarPlugin,
@@ -123,6 +127,8 @@ export class CalendarComponent extends Component {
 	 */
 	updateTasks(newTasks: Task[]) {
 		this.tasks = newTasks;
+		// Clear badge cache when tasks change
+		this.invalidateBadgeEventsCache();
 		this.processTasks();
 		// Only update the currently active view
 		if (this.activeViewComponent) {
@@ -189,6 +195,8 @@ export class CalendarComponent extends Component {
 	 */
 	public setTasks(tasks: Task[]) {
 		this.tasks = tasks;
+		// Clear badge cache when tasks change
+		this.invalidateBadgeEventsCache();
 		this.processTasks();
 		this.render(); // Re-render header and update the view
 	}
@@ -400,6 +408,8 @@ export class CalendarComponent extends Component {
 			if (nextViewComponent) {
 				this.activeViewComponent = nextViewComponent;
 				this.addChild(this.activeViewComponent); // Load and attach the new component
+				// Pre-compute badge events for better performance
+				this.precomputeBadgeEventsForCurrentView();
 				// Update the newly activated view with current data
 				this.activeViewComponent.updateEvents(this.events);
 			} else {
@@ -407,6 +417,8 @@ export class CalendarComponent extends Component {
 			}
 		} else if (this.activeViewComponent) {
 			// If the view is the same, just update it with potentially new date/events
+			// Pre-compute badge events for better performance
+			this.precomputeBadgeEventsForCurrentView();
 			this.activeViewComponent.updateEvents(this.events);
 		}
 
@@ -437,6 +449,8 @@ export class CalendarComponent extends Component {
 	 */
 	private async processTasks() {
 		this.events = [];
+		// Clear badge cache when processing tasks
+		this.invalidateBadgeEventsCache();
 		const primaryDateField = "dueDate"; // TODO: Make this configurable via settings
 
 		// Process tasks
@@ -538,25 +552,115 @@ export class CalendarComponent extends Component {
 	}
 
 	/**
-	 * Get badge events for a specific date
+	 * Invalidate the badge events cache
+	 */
+	private invalidateBadgeEventsCache(): void {
+		this.badgeEventsCache.clear();
+		this.badgeEventsCacheVersion++;
+	}
+
+	/**
+	 * Pre-compute badge events for a date range to optimize performance
+	 * This replaces the per-date filtering with a single pass through all tasks
+	 */
+	private precomputeBadgeEventsForRange(
+		startDate: Date,
+		endDate: Date
+	): void {
+		// Convert dates to YYYY-MM-DD format for consistent comparison
+		const formatDateKey = (date: Date): string => {
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			return `${year}-${month}-${day}`;
+		};
+
+		// Clear existing cache for the range
+		const startKey = formatDateKey(startDate);
+		const endKey = formatDateKey(endDate);
+
+		// Initialize cache entries for the date range
+		const currentDate = new Date(startDate);
+		while (currentDate <= endDate) {
+			const dateKey = formatDateKey(currentDate);
+			this.badgeEventsCache.set(dateKey, []);
+			currentDate.setDate(currentDate.getDate() + 1);
+		}
+
+		// Single pass through all tasks to populate cache
+		this.tasks.forEach((task) => {
+			const isIcsTask = (task as any).source?.type === "ics";
+			const icsTask = isIcsTask ? (task as IcsTask) : null;
+			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
+
+			if (isIcsTask && showAsBadge && icsTask?.icsEvent) {
+				// Use native Date operations instead of moment for better performance
+				const eventDate = new Date(icsTask.icsEvent.dtstart);
+				// Normalize to start of day for comparison
+				const eventDateNormalized = new Date(
+					eventDate.getFullYear(),
+					eventDate.getMonth(),
+					eventDate.getDate()
+				);
+				const eventDateKey = formatDateKey(eventDateNormalized);
+
+				// Check if the event is within our cached range
+				if (this.badgeEventsCache.has(eventDateKey)) {
+					// Convert the task to a CalendarEvent format for consistency
+					const calendarEvent: CalendarEvent = {
+						...task,
+						title: task.content,
+						start: icsTask.icsEvent.dtstart,
+						end: icsTask.icsEvent.dtend,
+						allDay: icsTask.icsEvent.allDay,
+						color: icsTask.icsEvent.source.color,
+					};
+
+					const existingEvents =
+						this.badgeEventsCache.get(eventDateKey) || [];
+					existingEvents.push(calendarEvent);
+					this.badgeEventsCache.set(eventDateKey, existingEvents);
+				}
+			}
+		});
+
+		console.log(
+			`Pre-computed badge events for range ${startKey} to ${endKey}. Cache size: ${this.badgeEventsCache.size}`
+		);
+	}
+
+	/**
+	 * Get badge events for a specific date (optimized version)
 	 * These are ICS events that should be displayed as badges (count) rather than full events
 	 */
-	public getBadgeEventsForDate(date: Date): {
-		sourceId: string;
-		sourceName: string;
-		count: number;
-		color?: string;
-	}[] {
-		const targetDate = moment(date).startOf("day");
-		const badgeEvents: Map<
-			string,
-			{
-				sourceId: string;
-				sourceName: string;
-				count: number;
-				color?: string;
-			}
-		> = new Map();
+	public getBadgeEventsForDate(date: Date): CalendarEvent[] {
+		// Use native Date operations for better performance
+		const year = date.getFullYear();
+		const month = date.getMonth();
+		const day = date.getDate();
+		const normalizedDate = new Date(year, month, day);
+		const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+			day
+		).padStart(2, "0")}`;
+
+		// Check if we have cached data for this date
+		if (this.badgeEventsCache.has(dateKey)) {
+			const cachedEvents = this.badgeEventsCache.get(dateKey) || [];
+			console.log(
+				`Badge events for date ${dateKey} (cached):`,
+				cachedEvents.length
+			);
+			return cachedEvents;
+		}
+
+		// If not cached, fall back to the original logic but optimized
+		console.log(
+			`Badge events for date ${dateKey} (not cached, computing):`,
+			"from tasks:",
+			this.tasks.length
+		);
+
+		const badgeEventsForDate: CalendarEvent[] = [];
 
 		this.tasks.forEach((task) => {
 			const isIcsTask = (task as any).source?.type === "ics";
@@ -564,30 +668,104 @@ export class CalendarComponent extends Component {
 			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
 
 			if (isIcsTask && showAsBadge && icsTask?.icsEvent) {
-				const eventDate = moment(icsTask.icsEvent.dtstart).startOf(
-					"day"
-				);
+				// Use native Date operations instead of moment for better performance
+				const eventDate = new Date(icsTask.icsEvent.dtstart);
+				const eventYear = eventDate.getFullYear();
+				const eventMonth = eventDate.getMonth();
+				const eventDay = eventDate.getDate();
 
-				// Check if the event is on the target date
-				if (eventDate.isSame(targetDate)) {
-					const sourceId = icsTask.icsEvent.source.id;
-					const existing = badgeEvents.get(sourceId);
-
-					if (existing) {
-						existing.count++;
-					} else {
-						badgeEvents.set(sourceId, {
-							sourceId: sourceId,
-							sourceName: icsTask.icsEvent.source.name,
-							count: 1,
-							color: icsTask.icsEvent.source.color,
-						});
-					}
+				// Check if the event is on the target date using native comparison
+				if (
+					eventYear === year &&
+					eventMonth === month &&
+					eventDay === day
+				) {
+					// Convert the task to a CalendarEvent format for consistency
+					const calendarEvent: CalendarEvent = {
+						...task,
+						title: task.content,
+						start: icsTask.icsEvent.dtstart,
+						end: icsTask.icsEvent.dtend,
+						allDay: icsTask.icsEvent.allDay,
+						color: icsTask.icsEvent.source.color,
+					};
+					badgeEventsForDate.push(calendarEvent);
 				}
 			}
 		});
 
-		return Array.from(badgeEvents.values());
+		// Cache the result for future use
+		this.badgeEventsCache.set(dateKey, badgeEventsForDate);
+
+		console.log("Badge events for date:", badgeEventsForDate.length);
+
+		return badgeEventsForDate;
+	}
+
+	/**
+	 * Pre-compute badge events for the current view's date range
+	 * This should be called when the view changes or data updates
+	 */
+	public precomputeBadgeEventsForCurrentView(): void {
+		if (!this.activeViewComponent) return;
+
+		let startDate: Date;
+		let endDate: Date;
+
+		switch (this.currentViewMode) {
+			case "month":
+				// For month view, compute for the entire grid (including previous/next month days)
+				const startOfMonth = this.currentDate.clone().startOf("month");
+				const endOfMonth = this.currentDate.clone().endOf("month");
+
+				// Get first day of week setting
+				const viewConfig = this.plugin.settings.viewConfiguration.find(
+					(v) => v.id === this.viewId
+				)?.specificConfig as any; // Use any for now to avoid import complexity
+				const firstDayOfWeek = viewConfig?.firstDayOfWeek ?? 0;
+
+				const gridStart = startOfMonth
+					.clone()
+					.weekday(firstDayOfWeek - 7);
+				let gridEnd = endOfMonth.clone().weekday(firstDayOfWeek + 6);
+
+				// Ensure at least 42 days (6 weeks)
+				if (gridEnd.diff(gridStart, "days") + 1 < 42) {
+					const daysToAdd =
+						42 - (gridEnd.diff(gridStart, "days") + 1);
+					gridEnd.add(daysToAdd, "days");
+				}
+
+				startDate = gridStart.toDate();
+				endDate = gridEnd.toDate();
+				break;
+
+			case "week":
+				const startOfWeek = this.currentDate.clone().startOf("week");
+				const endOfWeek = this.currentDate.clone().endOf("week");
+				startDate = startOfWeek.toDate();
+				endDate = endOfWeek.toDate();
+				break;
+
+			case "day":
+				startDate = this.currentDate.clone().startOf("day").toDate();
+				endDate = this.currentDate.clone().endOf("day").toDate();
+				break;
+
+			case "year":
+				const startOfYear = this.currentDate.clone().startOf("year");
+				const endOfYear = this.currentDate.clone().endOf("year");
+				startDate = startOfYear.toDate();
+				endDate = endOfYear.toDate();
+				break;
+
+			default:
+				// For agenda and other views, use a reasonable default range
+				startDate = this.currentDate.clone().startOf("day").toDate();
+				endDate = this.currentDate.clone().add(30, "days").toDate();
+		}
+
+		this.precomputeBadgeEventsForRange(startDate, endDate);
 	}
 
 	/**

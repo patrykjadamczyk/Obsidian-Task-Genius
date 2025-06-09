@@ -14,7 +14,11 @@ import {
 	Notice,
 	setIcon,
 } from "obsidian";
-import { IcsSource, IcsManagerConfig } from "../../types/ics";
+import {
+	IcsSource,
+	IcsManagerConfig,
+	IcsTextReplacement,
+} from "../../types/ics";
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
 import "../../styles/ics-settings.css";
@@ -101,89 +105,6 @@ export class IcsSettingsComponent {
 				this.saveAndRefresh();
 			}).open();
 		};
-
-		// Add test button for Chinese Lunar Calendar
-		const testContainer = this.containerEl.createDiv("ics-test-container");
-		const testButton = testContainer.createEl("button", {
-			text: "🧪 " + t("Test Chinese Lunar Calendar"),
-			cls: "ics-test-button",
-		});
-		testButton.onclick = () => {
-			this.testChineseLunarCalendar();
-		};
-	}
-
-	private async testChineseLunarCalendar(): Promise<void> {
-		const testSource: IcsSource = {
-			id: "test-chinese-lunar",
-			name: "Chinese Lunar Calendar (Test)",
-			url: "https://lwlsw.github.io/Chinese-Lunar-Calendar-ics/chinese_lunar_my.ics",
-			enabled: true,
-			refreshInterval: 60,
-			showAllDayEvents: true,
-			showTimedEvents: true,
-			showType: "event",
-		};
-
-		try {
-			const icsManager = this.plugin.getIcsManager();
-			if (!icsManager) {
-				new Notice("ICS Manager not initialized");
-				return;
-			}
-
-			new Notice("Testing Chinese Lunar Calendar ICS...");
-
-			// Test the parser directly
-			const response = await fetch(testSource.url);
-			if (!response.ok) {
-				throw new Error(
-					`HTTP ${response.status}: ${response.statusText}`
-				);
-			}
-
-			const icsContent = await response.text();
-			console.log("ICS Content length:", icsContent.length);
-			console.log("ICS Content preview:", icsContent.substring(0, 500));
-
-			// Parse the ICS content
-			const { IcsParser } = await import("../../utils/ics/IcsParser");
-			const parseResult = IcsParser.parse(icsContent, testSource);
-
-			console.log("Parse result:", parseResult);
-			new Notice(
-				`Successfully parsed ${parseResult.events.length} events from Chinese Lunar Calendar`
-			);
-
-			if (parseResult.errors.length > 0) {
-				console.warn("Parse errors:", parseResult.errors);
-				new Notice(
-					`Parse completed with ${parseResult.errors.length} errors`
-				);
-			}
-
-			// Show some sample events
-			if (parseResult.events.length > 0) {
-				const sampleEvents = parseResult.events.slice(0, 5);
-				const eventList = sampleEvents
-					.map(
-						(event) =>
-							`• ${event.summary} (${
-								event.dtstart
-									? new Date(
-											event.dtstart
-									  ).toLocaleDateString()
-									: "No date"
-							})`
-					)
-					.join("\n");
-
-				new Notice(`Sample events:\n${eventList}`, 10000);
-			}
-		} catch (error) {
-			console.error("Test failed:", error);
-			new Notice(`Test failed: ${error.message}`);
-		}
 	}
 
 	private displayGlobalSettings(): void {
@@ -484,6 +405,8 @@ class IcsSourceModal extends Modal {
 		this.onSave = onSave;
 		this.isEditing = !!existingSource;
 
+		this.modalEl.addClass("ics-source-modal");
+
 		if (existingSource) {
 			this.source = { ...existingSource };
 		} else {
@@ -611,6 +534,9 @@ class IcsSourceModal extends Modal {
 					});
 			});
 
+		// Text Replacements section
+		this.displayTextReplacements(contentEl);
+
 		// Authentication section
 		const authContainer = contentEl.createDiv();
 		authContainer.createEl("h3", { text: t("Authentication (Optional)") });
@@ -660,6 +586,143 @@ class IcsSourceModal extends Modal {
 		});
 		cancelButton.onclick = () => {
 			this.close();
+		};
+	}
+
+	private displayTextReplacements(contentEl: HTMLElement): void {
+		const textReplacementsContainer = contentEl.createDiv();
+		textReplacementsContainer.createEl("h3", {
+			text: t("Text Replacements"),
+		});
+		textReplacementsContainer.createEl("p", {
+			text: t(
+				"Configure rules to modify event text using regular expressions"
+			),
+			cls: "setting-item-description",
+		});
+
+		// Initialize textReplacements if not exists
+		if (!this.source.textReplacements) {
+			this.source.textReplacements = [];
+		}
+
+		// Container for replacement rules
+		const rulesContainer = textReplacementsContainer.createDiv(
+			"text-replacements-list"
+		);
+
+		const refreshRulesList = () => {
+			rulesContainer.empty();
+
+			if (this.source.textReplacements!.length === 0) {
+				const emptyState = rulesContainer.createDiv(
+					"text-replacements-empty"
+				);
+				emptyState.createEl("p", {
+					text: t("No text replacement rules configured"),
+					cls: "setting-item-description",
+				});
+			} else {
+				this.source.textReplacements!.forEach((rule, index) => {
+					const ruleContainer = rulesContainer.createDiv(
+						"text-replacement-rule"
+					);
+
+					// Rule header
+					const ruleHeader = ruleContainer.createDiv(
+						"text-replacement-header"
+					);
+					const titleEl = ruleHeader.createEl("strong", {
+						text: rule.name || `Rule ${index + 1}`,
+					});
+
+					const statusEl = ruleHeader.createEl("span", {
+						cls: `text-replacement-status ${
+							rule.enabled ? "enabled" : "disabled"
+						}`,
+						text: rule.enabled ? t("Enabled") : t("Disabled"),
+					});
+
+					// Rule details
+					const ruleDetails = ruleContainer.createDiv(
+						"text-replacement-details"
+					);
+					ruleDetails.createEl("div", {
+						text: `${t("Target")}: ${rule.target}`,
+					});
+					ruleDetails.createEl("div", {
+						text: `${t("Pattern")}: ${rule.pattern}`,
+						cls: "text-replacement-pattern",
+					});
+					ruleDetails.createEl("div", {
+						text: `${t("Replacement")}: ${rule.replacement}`,
+						cls: "text-replacement-replacement",
+					});
+
+					// Rule actions
+					const ruleActions = ruleContainer.createDiv(
+						"text-replacement-actions"
+					);
+
+					const editButton = ruleActions.createEl("button", {
+						text: t("Edit"),
+						cls: "mod-cta",
+					});
+					editButton.onclick = () => {
+						new TextReplacementModal(
+							this.app,
+							(updatedRule) => {
+								this.source.textReplacements![index] =
+									updatedRule;
+								refreshRulesList();
+							},
+							rule
+						).open();
+					};
+
+					const toggleButton = ruleActions.createEl("button", {
+						text: rule.enabled ? t("Disable") : t("Enable"),
+					});
+					toggleButton.onclick = () => {
+						this.source.textReplacements![index].enabled =
+							!rule.enabled;
+						refreshRulesList();
+					};
+
+					const deleteButton = ruleActions.createEl("button", {
+						text: t("Delete"),
+						cls: "mod-warning",
+					});
+					deleteButton.onclick = () => {
+						if (
+							confirm(
+								t(
+									"Are you sure you want to delete this text replacement rule?"
+								)
+							)
+						) {
+							this.source.textReplacements!.splice(index, 1);
+							refreshRulesList();
+						}
+					};
+				});
+			}
+		};
+
+		refreshRulesList();
+
+		// Add rule button
+		const addRuleContainer = textReplacementsContainer.createDiv(
+			"text-replacement-add"
+		);
+		const addButton = addRuleContainer.createEl("button", {
+			text: "+ " + t("Add Text Replacement Rule"),
+		});
+		addButton.onclick = () => {
+			new TextReplacementModal(this.app, (newRule) => {
+				this.source.textReplacements!.push(newRule);
+				refreshRulesList();
+			}).open();
 		};
 	}
 
@@ -767,5 +830,290 @@ class IcsSourceModal extends Modal {
 
 	private generateId(): string {
 		return `ics-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+	}
+}
+
+/**
+ * Modal for adding/editing text replacement rules
+ */
+class TextReplacementModal extends Modal {
+	private rule: IcsTextReplacement;
+	private onSave: (rule: IcsTextReplacement) => void;
+	private isEditing: boolean;
+
+	constructor(
+		app: App,
+		onSave: (rule: IcsTextReplacement) => void,
+		existingRule?: IcsTextReplacement
+	) {
+		super(app);
+		this.onSave = onSave;
+		this.isEditing = !!existingRule;
+		this.modalEl.addClass("ics-text-replacement-modal");
+		if (existingRule) {
+			this.rule = { ...existingRule };
+		} else {
+			this.rule = {
+				id: this.generateId(),
+				name: "",
+				enabled: true,
+				target: "summary",
+				pattern: "",
+				replacement: "",
+				flags: "g",
+			};
+		}
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl("h2", {
+			text: this.isEditing
+				? t("Edit Text Replacement Rule")
+				: t("Add Text Replacement Rule"),
+		});
+
+		// Rule name
+		new Setting(contentEl)
+			.setName(t("Rule Name"))
+			.setDesc(t("Descriptive name for this replacement rule"))
+			.addText((text) => {
+				text.setPlaceholder(t("Remove Meeting Prefix"))
+					.setValue(this.rule.name)
+					.onChange((value) => {
+						this.rule.name = value;
+					});
+			});
+
+		// Enabled
+		new Setting(contentEl)
+			.setName(t("Enabled"))
+			.setDesc(t("Whether this rule is active"))
+			.addToggle((toggle) => {
+				toggle.setValue(this.rule.enabled).onChange((value) => {
+					this.rule.enabled = value;
+				});
+			});
+
+		// Target field
+		new Setting(contentEl)
+			.setName(t("Target Field"))
+			.setDesc(t("Which field to apply the replacement to"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("summary", t("Summary/Title"))
+					.addOption("description", t("Description"))
+					.addOption("location", t("Location"))
+					.addOption("all", t("All Fields"))
+					.setValue(this.rule.target)
+					.onChange((value) => {
+						this.rule.target = value as
+							| "summary"
+							| "description"
+							| "location"
+							| "all";
+					});
+			});
+
+		// Store references to update test output
+		let testInput: TextComponent;
+		let testOutput: HTMLElement;
+
+		// Define the update function
+		const updateTestOutput = (input: string) => {
+			if (!testOutput) return;
+
+			try {
+				if (this.rule.pattern && input) {
+					const regex = new RegExp(
+						this.rule.pattern,
+						this.rule.flags || "g"
+					);
+					const result = input.replace(regex, this.rule.replacement);
+					const resultSpan = testOutput.querySelector(
+						".test-result"
+					) as HTMLElement;
+					if (resultSpan) {
+						resultSpan.textContent = result;
+						resultSpan.style.color =
+							result !== input ? "#4caf50" : "#666";
+					}
+				} else {
+					const resultSpan = testOutput.querySelector(
+						".test-result"
+					) as HTMLElement;
+					if (resultSpan) {
+						resultSpan.textContent = input || "";
+						resultSpan.style.color = "#666";
+					}
+				}
+			} catch (error) {
+				const resultSpan = testOutput.querySelector(
+					".test-result"
+				) as HTMLElement;
+				if (resultSpan) {
+					resultSpan.textContent = "Invalid regex pattern";
+					resultSpan.style.color = "#f44336";
+				}
+			}
+		};
+
+		// Pattern
+		new Setting(contentEl)
+			.setName(t("Pattern (Regular Expression)"))
+			.setDesc(
+				t(
+					"Regular expression pattern to match. Use parentheses for capture groups."
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder("^Meeting: ")
+					.setValue(this.rule.pattern)
+					.onChange((value) => {
+						this.rule.pattern = value;
+						if (testInput && testInput.getValue()) {
+							updateTestOutput(testInput.getValue());
+						}
+					});
+			});
+
+		// Replacement
+		new Setting(contentEl)
+			.setName(t("Replacement"))
+			.setDesc(
+				t(
+					"Text to replace matches with. Use $1, $2, etc. for capture groups."
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder("")
+					.setValue(this.rule.replacement)
+					.onChange((value) => {
+						this.rule.replacement = value;
+						if (testInput && testInput.getValue()) {
+							updateTestOutput(testInput.getValue());
+						}
+					});
+			});
+
+		// Flags
+		new Setting(contentEl)
+			.setName(t("Regex Flags"))
+			.setDesc(
+				t(
+					"Regular expression flags (e.g., 'g' for global, 'i' for case-insensitive)"
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder("g")
+					.setValue(this.rule.flags || "")
+					.onChange((value) => {
+						this.rule.flags = value;
+						if (testInput && testInput.getValue()) {
+							updateTestOutput(testInput.getValue());
+						}
+					});
+			});
+
+		// Examples section
+		const examplesContainer = contentEl.createDiv();
+		examplesContainer.createEl("h3", { text: t("Examples") });
+
+		const examplesList = examplesContainer.createEl("ul");
+
+		// Remove prefix example
+		const example1 = examplesList.createEl("li");
+		example1.createEl("strong", { text: t("Remove prefix") + ": " });
+		example1.createSpan({ text: "Pattern: " });
+		example1.createEl("code", { text: "^Meeting: " });
+		example1.createSpan({ text: ", Replacement: " });
+		example1.createEl("code", { text: "" });
+
+		// Replace room numbers example
+		const example2 = examplesList.createEl("li");
+		example2.createEl("strong", { text: t("Replace room numbers") + ": " });
+		example2.createSpan({ text: "Pattern: " });
+		example2.createEl("code", { text: "Room (\\d+)" });
+		example2.createSpan({ text: ", Replacement: " });
+		example2.createEl("code", { text: "Conference Room $1" });
+
+		// Swap words example
+		const example3 = examplesList.createEl("li");
+		example3.createEl("strong", { text: t("Swap words") + ": " });
+		example3.createSpan({ text: "Pattern: " });
+		example3.createEl("code", { text: "(\\w+) with (\\w+)" });
+		example3.createSpan({ text: ", Replacement: " });
+		example3.createEl("code", { text: "$2 and $1" });
+
+		// Test section
+		const testContainer = contentEl.createDiv();
+		testContainer.createEl("h3", { text: t("Test Rule") });
+
+		// Create test output first
+		testOutput = testContainer.createDiv("test-output");
+		testOutput.createEl("strong", { text: t("Output: ") });
+		const outputText = testOutput.createEl("span", { cls: "test-result" });
+
+		// Create test input
+		new Setting(testContainer)
+			.setName(t("Test Input"))
+			.setDesc(t("Enter text to test the replacement rule"))
+			.addText((text) => {
+				testInput = text;
+				text.setPlaceholder("Meeting: Weekly Standup").onChange(
+					(value) => {
+						updateTestOutput(value);
+					}
+				);
+			});
+
+		// Buttons
+		const buttonContainer = contentEl.createDiv("modal-button-container");
+
+		const saveButton = buttonContainer.createEl("button", {
+			text: t("Save"),
+			cls: "mod-cta",
+		});
+		saveButton.onclick = () => {
+			if (this.validateRule()) {
+				this.onSave(this.rule);
+				this.close();
+			}
+		};
+
+		const cancelButton = buttonContainer.createEl("button", {
+			text: t("Cancel"),
+		});
+		cancelButton.onclick = () => {
+			this.close();
+		};
+	}
+
+	private validateRule(): boolean {
+		if (!this.rule.name.trim()) {
+			new Notice(t("Please enter a name for the rule"));
+			return false;
+		}
+
+		if (!this.rule.pattern.trim()) {
+			new Notice(t("Please enter a pattern"));
+			return false;
+		}
+
+		// Test if the regex pattern is valid
+		try {
+			new RegExp(this.rule.pattern, this.rule.flags || "g");
+		} catch (error) {
+			new Notice(t("Invalid regular expression pattern"));
+			return false;
+		}
+
+		return true;
+	}
+
+	private generateId(): string {
+		return `rule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 	}
 }

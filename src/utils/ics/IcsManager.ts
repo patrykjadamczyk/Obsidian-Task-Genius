@@ -12,6 +12,7 @@ import {
 	IcsManagerConfig,
 	IcsSyncStatus,
 	IcsTask,
+	IcsTextReplacement,
 } from "../../types/ics";
 import { Task } from "../../types/task";
 import { IcsParser } from "./IcsParser";
@@ -184,16 +185,19 @@ export class IcsManager extends Component {
 	 * Convert single ICS event to Task format
 	 */
 	private convertEventToTask(event: IcsEvent): IcsTask {
+		// Apply text replacements to the event
+		const processedEvent = this.applyTextReplacements(event);
+
 		const task: IcsTask = {
 			id: `ics-${event.source.id}-${event.uid}`,
-			content: event.summary,
+			content: processedEvent.summary,
 			filePath: `ics://${event.source.name}`,
 			line: 0,
 			completed: event.status === "COMPLETED",
 			status: this.mapIcsStatusToTaskStatus(event.status),
 			originalMarkdown: `- [${this.mapIcsStatusToTaskStatus(
 				event.status
-			)}] ${event.summary}`,
+			)}] ${processedEvent.summary}`,
 			metadata: {
 				tags: event.categories || [],
 				children: [],
@@ -202,11 +206,17 @@ export class IcsManager extends Component {
 				dueDate: event.dtend?.getTime(),
 				scheduledDate: event.dtstart.getTime(),
 				project: event.source.name,
-				context: event.location,
+				context: processedEvent.location,
 				heading: [],
 			},
-			icsEvent: event,
+			icsEvent: {
+				...event,
+				summary: processedEvent.summary,
+				description: processedEvent.description,
+				location: processedEvent.location,
+			},
 			readonly: true,
+			badge: event.source.showType === "badge",
 			source: {
 				type: "ics",
 				name: event.source.name,
@@ -592,6 +602,97 @@ export class IcsManager extends Component {
 			// Fall back to simple string matching
 			return text.toLowerCase().includes(pattern.toLowerCase());
 		}
+	}
+
+	/**
+	 * Apply text replacement rules to an ICS event
+	 */
+	private applyTextReplacements(event: IcsEvent): {
+		summary: string;
+		description?: string;
+		location?: string;
+	} {
+		const source = event.source;
+		const replacements = source.textReplacements;
+
+		// If no replacements configured, return original values
+		if (!replacements || replacements.length === 0) {
+			return {
+				summary: event.summary,
+				description: event.description,
+				location: event.location,
+			};
+		}
+
+		let processedSummary = event.summary;
+		let processedDescription = event.description;
+		let processedLocation = event.location;
+
+		// Apply each enabled replacement rule
+		for (const rule of replacements) {
+			if (!rule.enabled) {
+				continue;
+			}
+
+			try {
+				const regex = new RegExp(rule.pattern, rule.flags || "g");
+
+				// Apply to specific target or all fields
+				switch (rule.target) {
+					case "summary":
+						processedSummary = processedSummary.replace(
+							regex,
+							rule.replacement
+						);
+						break;
+					case "description":
+						if (processedDescription) {
+							processedDescription = processedDescription.replace(
+								regex,
+								rule.replacement
+							);
+						}
+						break;
+					case "location":
+						if (processedLocation) {
+							processedLocation = processedLocation.replace(
+								regex,
+								rule.replacement
+							);
+						}
+						break;
+					case "all":
+						processedSummary = processedSummary.replace(
+							regex,
+							rule.replacement
+						);
+						if (processedDescription) {
+							processedDescription = processedDescription.replace(
+								regex,
+								rule.replacement
+							);
+						}
+						if (processedLocation) {
+							processedLocation = processedLocation.replace(
+								regex,
+								rule.replacement
+							);
+						}
+						break;
+				}
+			} catch (error) {
+				console.warn(
+					`Invalid regex pattern in text replacement rule "${rule.name}": ${rule.pattern}`,
+					error
+				);
+			}
+		}
+
+		return {
+			summary: processedSummary,
+			description: processedDescription,
+			location: processedLocation,
+		};
 	}
 
 	/**

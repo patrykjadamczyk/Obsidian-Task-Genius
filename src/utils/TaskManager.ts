@@ -917,13 +917,17 @@ export class TaskManager extends Component {
 		const markdownTasks = this.queryTasks();
 
 		// Get ICS tasks if ICS manager is available
-		const icsManager = this.plugin.getIcsManager();
-		if (icsManager) {
-			const icsEvents = icsManager.getAllEvents();
-			const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+		try {
+			const icsManager = this.plugin.getIcsManager();
+			if (icsManager) {
+				const icsEvents = icsManager.getAllEvents();
+				const icsTasks = icsManager.convertEventsToTasks(icsEvents);
 
-			// Merge ICS tasks with markdown tasks
-			return [...markdownTasks, ...icsTasks];
+				// Merge ICS tasks with markdown tasks
+				return [...markdownTasks, ...icsTasks];
+			}
+		} catch (error) {
+			console.error("Error getting all tasks:", error);
 		}
 
 		return markdownTasks;

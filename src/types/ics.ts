@@ -30,6 +30,8 @@ export interface IcsSource {
 	filters?: IcsEventFilter;
 	/** Authentication settings if needed */
 	auth?: IcsAuthConfig;
+	/** Text replacement rules for customizing event display */
+	textReplacements?: IcsTextReplacement[];
 }
 
 /** ICS event filter configuration */
@@ -70,6 +72,24 @@ export interface IcsAuthConfig {
 	token?: string;
 	/** Custom headers */
 	headers?: Record<string, string>;
+}
+
+/** Text replacement rule for ICS events */
+export interface IcsTextReplacement {
+	/** Unique identifier for this replacement rule */
+	id: string;
+	/** Display name for this rule */
+	name: string;
+	/** Whether this rule is enabled */
+	enabled: boolean;
+	/** Target field to apply replacement to */
+	target: "summary" | "description" | "location" | "all";
+	/** Regular expression pattern to match */
+	pattern: string;
+	/** Replacement text (supports capture groups like $1, $2) */
+	replacement: string;
+	/** Regex flags (e.g., "gi" for global case-insensitive) */
+	flags?: string;
 }
 
 /** Raw ICS event data */
@@ -128,6 +148,8 @@ export interface IcsTask extends Task {
 	icsEvent: IcsEvent;
 	/** Whether this task is read-only (from ICS) */
 	readonly: true;
+	/** Whether this task is a badge */
+	badge: boolean;
 	/** Source information */
 	source: {
 		type: "ics";

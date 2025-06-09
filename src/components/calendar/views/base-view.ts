@@ -24,12 +24,7 @@ interface EventMap {
 // Combine event handlers into a single options object, making them optional
 export interface CalendarViewOptions extends Partial<EventMap> {
 	// Add other common view options here if needed
-	getBadgeEventsForDate?: (date: Date) => {
-		sourceId: string;
-		sourceName: string;
-		count: number;
-		color?: string;
-	}[];
+	getBadgeEventsForDate?: (date: Date) => CalendarEvent[];
 }
 
 export abstract class CalendarViewComponent extends Component {

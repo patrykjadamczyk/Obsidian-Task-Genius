@@ -74,6 +74,7 @@ describe("ICS Badge Integration", () => {
 		},
 		icsEvent: badgeEvent,
 		readonly: true,
+		badge: true,
 		source: {
 			type: "ics",
 			name: badgeSource.name,
@@ -100,6 +101,7 @@ describe("ICS Badge Integration", () => {
 		},
 		icsEvent: eventEvent,
 		readonly: true,
+		badge: true,
 		source: {
 			type: "ics",
 			name: eventSource.name,
