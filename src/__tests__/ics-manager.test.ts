@@ -6,6 +6,17 @@
 import { IcsManager } from "../utils/ics/IcsManager";
 import { IcsSource, IcsManagerConfig } from "../types/ics";
 
+// Mock minimal settings for testing
+const mockSettings = {
+	taskStatusMarks: {
+		"Not Started": " ",
+		"In Progress": "/",
+		Completed: "x",
+		Abandoned: "-",
+		Planned: "?",
+	},
+} as any;
+
 // Mock Obsidian Component
 jest.mock("obsidian", () => ({
 	Component: class MockComponent {
@@ -57,7 +68,7 @@ describe("ICS Manager", () => {
 
 	beforeEach(async () => {
 		mockComponent = new MockComponent();
-		icsManager = new IcsManager(testConfig);
+		icsManager = new IcsManager(testConfig, mockSettings);
 		await icsManager.initialize();
 	});
 
@@ -249,10 +260,13 @@ describe("ICS Manager", () => {
 			};
 
 			// Create a manager with the test source
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithReplacements],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithReplacements],
+				},
+				mockSettings
+			);
 
 			// Convert event to task (this will apply text replacements)
 			const task = testManager.convertEventsToTasks([mockEvent])[0];
@@ -304,10 +318,13 @@ describe("ICS Manager", () => {
 				source: sourceWithMultipleReplacements,
 			};
 
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithMultipleReplacements],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithMultipleReplacements],
+				},
+				mockSettings
+			);
 
 			const task = testManager.convertEventsToTasks([mockEvent])[0];
 
@@ -348,10 +365,13 @@ describe("ICS Manager", () => {
 				source: sourceWithAllTarget,
 			};
 
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithAllTarget],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithAllTarget],
+				},
+				mockSettings
+			);
 
 			const task = testManager.convertEventsToTasks([mockEvent])[0];
 
@@ -403,10 +423,13 @@ describe("ICS Manager", () => {
 				source: sourceWithDisabledRule,
 			};
 
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithDisabledRule],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithDisabledRule],
+				},
+				mockSettings
+			);
 
 			const task = testManager.convertEventsToTasks([mockEvent])[0];
 
@@ -445,10 +468,13 @@ describe("ICS Manager", () => {
 				source: sourceWithInvalidRegex,
 			};
 
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithInvalidRegex],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithInvalidRegex],
+				},
+				mockSettings
+			);
 
 			// Should not throw an error, and text should remain unchanged
 			expect(() => {
@@ -488,10 +514,13 @@ describe("ICS Manager", () => {
 				source: sourceWithCaptureGroups,
 			};
 
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithCaptureGroups],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithCaptureGroups],
+				},
+				mockSettings
+			);
 
 			const task = testManager.convertEventsToTasks([mockEvent])[0];
 
@@ -522,10 +551,13 @@ describe("ICS Manager", () => {
 				source: sourceWithoutReplacements,
 			};
 
-			const testManager = new IcsManager({
-				...testConfig,
-				sources: [sourceWithoutReplacements],
-			});
+			const testManager = new IcsManager(
+				{
+					...testConfig,
+					sources: [sourceWithoutReplacements],
+				},
+				mockSettings
+			);
 
 			const task = testManager.convertEventsToTasks([mockEvent])[0];
 
@@ -596,7 +628,7 @@ describe("ICS Manager Integration", () => {
 			defaultEventColor: "#3b82f6",
 		};
 
-		const manager = new IcsManager(config);
+		const manager = new IcsManager(config, mockSettings);
 		await manager.initialize();
 
 		try {

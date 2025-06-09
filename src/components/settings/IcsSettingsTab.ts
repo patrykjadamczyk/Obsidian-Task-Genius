@@ -23,7 +23,6 @@ import {
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
 import "../../styles/ics-settings.css";
-import { TaskProgressBarSettingTab } from "../../setting";
 import { HolidayDetector } from "../../utils/ics/HolidayDetector";
 
 export class IcsSettingsComponent {

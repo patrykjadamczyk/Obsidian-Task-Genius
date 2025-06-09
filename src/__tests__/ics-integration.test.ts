@@ -29,6 +29,17 @@ class MockComponent {
 	unload() {}
 }
 
+// Mock minimal settings for testing
+const mockPluginSettings = {
+	taskStatusMarks: {
+		"Not Started": " ",
+		"In Progress": "/",
+		Completed: "x",
+		Abandoned: "-",
+		Planned: "?",
+	},
+} as any;
+
 describe("ICS Integration with Chinese Lunar Calendar", () => {
 	const testSource: IcsSource = {
 		id: "chinese-lunar-test",
@@ -38,6 +49,7 @@ describe("ICS Integration with Chinese Lunar Calendar", () => {
 		refreshInterval: 60,
 		showAllDayEvents: true,
 		showTimedEvents: true,
+		showType: "event",
 	};
 
 	// Real sample data from the Chinese Lunar Calendar
@@ -213,7 +225,7 @@ END:VCALENDAR`;
 
 		beforeEach(async () => {
 			mockComponent = new MockComponent();
-			icsManager = new IcsManager(testConfig);
+			icsManager = new IcsManager(testConfig, mockPluginSettings);
 			await icsManager.initialize();
 		});
 
