@@ -433,6 +433,7 @@ export class CalendarComponent extends Component {
 		this.events = [];
 		const primaryDateField = "dueDate"; // TODO: Make this configurable via settings
 
+		// Process regular tasks
 		this.tasks.forEach((task) => {
 			// Determine the date to use based on priority (dueDate > scheduledDate > startDate)
 			// This logic might need refinement based on exact requirements in PRD 4.2
@@ -494,12 +495,74 @@ export class CalendarComponent extends Component {
 			// Else: Task has no relevant date, ignore for now (PRD: maybe "unscheduled" panel)
 		});
 
+		// Process ICS events if enabled and available
+		if (this.plugin.settings.icsIntegration.showInCalendar) {
+			const icsManager = this.plugin.getIcsManager();
+			console.log("icsManager", icsManager);
+			if (icsManager) {
+				const icsEvents = icsManager.getAllEvents();
+				console.log("icsEvents", icsEvents);
+				icsEvents.forEach((icsEvent) => {
+					this.events.push({
+						...icsEvent,
+						// Convert ICS event to CalendarEvent format
+						id: `ics-${icsEvent.uid}`,
+						content: icsEvent.summary,
+						filePath: `ics://${icsEvent.source.name}`,
+						line: 0,
+						completed: icsEvent.status === "COMPLETED",
+						status: icsEvent.status === "COMPLETED" ? "x" : " ",
+						originalMarkdown: `- [${
+							icsEvent.status === "COMPLETED" ? "x" : " "
+						}] ${icsEvent.summary}`,
+						metadata: {
+							tags: icsEvent.categories || [],
+							children: [],
+							priority: this.mapIcsPriorityToTaskPriority(
+								icsEvent.priority
+							),
+							startDate: icsEvent.dtstart.getTime(),
+							dueDate: icsEvent.dtend?.getTime(),
+							scheduledDate: icsEvent.dtstart.getTime(),
+							project: icsEvent.source.name,
+							context: icsEvent.location,
+							heading: [],
+						},
+						title: icsEvent.summary,
+						start: icsEvent.dtstart,
+						end: icsEvent.dtend,
+						allDay: icsEvent.allDay,
+						color:
+							icsEvent.source.color ||
+							this.plugin.settings.icsIntegration
+								.defaultEventColor,
+					});
+				});
+			}
+		}
+
 		// Sort events for potentially easier rendering later (e.g., agenda)
 		this.events.sort((a, b) => a.start.getTime() - b.start.getTime());
 
 		console.log(
-			`Processed ${this.events.length} events from ${this.tasks.length} tasks.`
+			`Processed ${this.events.length} events from ${this.tasks.length} tasks and ICS sources.`
 		);
+	}
+
+	/**
+	 * Map ICS priority to task priority
+	 */
+	private mapIcsPriorityToTaskPriority(
+		icsPriority?: number
+	): number | undefined {
+		if (icsPriority === undefined) return undefined;
+
+		// ICS priority: 0 (undefined), 1-4 (high), 5 (normal), 6-9 (low)
+		// Task priority: 1 (highest), 2 (high), 3 (medium), 4 (low), 5 (lowest)
+		if (icsPriority >= 1 && icsPriority <= 4) return 1; // High
+		if (icsPriority === 5) return 3; // Medium
+		if (icsPriority >= 6 && icsPriority <= 9) return 5; // Low
+		return undefined;
 	}
 
 	// --- Utility Methods ---

@@ -77,6 +77,7 @@ import { sortTasksInDocument } from "./commands/sortTaskCommands";
 import { taskGutterExtension } from "./editor-ext/TaskGutterHandler";
 import { autoDateManagerExtension } from "./editor-ext/autoDateManager";
 import { ViewManager } from "./pages/ViewManager";
+import { IcsManager } from "./utils/ics/IcsManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -162,6 +163,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 	rewardManager: RewardManager;
 
 	habitManager: HabitManager;
+
+	// ICS manager instance
+	icsManager: IcsManager;
 
 	// Preloaded tasks:
 	preloadedTasks: Task[] = [];
@@ -359,6 +363,17 @@ export default class TaskProgressBarPlugin extends Plugin {
 			if (this.settings.habit.enableHabits) {
 				this.habitManager = new HabitManager(this);
 				this.addChild(this.habitManager);
+			}
+
+			// Initialize ICS manager if sources are configured
+			if (this.settings.icsIntegration.sources.length > 0) {
+				this.icsManager = new IcsManager(this.settings.icsIntegration);
+				this.addChild(this.icsManager);
+
+				// Initialize ICS manager
+				this.icsManager.initialize().catch((error) => {
+					console.error("Failed to initialize ICS manager:", error);
+				});
 			}
 		});
 
@@ -838,6 +853,13 @@ export default class TaskProgressBarPlugin extends Plugin {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Get the ICS manager instance
+	 */
+	getIcsManager(): IcsManager | undefined {
+		return this.icsManager;
 	}
 }
 

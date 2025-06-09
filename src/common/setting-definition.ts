@@ -2,6 +2,7 @@ import { t } from "../translations/helper";
 import type TaskProgressBarPlugin from "../index"; // Type-only import
 import { BaseHabitData } from "../types/habit-card";
 import type { RootFilterState } from "../components/task-filter/ViewTaskFilter";
+import { IcsManagerConfig } from "../types/ics";
 
 // Interface for individual project review settings (If still needed, otherwise remove)
 // Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
@@ -489,6 +490,9 @@ export interface TaskProgressBarSettings {
 
 	// Beta Test Settings
 	betaTest?: BetaTestSettings;
+
+	// ICS Calendar Integration Settings
+	icsIntegration: IcsManagerConfig;
 }
 
 /** Define the default settings */
@@ -967,6 +971,19 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Beta Test Defaults
 	betaTest: {
 		enableBaseView: false,
+	},
+
+	// ICS Calendar Integration Defaults
+	icsIntegration: {
+		sources: [],
+		globalRefreshInterval: 60, // 1 hour
+		maxCacheAge: 24, // 24 hours
+		enableBackgroundRefresh: true,
+		networkTimeout: 30, // 30 seconds
+		maxEventsPerSource: 1000,
+		showInCalendar: true,
+		showInTaskLists: false,
+		defaultEventColor: "#3b82f6", // Blue color
 	},
 };
 

@@ -37,6 +37,7 @@ import {
 import { HabitList } from "./components/HabitSettingList";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { getTasksAPI } from "./utils";
+import { IcsSettingsComponent } from "./components/settings/IcsSettingsTab";
 
 export class TaskProgressBarSettingTab extends PluginSettingTab {
 	plugin: TaskProgressBarPlugin;
@@ -63,6 +64,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
 		{ id: "reward", name: t("Reward"), icon: "medal" },
 		{ id: "habit", name: t("Habit"), icon: "calendar-check" },
+		{
+			id: "ics-integration",
+			name: t("ICS Integration"),
+			icon: "calendar-plus",
+		},
 		{ id: "view-settings", name: t("View Config"), icon: "layout" },
 		{ id: "beta-test", name: t("Beta"), icon: "test-tube" },
 		{ id: "about", name: t("About"), icon: "info" },
@@ -261,6 +267,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Habit Tab
 		const habitSection = this.createTabSection("habit");
 		this.displayHabitSettings(habitSection);
+
+		// ICS Integration Tab
+		const icsSection = this.createTabSection("ics-integration");
+		this.displayIcsSettings(icsSection);
 
 		// Beta Test Tab
 		const betaTestSection = this.createTabSection("beta-test");
@@ -3795,6 +3805,18 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					}).open();
 				});
 			});
+	}
+
+	private displayIcsSettings(containerEl: HTMLElement): void {
+		const icsSettingsComponent = new IcsSettingsComponent(
+			this.plugin,
+			containerEl,
+			() => {
+				this.currentTab = "general";
+				this.display();
+			}
+		);
+		icsSettingsComponent.display();
 	}
 
 	private displayAboutSettings(containerEl: HTMLElement): void {

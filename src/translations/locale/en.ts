@@ -498,6 +498,84 @@ const translations = {
 		"Examples of advanced formats using expressions",
 	"Text Progress Bar": "Text Progress Bar",
 	"Emoji Progress Bar": "Emoji Progress Bar",
+
+	// ICS Integration
+	"ICS Integration": "ICS Integration",
+	"ICS Calendar Integration": "ICS Calendar Integration",
+	"Configure external calendar sources to display events in your task views.":
+		"Configure external calendar sources to display events in your task views.",
+	"Global Settings": "Global Settings",
+	"Enable Background Refresh": "Enable Background Refresh",
+	"Automatically refresh calendar sources in the background":
+		"Automatically refresh calendar sources in the background",
+	"Global Refresh Interval": "Global Refresh Interval",
+	"Default refresh interval for all sources (minutes)":
+		"Default refresh interval for all sources (minutes)",
+	"Maximum Cache Age": "Maximum Cache Age",
+	"How long to keep cached data (hours)":
+		"How long to keep cached data (hours)",
+	"Network Timeout": "Network Timeout",
+	"Request timeout in seconds": "Request timeout in seconds",
+	"Max Events Per Source": "Max Events Per Source",
+	"Maximum number of events to load from each source":
+		"Maximum number of events to load from each source",
+	"Show in Calendar Views": "Show in Calendar Views",
+	"Display ICS events in calendar views":
+		"Display ICS events in calendar views",
+	"Show in Task Lists": "Show in Task Lists",
+	"Display ICS events as read-only tasks in task lists":
+		"Display ICS events as read-only tasks in task lists",
+	"Default Event Color": "Default Event Color",
+	"Default color for events without a specific color":
+		"Default color for events without a specific color",
+	"Calendar Sources": "Calendar Sources",
+	"No calendar sources configured. Add a source to get started.":
+		"No calendar sources configured. Add a source to get started.",
+	"Add ICS Source": "Add ICS Source",
+	"Add a new calendar source": "Add a new calendar source",
+	"Add Source": "Add Source",
+	"ICS Enabled": "Enabled",
+	"ICS Disabled": "Disabled",
+	"ICS Enable": "Enable",
+	"ICS Disable": "Disable",
+	"Sync Now": "Sync Now",
+	"Syncing...": "Syncing...",
+	"Sync completed successfully": "Sync completed successfully",
+	"Sync failed: ": "Sync failed: ",
+	"Edit ICS Source": "Edit ICS Source",
+	"ICS Source Name": "Name",
+	"Display name for this calendar source":
+		"Display name for this calendar source",
+	"My Calendar": "My Calendar",
+	"ICS URL": "ICS URL",
+	"URL to the ICS/iCal file": "URL to the ICS/iCal file",
+	"Whether this source is active": "Whether this source is active",
+	"Refresh Interval": "Refresh Interval",
+	"How often to refresh this source (minutes)":
+		"How often to refresh this source (minutes)",
+	Color: "Color",
+	"Color for events from this source (optional)":
+		"Color for events from this source (optional)",
+	"Show All-Day Events": "Show All-Day Events",
+	"Include all-day events from this source":
+		"Include all-day events from this source",
+	"Show Timed Events": "Show Timed Events",
+	"Include timed events from this source":
+		"Include timed events from this source",
+	"Authentication (Optional)": "Authentication (Optional)",
+	"Authentication Type": "Authentication Type",
+	"Type of authentication required": "Type of authentication required",
+	"ICS Auth None": "None",
+	"Basic Auth": "Basic Auth",
+	"Bearer Token": "Bearer Token",
+	"Custom Headers": "Custom Headers",
+	"ICS Username": "Username",
+	"ICS Password": "Password",
+	"ICS Bearer Token": "Bearer Token",
+	"JSON object with custom headers": "JSON object with custom headers",
+	"Please enter a name for the source": "Please enter a name for the source",
+	"Please enter a URL for the source": "Please enter a URL for the source",
+	"Please enter a valid URL": "Please enter a valid URL",
 	"Color-coded Status": "Color-coded Status",
 	"Status with Icons": "Status with Icons",
 	Preview: "Preview",
