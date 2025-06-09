@@ -109,6 +109,9 @@ export class MonthView extends CalendarViewComponent {
 			// Add events container within the cell
 			cell.createDiv("calendar-events-container"); // This is where events will be appended
 
+			// Add badges container for ICS badge events
+			cell.createDiv("calendar-badges-container"); // This is where badges will be appended
+
 			currentDayIter.add(1, "day");
 		}
 
@@ -156,6 +159,38 @@ export class MonthView extends CalendarViewComponent {
 				}
 			}
 			// --- End of simplified logic ---
+		});
+
+		// 5. Render badges for ICS events with badge showType
+		Object.keys(dayCells).forEach((dateStr) => {
+			const cell = dayCells[dateStr];
+			const date = moment(dateStr).toDate();
+			const badgeEvents =
+				this.options.getBadgeEventsForDate?.(date) || [];
+
+			if (badgeEvents.length > 0) {
+				const badgesContainer = cell.querySelector(
+					".calendar-badges-container"
+				);
+				if (badgesContainer) {
+					badgeEvents.forEach((badgeEvent) => {
+						const badgeEl = badgesContainer.createEl("div", {
+							cls: "calendar-badge",
+							attr: {
+								title: `${badgeEvent.sourceName}: ${badgeEvent.count} events`,
+							},
+						});
+
+						// Add color styling if available
+						if (badgeEvent.color) {
+							badgeEl.style.backgroundColor = badgeEvent.color;
+						}
+
+						// Add count text
+						badgeEl.textContent = badgeEvent.count.toString();
+					});
+				}
+			}
 		});
 
 		console.log(

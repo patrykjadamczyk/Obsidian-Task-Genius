@@ -914,7 +914,38 @@ export class TaskManager extends Component {
 	 * Get all tasks in the vault
 	 */
 	public getAllTasks(): Task[] {
-		return this.queryTasks();
+		const markdownTasks = this.queryTasks();
+
+		// Get ICS tasks if ICS manager is available
+		const icsManager = this.plugin.getIcsManager();
+		if (icsManager) {
+			const icsEvents = icsManager.getAllEvents();
+			const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+
+			// Merge ICS tasks with markdown tasks
+			return [...markdownTasks, ...icsTasks];
+		}
+
+		return markdownTasks;
+	}
+
+	/**
+	 * Get all tasks with ICS sync - use this for initial load
+	 */
+	public async getAllTasksWithSync(): Promise<Task[]> {
+		const markdownTasks = this.queryTasks();
+
+		// Get ICS tasks if ICS manager is available
+		const icsManager = this.plugin.getIcsManager();
+		if (icsManager) {
+			const icsEvents = await icsManager.getAllEventsWithSync();
+			const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+
+			// Merge ICS tasks with markdown tasks
+			return [...markdownTasks, ...icsTasks];
+		}
+
+		return markdownTasks;
 	}
 
 	/**

@@ -122,6 +122,7 @@ export class IcsSettingsComponent {
 			refreshInterval: 60,
 			showAllDayEvents: true,
 			showTimedEvents: true,
+			showType: "event",
 		};
 
 		try {
@@ -270,44 +271,16 @@ export class IcsSettingsComponent {
 					});
 			});
 
-		// Show in calendar
-		new Setting(globalContainer)
-			.setName(t("Show in Calendar Views"))
-			.setDesc(t("Display ICS events in calendar views"))
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.config.showInCalendar)
-					.onChange((value) => {
-						this.config.showInCalendar = value;
-						this.saveSettings();
-					});
-			});
-
-		// Show in task lists
-		new Setting(globalContainer)
-			.setName(t("Show in Task Lists"))
-			.setDesc(t("Display ICS events as read-only tasks in task lists"))
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.config.showInTaskLists)
-					.onChange((value) => {
-						this.config.showInTaskLists = value;
-						this.saveSettings();
-					});
-			});
-
 		// Default event color
 		new Setting(globalContainer)
 			.setName(t("Default Event Color"))
 			.setDesc(t("Default color for events without a specific color"))
-			.addText((text) => {
-				text.setPlaceholder("#3b82f6")
+			.addColorPicker((color) => {
+				color
 					.setValue(this.config.defaultEventColor)
 					.onChange((value) => {
-						if (value.match(/^#[0-9a-fA-F]{6}$/)) {
-							this.config.defaultEventColor = value;
-							this.saveSettings();
-						}
+						this.config.defaultEventColor = value;
+						this.saveSettings();
 					});
 			});
 	}
@@ -376,7 +349,7 @@ export class IcsSettingsComponent {
 
 			// Edit button (most common action)
 			const editButton = primaryActions.createEl("button", {
-				text: "✏️ " + t("Edit"),
+				text: t("Edit"),
 				cls: "mod-cta",
 				title: t("Edit this calendar source"),
 			});
@@ -393,7 +366,7 @@ export class IcsSettingsComponent {
 
 			// Sync button
 			const syncButton = primaryActions.createEl("button", {
-				text: "🔄 " + t("Sync"),
+				text: t("Sync"),
 				title: t("Sync this calendar source now"),
 			});
 			syncButton.onclick = async () => {
@@ -430,7 +403,7 @@ export class IcsSettingsComponent {
 					setTimeout(() => syncButton.removeClass("error"), 2000);
 				} finally {
 					syncButton.disabled = false;
-					syncButton.setText("🔄 " + t("Sync"));
+					syncButton.setText(t("Sync"));
 				}
 			};
 
@@ -440,9 +413,7 @@ export class IcsSettingsComponent {
 
 			// Toggle button
 			const toggleButton = secondaryActions.createEl("button", {
-				text: source.enabled
-					? "⏸️ " + t("Disable")
-					: "▶️ " + t("Enable"),
+				text: source.enabled ? t("Disable") : t("Enable"),
 				title: source.enabled
 					? t("Disable this source")
 					: t("Enable this source"),
@@ -455,7 +426,7 @@ export class IcsSettingsComponent {
 
 			// Delete button (destructive action, placed last)
 			const deleteButton = secondaryActions.createEl("button", {
-				text: "🗑️ " + t("Delete"),
+				text: t("Delete"),
 				cls: "mod-warning",
 				title: t("Delete this calendar source"),
 			});
@@ -524,6 +495,7 @@ class IcsSourceModal extends Modal {
 				refreshInterval: 60,
 				showAllDayEvents: true,
 				showTimedEvents: true,
+				showType: "event",
 			};
 		}
 	}
@@ -596,6 +568,22 @@ class IcsSourceModal extends Modal {
 						if (!value || value.match(/^#[0-9a-fA-F]{6}$/)) {
 							this.source.color = value || undefined;
 						}
+					});
+			});
+
+		// Show type
+		new Setting(contentEl)
+			.setName(t("Show Type"))
+			.setDesc(
+				t("How to display events from this source in calendar views")
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("event", t("Event"))
+					.addOption("badge", t("Badge"))
+					.setValue(this.source.showType)
+					.onChange((value) => {
+						this.source.showType = value as "event" | "badge";
 					});
 			});
 

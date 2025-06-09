@@ -1521,7 +1521,7 @@ export class TableRenderer extends Component {
 	/**
 	 * Get all available values for auto-completion from existing tasks
 	 */
-	private getAllValues(columnType: string): string[] {
+	private async getAllValues(columnType: string): Promise<string[]> {
 		if (!this.plugin) return [];
 
 		// Get all tasks from the plugin

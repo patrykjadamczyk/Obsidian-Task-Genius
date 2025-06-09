@@ -8,9 +8,11 @@ import {
 	setIcon,
 } from "obsidian";
 import { Task } from "../../types/task"; // Assuming Task type exists here
+import { IcsTask } from "../../types/ics";
 // Removed: import { renderCalendarEvent } from "./event";
 import "../../styles/calendar/view.css"; // Import the CSS file
 import "../../styles/calendar/event.css"; // Import the CSS file
+import "../../styles/calendar/badge.css"; // Import the badge CSS file
 import { t } from "../../translations/helper";
 
 // Import view rendering functions
@@ -307,6 +309,8 @@ export class CalendarComponent extends Component {
 						onDayHover: this.onDayHover,
 						onEventContextMenu: this.onEventContextMenu,
 						onEventComplete: this.onEventComplete,
+						getBadgeEventsForDate:
+							this.getBadgeEventsForDate.bind(this),
 					}
 				);
 				break;
@@ -325,6 +329,8 @@ export class CalendarComponent extends Component {
 						onDayHover: this.onDayHover,
 						onEventContextMenu: this.onEventContextMenu,
 						onEventComplete: this.onEventComplete,
+						getBadgeEventsForDate:
+							this.getBadgeEventsForDate.bind(this),
 					}
 				);
 				break;
@@ -429,39 +435,60 @@ export class CalendarComponent extends Component {
 	/**
 	 * Processes the raw tasks into calendar events.
 	 */
-	private processTasks() {
+	private async processTasks() {
 		this.events = [];
 		const primaryDateField = "dueDate"; // TODO: Make this configurable via settings
 
-		// Process regular tasks
+		// Process tasks
 		this.tasks.forEach((task) => {
+			// Check if this is an ICS task with badge showType
+			const isIcsTask = (task as any).source?.type === "ics";
+			const icsTask = isIcsTask ? (task as IcsTask) : null; // Type assertion for IcsTask
+			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
+
+			// Skip ICS tasks with badge showType - they will be handled separately
+			if (isIcsTask && showAsBadge) {
+				return;
+			}
+
 			// Determine the date to use based on priority (dueDate > scheduledDate > startDate)
 			// This logic might need refinement based on exact requirements in PRD 4.2
 			let eventDate: number | null = null;
 			let isAllDay = true; // Assume tasks are all-day unless time info exists
 
-			// Use the first available date field based on preference.
-			// The PRD mentions using dueDate primarily, with an option for scheduled/start.
-			// Let's stick to dueDate for now as primary.
-			if (task.metadata[primaryDateField]) {
-				eventDate = task.metadata[primaryDateField];
-			} else if (task.metadata.scheduledDate) {
-				eventDate = task.metadata.scheduledDate;
-			} else if (task.metadata.startDate) {
-				eventDate = task.metadata.startDate;
+			// For ICS tasks, use the ICS event dates directly
+			if (isIcsTask && icsTask?.icsEvent) {
+				eventDate = icsTask.icsEvent.dtstart.getTime();
+				isAllDay = icsTask.icsEvent.allDay;
+			} else {
+				// Use the first available date field based on preference.
+				// The PRD mentions using dueDate primarily, with an option for scheduled/start.
+				// Let's stick to dueDate for now as primary.
+				if (task.metadata[primaryDateField]) {
+					eventDate = task.metadata[primaryDateField];
+				} else if (task.metadata.scheduledDate) {
+					eventDate = task.metadata.scheduledDate;
+				} else if (task.metadata.startDate) {
+					eventDate = task.metadata.startDate;
+				}
 			}
 			// We could add completedDate here if we want to show completed tasks based on completion time
 
 			if (eventDate) {
 				const startMoment = moment(eventDate);
-				// Try to parse time if available in the task string or metadata (complex)
-				// For now, assume all tasks are all-day events on their primary date
-				const start = startMoment.startOf("day").toDate(); // Represent as start of the day
+				// For ICS events, preserve the original time if not all-day
+				const start = isAllDay
+					? startMoment.startOf("day").toDate()
+					: startMoment.toDate();
 
 				// Handle multi-day? PRD mentions if startDate and dueDate are available.
 				let end: Date | undefined = undefined;
 				let effectiveStart = start; // Use the primary date as start by default
-				if (
+
+				if (isIcsTask && icsTask?.icsEvent?.dtend) {
+					// For ICS events, use the end date from the event
+					end = icsTask.icsEvent.dtend;
+				} else if (
 					task.metadata.startDate &&
 					task.metadata.dueDate &&
 					task.metadata.startDate !== task.metadata.dueDate
@@ -482,71 +509,85 @@ export class CalendarComponent extends Component {
 					}
 				}
 
+				// Determine color for the event
+				let eventColor: string | undefined;
+				if (isIcsTask && icsTask?.icsEvent?.source?.color) {
+					eventColor = icsTask.icsEvent.source.color;
+				} else {
+					eventColor = task.completed ? "grey" : undefined;
+				}
+
 				this.events.push({
 					...task, // Spread all properties from the original task
 					title: task.content, // Use task content as title by default
 					start: effectiveStart,
 					end: end, // Add end date if calculated
 					allDay: isAllDay,
-					// TODO: Add color based on status, priority, or project?
-					color: task.completed ? "grey" : undefined, // Simple example
+					color: eventColor,
 				});
 			}
 			// Else: Task has no relevant date, ignore for now (PRD: maybe "unscheduled" panel)
 		});
 
-		// Process ICS events if enabled and available
-		if (this.plugin.settings.icsIntegration.showInCalendar) {
-			const icsManager = this.plugin.getIcsManager();
-			console.log("icsManager", icsManager);
-			if (icsManager) {
-				const icsEvents = icsManager.getAllEvents();
-				console.log("icsEvents", icsEvents);
-				icsEvents.forEach((icsEvent) => {
-					this.events.push({
-						...icsEvent,
-						// Convert ICS event to CalendarEvent format
-						id: `ics-${icsEvent.uid}`,
-						content: icsEvent.summary,
-						filePath: `ics://${icsEvent.source.name}`,
-						line: 0,
-						completed: icsEvent.status === "COMPLETED",
-						status: icsEvent.status === "COMPLETED" ? "x" : " ",
-						originalMarkdown: `- [${
-							icsEvent.status === "COMPLETED" ? "x" : " "
-						}] ${icsEvent.summary}`,
-						metadata: {
-							tags: icsEvent.categories || [],
-							children: [],
-							priority: this.mapIcsPriorityToTaskPriority(
-								icsEvent.priority
-							),
-							startDate: icsEvent.dtstart.getTime(),
-							dueDate: icsEvent.dtend?.getTime(),
-							scheduledDate: icsEvent.dtstart.getTime(),
-							project: icsEvent.source.name,
-							context: icsEvent.location,
-							heading: [],
-						},
-						title: icsEvent.summary,
-						start: icsEvent.dtstart,
-						end: icsEvent.dtend,
-						allDay: icsEvent.allDay,
-						color:
-							icsEvent.source.color ||
-							this.plugin.settings.icsIntegration
-								.defaultEventColor,
-					});
-				});
-			}
-		}
-
 		// Sort events for potentially easier rendering later (e.g., agenda)
 		this.events.sort((a, b) => a.start.getTime() - b.start.getTime());
 
 		console.log(
-			`Processed ${this.events.length} events from ${this.tasks.length} tasks and ICS sources.`
+			`Processed ${this.events.length} events from ${this.tasks.length} tasks (including ICS events as tasks).`
 		);
+	}
+
+	/**
+	 * Get badge events for a specific date
+	 * These are ICS events that should be displayed as badges (count) rather than full events
+	 */
+	public getBadgeEventsForDate(date: Date): {
+		sourceId: string;
+		sourceName: string;
+		count: number;
+		color?: string;
+	}[] {
+		const targetDate = moment(date).startOf("day");
+		const badgeEvents: Map<
+			string,
+			{
+				sourceId: string;
+				sourceName: string;
+				count: number;
+				color?: string;
+			}
+		> = new Map();
+
+		this.tasks.forEach((task) => {
+			const isIcsTask = (task as any).source?.type === "ics";
+			const icsTask = isIcsTask ? (task as IcsTask) : null;
+			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
+
+			if (isIcsTask && showAsBadge && icsTask?.icsEvent) {
+				const eventDate = moment(icsTask.icsEvent.dtstart).startOf(
+					"day"
+				);
+
+				// Check if the event is on the target date
+				if (eventDate.isSame(targetDate)) {
+					const sourceId = icsTask.icsEvent.source.id;
+					const existing = badgeEvents.get(sourceId);
+
+					if (existing) {
+						existing.count++;
+					} else {
+						badgeEvents.set(sourceId, {
+							sourceId: sourceId,
+							sourceName: icsTask.icsEvent.source.name,
+							count: 1,
+							color: icsTask.icsEvent.source.color,
+						});
+					}
+				}
+			}
+		});
+
+		return Array.from(badgeEvents.values());
 	}
 
 	/**

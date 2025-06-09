@@ -98,19 +98,65 @@ export class IcsManager extends Component {
 	getAllEvents(): IcsEvent[] {
 		const allEvents: IcsEvent[] = [];
 
+		console.log("getAllEvents: cache size", this.cache.size);
+		console.log("getAllEvents: config sources", this.config.sources);
+
 		for (const [sourceId, cacheEntry] of this.cache) {
 			const source = this.config.sources.find((s) => s.id === sourceId);
+			console.log("source", source, "sourceId", sourceId);
+			console.log("cacheEntry events count", cacheEntry.events.length);
+
 			if (source?.enabled) {
+				console.log("Source is enabled, applying filters");
 				// Apply filters if configured
 				const filteredEvents = this.applyFilters(
 					cacheEntry.events,
 					source
 				);
+				console.log("filteredEvents count", filteredEvents.length);
 				allEvents.push(...filteredEvents);
+			} else {
+				console.log("Source not enabled or not found", source?.enabled);
 			}
 		}
 
+		console.log("getAllEvents: total events", allEvents.length);
 		return allEvents;
+	}
+
+	private lastSyncTime = 0;
+	private readonly SYNC_DEBOUNCE_MS = 30000; // 30 seconds debounce
+	private syncPromise: Promise<Map<string, IcsFetchResult>> | null = null;
+
+	/**
+	 * Get all events from all enabled sources with forced sync
+	 * This will trigger a sync for all enabled sources before returning events
+	 * Includes debouncing to prevent excessive syncing and deduplication of concurrent requests
+	 */
+	async getAllEventsWithSync(): Promise<IcsEvent[]> {
+		const now = Date.now();
+
+		// If there's already a sync in progress, wait for it
+		if (this.syncPromise) {
+			console.log("ICS: Waiting for existing sync to complete");
+			await this.syncPromise;
+			return this.getAllEvents();
+		}
+
+		// Only sync if enough time has passed since last sync
+		if (now - this.lastSyncTime > this.SYNC_DEBOUNCE_MS) {
+			console.log("ICS: Starting sync (debounced)");
+			this.syncPromise = this.syncAllSources().finally(() => {
+				this.syncPromise = null;
+			});
+			await this.syncPromise;
+			this.lastSyncTime = now;
+		} else {
+			console.log("ICS: Skipping sync (debounced)");
+		}
+
+		// Return all events after sync
+		return this.getAllEvents();
 	}
 
 	/**
@@ -410,13 +456,27 @@ export class IcsManager extends Component {
 	 */
 	private applyFilters(events: IcsEvent[], source: IcsSource): IcsEvent[] {
 		let filteredEvents = [...events];
+		console.log("applyFilters: initial events count", events.length);
+		console.log("applyFilters: source config", {
+			showAllDayEvents: source.showAllDayEvents,
+			showTimedEvents: source.showTimedEvents,
+			filters: source.filters,
+		});
 
 		// Apply event type filters
 		if (!source.showAllDayEvents) {
+			const beforeFilter = filteredEvents.length;
 			filteredEvents = filteredEvents.filter((event) => !event.allDay);
+			console.log(
+				`Filtered out all-day events: ${beforeFilter} -> ${filteredEvents.length}`
+			);
 		}
 		if (!source.showTimedEvents) {
+			const beforeFilter = filteredEvents.length;
 			filteredEvents = filteredEvents.filter((event) => event.allDay);
+			console.log(
+				`Filtered out timed events: ${beforeFilter} -> ${filteredEvents.length}`
+			);
 		}
 
 		// Apply custom filters
@@ -507,11 +567,16 @@ export class IcsManager extends Component {
 
 		// Limit number of events
 		if (filteredEvents.length > this.config.maxEventsPerSource) {
+			const beforeLimit = filteredEvents.length;
 			filteredEvents = filteredEvents
 				.sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime())
 				.slice(0, this.config.maxEventsPerSource);
+			console.log(
+				`Limited events: ${beforeLimit} -> ${filteredEvents.length} (max: ${this.config.maxEventsPerSource})`
+			);
 		}
 
+		console.log("applyFilters: final events count", filteredEvents.length);
 		return filteredEvents;
 	}
 

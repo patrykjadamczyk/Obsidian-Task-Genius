@@ -16,6 +16,8 @@ export interface IcsSource {
 	enabled: boolean;
 	/** Color for events from this source */
 	color?: string;
+	/** Show type */
+	showType: "badge" | "event";
 	/** Refresh interval in minutes (default: 60) */
 	refreshInterval: number;
 	/** Last successful fetch timestamp */

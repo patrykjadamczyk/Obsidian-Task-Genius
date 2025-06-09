@@ -223,8 +223,8 @@ export class TaskSpecificView extends ItemView {
 		// 4. 先使用预加载的数据快速显示
 		this.switchView(this.currentViewId, this.currentProject);
 
-		// 5. 异步加载最新数据（不阻塞初始显示）
-		this.loadTasks().catch(console.error);
+		// 5. 异步加载最新数据（包含 ICS 同步）
+		await this.loadTasks(true, true); // 跳过视图更新，避免双重渲染
 
 		this.toggleDetailsVisibility(false);
 
@@ -925,11 +925,21 @@ export class TaskSpecificView extends ItemView {
 		}
 	}
 
-	private async loadTasks() {
+	private async loadTasks(
+		forceSync: boolean = false,
+		skipViewUpdate: boolean = false
+	) {
 		const taskManager = this.plugin.taskManager;
 		if (!taskManager) return;
 
-		const newTasks = taskManager.getAllTasks();
+		let newTasks: Task[];
+		if (forceSync) {
+			// Use sync method for initial load to ensure ICS data is available
+			newTasks = await taskManager.getAllTasksWithSync();
+		} else {
+			// Use regular method for subsequent updates
+			newTasks = taskManager.getAllTasks();
+		}
 		console.log(`TaskSpecificView loaded ${newTasks.length} tasks`);
 
 		// 检查任务数量是否有变化（简单的优化，可以根据需要改进比较逻辑）
@@ -938,7 +948,7 @@ export class TaskSpecificView extends ItemView {
 		this.tasks = newTasks;
 
 		// 只有在数据有变化时才更新视图
-		if (hasChanged) {
+		if (!skipViewUpdate && hasChanged) {
 			// 直接切换到当前视图
 			if (this.currentViewId) {
 				this.switchView(this.currentViewId, this.currentProject);

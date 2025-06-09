@@ -15,6 +15,7 @@ describe("ICS Parser", () => {
 		refreshInterval: 60,
 		showAllDayEvents: true,
 		showTimedEvents: true,
+		showType: "event",
 	};
 
 	let icsContent: string;
@@ -187,7 +188,7 @@ PRODID:Test
 BEGIN:VEVENT
 UID:test-1
 SUMMARY:Test Event
-DTSTART:INVALID_DATE
+INVALID_PROPERTY_WITHOUT_COLON
 END:VEVENT
 END:VCALENDAR
 			`;

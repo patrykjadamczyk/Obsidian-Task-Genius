@@ -556,6 +556,11 @@ const translations = {
 	Color: "Color",
 	"Color for events from this source (optional)":
 		"Color for events from this source (optional)",
+	"Show Type": "Show Type",
+	"How to display events from this source in calendar views":
+		"How to display events from this source in calendar views",
+	Event: "Event",
+	Badge: "Badge",
 	"Show All-Day Events": "Show All-Day Events",
 	"Include all-day events from this source":
 		"Include all-day events from this source",

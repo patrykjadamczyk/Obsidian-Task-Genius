@@ -219,11 +219,11 @@ export class TaskView extends ItemView {
 		this.currentViewId = initialViewId;
 		this.sidebarComponent.setViewMode(this.currentViewId);
 
-		// 5. 先使用预加载的数据快速显示
-		this.switchView(this.currentViewId);
+		// 5. 异步加载最新数据（包含 ICS 同步）
+		await this.loadTasks(true, true); // 跳过视图更新，避免双重渲染
 
-		// 6. 异步加载最新数据（不阻塞初始显示）
-		this.loadTasks().catch(console.error);
+		// 6. 使用加载的数据显示视图
+		this.switchView(this.currentViewId);
 
 		this.toggleDetailsVisibility(false);
 
@@ -1122,17 +1122,25 @@ export class TaskView extends ItemView {
 		}
 	}
 
-	private async loadTasks() {
+	private async loadTasks(
+		forceSync: boolean = false,
+		skipViewUpdate: boolean = false
+	) {
 		const taskManager = this.plugin.taskManager;
 		if (!taskManager) return;
 
-		this.tasks = taskManager.getAllTasks();
-		console.log(
-			"tasks",
-			this.tasks.find((i) => i.content.startsWith("Launch"))?.content
-		);
+		if (forceSync) {
+			// Use sync method for initial load to ensure ICS data is available
+			this.tasks = await taskManager.getAllTasksWithSync();
+		} else {
+			// Use regular method for subsequent updates
+			this.tasks = taskManager.getAllTasks();
+		}
 		console.log(`TaskView loaded ${this.tasks.length} tasks`);
-		await this.triggerViewUpdate();
+
+		if (!skipViewUpdate) {
+			await this.triggerViewUpdate();
+		}
 	}
 
 	public async triggerViewUpdate() {
