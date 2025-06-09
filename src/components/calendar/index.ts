@@ -558,118 +558,18 @@ export class CalendarComponent extends Component {
 			}
 		> = new Map();
 
-		// 🔍 调试：只对特定日期进行详细调试
-		const isDebugDate =
-			targetDate.format("YYYY-MM-DD") === "2025-06-09" ||
-			targetDate.format("YYYY-MM-DD") === moment().format("YYYY-MM-DD");
-
-		if (isDebugDate) {
-			console.log(
-				`🔍 [getBadgeEventsForDate] Processing date: ${targetDate.format(
-					"YYYY-MM-DD"
-				)}`
-			);
-			console.log(
-				`🔍 [getBadgeEventsForDate] Total tasks: ${this.tasks.length}`
-			);
-
-			// 检查任务的日期分布
-			const icsBadgeTasks = this.tasks.filter(
-				(task: any) =>
-					task.source?.type === "ics" &&
-					task.icsEvent?.source?.showType === "badge"
-			);
-
-			if (icsBadgeTasks.length > 0) {
-				const dates = icsBadgeTasks
-					.map((task: any) => task.icsEvent?.dtstart)
-					.filter((date) => date)
-					.map((date) => moment(date).format("YYYY-MM-DD"))
-					.sort();
-
-				const uniqueDates = [...new Set(dates)];
-				const dateRange = {
-					earliest: uniqueDates[0],
-					latest: uniqueDates[uniqueDates.length - 1],
-					total: uniqueDates.length,
-				};
-
-				console.log(
-					`🔍 [getBadgeEventsForDate] Date range analysis:`,
-					dateRange
-				);
-				console.log(
-					`🔍 [getBadgeEventsForDate] Sample dates:`,
-					uniqueDates.slice(0, 10),
-					"...",
-					uniqueDates.slice(-10)
-				);
-
-				// 检查是否有2025年的数据
-				const has2025 = uniqueDates.some((date) =>
-					date.startsWith("2025")
-				);
-				console.log(
-					`🔍 [getBadgeEventsForDate] Has 2025 data: ${has2025}`
-				);
-
-				if (!has2025) {
-					console.log(
-						`🔍 [getBadgeEventsForDate] ❌ No 2025 data found! This might be due to maxEventsPerSource limit.`
-					);
-				}
-			}
-		}
-
-		let debugCount = 0;
-		this.tasks.forEach((task, index) => {
+		this.tasks.forEach((task) => {
 			const isIcsTask = (task as any).source?.type === "ics";
 			const icsTask = isIcsTask ? (task as IcsTask) : null;
 			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
 
-			if (isDebugDate && debugCount < 5 && isIcsTask && showAsBadge) {
-				console.log(`🔍 [getBadgeEventsForDate] Badge task ${
-					debugCount + 1
-				}:
-					ID: ${task.id.substring(0, 30)}...
-					Content: ${task.content?.substring(0, 30)}...
-					dtstart: ${icsTask?.icsEvent?.dtstart} (${typeof icsTask?.icsEvent?.dtstart})
-					showType: ${icsTask?.icsEvent?.source?.showType}
-					source: ${icsTask?.icsEvent?.source?.name}`);
-				debugCount++;
-			}
-
 			if (isIcsTask && showAsBadge && icsTask?.icsEvent) {
-				// 检查 dtstart 是否存在且有效
-				if (!icsTask.icsEvent.dtstart) {
-					if (isDebugDate) {
-						console.log(
-							`🔍 [getBadgeEventsForDate] Task ${task.id} has no dtstart`
-						);
-					}
-					return;
-				}
-
 				const eventDate = moment(icsTask.icsEvent.dtstart).startOf(
 					"day"
 				);
 
-				if (isDebugDate) {
-					console.log(`🔍 [getBadgeEventsForDate] Date comparison:
-						Task: ${task.id.substring(0, 20)}...
-						Event date: ${eventDate.format("YYYY-MM-DD")}
-						Target date: ${targetDate.format("YYYY-MM-DD")}
-						Same: ${eventDate.isSame(targetDate)}`);
-				}
-
 				// Check if the event is on the target date
 				if (eventDate.isSame(targetDate)) {
-					if (isDebugDate) {
-						console.log(
-							`🔍 [getBadgeEventsForDate] ✅ MATCH FOUND! Adding badge for ${task.content}`
-						);
-					}
-
 					const sourceId = icsTask.icsEvent.source.id;
 					const existing = badgeEvents.get(sourceId);
 
@@ -687,16 +587,7 @@ export class CalendarComponent extends Component {
 			}
 		});
 
-		const result = Array.from(badgeEvents.values());
-
-		if (isDebugDate) {
-			console.log(
-				`🔍 [getBadgeEventsForDate] Final result: ${result.length} badge groups`,
-				result
-			);
-		}
-
-		return result;
+		return Array.from(badgeEvents.values());
 	}
 
 	/**
