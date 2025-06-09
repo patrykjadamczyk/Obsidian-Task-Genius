@@ -367,7 +367,10 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 			// Initialize ICS manager if sources are configured
 			if (this.settings.icsIntegration.sources.length > 0) {
-				this.icsManager = new IcsManager(this.settings.icsIntegration);
+				this.icsManager = new IcsManager(
+					this.settings.icsIntegration,
+					this.settings
+				);
 				this.addChild(this.icsManager);
 
 				// Initialize ICS manager

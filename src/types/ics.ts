@@ -32,6 +32,10 @@ export interface IcsSource {
 	auth?: IcsAuthConfig;
 	/** Text replacement rules for customizing event display */
 	textReplacements?: IcsTextReplacement[];
+	/** Holiday detection and grouping configuration */
+	holidayConfig?: IcsHolidayConfig;
+	/** Task status mapping configuration */
+	statusMapping?: IcsStatusMapping;
 }
 
 /** ICS event filter configuration */
@@ -91,6 +95,93 @@ export interface IcsTextReplacement {
 	/** Regex flags (e.g., "gi" for global case-insensitive) */
 	flags?: string;
 }
+
+/** Holiday detection and grouping configuration */
+export interface IcsHolidayConfig {
+	/** Whether to enable holiday detection */
+	enabled: boolean;
+	/** Patterns to identify holiday events */
+	detectionPatterns: {
+		/** Summary/title patterns (regex supported) */
+		summary?: string[];
+		/** Description patterns (regex supported) */
+		description?: string[];
+		/** Categories that indicate holidays */
+		categories?: string[];
+		/** Keywords that indicate holidays */
+		keywords?: string[];
+	};
+	/** How to handle consecutive holiday events */
+	groupingStrategy: "none" | "first-only" | "summary" | "range";
+	/** Maximum gap between events to consider them consecutive (in days) */
+	maxGapDays: number;
+	/** Whether to show holiday events in forecast */
+	showInForecast: boolean;
+	/** Whether to show holiday events in calendar */
+	showInCalendar: boolean;
+	/** Custom display format for grouped holidays */
+	groupDisplayFormat?: string;
+}
+
+/** Task status mapping configuration for ICS events */
+export interface IcsStatusMapping {
+	/** Whether to enable status mapping */
+	enabled: boolean;
+	/** Status mapping rules based on event timing */
+	timingRules: {
+		/** Status for past events */
+		pastEvents: TaskStatus;
+		/** Status for current events (happening today) */
+		currentEvents: TaskStatus;
+		/** Status for future events */
+		futureEvents: TaskStatus;
+	};
+	/** Status mapping rules based on event properties */
+	propertyRules?: {
+		/** Status mapping based on event categories */
+		categoryMapping?: Record<string, TaskStatus>;
+		/** Status mapping based on event summary patterns */
+		summaryMapping?: Array<{
+			pattern: string;
+			status: TaskStatus;
+		}>;
+		/** Status mapping based on holiday detection */
+		holidayMapping?: {
+			/** Status for detected holiday events */
+			holidayStatus: TaskStatus;
+			/** Status for non-holiday events */
+			nonHolidayStatus?: TaskStatus;
+		};
+	};
+	/** Override original ICS status */
+	overrideIcsStatus: boolean;
+}
+
+/** Available task statuses for ICS event mapping */
+export type TaskStatus =
+	| " " // Incomplete
+	| "x" // Complete
+	| "-" // Cancelled/Abandoned
+	| ">" // Forwarded/Rescheduled
+	| "<" // Scheduled
+	| "!" // Important
+	| "?" // Question/Tentative
+	| "/" // In Progress
+	| "+" // Pro
+	| "*" // Star
+	| '"' // Quote
+	| "l" // Location
+	| "b" // Bookmark
+	| "i" // Information
+	| "S" // Savings
+	| "I" // Idea
+	| "p" // Pro
+	| "c" // Character
+	| "f" // Fire
+	| "k" // Key
+	| "w" // Win
+	| "u" // Up
+	| "d"; // Down
 
 /** Raw ICS event data */
 export interface IcsEvent {
@@ -261,4 +352,34 @@ export interface IcsEventOccurrence extends Omit<IcsEvent, "rrule" | "exdate"> {
 	occurrenceEnd?: Date;
 	/** Whether this is an exception */
 	isException: boolean;
+}
+
+/** Holiday event group for consecutive holidays */
+export interface IcsHolidayGroup {
+	/** Unique identifier for this group */
+	id: string;
+	/** Group title/name */
+	title: string;
+	/** Start date of the holiday period */
+	startDate: Date;
+	/** End date of the holiday period */
+	endDate: Date;
+	/** Individual events in this group */
+	events: IcsEvent[];
+	/** Source configuration */
+	source: IcsSource;
+	/** Whether this is a single-day or multi-day holiday */
+	isMultiDay: boolean;
+	/** Display strategy for this group */
+	displayStrategy: "first-only" | "summary" | "range";
+}
+
+/** Enhanced ICS event with holiday detection */
+export interface IcsEventWithHoliday extends IcsEvent {
+	/** Whether this event is detected as a holiday */
+	isHoliday: boolean;
+	/** Holiday group this event belongs to (if any) */
+	holidayGroup?: IcsHolidayGroup;
+	/** Whether this event should be shown in forecast */
+	showInForecast: boolean;
 }

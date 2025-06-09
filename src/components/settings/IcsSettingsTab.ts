@@ -18,11 +18,13 @@ import {
 	IcsSource,
 	IcsManagerConfig,
 	IcsTextReplacement,
+	IcsHolidayConfig,
 } from "../../types/ics";
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
 import "../../styles/ics-settings.css";
 import { TaskProgressBarSettingTab } from "../../setting";
+import { HolidayDetector } from "../../utils/ics/HolidayDetector";
 
 export class IcsSettingsComponent {
 	private plugin: TaskProgressBarPlugin;
@@ -537,6 +539,12 @@ class IcsSourceModal extends Modal {
 		// Text Replacements section
 		this.displayTextReplacements(contentEl);
 
+		// Holiday Configuration section
+		this.displayHolidayConfiguration(contentEl);
+
+		// Status Mapping Configuration section
+		this.displayStatusMappingConfiguration(contentEl);
+
 		// Authentication section
 		const authContainer = contentEl.createDiv();
 		authContainer.createEl("h3", { text: t("Authentication (Optional)") });
@@ -805,6 +813,409 @@ class IcsSourceModal extends Modal {
 					});
 				break;
 		}
+	}
+
+	private displayHolidayConfiguration(contentEl: HTMLElement): void {
+		const holidayContainer = contentEl.createDiv();
+		holidayContainer.createEl("h3", { text: t("Holiday Configuration") });
+		holidayContainer.createEl("p", {
+			text: t("Configure how holiday events are detected and displayed"),
+			cls: "setting-item-description",
+		});
+
+		// Initialize holiday config if not exists
+		if (!this.source.holidayConfig) {
+			this.source.holidayConfig = HolidayDetector.getDefaultConfig();
+		}
+
+		// Enable holiday detection
+		new Setting(holidayContainer)
+			.setName(t("Enable Holiday Detection"))
+			.setDesc(t("Automatically detect and group holiday events"))
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.source.holidayConfig!.enabled)
+					.onChange((value) => {
+						this.source.holidayConfig!.enabled = value;
+						this.refreshHolidaySettings(holidayContainer);
+					});
+			});
+
+		this.refreshHolidaySettings(holidayContainer);
+	}
+
+	private displayStatusMappingConfiguration(contentEl: HTMLElement): void {
+		const statusContainer = contentEl.createDiv();
+		statusContainer.createEl("h3", { text: t("Status Mapping") });
+		statusContainer.createEl("p", {
+			text: t("Configure how ICS events are mapped to task statuses"),
+			cls: "setting-item-description",
+		});
+
+		// Initialize status mapping if not exists
+		if (!this.source.statusMapping) {
+			this.source.statusMapping = {
+				enabled: false,
+				timingRules: {
+					pastEvents: "x",
+					currentEvents: "/",
+					futureEvents: " ",
+				},
+				overrideIcsStatus: true,
+			};
+		}
+
+		// Enable status mapping
+		new Setting(statusContainer)
+			.setName(t("Enable Status Mapping"))
+			.setDesc(
+				t("Automatically map ICS events to specific task statuses")
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.source.statusMapping!.enabled)
+					.onChange((value) => {
+						this.source.statusMapping!.enabled = value;
+						this.refreshStatusMappingSettings(statusContainer);
+					});
+			});
+
+		this.refreshStatusMappingSettings(statusContainer);
+	}
+
+	private refreshHolidaySettings(container: HTMLElement): void {
+		// Remove existing holiday settings
+		const existingSettings = container.querySelectorAll(".holiday-setting");
+		existingSettings.forEach((setting) => setting.remove());
+
+		if (!this.source.holidayConfig?.enabled) {
+			return;
+		}
+
+		// Grouping strategy
+		new Setting(container)
+			.setName(t("Grouping Strategy"))
+			.setDesc(t("How to handle consecutive holiday events"))
+			.setClass("holiday-setting")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("none", t("Show All Events"))
+					.addOption("first-only", t("Show First Day Only"))
+					.addOption("summary", t("Show Summary"))
+					.addOption("range", t("Show First and Last"))
+					.setValue(this.source.holidayConfig!.groupingStrategy)
+					.onChange((value) => {
+						this.source.holidayConfig!.groupingStrategy =
+							value as any;
+					});
+			});
+
+		// Max gap days
+		new Setting(container)
+			.setName(t("Maximum Gap Days"))
+			.setDesc(
+				t("Maximum days between events to consider them consecutive")
+			)
+			.setClass("holiday-setting")
+			.addText((text) => {
+				text.setPlaceholder("1")
+					.setValue(this.source.holidayConfig!.maxGapDays.toString())
+					.onChange((value) => {
+						const gap = parseInt(value, 10);
+						if (!isNaN(gap) && gap >= 0) {
+							this.source.holidayConfig!.maxGapDays = gap;
+						}
+					});
+			});
+
+		// Show in forecast
+		new Setting(container)
+			.setName(t("Show in Forecast"))
+			.setDesc(t("Whether to show holiday events in forecast view"))
+			.setClass("holiday-setting")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.source.holidayConfig!.showInForecast)
+					.onChange((value) => {
+						this.source.holidayConfig!.showInForecast = value;
+					});
+			});
+
+		// Show in calendar
+		new Setting(container)
+			.setName(t("Show in Calendar"))
+			.setDesc(t("Whether to show holiday events in calendar view"))
+			.setClass("holiday-setting")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.source.holidayConfig!.showInCalendar)
+					.onChange((value) => {
+						this.source.holidayConfig!.showInCalendar = value;
+					});
+			});
+
+		// Detection patterns
+		const patternsContainer = container.createDiv("holiday-setting");
+		patternsContainer.createEl("h4", { text: t("Detection Patterns") });
+
+		// Summary patterns
+		new Setting(patternsContainer)
+			.setName(t("Summary Patterns"))
+			.setDesc(
+				t("Regex patterns to match in event titles (one per line)")
+			)
+			.addTextArea((text) => {
+				text.setValue(
+					(
+						this.source.holidayConfig!.detectionPatterns.summary ||
+						[]
+					).join("\n")
+				).onChange((value) => {
+					this.source.holidayConfig!.detectionPatterns.summary = value
+						.split("\n")
+						.map((line) => line.trim())
+						.filter((line) => line.length > 0);
+				});
+			});
+
+		// Keywords
+		new Setting(patternsContainer)
+			.setName(t("Keywords"))
+			.setDesc(t("Keywords to detect in event text (one per line)"))
+			.addTextArea((text) => {
+				text.setValue(
+					(
+						this.source.holidayConfig!.detectionPatterns.keywords ||
+						[]
+					).join("\n")
+				).onChange((value) => {
+					this.source.holidayConfig!.detectionPatterns.keywords =
+						value
+							.split("\n")
+							.map((line) => line.trim())
+							.filter((line) => line.length > 0);
+				});
+			});
+
+		// Categories
+		new Setting(patternsContainer)
+			.setName(t("Categories"))
+			.setDesc(
+				t("Event categories that indicate holidays (one per line)")
+			)
+			.addTextArea((text) => {
+				text.setValue(
+					(
+						this.source.holidayConfig!.detectionPatterns
+							.categories || []
+					).join("\n")
+				).onChange((value) => {
+					this.source.holidayConfig!.detectionPatterns.categories =
+						value
+							.split("\n")
+							.map((line) => line.trim())
+							.filter((line) => line.length > 0);
+				});
+			});
+
+		// Group display format
+		new Setting(container)
+			.setName(t("Group Display Format"))
+			.setDesc(
+				t(
+					"Format for grouped holiday display. Use {title}, {count}, {startDate}, {endDate}"
+				)
+			)
+			.setClass("holiday-setting")
+			.addText((text) => {
+				text.setPlaceholder("{title} ({count} days)")
+					.setValue(
+						this.source.holidayConfig!.groupDisplayFormat || ""
+					)
+					.onChange((value) => {
+						this.source.holidayConfig!.groupDisplayFormat =
+							value || undefined;
+					});
+			});
+	}
+
+	private refreshStatusMappingSettings(container: HTMLElement): void {
+		// Remove existing status mapping settings
+		const existingSettings = container.querySelectorAll(
+			".status-mapping-setting"
+		);
+		existingSettings.forEach((setting) => setting.remove());
+
+		if (!this.source.statusMapping?.enabled) {
+			return;
+		}
+
+		// Override ICS status
+		new Setting(container)
+			.setName(t("Override ICS Status"))
+			.setDesc(t("Override original ICS event status with mapped status"))
+			.setClass("status-mapping-setting")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.source.statusMapping!.overrideIcsStatus)
+					.onChange((value) => {
+						this.source.statusMapping!.overrideIcsStatus = value;
+					});
+			});
+
+		// Timing rules section
+		const timingContainer = container.createDiv("status-mapping-setting");
+		timingContainer.createEl("h4", { text: t("Timing Rules") });
+
+		// Past events status
+		new Setting(timingContainer)
+			.setName(t("Past Events Status"))
+			.setDesc(t("Status for events that have already ended"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(" ", t("Status Incomplete"))
+					.addOption("x", t("Status Complete"))
+					.addOption("-", t("Status Cancelled"))
+					.addOption("/", t("Status In Progress"))
+					.addOption("?", t("Status Question"))
+					.setValue(this.source.statusMapping!.timingRules.pastEvents)
+					.onChange((value) => {
+						this.source.statusMapping!.timingRules.pastEvents =
+							value as any;
+					});
+			});
+
+		// Current events status
+		new Setting(timingContainer)
+			.setName(t("Current Events Status"))
+			.setDesc(t("Status for events happening today"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(" ", t("Status Incomplete"))
+					.addOption("x", t("Status Complete"))
+					.addOption("-", t("Status Cancelled"))
+					.addOption("/", t("Status In Progress"))
+					.addOption("?", t("Status Question"))
+					.setValue(
+						this.source.statusMapping!.timingRules.currentEvents
+					)
+					.onChange((value) => {
+						this.source.statusMapping!.timingRules.currentEvents =
+							value as any;
+					});
+			});
+
+		// Future events status
+		new Setting(timingContainer)
+			.setName(t("Future Events Status"))
+			.setDesc(t("Status for events in the future"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(" ", t("Status Incomplete"))
+					.addOption("x", t("Status Complete"))
+					.addOption("-", t("Status Cancelled"))
+					.addOption("/", t("Status In Progress"))
+					.addOption("?", t("Status Question"))
+					.setValue(
+						this.source.statusMapping!.timingRules.futureEvents
+					)
+					.onChange((value) => {
+						this.source.statusMapping!.timingRules.futureEvents =
+							value as any;
+					});
+			});
+
+		// Property rules section
+		const propertyContainer = container.createDiv("status-mapping-setting");
+		propertyContainer.createEl("h4", { text: t("Property Rules") });
+		propertyContainer.createEl("p", {
+			text: t(
+				"Optional rules based on event properties (higher priority than timing rules)"
+			),
+			cls: "setting-item-description",
+		});
+
+		// Initialize property rules if not exists
+		if (!this.source.statusMapping!.propertyRules) {
+			this.source.statusMapping!.propertyRules = {};
+		}
+
+		// Holiday mapping
+		new Setting(propertyContainer)
+			.setName(t("Holiday Status"))
+			.setDesc(t("Status for events detected as holidays"))
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("", t("Use timing rules"))
+					.addOption(" ", t("Status Incomplete"))
+					.addOption("x", t("Status Complete"))
+					.addOption("-", t("Status Cancelled"))
+					.addOption("/", t("Status In Progress"))
+					.addOption("?", t("Status Question"))
+					.setValue(
+						this.source.statusMapping!.propertyRules!.holidayMapping
+							?.holidayStatus || ""
+					)
+					.onChange((value) => {
+						if (
+							!this.source.statusMapping!.propertyRules!
+								.holidayMapping
+						) {
+							this.source.statusMapping!.propertyRules!.holidayMapping =
+								{
+									holidayStatus: "-",
+								};
+						}
+						if (value) {
+							this.source.statusMapping!.propertyRules!.holidayMapping.holidayStatus =
+								value as any;
+						} else {
+							delete this.source.statusMapping!.propertyRules!
+								.holidayMapping;
+						}
+					});
+			});
+
+		// Category mapping
+		new Setting(propertyContainer)
+			.setName(t("Category Mapping"))
+			.setDesc(
+				t(
+					"Map specific categories to statuses (format: category:status, one per line)"
+				)
+			)
+			.addTextArea((text) => {
+				const categoryMapping =
+					this.source.statusMapping!.propertyRules!.categoryMapping ||
+					{};
+				const mappingText = Object.entries(categoryMapping)
+					.map(([category, status]) => `${category}:${status}`)
+					.join("\n");
+
+				text.setValue(mappingText).onChange((value) => {
+					const mapping: Record<string, any> = {};
+					const lines = value
+						.split("\n")
+						.filter((line) => line.trim());
+
+					for (const line of lines) {
+						const [category, status] = line
+							.split(":")
+							.map((s) => s.trim());
+						if (category && status) {
+							mapping[category] = status;
+						}
+					}
+
+					if (Object.keys(mapping).length > 0) {
+						this.source.statusMapping!.propertyRules!.categoryMapping =
+							mapping;
+					} else {
+						delete this.source.statusMapping!.propertyRules!
+							.categoryMapping;
+					}
+				});
+			});
 	}
 
 	private validateSource(): boolean {

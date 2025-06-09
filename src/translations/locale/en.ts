@@ -1032,6 +1032,78 @@ const translations = {
 	"Use daily note path as date": "Use daily note path as date",
 	"If enabled, the daily note path will be used as the date for tasks.":
 		"If enabled, the daily note path will be used as the date for tasks.",
+
+	// Holiday Configuration
+	"Holiday Configuration": "Holiday Configuration",
+	"Configure how holiday events are detected and displayed":
+		"Configure how holiday events are detected and displayed",
+	"Enable Holiday Detection": "Enable Holiday Detection",
+	"Automatically detect and group holiday events":
+		"Automatically detect and group holiday events",
+	"Grouping Strategy": "Grouping Strategy",
+	"How to handle consecutive holiday events":
+		"How to handle consecutive holiday events",
+	"Show All Events": "Show All Events",
+	"Show First Day Only": "Show First Day Only",
+	"Show Summary": "Show Summary",
+	"Show First and Last": "Show First and Last",
+	"Maximum Gap Days": "Maximum Gap Days",
+	"Maximum days between events to consider them consecutive":
+		"Maximum days between events to consider them consecutive",
+	"Show in Forecast": "Show in Forecast",
+	"Whether to show holiday events in forecast view":
+		"Whether to show holiday events in forecast view",
+	"Show in Calendar": "Show in Calendar",
+	"Whether to show holiday events in calendar view":
+		"Whether to show holiday events in calendar view",
+	"Detection Patterns": "Detection Patterns",
+	"Summary Patterns": "Summary Patterns",
+	"Regex patterns to match in event titles (one per line)":
+		"Regex patterns to match in event titles (one per line)",
+	Keywords: "Keywords",
+	"Keywords to detect in event text (one per line)":
+		"Keywords to detect in event text (one per line)",
+	Categories: "Categories",
+	"Event categories that indicate holidays (one per line)":
+		"Event categories that indicate holidays (one per line)",
+	"Group Display Format": "Group Display Format",
+	"Format for grouped holiday display. Use {title}, {count}, {startDate}, {endDate}":
+		"Format for grouped holiday display. Use {title}, {count}, {startDate}, {endDate}",
+
+	// Status Mapping Configuration
+	"Status Mapping": "Status Mapping",
+	"Configure how ICS events are mapped to task statuses":
+		"Configure how ICS events are mapped to task statuses",
+	"Enable Status Mapping": "Enable Status Mapping",
+	"Automatically map ICS events to specific task statuses":
+		"Automatically map ICS events to specific task statuses",
+	"Override ICS Status": "Override ICS Status",
+	"Override original ICS event status with mapped status":
+		"Override original ICS event status with mapped status",
+	"Timing Rules": "Timing Rules",
+	"Past Events Status": "Past Events Status",
+	"Status for events that have already ended":
+		"Status for events that have already ended",
+	"Current Events Status": "Current Events Status",
+	"Status for events happening today": "Status for events happening today",
+	"Future Events Status": "Future Events Status",
+	"Status for events in the future": "Status for events in the future",
+	"Property Rules": "Property Rules",
+	"Optional rules based on event properties (higher priority than timing rules)":
+		"Optional rules based on event properties (higher priority than timing rules)",
+	"Holiday Status": "Holiday Status",
+	"Status for events detected as holidays":
+		"Status for events detected as holidays",
+	"Use timing rules": "Use timing rules",
+	"Category Mapping": "Category Mapping",
+	"Map specific categories to statuses (format: category:status, one per line)":
+		"Map specific categories to statuses (format: category:status, one per line)",
+	"Status Incomplete": "Incomplete",
+	"Status Complete": "Complete",
+	"Status Cancelled": "Cancelled",
+	"Status In Progress": "In Progress",
+	"Status Question": "Question",
+
 	"Task Genius will use moment.js and also this format to parse the daily note path.":
 		"Task Genius will use moment.js and also this format to parse the daily note path.",
 	"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.":

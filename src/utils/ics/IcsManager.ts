@@ -13,9 +13,13 @@ import {
 	IcsSyncStatus,
 	IcsTask,
 	IcsTextReplacement,
+	IcsEventWithHoliday,
 } from "../../types/ics";
-import { Task } from "../../types/task";
+import { Task, ExtendedMetadata } from "../../types/task";
 import { IcsParser } from "./IcsParser";
+import { HolidayDetector } from "./HolidayDetector";
+import { StatusMapper } from "./StatusMapper";
+import { TaskProgressBarSettings } from "../../common/setting-definition";
 
 export class IcsManager extends Component {
 	private config: IcsManagerConfig;
@@ -23,10 +27,15 @@ export class IcsManager extends Component {
 	private syncStatuses: Map<string, IcsSyncStatus> = new Map();
 	private refreshIntervals: Map<string, number> = new Map();
 	private onEventsUpdated?: (sourceId: string, events: IcsEvent[]) => void;
+	private pluginSettings: TaskProgressBarSettings;
 
-	constructor(config: IcsManagerConfig) {
+	constructor(
+		config: IcsManagerConfig,
+		pluginSettings: TaskProgressBarSettings
+	) {
 		super();
 		this.config = config;
+		this.pluginSettings = pluginSettings;
 	}
 
 	/**
@@ -94,6 +103,13 @@ export class IcsManager extends Component {
 	}
 
 	/**
+	 * Get current configuration
+	 */
+	getConfig(): IcsManagerConfig {
+		return this.config;
+	}
+
+	/**
 	 * Get all events from all enabled sources
 	 */
 	getAllEvents(): IcsEvent[] {
@@ -122,6 +138,46 @@ export class IcsManager extends Component {
 		}
 
 		console.log("getAllEvents: total events", allEvents.length);
+		return allEvents;
+	}
+
+	/**
+	 * Get all events with holiday detection and filtering
+	 */
+	getAllEventsWithHolidayDetection(): IcsEventWithHoliday[] {
+		const allEvents: IcsEventWithHoliday[] = [];
+
+		for (const [sourceId, cacheEntry] of this.cache) {
+			const source = this.config.sources.find((s) => s.id === sourceId);
+
+			if (source?.enabled) {
+				// Apply filters first
+				const filteredEvents = this.applyFilters(
+					cacheEntry.events,
+					source
+				);
+
+				// Apply holiday detection if configured
+				let processedEvents: IcsEventWithHoliday[];
+				if (source.holidayConfig?.enabled) {
+					processedEvents =
+						HolidayDetector.processEventsWithHolidayDetection(
+							filteredEvents,
+							source.holidayConfig
+						);
+				} else {
+					// Convert to IcsEventWithHoliday format without holiday detection
+					processedEvents = filteredEvents.map((event) => ({
+						...event,
+						isHoliday: false,
+						showInForecast: true,
+					}));
+				}
+
+				allEvents.push(...processedEvents);
+			}
+		}
+
 		return allEvents;
 	}
 
@@ -182,22 +238,39 @@ export class IcsManager extends Component {
 	}
 
 	/**
+	 * Convert ICS events with holiday detection to Task format
+	 */
+	convertEventsWithHolidayToTasks(events: IcsEventWithHoliday[]): IcsTask[] {
+		return events
+			.filter((event) => event.showInForecast) // Filter out events that shouldn't show in forecast
+			.map((event) => this.convertEventWithHolidayToTask(event));
+	}
+
+	/**
 	 * Convert single ICS event to Task format
 	 */
 	private convertEventToTask(event: IcsEvent): IcsTask {
 		// Apply text replacements to the event
 		const processedEvent = this.applyTextReplacements(event);
 
+		// Apply status mapping
+		const mappedStatus = StatusMapper.applyStatusMapping(
+			event,
+			event.source.statusMapping,
+			this.pluginSettings
+		);
+
 		const task: IcsTask = {
 			id: `ics-${event.source.id}-${event.uid}`,
 			content: processedEvent.summary,
 			filePath: `ics://${event.source.name}`,
 			line: 0,
-			completed: event.status === "COMPLETED",
-			status: this.mapIcsStatusToTaskStatus(event.status),
-			originalMarkdown: `- [${this.mapIcsStatusToTaskStatus(
-				event.status
-			)}] ${processedEvent.summary}`,
+			completed:
+				mappedStatus === "x" ||
+				mappedStatus ===
+					this.pluginSettings.taskStatusMarks["Completed"],
+			status: mappedStatus,
+			originalMarkdown: `- [${mappedStatus}] ${processedEvent.summary}`,
 			metadata: {
 				tags: event.categories || [],
 				children: [],
@@ -209,6 +282,76 @@ export class IcsManager extends Component {
 				context: processedEvent.location,
 				heading: [],
 			},
+			icsEvent: {
+				...event,
+				summary: processedEvent.summary,
+				description: processedEvent.description,
+				location: processedEvent.location,
+			},
+			readonly: true,
+			badge: event.source.showType === "badge",
+			source: {
+				type: "ics",
+				name: event.source.name,
+				id: event.source.id,
+			},
+		};
+
+		return task;
+	}
+
+	/**
+	 * Convert single ICS event with holiday detection to Task format
+	 */
+	private convertEventWithHolidayToTask(
+		event: IcsEventWithHoliday
+	): Task<ExtendedMetadata> & {
+		icsEvent: IcsEvent;
+		readonly: true;
+		badge: boolean;
+		source: { type: "ics"; name: string; id: string };
+	} {
+		// Apply text replacements to the event
+		const processedEvent = this.applyTextReplacements(event);
+
+		// Use holiday group title if available and strategy is summary
+		let displayTitle = processedEvent.summary;
+		if (
+			event.holidayGroup &&
+			event.holidayGroup.displayStrategy === "summary"
+		) {
+			displayTitle = event.holidayGroup.title;
+		}
+
+		// Apply status mapping
+		const mappedStatus = StatusMapper.applyStatusMapping(
+			event,
+			event.source.statusMapping,
+			this.pluginSettings
+		);
+
+		const task: IcsTask = {
+			id: `ics-${event.source.id}-${event.uid}`,
+			content: displayTitle,
+			filePath: `ics://${event.source.name}`,
+			line: 0,
+			completed:
+				mappedStatus === "x" ||
+				mappedStatus ===
+					this.pluginSettings.taskStatusMarks["Completed"],
+			status: mappedStatus,
+			originalMarkdown: `- [${mappedStatus}] ${displayTitle}`,
+			metadata: {
+				tags: event.categories || [],
+				children: [],
+				priority: this.mapIcsPriorityToTaskPriority(event.priority),
+				startDate: event.dtstart.getTime(),
+				dueDate: event.dtend?.getTime(),
+				scheduledDate: event.dtstart.getTime(),
+				project: event.source.name,
+				context: processedEvent.location,
+				heading: [],
+			} as any, // Use any to allow additional holiday fields
 			icsEvent: {
 				...event,
 				summary: processedEvent.summary,

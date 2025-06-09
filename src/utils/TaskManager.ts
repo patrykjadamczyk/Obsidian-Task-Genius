@@ -15,6 +15,7 @@ import { RRule, RRuleSet, rrulestr } from "rrule";
 import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
 import { getConfig } from "../common/task-parser-config";
 import { getEffectiveProject } from "./taskUtil";
+import { HolidayDetector } from "./ics/HolidayDetector";
 
 /**
  * TaskManager options
@@ -920,14 +921,33 @@ export class TaskManager extends Component {
 		try {
 			const icsManager = this.plugin.getIcsManager();
 			if (icsManager) {
-				const icsEvents = icsManager.getAllEvents();
-				const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+				// Use holiday detection for better task filtering
+				const icsEventsWithHoliday =
+					icsManager.getAllEventsWithHolidayDetection();
+				const icsTasks =
+					icsManager.convertEventsWithHolidayToTasks(
+						icsEventsWithHoliday
+					);
 
 				// Merge ICS tasks with markdown tasks
 				return [...markdownTasks, ...icsTasks];
 			}
 		} catch (error) {
 			console.error("Error getting all tasks:", error);
+			// Fallback to original method
+			try {
+				const icsManager = this.plugin.getIcsManager();
+				if (icsManager) {
+					const icsEvents = icsManager.getAllEvents();
+					const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+					return [...markdownTasks, ...icsTasks];
+				}
+			} catch (fallbackError) {
+				console.error(
+					"Error in fallback task retrieval:",
+					fallbackError
+				);
+			}
 		}
 
 		return markdownTasks;
@@ -942,11 +962,47 @@ export class TaskManager extends Component {
 		// Get ICS tasks if ICS manager is available
 		const icsManager = this.plugin.getIcsManager();
 		if (icsManager) {
-			const icsEvents = await icsManager.getAllEventsWithSync();
-			const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+			try {
+				const icsEvents = await icsManager.getAllEventsWithSync();
+				// Apply holiday detection to synced events
+				const icsEventsWithHoliday = icsEvents.map((event) => {
+					const source = icsManager
+						.getConfig()
+						.sources.find((s: any) => s.id === event.source.id);
+					if (source?.holidayConfig?.enabled) {
+						return {
+							...event,
+							isHoliday: HolidayDetector.isHoliday(
+								event,
+								source.holidayConfig
+							),
+							showInForecast: true,
+						};
+					}
+					return {
+						...event,
+						isHoliday: false,
+						showInForecast: true,
+					};
+				});
 
-			// Merge ICS tasks with markdown tasks
-			return [...markdownTasks, ...icsTasks];
+				const icsTasks =
+					icsManager.convertEventsWithHolidayToTasks(
+						icsEventsWithHoliday
+					);
+
+				// Merge ICS tasks with markdown tasks
+				return [...markdownTasks, ...icsTasks];
+			} catch (error) {
+				console.error(
+					"Error getting tasks with holiday detection:",
+					error
+				);
+				// Fallback to original method
+				const icsEvents = await icsManager.getAllEventsWithSync();
+				const icsTasks = icsManager.convertEventsToTasks(icsEvents);
+				return [...markdownTasks, ...icsTasks];
+			}
 		}
 
 		return markdownTasks;
