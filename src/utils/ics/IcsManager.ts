@@ -569,10 +569,10 @@ export class IcsManager extends Component {
 		if (filteredEvents.length > this.config.maxEventsPerSource) {
 			const beforeLimit = filteredEvents.length;
 			filteredEvents = filteredEvents
-				.sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime())
+				.sort((a, b) => b.dtstart.getTime() - a.dtstart.getTime()) // 倒序：最新的事件在前
 				.slice(0, this.config.maxEventsPerSource);
 			console.log(
-				`Limited events: ${beforeLimit} -> ${filteredEvents.length} (max: ${this.config.maxEventsPerSource})`
+				`Limited events: ${beforeLimit} -> ${filteredEvents.length} (max: ${this.config.maxEventsPerSource}) - keeping newest events`
 			);
 		}
 
