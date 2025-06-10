@@ -117,7 +117,7 @@ export function extractWorkflowInfo(lineText: string): {
  * @param lineNum The current line number
  * @returns The workflow type or null if not found
  */
-function findParentWorkflow(doc: Text, lineNum: number): string | null {
+export function findParentWorkflow(doc: Text, lineNum: number): string | null {
 	// Ensure lineNum is in bounds (0-indexed for doc.line)
 	const safeLineNum = Math.min(lineNum, doc.lines);
 
@@ -142,11 +142,16 @@ function findParentWorkflow(doc: Text, lineNum: number): string | null {
 		const indentMatch = lineText.match(/^([\s|\t]*)/);
 		const indent = indentMatch ? indentMatch[1].length : 0;
 
-		// If this line has less indentation than our current line
-		// and contains a workflow tag, it's a potential parent
-		if (indent < currentIndent) {
-			const workflowMatch = lineText.match(/#workflow\/([^\/\s]+)/);
-			if (workflowMatch) {
+		// Check for workflow tag in this line
+		const workflowMatch = lineText.match(/#workflow\/([^\/\s]+)/);
+		if (workflowMatch) {
+			// If this line has less indentation than our current line, it's a parent
+			// OR if both lines have the same indentation level (including 0),
+			// and this line is above the current line, it could be a project definition
+			if (
+				indent < currentIndent ||
+				(indent === currentIndent && i < currentLineIndex)
+			) {
 				return workflowMatch[1];
 			}
 		}

@@ -161,8 +161,8 @@ const translations = {
 	"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel.":
 		"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel.",
 	"Target file": "Target file",
-	"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'":
-		"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'",
+	"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD HH:mm}}":
+		"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD HH:mm}}",
 	"Placeholder text": "Placeholder text",
 	"Placeholder text to display in the capture panel":
 		"Placeholder text to display in the capture panel",

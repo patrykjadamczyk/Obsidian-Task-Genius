@@ -12,7 +12,7 @@ import {
 	EmbeddableMarkdownEditor,
 } from "../editor-ext/markdownEditor";
 import TaskProgressBarPlugin from "../index";
-import { saveCapture } from "../utils/fileUtils";
+import { saveCapture, processDateTemplates } from "../utils/fileUtils";
 import { FileSuggest } from "../editor-ext/quickCapture";
 import { t } from "../translations/helper";
 import { MarkdownRendererComponent } from "./MarkdownRenderer";
@@ -440,9 +440,14 @@ export class QuickCaptureModal extends Modal {
 
 		try {
 			const processedContent = this.processContentWithMetadata(content);
+			// Process date templates in the target file path
+			const processedFilePath = processDateTemplates(
+				this.tempTargetFilePath
+			);
+
 			await saveCapture(this.app, processedContent, {
 				...this.plugin.settings.quickCapture,
-				targetFile: this.tempTargetFilePath,
+				targetFile: processedFilePath,
 			});
 			new Notice(t("Captured successfully"));
 			this.close();

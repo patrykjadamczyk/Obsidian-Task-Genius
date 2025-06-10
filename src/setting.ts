@@ -2540,7 +2540,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			.setName(t("Target file"))
 			.setDesc(
 				t(
-					"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'"
+					"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD HH:mm}}"
 				)
 			)
 			.addText((text) =>
