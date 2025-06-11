@@ -326,9 +326,58 @@ export function handleWorkflowTransaction(
 				});
 			}
 
-			// Skip if this is a terminal stage
+			// Handle terminal stage completion
 			if (currentStage.type === "terminal") {
-				continue;
+				// For terminal stages, we need to complete the root workflow task
+				// Find and complete the root workflow task
+				const currentIndentMatch = line.text.match(/^([\s|\t]*)/);
+				const currentIndent = currentIndentMatch
+					? currentIndentMatch[1].length
+					: 0;
+				const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
+
+				// Look upward to find the root workflow task (with less indentation and workflow tag)
+				for (let i = update.line - 1; i >= 1; i--) {
+					const checkLine = tr.newDoc.line(i);
+					const checkIndentMatch =
+						checkLine.text.match(/^([\s|\t]*)/);
+					const checkIndent = checkIndentMatch
+						? checkIndentMatch[1].length
+						: 0;
+
+					console.log("currentIndent", currentIndent);
+
+					// If this line has less indentation and contains a workflow tag, it's likely the root task
+					if (
+						checkIndent < currentIndent &&
+						checkLine.text.includes(`#workflow/${workflowType}`)
+					) {
+						console.log("checkLine", checkLine.text);
+						const rootTaskMatch = checkLine.text.match(taskRegex);
+						if (rootTaskMatch) {
+							// Check if the root task is not already completed
+							const rootTaskStatus = rootTaskMatch[3]; // Status character is in group 3
+							const completedStatuses =
+								plugin.settings.taskStatuses.completed.split(
+									"|"
+								);
+
+							if (!completedStatuses.includes(rootTaskStatus)) {
+								// Complete the root task
+								const rootTaskStart =
+									checkLine.from +
+									rootTaskMatch[0].indexOf("[");
+								newChanges.push({
+									from: rootTaskStart + 1,
+									to: rootTaskStart + 2,
+									insert: "x",
+								});
+							}
+							break; // Found and handled the root task, stop looking
+						}
+					}
+				}
+				continue; // Skip creating next stage task for terminal stages
 			}
 
 			// Determine the next stage using our helper function

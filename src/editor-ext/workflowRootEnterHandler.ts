@@ -729,20 +729,60 @@ function completeWorkflow(
 	plugin: TaskProgressBarPlugin,
 	lineNumber: number
 ): void {
-	const line = view.state.doc.line(lineNumber);
-	const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
-	const taskMatch = line.text.match(taskRegex);
+	const doc = view.state.doc;
+	const line = doc.line(lineNumber);
+	const lineText = line.text;
 
-	if (taskMatch) {
-		const taskStart = line.from + taskMatch[0].indexOf("[");
-		view.dispatch({
-			changes: {
-				from: taskStart + 1,
-				to: taskStart + 2,
-				insert: "x",
-			},
-		});
+	// Validate that the line exists and is within document bounds
+	if (lineNumber > doc.lines || lineNumber < 1) {
+		console.warn(
+			`Invalid line number: ${lineNumber}, doc has ${doc.lines} lines`
+		);
+		return;
 	}
+
+	// Create a mock Editor object that wraps the EditorView
+	const editor = view.state.field(editorInfoField)?.editor;
+
+	if (!editor) {
+		console.warn("Editor not found");
+		return;
+	}
+
+	// Resolve workflow information to get the current stage
+	const resolvedInfo = resolveWorkflowInfo(lineText, doc, lineNumber, plugin);
+
+	console.log("resolvedInfo", resolvedInfo);
+
+	if (!resolvedInfo) {
+		console.warn("Could not resolve workflow information");
+		return;
+	}
+
+	const { currentStage, currentSubStage } = resolvedInfo;
+
+	console.log("currentStage", currentStage);
+	console.log("currentSubStage", currentSubStage);
+
+	// Use the existing createWorkflowStageTransition function to handle the completion
+	// For terminal stages, this will complete the current task and handle root task completion
+	const changes = createWorkflowStageTransition(
+		plugin,
+		editor,
+		lineText,
+		lineNumber - 1, // Convert to 0-based line number for the function
+		currentStage, // Pass the current stage as the "next" stage for terminal completion
+		false, // Not a root task
+		undefined, // No next substage
+		currentSubStage
+	);
+
+	// Apply all changes in a single transaction
+	// Use workflowChange annotation instead of workflowComplete to allow autoCompleteParent to work
+	view.dispatch({
+		changes,
+		annotations: taskStatusChangeAnnotation.of("workflowChange"),
+	});
 
 	view.focus();
 }
@@ -878,7 +918,7 @@ function completeSubstageAndMoveToNextMainStage(
 		}
 	}
 
-	// 2. Use the existing createWorkflowStageTransition function to handle the current task and create the next stage task
+	// 2. Use the existing createWorkflowStageTransition function to handle the current task and create the next stage
 	// This will automatically complete the current substage task and create the next stage
 	const transitionChanges = createWorkflowStageTransition(
 		plugin,

@@ -949,7 +949,6 @@ const translations = {
 	"Optional description of the workflow purpose":
 		"Optional description of the workflow purpose",
 	"Describe your workflow...": "Describe your workflow...",
-	"Workflow Stages": "Workflow Stages",
 	"Preview of workflow stages (edit after creation for advanced options)":
 		"Preview of workflow stages (edit after creation for advanced options)",
 	"Add Stage": "Add Stage",
@@ -1004,12 +1003,10 @@ const translations = {
 	// Quick Actions
 	"Workflow quick actions": "Workflow quick actions",
 	"Create Quick Workflow": "Create Quick Workflow",
-	"Convert to Workflow Root": "Convert to Workflow Root",
 
 	// Progress Indicator
 	"Current: ": "Current: ",
 	completed: "completed",
-	Completed: "Completed",
 	Repeatable: "Repeatable",
 	Final: "Final",
 	Sequential: "Sequential",
@@ -1024,8 +1021,6 @@ const translations = {
 	moved: "moved",
 	"Capture your thoughts...": "Capture your thoughts...",
 	"Project Workflow": "Project Workflow",
-	"Standard project management workflow":
-		"Standard project management workflow",
 	Planning: "Planning",
 	Development: "Development",
 	Testing: "Testing",

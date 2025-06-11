@@ -48,6 +48,8 @@ class WorkflowStageWidget extends WidgetType {
 
 	eq(other: WorkflowStageWidget): boolean {
 		return (
+			other.from === this.from &&
+			other.to === this.to &&
 			other.workflowType === this.workflowType &&
 			other.stageId === this.stageId &&
 			other.subStageId === this.subStageId
@@ -300,27 +302,63 @@ export function workflowDecoratorExtension(
 	return ViewPlugin.fromClass(
 		class implements PluginValue {
 			decorations: DecorationSet = Decoration.none;
+			private lastDocVersion: number = 0;
+			private lastViewportFrom: number = 0;
+			private lastViewportTo: number = 0;
+			private decorationCache = new Map<string, Range<Decoration>>();
+			private updateTimeout: number | null = null;
+			private readonly MAX_CACHE_SIZE = 100; // Limit cache size to prevent memory leaks
 
 			constructor(public view: EditorView) {
 				this.updateDecorations();
 			}
 
 			update(update: ViewUpdate) {
-				if (
-					update.docChanged ||
-					update.viewportChanged ||
-					update.selectionSet
-				) {
-					this.updateDecorations();
+				// Only update if document changed or viewport significantly changed
+				// Remove selectionSet trigger to avoid cursor movement causing re-renders
+				const viewportChanged =
+					update.viewportChanged &&
+					(Math.abs(this.view.viewport.from - this.lastViewportFrom) >
+						100 ||
+						Math.abs(this.view.viewport.to - this.lastViewportTo) >
+							100);
+
+				if (update.docChanged || viewportChanged) {
+					// Clear cache if document changed
+					if (update.docChanged) {
+						this.decorationCache.clear();
+						this.lastDocVersion = this.view.state.doc.length;
+					}
+
+					// Debounce updates to avoid rapid re-renders
+					if (this.updateTimeout) {
+						clearTimeout(this.updateTimeout);
+					}
+
+					this.updateTimeout = window.setTimeout(
+						() => {
+							this.updateDecorations();
+							this.updateTimeout = null;
+						},
+						update.docChanged ? 0 : 50
+					); // Immediate for doc changes, debounced for viewport
 				}
 			}
 
 			destroy(): void {
 				this.decorations = Decoration.none;
+				this.decorationCache.clear();
+				if (this.updateTimeout) {
+					clearTimeout(this.updateTimeout);
+				}
 			}
 
 			private updateDecorations(): void {
 				const decorations: Range<Decoration>[] = [];
+
+				// Update viewport tracking
+				this.lastViewportFrom = this.view.viewport.from;
+				this.lastViewportTo = this.view.viewport.to;
 
 				for (const { from, to } of this.view.visibleRanges) {
 					// Search for workflow tags and stage markers
@@ -335,14 +373,25 @@ export function workflowDecoratorExtension(
 					while (!workflowCursor.next().done) {
 						const { from: matchFrom, to: matchTo } =
 							workflowCursor.value;
-						console.log("Match found:", matchFrom, matchTo);
+
+						// Create cache key for this match - use line number and hash of content
+						const line = this.view.state.doc.lineAt(matchFrom);
+						const lineHash = this.simpleHash(line.text);
+						const cacheKey = `${line.number}:${lineHash}`;
+
+						// Check cache first
+						if (this.decorationCache.has(cacheKey)) {
+							const cachedDecoration =
+								this.decorationCache.get(cacheKey)!;
+							decorations.push(cachedDecoration);
+							continue;
+						}
+
 						if (!this.shouldRender(matchFrom, matchTo)) {
 							continue;
 						}
 
-						const line = this.view.state.doc.lineAt(matchFrom);
 						const lineText = line.text;
-						console.log("Line text:", lineText);
 
 						// Check if this line contains a task - 修改正则表达式以支持更灵活的任务格式
 						// 原来的正则只匹配以任务标记开头的行，现在改为检查整行是否包含任务标记
@@ -351,14 +400,12 @@ export function workflowDecoratorExtension(
 
 						// 如果既不是标准任务格式，也没有任务标记，则跳过
 						if (!taskRegex.test(lineText) && !hasTaskMarker) {
-							console.log("No task marker found in line");
 							continue;
 						}
 
 						// Extract workflow information
 						const workflowInfo = extractWorkflowInfo(lineText);
 						if (!workflowInfo) {
-							console.log("No workflow info extracted");
 							continue;
 						}
 
@@ -371,18 +418,11 @@ export function workflowDecoratorExtension(
 						);
 
 						if (!resolvedInfo) {
-							console.log("Failed to resolve workflow info");
 							continue;
 						}
 
 						const { workflowType, currentStage, currentSubStage } =
 							resolvedInfo;
-
-						console.log(
-							"Creating decoration for:",
-							workflowType,
-							currentStage.id
-						);
 
 						// Add decoration after the matched text
 						const decoration = Decoration.widget({
@@ -399,13 +439,37 @@ export function workflowDecoratorExtension(
 							side: 1,
 						});
 
-						decorations.push(decoration.range(matchTo, matchTo));
+						const decorationRange = decoration.range(
+							matchTo,
+							matchTo
+						);
+						decorations.push(decorationRange);
+
+						// Cache the decoration with size limit
+						if (this.decorationCache.size >= this.MAX_CACHE_SIZE) {
+							// Remove oldest entry (first key)
+							const firstKey = this.decorationCache
+								.keys()
+								.next().value;
+							this.decorationCache.delete(firstKey);
+						}
+						this.decorationCache.set(cacheKey, decorationRange);
 					}
 				}
 
 				this.decorations = Decoration.set(
 					decorations.sort((a, b) => a.from - b.from)
 				);
+			}
+
+			private simpleHash(str: string): number {
+				let hash = 0;
+				for (let i = 0; i < str.length; i++) {
+					const char = str.charCodeAt(i);
+					hash = (hash << 5) - hash + char;
+					hash = hash & hash; // Convert to 32-bit integer
+				}
+				return hash;
 			}
 
 			private shouldRender(from: number, to: number): boolean {
@@ -426,13 +490,13 @@ export function workflowDecoratorExtension(
 						}
 					}
 
-					// Don't render if cursor overlaps with the decoration area
+					// More lenient cursor overlap check - only hide if cursor is directly on the decoration
 					const selection = this.view.state.selection;
-					const overlap = selection.ranges.some((range) => {
-						return !(range.to <= from || range.from >= to);
+					const directOverlap = selection.ranges.some((range) => {
+						return range.from === to || range.to === from;
 					});
 
-					return !overlap;
+					return !directOverlap;
 				} catch (e) {
 					console.warn(
 						"Error checking if workflow decorator should render",
