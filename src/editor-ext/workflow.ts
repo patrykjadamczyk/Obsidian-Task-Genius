@@ -1191,7 +1191,7 @@ function createWorkflowStageTransition(
 		? indentMatch[1] + (isRootTask ? defaultIndentation : "")
 		: "";
 
-	const timestamp = plugin.settings.workflow.autoAddTimestamp
+	plugin.settings.workflow.autoAddTimestamp
 		? ` 🛫 ${moment().format(
 				plugin.settings.workflow.timestampFormat ||
 					"YYYY-MM-DD HH:mm:ss"

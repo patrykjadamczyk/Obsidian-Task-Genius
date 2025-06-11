@@ -347,7 +347,14 @@ export class TaskDetailsComponent extends Component {
 					indicatorIcon = "🔗";
 			}
 
-			indicator.innerHTML = `<span class="indicator-icon">${indicatorIcon}</span> <span class="indicator-text">${indicatorText}</span>`;
+			indicator.createEl("span", {
+				cls: "indicator-icon",
+				text: indicatorIcon,
+			});
+			indicator.createEl("span", {
+				cls: "indicator-text",
+				text: indicatorText,
+			});
 
 			if (isReadonly) {
 				indicator.addClass("readonly-indicator");

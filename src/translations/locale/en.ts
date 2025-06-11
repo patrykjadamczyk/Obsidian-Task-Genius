@@ -979,6 +979,9 @@ const translations = {
 	// Workflow Starting Features
 	"Start workflow here": "Start workflow here",
 	"Start Workflow Here": "Start Workflow Here",
+	"Add new task": "Add new task",
+	"Add new sub-task": "Add new sub-task",
+	"Start workflow": "Start workflow",
 	"No workflows defined. Create a workflow first.":
 		"No workflows defined. Create a workflow first.",
 	"Workflow task created": "Workflow task created",

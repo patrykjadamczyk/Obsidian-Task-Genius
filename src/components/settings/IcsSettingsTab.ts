@@ -253,13 +253,13 @@ export class IcsSettingsComponent {
 			});
 			if (source.color) {
 				const colorDiv = sourceDetails.createEl("div");
-				colorDiv.innerHTML = `${t(
-					"Color"
-				)}: <span style="display: inline-block; width: 12px; height: 12px; background: ${
-					source.color
-				}; border-radius: 2px; margin-left: 4px; vertical-align: middle;"></span> ${
-					source.color
-				}`;
+				colorDiv.createSpan({ text: `${t("Color")}: ` });
+				colorDiv.createEl("span", {
+					attr: {
+						style: `display: inline-block; width: 12px; height: 12px; background: ${source.color}; border-radius: 2px; margin-left: 4px; vertical-align: middle;`,
+					},
+				});
+				colorDiv.createSpan({ text: ` ${source.color}` });
 			}
 
 			// Source actions - reorganized for better UX

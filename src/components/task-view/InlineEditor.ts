@@ -91,8 +91,6 @@ export class InlineEditor extends Component {
 		this.initializeEditingState();
 		this.isEditing = true;
 
-		// Store original content before clearing
-		const originalContent = targetEl.innerHTML;
 		targetEl.empty();
 
 		// Extract the text content from the original markdown
@@ -343,7 +341,14 @@ export class InlineEditor extends Component {
 					indicatorIcon = "🔗";
 			}
 
-			indicator.innerHTML = `<span class="indicator-icon">${indicatorIcon}</span> <span class="indicator-text">${indicatorText}</span>`;
+			indicator.createEl("span", {
+				cls: "indicator-icon",
+				text: indicatorIcon,
+			});
+			indicator.createEl("span", {
+				cls: "indicator-text",
+				text: indicatorText,
+			});
 
 			if (isReadonly) {
 				indicator.addClass("readonly-indicator");

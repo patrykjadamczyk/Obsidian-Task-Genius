@@ -1233,6 +1233,9 @@ const translations = {
 	"You can override the auto-assigned project by entering a different value":
 		"您可以通过输入不同的值来覆盖自动分配的项目",
 	"You can override the auto-assigned project": "您可以覆盖自动分配的项目",
+	"Add new task": "添加新任务",
+	"Add new sub-task": "添加新子任务",
+	"Start workflow": "开始工作流",
 };
 
 export default translations;

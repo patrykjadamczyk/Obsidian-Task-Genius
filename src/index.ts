@@ -29,6 +29,7 @@ import {
 	updateWorkflowContextMenu,
 } from "./editor-ext/workflow";
 import { workflowDecoratorExtension } from "./editor-ext/workflowDecorator";
+import { workflowRootEnterHandlerExtension } from "./editor-ext/workflowRootEnterHandler";
 import {
 	priorityPickerExtension,
 	TASK_PRIORITIES,
@@ -856,6 +857,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.registerEditorExtension([workflowExtension(this.app, this)]);
 			this.registerEditorExtension([
 				workflowDecoratorExtension(this.app, this),
+			]);
+			this.registerEditorExtension([
+				workflowRootEnterHandlerExtension(this.app, this),
 			]);
 		}
 

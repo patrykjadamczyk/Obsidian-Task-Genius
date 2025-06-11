@@ -320,7 +320,6 @@ export class FilterComponent extends Component {
 		// Clear active filters array
 		this.activeFilters = [];
 
-		// Clear the DOM container (safer than innerHTML='')
 		this.filtersContainer.empty();
 
 		this.updateClearAllButton();
