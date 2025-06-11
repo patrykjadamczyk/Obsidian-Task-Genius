@@ -646,6 +646,64 @@ export function updateWorkflowContextMenu(
 					});
 				});
 			});
+
+			// Add quick workflow actions
+			submenu.addSeparator();
+
+			// Convert task to workflow template
+			submenu.addItem((convertItem: any) => {
+				convertItem.setTitle(t("Convert to workflow template"));
+				convertItem.setIcon("convert");
+				convertItem.onClick(() => {
+					// Import the conversion function
+					import("../commands/workflowCommands").then(
+						({ convertTaskToWorkflowCommand }) => {
+							convertTaskToWorkflowCommand(
+								false,
+								editor,
+								null as any,
+								plugin
+							);
+						}
+					);
+				});
+			});
+
+			// Start workflow here
+			submenu.addItem((startItem: any) => {
+				startItem.setTitle(t("Start workflow here"));
+				startItem.setIcon("play");
+				startItem.onClick(() => {
+					import("../commands/workflowCommands").then(
+						({ startWorkflowHereCommand }) => {
+							startWorkflowHereCommand(
+								false,
+								editor,
+								null as any,
+								plugin
+							);
+						}
+					);
+				});
+			});
+
+			// Quick workflow creation
+			submenu.addItem((quickItem: any) => {
+				quickItem.setTitle(t("Create quick workflow"));
+				quickItem.setIcon("zap");
+				quickItem.onClick(() => {
+					import("../commands/workflowCommands").then(
+						({ createQuickWorkflowCommand }) => {
+							createQuickWorkflowCommand(
+								false,
+								editor,
+								null as any,
+								plugin
+							);
+						}
+					);
+				});
+			});
 		});
 		return;
 	}

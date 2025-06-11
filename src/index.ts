@@ -44,6 +44,14 @@ import {
 	moveCompletedTasksCommand,
 	moveIncompletedTasksCommand,
 } from "./commands/completedTaskMover";
+import {
+	createQuickWorkflowCommand,
+	convertTaskToWorkflowCommand,
+	startWorkflowHereCommand,
+	convertToWorkflowRootCommand,
+	duplicateWorkflowCommand,
+	showWorkflowQuickActionsCommand,
+} from "./commands/workflowCommands";
 import { datePickerExtension } from "./editor-ext/datePicker";
 import {
 	quickCaptureExtension,
@@ -736,6 +744,87 @@ export default class TaskProgressBarPlugin extends Plugin {
 				}
 			},
 		});
+
+		// Workflow commands
+		if (this.settings.workflow.enableWorkflow) {
+			this.addCommand({
+				id: "create-quick-workflow",
+				name: t("Create quick workflow"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return createQuickWorkflowCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "convert-task-to-workflow",
+				name: t("Convert task to workflow template"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return convertTaskToWorkflowCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "start-workflow-here",
+				name: t("Start workflow here"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return startWorkflowHereCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "convert-to-workflow-root",
+				name: t("Convert current task to workflow root"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return convertToWorkflowRootCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "duplicate-workflow",
+				name: t("Duplicate workflow"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return duplicateWorkflowCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "workflow-quick-actions",
+				name: t("Workflow quick actions"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return showWorkflowQuickActionsCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+		}
 	}
 
 	registerEditorExt() {

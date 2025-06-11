@@ -921,6 +921,95 @@ const translations = {
 	Reindex: "Reindex",
 	"From now": "From now",
 	"Complete workflow": "Complete workflow",
+
+	// Workflow Optimization Features
+	"Quick Workflow Creation": "Quick Workflow Creation",
+	"Create quick workflow": "Create quick workflow",
+	"Workflow Template": "Workflow Template",
+	"Choose a template to start with or create a custom workflow":
+		"Choose a template to start with or create a custom workflow",
+	"Simple Linear Workflow": "Simple Linear Workflow",
+	"A basic linear workflow with sequential stages":
+		"A basic linear workflow with sequential stages",
+	"Project Management": "Project Management",
+	"Standard project management workflow":
+		"Standard project management workflow",
+	"Research Process": "Research Process",
+	"Academic or professional research workflow":
+		"Academic or professional research workflow",
+	"Custom Workflow": "Custom Workflow",
+	"Create a custom workflow from scratch":
+		"Create a custom workflow from scratch",
+	"Workflow Name": "Workflow Name",
+	"A descriptive name for your workflow":
+		"A descriptive name for your workflow",
+	"Enter workflow name": "Enter workflow name",
+	"Unique identifier (auto-generated from name)":
+		"Unique identifier (auto-generated from name)",
+	"Optional description of the workflow purpose":
+		"Optional description of the workflow purpose",
+	"Describe your workflow...": "Describe your workflow...",
+	"Workflow Stages": "Workflow Stages",
+	"Preview of workflow stages (edit after creation for advanced options)":
+		"Preview of workflow stages (edit after creation for advanced options)",
+	"Add Stage": "Add Stage",
+	"No stages defined. Choose a template or add stages manually.":
+		"No stages defined. Choose a template or add stages manually.",
+	"Create Workflow": "Create Workflow",
+	"Please provide a workflow name and ID":
+		"Please provide a workflow name and ID",
+	"Please add at least one stage to the workflow":
+		"Please add at least one stage to the workflow",
+	"Workflow created successfully": "Workflow created successfully",
+
+	// Task Conversion Features
+	"Convert task to workflow template": "Convert task to workflow template",
+	"Convert to workflow template": "Convert to workflow template",
+	"Convert Task to Workflow": "Convert Task to Workflow",
+	"Use similar existing workflow": "Use similar existing workflow",
+	"Create new workflow": "Create new workflow",
+	"No task structure found at cursor position":
+		"No task structure found at cursor position",
+	"Workflow generated from task structure":
+		"Workflow generated from task structure",
+	"Workflow based on existing pattern": "Workflow based on existing pattern",
+	"Workflow created from task structure":
+		"Workflow created from task structure",
+
+	// Workflow Starting Features
+	"Start workflow here": "Start workflow here",
+	"Start Workflow Here": "Start Workflow Here",
+	"No workflows defined. Create a workflow first.":
+		"No workflows defined. Create a workflow first.",
+	"Workflow task created": "Workflow task created",
+
+	// Workflow Root Conversion
+	"Convert to workflow root": "Convert to workflow root",
+	"Convert Current Task to Workflow Root":
+		"Convert Current Task to Workflow Root",
+	"Convert to Workflow Root": "Convert to Workflow Root",
+	"Task converted to workflow root": "Task converted to workflow root",
+	"Failed to convert task": "Failed to convert task",
+
+	// Workflow Duplication
+	"Duplicate workflow": "Duplicate workflow",
+	"Duplicate Workflow": "Duplicate Workflow",
+	Duplicate: "Duplicate",
+	"No workflows to duplicate": "No workflows to duplicate",
+	"Workflow duplicated and saved": "Workflow duplicated and saved",
+
+	// Quick Actions
+	"Workflow quick actions": "Workflow quick actions",
+	"Create Quick Workflow": "Create Quick Workflow",
+	"Convert to Workflow Root": "Convert to Workflow Root",
+
+	// Progress Indicator
+	"Current: ": "Current: ",
+	completed: "completed",
+	Completed: "Completed",
+	Repeatable: "Repeatable",
+	Final: "Final",
+	Sequential: "Sequential",
 	"Move to": "Move to",
 	Settings: "Settings",
 	"Just started": "Just started",
