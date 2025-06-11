@@ -114,27 +114,61 @@ function showWorkflowMenu(
 			});
 		} else {
 			// Use determineNextStage to find the next stage
-			const { nextStageId } = determineNextStage(
+			const { nextStageId, nextSubStageId } = determineNextStage(
 				currentStage,
 				workflow,
 				currentSubStage
 			);
-			if (nextStageId && nextStageId !== currentStage.id) {
+
+			if (nextStageId) {
 				const nextStage = workflow.stages.find(
 					(s) => s.id === nextStageId
 				);
 				if (nextStage) {
+					// Determine the menu title based on the transition type
+					let menuTitle: string;
+
+					if (
+						nextStageId === currentStage.id &&
+						nextSubStageId === currentSubStage?.id
+					) {
+						// Same stage and substage - cycling the same substage
+						menuTitle = `${t("Continue")} ${nextStage.name}${
+							nextSubStageId ? ` (${currentSubStage?.name})` : ""
+						}`;
+					} else if (
+						nextStageId === currentStage.id &&
+						nextSubStageId
+					) {
+						// Same stage but different substage
+						const nextSubStage = nextStage.subStages?.find(
+							(ss) => ss.id === nextSubStageId
+						);
+						menuTitle = `${t("Move to")} ${nextStage.name} (${
+							nextSubStage?.name || nextSubStageId
+						})`;
+					} else {
+						// Different stage
+						menuTitle = `${t("Move to")} ${nextStage.name}`;
+					}
+
 					menu.addItem((item) => {
-						item.setTitle(`${t("Move to")} ${nextStage.name}`)
+						item.setTitle(menuTitle)
 							.setIcon("arrow-right")
 							.onClick(() => {
-								moveToNextStage(
+								moveToNextStageWithSubStage(
 									view,
 									app,
 									plugin,
 									lineNumber,
 									nextStage,
-									false
+									false,
+									nextSubStageId
+										? nextStage.subStages?.find(
+												(ss) => ss.id === nextSubStageId
+										  )
+										: undefined,
+									currentSubStage
 								);
 							});
 					});
@@ -398,6 +432,91 @@ export function workflowRootEnterHandlerExtension(
 }
 
 /**
+ * Move to the next stage in workflow with substage support
+ * @param view The editor view
+ * @param app The Obsidian app instance
+ * @param plugin The plugin instance
+ * @param lineNumber The current line number
+ * @param nextStage The next stage to move to
+ * @param isRootTask Whether this is a root task
+ * @param nextSubStage The next substage to move to
+ * @param currentSubStage The current substage
+ */
+function moveToNextStageWithSubStage(
+	view: EditorView,
+	app: App,
+	plugin: TaskProgressBarPlugin,
+	lineNumber: number,
+	nextStage: any,
+	isRootTask: boolean,
+	nextSubStage?: any,
+	currentSubStage?: any
+): void {
+	const doc = view.state.doc;
+	const line = doc.line(lineNumber);
+	const lineText = line.text;
+
+	// Validate that the line exists and is within document bounds
+	if (lineNumber > doc.lines || lineNumber < 1) {
+		console.warn(
+			`Invalid line number: ${lineNumber}, doc has ${doc.lines} lines`
+		);
+		return;
+	}
+
+	// Create a mock Editor object that wraps the EditorView
+	const editor = view.state.field(editorInfoField)?.editor;
+
+	if (!editor) {
+		console.warn("Editor not found");
+		return;
+	}
+
+	// Use the existing createWorkflowStageTransition function
+	const changes = createWorkflowStageTransition(
+		plugin,
+		editor,
+		lineText,
+		lineNumber - 1, // Convert to 0-based line number for the function
+		nextStage,
+		isRootTask,
+		nextSubStage,
+		currentSubStage
+	);
+
+	// Calculate cursor position for the new task
+	let cursorPosition = line.to; // Default to end of current line
+
+	// Find the insertion point for the new task from the changes
+	const insertChange = changes.find(
+		(change) => change.insert && change.insert.includes("- [ ]")
+	);
+
+	if (insertChange) {
+		// Calculate position after the new task marker "- [ ] "
+		const indentMatch = lineText.match(/^([\s|\t]*)/);
+		const indentation = indentMatch ? indentMatch[1] : "";
+		const defaultIndentation = buildIndentString(app);
+		const newTaskIndentation =
+			indentation + (isRootTask ? defaultIndentation : "");
+
+		// Position after the insertion point + newline + indentation + "- [ ] "
+		cursorPosition = insertChange.from + 1 + newTaskIndentation.length + 6;
+	}
+
+	// Apply all changes in a single transaction
+	view.dispatch({
+		changes,
+		selection: {
+			anchor: cursorPosition,
+		},
+		annotations: taskStatusChangeAnnotation.of("workflowChange"),
+	});
+
+	view.focus();
+}
+
+/**
  * Move to the next stage in workflow
  * @param view The editor view
  * @param app The Obsidian app instance
@@ -446,10 +565,32 @@ function moveToNextStage(
 		undefined // currentSubStage
 	);
 
-	console.log(changes);
+	// Calculate cursor position for the new task
+	let cursorPosition = line.to; // Default to end of current line
+
+	// Find the insertion point for the new task from the changes
+	const insertChange = changes.find(
+		(change) => change.insert && change.insert.includes("- [ ]")
+	);
+
+	if (insertChange) {
+		// Calculate position after the new task marker "- [ ] "
+		const indentMatch = lineText.match(/^([\s|\t]*)/);
+		const indentation = indentMatch ? indentMatch[1] : "";
+		const defaultIndentation = buildIndentString(app);
+		const newTaskIndentation =
+			indentation + (isRootTask ? defaultIndentation : "");
+
+		// Position after the insertion point + newline + indentation + "- [ ] "
+		cursorPosition = insertChange.from + 1 + newTaskIndentation.length + 6;
+	}
+
 	// Apply all changes in a single transaction
 	view.dispatch({
 		changes,
+		selection: {
+			anchor: cursorPosition,
+		},
 		annotations: taskStatusChangeAnnotation.of("workflowChange"),
 	});
 
