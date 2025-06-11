@@ -1539,6 +1539,7 @@ const translations = {
 		"You can override the auto-assigned project by entering a different value",
 	"You can override the auto-assigned project":
 		"You can override the auto-assigned project",
+	"Complete substage and move to": "Complete substage and move to",
 };
 
 export default translations;

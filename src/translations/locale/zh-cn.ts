@@ -1236,6 +1236,8 @@ const translations = {
 	"Add new task": "添加新任务",
 	"Add new sub-task": "添加新子任务",
 	"Start workflow": "开始工作流",
+	"Complete substage and move to": "完成子阶段并移动到",
+	Continue: "继续",
 };
 
 export default translations;

@@ -174,6 +174,125 @@ function showWorkflowMenu(
 					});
 				}
 			}
+
+			// Add option to complete current substage and move to next main stage
+			// This is only available when we're in a substage of a cycle stage
+			if (currentSubStage && currentStage.type === "cycle") {
+				// Check if there's a next main stage available using canProceedTo
+				const canProceedTo = currentStage.canProceedTo as
+					| string[]
+					| undefined;
+				if (canProceedTo && canProceedTo.length > 0) {
+					canProceedTo.forEach((nextStageId: string) => {
+						const nextMainStage = workflow.stages.find(
+							(s) => s.id === nextStageId
+						);
+						if (nextMainStage) {
+							menu.addItem((item) => {
+								item.setTitle(
+									`${t("Complete substage and move to")} ${
+										nextMainStage.name
+									}`
+								)
+									.setIcon("skip-forward")
+									.onClick(() => {
+										completeSubstageAndMoveToNextMainStage(
+											view,
+											app,
+											plugin,
+											lineNumber,
+											nextMainStage,
+											currentSubStage
+										);
+									});
+							});
+						}
+					});
+				}
+				// Also check for explicit next stage
+				else if (typeof currentStage.next === "string") {
+					const nextMainStage = workflow.stages.find(
+						(s) => s.id === currentStage.next
+					);
+					if (nextMainStage) {
+						menu.addItem((item) => {
+							item.setTitle(
+								`${t("Complete substage and move to")} ${
+									nextMainStage.name
+								}`
+							)
+								.setIcon("skip-forward")
+								.onClick(() => {
+									completeSubstageAndMoveToNextMainStage(
+										view,
+										app,
+										plugin,
+										lineNumber,
+										nextMainStage,
+										currentSubStage
+									);
+								});
+						});
+					}
+				} else if (
+					Array.isArray(currentStage.next) &&
+					currentStage.next.length > 0
+				) {
+					const nextMainStage = workflow.stages.find(
+						(s) => s.id === currentStage.next![0]
+					);
+					if (nextMainStage) {
+						menu.addItem((item) => {
+							item.setTitle(
+								`${t("Complete substage and move to")} ${
+									nextMainStage.name
+								}`
+							)
+								.setIcon("skip-forward")
+								.onClick(() => {
+									completeSubstageAndMoveToNextMainStage(
+										view,
+										app,
+										plugin,
+										lineNumber,
+										nextMainStage,
+										currentSubStage
+									);
+								});
+						});
+					}
+				}
+				// Finally check sequential next stage
+				else {
+					const currentIndex = workflow.stages.findIndex(
+						(s) => s.id === currentStage.id
+					);
+					if (
+						currentIndex >= 0 &&
+						currentIndex < workflow.stages.length - 1
+					) {
+						const nextMainStage = workflow.stages[currentIndex + 1];
+						menu.addItem((item) => {
+							item.setTitle(
+								`${t("Complete substage and move to")} ${
+									nextMainStage.name
+								}`
+							)
+								.setIcon("skip-forward")
+								.onClick(() => {
+									completeSubstageAndMoveToNextMainStage(
+										view,
+										app,
+										plugin,
+										lineNumber,
+										nextMainStage,
+										currentSubStage
+									);
+								});
+						});
+					}
+				}
+			}
 		}
 
 		// Add child task with same stage option
@@ -670,6 +789,115 @@ function addChildTaskWithSameStage(
 		selection: {
 			anchor: line.to + newTaskIndentation.length + 7,
 		},
+	});
+
+	view.focus();
+}
+
+/**
+ * Move to the next main stage and complete both current substage and parent stage
+ * @param view The editor view
+ * @param app The Obsidian app instance
+ * @param plugin The plugin instance
+ * @param lineNumber The current line number
+ * @param nextStage The next main stage to move to
+ * @param currentSubStage The current substage
+ */
+function completeSubstageAndMoveToNextMainStage(
+	view: EditorView,
+	app: App,
+	plugin: TaskProgressBarPlugin,
+	lineNumber: number,
+	nextStage: any,
+	currentSubStage: any
+): void {
+	const doc = view.state.doc;
+	const line = doc.line(lineNumber);
+	const lineText = line.text;
+
+	// Validate that the line exists and is within document bounds
+	if (lineNumber > doc.lines || lineNumber < 1) {
+		console.warn(
+			`Invalid line number: ${lineNumber}, doc has ${doc.lines} lines`
+		);
+		return;
+	}
+
+	// Create a mock Editor object that wraps the EditorView
+	const editor = view.state.field(editorInfoField)?.editor;
+
+	if (!editor) {
+		console.warn("Editor not found");
+		return;
+	}
+
+	let changes: { from: number; to: number; insert: string }[] = [];
+
+	// 1. Find and handle the parent stage task first
+	const currentIndentMatch = lineText.match(/^([\s|\t]*)/);
+	const currentIndent = currentIndentMatch ? currentIndentMatch[1].length : 0;
+	const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
+
+	// Look upward to find the parent stage task (with less indentation)
+	for (let i = lineNumber - 1; i >= 1; i--) {
+		const checkLine = doc.line(i);
+		const checkIndentMatch = checkLine.text.match(/^([\s|\t]*)/);
+		const checkIndent = checkIndentMatch ? checkIndentMatch[1].length : 0;
+
+		// If this line has less indentation and is a task, it's likely the parent stage
+		if (checkIndent < currentIndent) {
+			const parentTaskMatch = checkLine.text.match(taskRegex);
+			if (parentTaskMatch) {
+				// Check if this is a stage task (has [stage::] marker)
+				if (checkLine.text.includes("[stage::")) {
+					// Use createWorkflowStageTransition for the parent task to handle timestamps and time calculation
+					const parentTransitionChanges =
+						createWorkflowStageTransition(
+							plugin,
+							editor,
+							checkLine.text,
+							i - 1, // Convert to 0-based line number for the function
+							nextStage, // The next stage we're transitioning to
+							false, // Not a root task
+							undefined, // No next substage for parent
+							undefined // No current substage for parent
+						);
+
+					// Filter out the "insert new task" changes from parent transition since we'll handle that separately
+					const parentCompletionChanges =
+						parentTransitionChanges.filter(
+							(change) =>
+								!change.insert ||
+								!change.insert.includes("- [ ]")
+						);
+
+					changes.push(...parentCompletionChanges);
+					break; // Found and handled the parent, stop looking
+				}
+			}
+		}
+	}
+
+	// 2. Use the existing createWorkflowStageTransition function to handle the current task and create the next stage task
+	// This will automatically complete the current substage task and create the next stage
+	const transitionChanges = createWorkflowStageTransition(
+		plugin,
+		editor,
+		lineText,
+		lineNumber - 1, // Convert to 0-based line number for the function
+		nextStage,
+		false, // Not a root task
+		undefined, // No next substage - moving to main stage
+		currentSubStage
+	);
+
+	// Combine all changes
+	changes.push(...transitionChanges);
+
+	// Apply all changes in a single transaction
+	view.dispatch({
+		changes,
+		annotations: taskStatusChangeAnnotation.of("workflowChange"),
 	});
 
 	view.focus();
