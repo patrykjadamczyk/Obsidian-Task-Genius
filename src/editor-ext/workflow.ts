@@ -1167,7 +1167,7 @@ export function determineNextStage(
 }
 
 // Helper function to create workflow stage transition
-function createWorkflowStageTransition(
+export function createWorkflowStageTransition(
 	plugin: TaskProgressBarPlugin,
 	editor: Editor,
 	line: string,

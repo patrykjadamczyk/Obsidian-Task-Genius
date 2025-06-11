@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { App, Menu } from "obsidian";
+import { App, editorInfoField, Menu } from "obsidian";
 import TaskProgressBarPlugin from "../index";
 import { Prec } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -8,9 +8,11 @@ import {
 	resolveWorkflowInfo,
 	determineNextStage,
 	generateWorkflowTaskText,
+	createWorkflowStageTransition,
 } from "./workflow";
 import { t } from "../translations/helper";
 import { buildIndentString } from "../utils";
+import { taskStatusChangeAnnotation } from "./taskStatusSwitcher";
 
 /**
  * Show workflow menu at cursor position
@@ -412,36 +414,43 @@ function moveToNextStage(
 	nextStage: any,
 	isRootTask: boolean
 ): void {
-	const line = view.state.doc.line(lineNumber);
+	const doc = view.state.doc;
+	const line = doc.line(lineNumber);
 	const lineText = line.text;
-	const indentMatch = lineText.match(/^([\s|\t]*)/);
-	const indentation = indentMatch ? indentMatch[1] : "";
-	const defaultIndentation = buildIndentString(app);
-	const newTaskIndentation =
-		indentation + (isRootTask ? defaultIndentation : "");
 
-	// Create task text for the next stage
-	const newTaskText = generateWorkflowTaskText(
-		nextStage,
-		newTaskIndentation,
+	// Validate that the line exists and is within document bounds
+	if (lineNumber > doc.lines || lineNumber < 1) {
+		console.warn(
+			`Invalid line number: ${lineNumber}, doc has ${doc.lines} lines`
+		);
+		return;
+	}
+
+	// Create a mock Editor object that wraps the EditorView
+	const editor = view.state.field(editorInfoField)?.editor;
+
+	if (!editor) {
+		console.warn("Editor not found");
+		return;
+	}
+
+	// Use the existing createWorkflowStageTransition function
+	const changes = createWorkflowStageTransition(
 		plugin,
-		true
+		editor,
+		lineText,
+		lineNumber - 1, // Convert to 0-based line number for the function
+		nextStage,
+		isRootTask,
+		undefined, // nextSubStage
+		undefined // currentSubStage
 	);
 
-	// Insert the new task after the current line and move cursor to it
-	const insertText = `\n${newTaskText}`;
-	const newTaskLineStart = line.to + 1;
-	const cursorPosition = newTaskLineStart + newTaskIndentation.length + 7;
-
+	console.log(changes);
+	// Apply all changes in a single transaction
 	view.dispatch({
-		changes: {
-			from: line.to,
-			to: line.to,
-			insert: insertText,
-		},
-		selection: {
-			anchor: cursorPosition,
-		},
+		changes,
+		annotations: taskStatusChangeAnnotation.of("workflowChange"),
 	});
 
 	view.focus();
