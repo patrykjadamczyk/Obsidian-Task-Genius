@@ -32,10 +32,16 @@ function showWorkflowMenu(
 		currentStage: string;
 		subStage?: string;
 	}
-): void {
+): boolean {
 	const menu = new Menu();
 	const line = view.state.doc.line(lineNumber);
 	const lineText = line.text;
+
+	console.log("showWorkflowMenu called with:", {
+		lineNumber,
+		workflowInfo,
+		lineText,
+	});
 
 	// Resolve complete workflow information
 	const resolvedInfo = resolveWorkflowInfo(
@@ -45,12 +51,18 @@ function showWorkflowMenu(
 		plugin
 	);
 
+	console.log("resolvedInfo in showWorkflowMenu:", resolvedInfo);
+
 	if (!resolvedInfo) {
-		return;
+		console.log("No resolved info, returning early");
+		return false;
 	}
 
 	const { currentStage, currentSubStage, workflow, isRootTask } =
 		resolvedInfo;
+
+	console.log("Current stage type:", currentStage.type);
+	console.log("Is root task:", isRootTask);
 
 	// Handle different workflow states
 	if (workflowInfo.currentStage === "root" || isRootTask) {
@@ -62,235 +74,188 @@ function showWorkflowMenu(
 					startWorkflow(view, app, plugin, lineNumber);
 				});
 		});
+	} else if (currentStage.type === "terminal") {
+		console.log("Adding terminal stage menu item");
+		menu.addItem((item) => {
+			item.setTitle(t("Complete workflow"))
+				.setIcon("check")
+				.onClick(() => {
+					completeWorkflow(view, app, plugin, lineNumber);
+				});
+		});
 	} else {
-		// Stage task options - show next stage transitions
-		if (currentStage.id === "_root_task_") {
-			if (workflow.stages.length > 0) {
-				const firstStage = workflow.stages[0];
+		// Use determineNextStage to find the next stage
+		const { nextStageId, nextSubStageId } = determineNextStage(
+			currentStage,
+			workflow,
+			currentSubStage
+		);
+
+		if (nextStageId) {
+			const nextStage = workflow.stages.find((s) => s.id === nextStageId);
+			if (nextStage) {
+				// Determine the menu title based on the transition type
+				let menuTitle: string;
+
+				if (
+					nextStageId === currentStage.id &&
+					nextSubStageId === currentSubStage?.id
+				) {
+					// Same stage and substage - cycling the same substage
+					menuTitle = `${t("Continue")} ${nextStage.name}${
+						nextSubStageId ? ` (${currentSubStage?.name})` : ""
+					}`;
+				} else if (nextStageId === currentStage.id && nextSubStageId) {
+					// Same stage but different substage
+					const nextSubStage = nextStage.subStages?.find(
+						(ss) => ss.id === nextSubStageId
+					);
+					menuTitle = `${t("Move to")} ${nextStage.name} (${
+						nextSubStage?.name || nextSubStageId
+					})`;
+				} else {
+					// Different stage
+					menuTitle = `${t("Move to")} ${nextStage.name}`;
+				}
+
 				menu.addItem((item) => {
-					item.setTitle(`${t("Move to stage")} ${firstStage.name}`)
+					item.setTitle(menuTitle)
 						.setIcon("arrow-right")
 						.onClick(() => {
-							moveToNextStage(
+							moveToNextStageWithSubStage(
 								view,
 								app,
 								plugin,
 								lineNumber,
-								firstStage,
-								true
+								nextStage,
+								false,
+								nextSubStageId
+									? nextStage.subStages?.find(
+											(ss) => ss.id === nextSubStageId
+									  )
+									: undefined,
+								currentSubStage
 							);
 						});
 				});
 			}
-		} else if (currentStage.canProceedTo) {
-			currentStage.canProceedTo.forEach((nextStageId) => {
-				const nextStage = workflow.stages.find(
-					(s) => s.id === nextStageId
+		}
+
+		// Add option to complete current substage and move to next main stage
+		// This is only available when we're in a substage of a cycle stage
+		if (currentSubStage && currentStage.type === "cycle") {
+			// Check if there's a next main stage available using canProceedTo
+			const canProceedTo = currentStage.canProceedTo as
+				| string[]
+				| undefined;
+			if (canProceedTo && canProceedTo.length > 0) {
+				canProceedTo.forEach((nextStageId: string) => {
+					const nextMainStage = workflow.stages.find(
+						(s) => s.id === nextStageId
+					);
+					if (nextMainStage) {
+						menu.addItem((item) => {
+							item.setTitle(
+								`${t("Complete substage and move to")} ${
+									nextMainStage.name
+								}`
+							)
+								.setIcon("skip-forward")
+								.onClick(() => {
+									completeSubstageAndMoveToNextMainStage(
+										view,
+										app,
+										plugin,
+										lineNumber,
+										nextMainStage,
+										currentSubStage
+									);
+								});
+						});
+					}
+				});
+			}
+			// Also check for explicit next stage
+			else if (typeof currentStage.next === "string") {
+				const nextMainStage = workflow.stages.find(
+					(s) => s.id === currentStage.next
 				);
-				if (nextStage) {
+				if (nextMainStage) {
 					menu.addItem((item) => {
-						item.setTitle(`${t("Move to stage")} ${nextStage.name}`)
-							.setIcon("arrow-right")
+						item.setTitle(
+							`${t("Complete substage and move to")} ${
+								nextMainStage.name
+							}`
+						)
+							.setIcon("skip-forward")
 							.onClick(() => {
-								moveToNextStage(
+								completeSubstageAndMoveToNextMainStage(
 									view,
 									app,
 									plugin,
 									lineNumber,
-									nextStage,
-									false
+									nextMainStage,
+									currentSubStage
 								);
 							});
 					});
 				}
-			});
-		} else if (currentStage.type === "terminal") {
-			menu.addItem((item) => {
-				item.setTitle(t("Complete workflow"))
-					.setIcon("check")
-					.onClick(() => {
-						completeWorkflow(view, app, plugin, lineNumber);
-					});
-			});
-		} else {
-			// Use determineNextStage to find the next stage
-			const { nextStageId, nextSubStageId } = determineNextStage(
-				currentStage,
-				workflow,
-				currentSubStage
-			);
-
-			if (nextStageId) {
-				const nextStage = workflow.stages.find(
-					(s) => s.id === nextStageId
+			} else if (
+				Array.isArray(currentStage.next) &&
+				currentStage.next.length > 0
+			) {
+				const nextMainStage = workflow.stages.find(
+					(s) => s.id === currentStage.next![0]
 				);
-				if (nextStage) {
-					// Determine the menu title based on the transition type
-					let menuTitle: string;
-
-					if (
-						nextStageId === currentStage.id &&
-						nextSubStageId === currentSubStage?.id
-					) {
-						// Same stage and substage - cycling the same substage
-						menuTitle = `${t("Continue")} ${nextStage.name}${
-							nextSubStageId ? ` (${currentSubStage?.name})` : ""
-						}`;
-					} else if (
-						nextStageId === currentStage.id &&
-						nextSubStageId
-					) {
-						// Same stage but different substage
-						const nextSubStage = nextStage.subStages?.find(
-							(ss) => ss.id === nextSubStageId
-						);
-						menuTitle = `${t("Move to")} ${nextStage.name} (${
-							nextSubStage?.name || nextSubStageId
-						})`;
-					} else {
-						// Different stage
-						menuTitle = `${t("Move to")} ${nextStage.name}`;
-					}
-
+				if (nextMainStage) {
 					menu.addItem((item) => {
-						item.setTitle(menuTitle)
-							.setIcon("arrow-right")
+						item.setTitle(
+							`${t("Complete substage and move to")} ${
+								nextMainStage.name
+							}`
+						)
+							.setIcon("skip-forward")
 							.onClick(() => {
-								moveToNextStageWithSubStage(
+								completeSubstageAndMoveToNextMainStage(
 									view,
 									app,
 									plugin,
 									lineNumber,
-									nextStage,
-									false,
-									nextSubStageId
-										? nextStage.subStages?.find(
-												(ss) => ss.id === nextSubStageId
-										  )
-										: undefined,
+									nextMainStage,
 									currentSubStage
 								);
 							});
 					});
 				}
 			}
-
-			// Add option to complete current substage and move to next main stage
-			// This is only available when we're in a substage of a cycle stage
-			if (currentSubStage && currentStage.type === "cycle") {
-				// Check if there's a next main stage available using canProceedTo
-				const canProceedTo = currentStage.canProceedTo as
-					| string[]
-					| undefined;
-				if (canProceedTo && canProceedTo.length > 0) {
-					canProceedTo.forEach((nextStageId: string) => {
-						const nextMainStage = workflow.stages.find(
-							(s) => s.id === nextStageId
-						);
-						if (nextMainStage) {
-							menu.addItem((item) => {
-								item.setTitle(
-									`${t("Complete substage and move to")} ${
-										nextMainStage.name
-									}`
-								)
-									.setIcon("skip-forward")
-									.onClick(() => {
-										completeSubstageAndMoveToNextMainStage(
-											view,
-											app,
-											plugin,
-											lineNumber,
-											nextMainStage,
-											currentSubStage
-										);
-									});
-							});
-						}
-					});
-				}
-				// Also check for explicit next stage
-				else if (typeof currentStage.next === "string") {
-					const nextMainStage = workflow.stages.find(
-						(s) => s.id === currentStage.next
-					);
-					if (nextMainStage) {
-						menu.addItem((item) => {
-							item.setTitle(
-								`${t("Complete substage and move to")} ${
-									nextMainStage.name
-								}`
-							)
-								.setIcon("skip-forward")
-								.onClick(() => {
-									completeSubstageAndMoveToNextMainStage(
-										view,
-										app,
-										plugin,
-										lineNumber,
-										nextMainStage,
-										currentSubStage
-									);
-								});
-						});
-					}
-				} else if (
-					Array.isArray(currentStage.next) &&
-					currentStage.next.length > 0
+			// Finally check sequential next stage
+			else {
+				const currentIndex = workflow.stages.findIndex(
+					(s) => s.id === currentStage.id
+				);
+				if (
+					currentIndex >= 0 &&
+					currentIndex < workflow.stages.length - 1
 				) {
-					const nextMainStage = workflow.stages.find(
-						(s) => s.id === currentStage.next![0]
-					);
-					if (nextMainStage) {
-						menu.addItem((item) => {
-							item.setTitle(
-								`${t("Complete substage and move to")} ${
-									nextMainStage.name
-								}`
-							)
-								.setIcon("skip-forward")
-								.onClick(() => {
-									completeSubstageAndMoveToNextMainStage(
-										view,
-										app,
-										plugin,
-										lineNumber,
-										nextMainStage,
-										currentSubStage
-									);
-								});
-						});
-					}
-				}
-				// Finally check sequential next stage
-				else {
-					const currentIndex = workflow.stages.findIndex(
-						(s) => s.id === currentStage.id
-					);
-					if (
-						currentIndex >= 0 &&
-						currentIndex < workflow.stages.length - 1
-					) {
-						const nextMainStage = workflow.stages[currentIndex + 1];
-						menu.addItem((item) => {
-							item.setTitle(
-								`${t("Complete substage and move to")} ${
-									nextMainStage.name
-								}`
-							)
-								.setIcon("skip-forward")
-								.onClick(() => {
-									completeSubstageAndMoveToNextMainStage(
-										view,
-										app,
-										plugin,
-										lineNumber,
-										nextMainStage,
-										currentSubStage
-									);
-								});
-						});
-					}
+					const nextMainStage = workflow.stages[currentIndex + 1];
+					menu.addItem((item) => {
+						item.setTitle(
+							`${t("Complete substage and move to")} ${
+								nextMainStage.name
+							}`
+						)
+							.setIcon("skip-forward")
+							.onClick(() => {
+								completeSubstageAndMoveToNextMainStage(
+									view,
+									app,
+									plugin,
+									lineNumber,
+									nextMainStage,
+									currentSubStage
+								);
+							});
+					});
 				}
 			}
 		}
@@ -345,6 +310,8 @@ function showWorkflowMenu(
 		// Fallback to mouse position
 		menu.showAtMouseEvent(window.event as MouseEvent);
 	}
+
+	return true;
 }
 
 /**
@@ -533,15 +500,13 @@ export function workflowRootEnterHandlerExtension(
 					}
 
 					// Show the workflow menu
-					showWorkflowMenu(
+					return showWorkflowMenu(
 						view,
 						app,
 						plugin,
 						line.number,
 						workflowInfo
 					);
-
-					return true; // Prevent default Enter behavior
 				},
 			},
 		])

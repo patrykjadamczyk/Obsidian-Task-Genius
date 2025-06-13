@@ -101,7 +101,7 @@ export const actionButtonState = StateField.define<boolean>({
 					}
 					const plugin = tr.state.facet(pluginFacet);
 					// Add preset menu action button to the markdown view
-					const filterAction = view.addAction(
+					const filterAction = view?.addAction(
 						"filter",
 						t("Filter Tasks"),
 						(event) => {
