@@ -140,6 +140,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -216,6 +217,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Full Event 1",
 				metadata: {
 					tags: [],
@@ -308,6 +310,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -334,6 +337,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Full Event 1",
 				metadata: {
 					tags: [],
@@ -418,6 +422,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -444,6 +449,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 2",
 				metadata: {
 					tags: [],
@@ -565,6 +571,7 @@ describe("Calendar View Badge Integration", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],

@@ -44,6 +44,7 @@ describe("Badge Debug Helper", () => {
 			line: 0,
 			completed: false,
 			status: " ",
+			badge: true,
 			originalMarkdown: `- [ ] ${badgeEvent.summary}`,
 			metadata: {
 				tags: [],

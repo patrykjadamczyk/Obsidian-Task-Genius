@@ -129,6 +129,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -155,6 +156,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Full Event 1",
 				metadata: {
 					tags: [],
@@ -212,6 +214,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -271,6 +274,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -297,6 +301,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 2",
 				metadata: {
 					tags: [],
@@ -378,6 +383,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Event from Calendar 1",
 				metadata: {
 					tags: [],
@@ -404,6 +410,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Event from Calendar 2",
 				metadata: {
 					tags: [],
@@ -461,6 +468,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Full Event 1",
 				metadata: {
 					tags: [],
@@ -506,6 +514,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -563,6 +572,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
@@ -589,6 +599,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: false,
 				originalMarkdown: "- [ ] Full Event 1",
 				metadata: {
 					tags: [],
@@ -651,6 +662,7 @@ describe("Calendar Badge Rendering Logic", () => {
 				line: 0,
 				completed: false,
 				status: " ",
+				badge: true,
 				originalMarkdown: "- [ ] Badge Event 1",
 				metadata: {
 					tags: [],
