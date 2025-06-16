@@ -3,6 +3,7 @@ import { CountHabitProps } from "../../../types/habit-card";
 import { HabitCard } from "./habitcard";
 import { t } from "../../../translations/helper";
 import TaskProgressBarPlugin from "../../../index";
+import { getTodayLocalDateString } from "../../../utils/dateUtil";
 
 export class CountHabitCard extends HabitCard {
 	constructor(
@@ -39,7 +40,7 @@ export class CountHabitCard extends HabitCard {
 				}
 			});
 
-		const today = new Date().toISOString().split("T")[0];
+		const today = getTodayLocalDateString();
 		let countToday = this.habit.completions[today] ?? 0;
 
 		const infoDiv = contentWrapper.createDiv(
