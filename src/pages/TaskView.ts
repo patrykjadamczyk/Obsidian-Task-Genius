@@ -366,6 +366,11 @@ export class TaskView extends ItemView {
 					this.toggleTaskCompletion(task);
 				},
 				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					console.log(
+						"TaskView onTaskUpdate",
+						originalTask.content,
+						updatedTask.content
+					);
 					await this.handleTaskUpdate(originalTask, updatedTask);
 				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
@@ -521,6 +526,7 @@ export class TaskView extends ItemView {
 				onTaskStatusUpdate:
 					this.handleKanbanTaskStatusUpdate.bind(this),
 				onEventContextMenu: this.handleTaskContextMenu.bind(this),
+				onTaskUpdate: this.handleTaskUpdate.bind(this),
 			}
 		);
 

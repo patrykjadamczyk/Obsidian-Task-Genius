@@ -232,8 +232,6 @@ export class MonthView extends CalendarViewComponent {
 			const badgeEvents =
 				this.options.getBadgeEventsForDate?.(date) || [];
 
-			console.log("Badge events for date:", badgeEvents);
-
 			if (badgeEvents.length > 0) {
 				const headerEl = cell.querySelector(
 					".calendar-day-header"

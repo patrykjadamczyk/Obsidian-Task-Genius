@@ -32,6 +32,7 @@ interface ViewEventHandlers {
 		newStatusMark: string
 	) => Promise<void>;
 	onEventContextMenu?: (ev: MouseEvent, event: CalendarEvent) => void;
+	onTaskUpdate?: (originalTask: Task, updatedTask: Task) => Promise<void>;
 }
 
 // 视图组件工厂
@@ -105,6 +106,7 @@ class ViewComponentFactory {
 					onTaskSelected: handlers.onTaskSelected,
 					onTaskCompleted: handlers.onTaskCompleted,
 					onTaskContextMenu: handlers.onTaskContextMenu,
+					onTaskUpdate: handlers.onTaskUpdate,
 				});
 
 			case "table":

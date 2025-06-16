@@ -1,5 +1,5 @@
 import { App, Component, debounce, setIcon, Menu } from "obsidian";
-import { Task } from "../../types/task";
+import { StandardTaskMetadata, Task } from "../../types/task";
 import TaskProgressBarPlugin from "../../index";
 import { ContextSuggest, ProjectSuggest, TagSuggest } from "../AutoComplete";
 import { clearAllMarks } from "../MarkdownRenderer";
@@ -81,7 +81,10 @@ export class InlineEditor extends Component {
 		this.isSaving = false;
 
 		// Store original task state for potential restoration - deep clone to avoid reference issues
-		this.originalTask = { ...this.task };
+		this.originalTask = {
+			...this.task,
+			metadata: { ...this.task.metadata },
+		};
 	}
 
 	/**
@@ -822,12 +825,18 @@ export class InlineEditor extends Component {
 		this.isSaving = true;
 		try {
 			await this.options.onTaskUpdate(this.originalTask, this.task);
-			this.originalTask = { ...this.task };
+			this.originalTask = {
+				...this.task,
+				metadata: { ...this.task.metadata },
+			};
 			return true;
 		} catch (error) {
 			console.error("Failed to save task:", error);
 			// Revert changes on error
-			this.task = { ...this.originalTask };
+			this.task = {
+				...this.originalTask,
+				metadata: { ...this.originalTask.metadata },
+			};
 			return false;
 		} finally {
 			this.isSaving = false;
@@ -835,9 +844,13 @@ export class InlineEditor extends Component {
 	}
 
 	private hasTaskChanges(originalTask: Task, updatedTask: Task): boolean {
-		// Compare key properties that can be edited
-		const compareProps = [
-			"content",
+		// Compare content (top-level property)
+		if (originalTask.content !== updatedTask.content) {
+			return true;
+		}
+
+		// Compare metadata properties
+		const metadataProps = [
 			"project",
 			"tags",
 			"context",
@@ -848,9 +861,13 @@ export class InlineEditor extends Component {
 			"recurrence",
 		];
 
-		for (const prop of compareProps) {
-			const originalValue = (originalTask as any)[prop];
-			const updatedValue = (updatedTask as any)[prop];
+		for (const prop of metadataProps) {
+			const originalValue = (
+				originalTask.metadata as StandardTaskMetadata
+			)[prop as keyof StandardTaskMetadata];
+			const updatedValue = (updatedTask.metadata as StandardTaskMetadata)[
+				prop as keyof StandardTaskMetadata
+			];
 
 			// Handle array comparison for tags
 			if (prop === "tags") {
@@ -997,7 +1014,10 @@ export class InlineEditor extends Component {
 
 		// Revert changes
 		if (this.originalTask) {
-			this.task = { ...this.originalTask };
+			this.task = {
+				...this.originalTask,
+				metadata: { ...this.originalTask.metadata },
+			};
 		}
 
 		// Clean up editors first
@@ -1061,7 +1081,9 @@ export class InlineEditor extends Component {
 			case "dueDate":
 			case "startDate":
 			case "scheduledDate":
-				const dateValue = this.task[fieldType as keyof Task] as number;
+				const dateValue = (this.task.metadata as StandardTaskMetadata)[
+					fieldType
+				] as number;
 				if (dateValue) {
 					const date = new Date(dateValue);
 					targetEl.textContent = date.toLocaleDateString("en-US", {

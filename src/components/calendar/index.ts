@@ -646,19 +646,8 @@ export class CalendarComponent extends Component {
 		// Check if we have cached data for this date
 		if (this.badgeEventsCache.has(dateKey)) {
 			const cachedEvents = this.badgeEventsCache.get(dateKey) || [];
-			console.log(
-				`Badge events for date ${dateKey} (cached):`,
-				cachedEvents.length
-			);
 			return cachedEvents;
 		}
-
-		// If not cached, fall back to the original logic but optimized
-		console.log(
-			`Badge events for date ${dateKey} (not cached, computing):`,
-			"from tasks:",
-			this.tasks.length
-		);
 
 		const badgeEventsForDate: CalendarEvent[] = [];
 
@@ -696,8 +685,6 @@ export class CalendarComponent extends Component {
 
 		// Cache the result for future use
 		this.badgeEventsCache.set(dateKey, badgeEventsForDate);
-
-		console.log("Badge events for date:", badgeEventsForDate.length);
 
 		return badgeEventsForDate;
 	}
