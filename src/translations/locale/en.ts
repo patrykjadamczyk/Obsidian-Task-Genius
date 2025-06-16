@@ -461,7 +461,6 @@ const translations = {
 	// Category names
 	"Core Settings": "Core Settings",
 	"Display & Progress": "Display & Progress",
-	"Task Management": "Task Management",
 	"Workflow & Automation": "Workflow & Automation",
 	"Gamification": "Gamification",
 	"Integration": "Integration",
@@ -1226,7 +1225,6 @@ const translations = {
 	Due: "Due",
 	Start: "Start",
 	Scheduled: "Scheduled",
-	Rewards: "Rewards",
 	"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.":
 		"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.",
 	"Enable rewards": "Enable rewards",

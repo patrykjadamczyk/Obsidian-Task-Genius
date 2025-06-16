@@ -414,7 +414,6 @@ const translations = {
 	// Category names
 	"Core Settings": "核心设置",
 	"Display & Progress": "显示与进度",
-	"Task Management": "任务管理",
 	"Workflow & Automation": "工作流与自动化",
 	"Gamification": "游戏化",
 	"Integration": "集成",
@@ -550,7 +549,6 @@ const translations = {
 	"No tasks scheduled": "没有计划中的任务",
 	"0 tasks": "0 个任务",
 	"Filter tasks...": "筛选任务...",
-	Projects: "项目",
 	"Toggle multi-select": "切换多选",
 	"No projects found": "未找到项目",
 	"projects selected": "已选择的项目",
@@ -909,7 +907,6 @@ const translations = {
 	Due: "截止",
 	Start: "开始",
 	Scheduled: "计划",
-	Rewards: "奖励",
 	"Configure rewards for completing tasks. Define items, their occurrence chances, and conditions.":
 		"配置完成任务的奖励。定义项目、它们的出现几率和条件。",
 	"Enable Rewards": "启用奖励",
