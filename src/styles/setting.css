@@ -155,6 +155,12 @@
 	gap: var(--size-4-2);
 }
 
+@media (max-width: 1200px) {
+	.task-genius-settings .settings-category-tabs {
+		grid-template-columns: repeat(2, minmax(200px, 1fr));
+	}
+}
+
 @media (max-width: 768px) {
 	.task-genius-settings .settings-category-tabs {
 		grid-template-columns: 1fr;
