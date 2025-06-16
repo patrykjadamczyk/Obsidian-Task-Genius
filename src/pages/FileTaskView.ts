@@ -218,6 +218,25 @@ export class FileTaskView extends Component implements BasesView {
 				onTaskCompleted: (task) => {
 					this.handleTaskCompletion(task);
 				},
+				onTaskUpdate: async (originalTask, updatedTask) => {
+					// Convert regular tasks back to file tasks for handling
+					const originalFileTask = this.fileTasks.find(
+						(ft) => ft.id === originalTask.id
+					);
+					if (originalFileTask) {
+						const updatedFileTask: FileTask = {
+							...originalFileTask,
+							content: updatedTask.content,
+							completed: updatedTask.completed,
+							status: updatedTask.status,
+							metadata: updatedTask.metadata,
+						};
+						await this.handleTaskUpdate(
+							originalFileTask,
+							updatedFileTask
+						);
+					}
+				},
 				onTaskContextMenu: (event, task) => {
 					this.handleTaskContextMenu(event, task);
 				},

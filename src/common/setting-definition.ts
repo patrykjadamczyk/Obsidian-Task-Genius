@@ -237,6 +237,15 @@ export interface QuickCaptureSettings {
 	targetFile: string;
 	placeholder: string;
 	appendToFile: "append" | "prepend" | "replace";
+	// New settings for enhanced quick capture
+	targetType: "fixed" | "daily-note"; // Target type: fixed file or daily note
+	targetHeading?: string; // Optional heading to append under
+	// Daily note settings
+	dailyNoteSettings: {
+		format: string; // Date format for daily notes (e.g., "YYYY-MM-DD")
+		folder: string; // Folder path for daily notes
+		template: string; // Template file path for daily notes
+	};
 }
 
 /** Define the structure for task gutter settings */
@@ -620,6 +629,13 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		targetFile: "QuickCapture.md",
 		placeholder: t("Capture your thoughts..."),
 		appendToFile: "append",
+		targetType: "fixed",
+		targetHeading: "",
+		dailyNoteSettings: {
+			format: "YYYY-MM-DD",
+			folder: "",
+			template: "",
+		},
 	},
 
 	// Workflow Defaults

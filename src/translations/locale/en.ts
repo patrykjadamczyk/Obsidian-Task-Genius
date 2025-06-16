@@ -161,14 +161,42 @@ const translations = {
 	"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel.":
 		"Toggle this to enable Org-mode style quick capture panel. Press Alt+C to open the capture panel.",
 	"Target file": "Target file",
-	"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD HH:mm}}":
-		"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD HH:mm}}",
+	"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD-HHmm}}":
+		"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD-HHmm}}",
 	"Placeholder text": "Placeholder text",
 	"Placeholder text to display in the capture panel":
 		"Placeholder text to display in the capture panel",
 	"Append to file": "Append to file",
 	"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content.":
 		"If enabled, captured text will be appended to the target file. If disabled, it will replace the file content.",
+	"Target type": "Target type",
+	"Choose whether to capture to a fixed file or daily note":
+		"Choose whether to capture to a fixed file or daily note",
+	"Fixed file": "Fixed file",
+	"Daily note": "Daily note",
+	"Sync with Daily Notes plugin": "Sync with Daily Notes plugin",
+	"Automatically sync settings from the Daily Notes plugin":
+		"Automatically sync settings from the Daily Notes plugin",
+	"Sync now": "Sync now",
+	"Daily notes settings synced successfully":
+		"Daily notes settings synced successfully",
+	"Daily Notes plugin is not enabled": "Daily Notes plugin is not enabled",
+	"Failed to sync daily notes settings":
+		"Failed to sync daily notes settings",
+	"Daily note format": "Daily note format",
+	"Date format for daily notes (e.g., YYYY-MM-DD)":
+		"Date format for daily notes (e.g., YYYY-MM-DD)",
+	"Daily note folder": "Daily note folder",
+	"Folder path for daily notes (leave empty for root)":
+		"Folder path for daily notes (leave empty for root)",
+	"Daily note template": "Daily note template",
+	"Template file path for new daily notes (optional)":
+		"Template file path for new daily notes (optional)",
+	"Target heading": "Target heading",
+	"Optional heading to append content under (leave empty to append to file)":
+		"Optional heading to append content under (leave empty to append to file)",
+	"How to add captured content to the target location":
+		"How to add captured content to the target location",
 	"Task Filter": "Task Filter",
 	"Enable Task Filter": "Enable Task Filter",
 	"Toggle this to enable the task filter panel":
@@ -448,12 +476,12 @@ const translations = {
 	"Views & Index": "Views & Index",
 	"Progress Display": "Progress Display",
 	"Task Management": "Task Management",
-	"Workflows": "Workflows",
+	Workflows: "Workflows",
 	"Dates & Priority": "Dates & Priority",
 	"Quick Capture": "Quick Capture",
-	"Projects": "Projects",
-	"Rewards": "Rewards",
-	"Habits": "Habits",
+	Projects: "Projects",
+	Rewards: "Rewards",
+	Habits: "Habits",
 	"Calendar Sync": "Calendar Sync",
 	"Beta Features": "Beta Features",
 	About: "About",
@@ -462,10 +490,10 @@ const translations = {
 	"Core Settings": "Core Settings",
 	"Display & Progress": "Display & Progress",
 	"Workflow & Automation": "Workflow & Automation",
-	"Gamification": "Gamification",
-	"Integration": "Integration",
-	"Advanced": "Advanced",
-	"Information": "Information",
+	Gamification: "Gamification",
+	Integration: "Integration",
+	Advanced: "Advanced",
+	Information: "Information",
 	"Count sub children of current Task": "Count sub children of current Task",
 	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
 		"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.",
@@ -1215,7 +1243,6 @@ const translations = {
 		"Task Genius will use moment.js and also this format to parse the daily note path.",
 	"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.":
 		"You need to set `yyyy` instead of `YYYY` in the format string. And `dd` instead of `DD`.",
-	"Daily note format": "Daily note format",
 	"Daily note path": "Daily note path",
 	"Select the folder that contains the daily note.":
 		"Select the folder that contains the daily note.",
@@ -1554,27 +1581,45 @@ const translations = {
 	"Auto-moved": "Auto-moved",
 	"tasks to": "tasks to",
 	"Failed to auto-move tasks:": "Failed to auto-move tasks:",
-	"Enable auto-move for completed tasks": "Enable auto-move for completed tasks",
-	"Automatically move completed tasks to a default file without manual selection.": "Automatically move completed tasks to a default file without manual selection.",
+	"Enable auto-move for completed tasks":
+		"Enable auto-move for completed tasks",
+	"Automatically move completed tasks to a default file without manual selection.":
+		"Automatically move completed tasks to a default file without manual selection.",
 	"Default target file": "Default target file",
-	"Default file to move completed tasks to (e.g., 'Archive.md')": "Default file to move completed tasks to (e.g., 'Archive.md')",
+	"Default file to move completed tasks to (e.g., 'Archive.md')":
+		"Default file to move completed tasks to (e.g., 'Archive.md')",
 	"Default insertion mode": "Default insertion mode",
-	"Where to insert completed tasks in the target file": "Where to insert completed tasks in the target file",
+	"Where to insert completed tasks in the target file":
+		"Where to insert completed tasks in the target file",
 	"Default heading name": "Default heading name",
-	"Heading name to insert tasks after (will be created if it doesn't exist)": "Heading name to insert tasks after (will be created if it doesn't exist)",
-	"Enable auto-move for incomplete tasks": "Enable auto-move for incomplete tasks",
-	"Automatically move incomplete tasks to a default file without manual selection.": "Automatically move incomplete tasks to a default file without manual selection.",
-	"Default target file for incomplete tasks": "Default target file for incomplete tasks",
-	"Default file to move incomplete tasks to (e.g., 'Backlog.md')": "Default file to move incomplete tasks to (e.g., 'Backlog.md')",
-	"Default insertion mode for incomplete tasks": "Default insertion mode for incomplete tasks",
-	"Where to insert incomplete tasks in the target file": "Where to insert incomplete tasks in the target file",
-	"Default heading name for incomplete tasks": "Default heading name for incomplete tasks",
-	"Heading name to insert incomplete tasks after (will be created if it doesn't exist)": "Heading name to insert incomplete tasks after (will be created if it doesn't exist)",
-	"Auto-move completed subtasks to default file": "Auto-move completed subtasks to default file",
-	"Auto-move direct completed subtasks to default file": "Auto-move direct completed subtasks to default file",
-	"Auto-move all subtasks to default file": "Auto-move all subtasks to default file",
-	"Auto-move incomplete subtasks to default file": "Auto-move incomplete subtasks to default file",
-	"Auto-move direct incomplete subtasks to default file": "Auto-move direct incomplete subtasks to default file",
+	"Heading name to insert tasks after (will be created if it doesn't exist)":
+		"Heading name to insert tasks after (will be created if it doesn't exist)",
+	"Enable auto-move for incomplete tasks":
+		"Enable auto-move for incomplete tasks",
+	"Automatically move incomplete tasks to a default file without manual selection.":
+		"Automatically move incomplete tasks to a default file without manual selection.",
+	"Default target file for incomplete tasks":
+		"Default target file for incomplete tasks",
+	"Default file to move incomplete tasks to (e.g., 'Backlog.md')":
+		"Default file to move incomplete tasks to (e.g., 'Backlog.md')",
+	"Default insertion mode for incomplete tasks":
+		"Default insertion mode for incomplete tasks",
+	"Where to insert incomplete tasks in the target file":
+		"Where to insert incomplete tasks in the target file",
+	"Default heading name for incomplete tasks":
+		"Default heading name for incomplete tasks",
+	"Heading name to insert incomplete tasks after (will be created if it doesn't exist)":
+		"Heading name to insert incomplete tasks after (will be created if it doesn't exist)",
+	"Auto-move completed subtasks to default file":
+		"Auto-move completed subtasks to default file",
+	"Auto-move direct completed subtasks to default file":
+		"Auto-move direct completed subtasks to default file",
+	"Auto-move all subtasks to default file":
+		"Auto-move all subtasks to default file",
+	"Auto-move incomplete subtasks to default file":
+		"Auto-move incomplete subtasks to default file",
+	"Auto-move direct incomplete subtasks to default file":
+		"Auto-move direct incomplete subtasks to default file",
 };
 
 export default translations;

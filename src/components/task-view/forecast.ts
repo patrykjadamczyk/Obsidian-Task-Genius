@@ -66,6 +66,10 @@ export class ForecastComponent extends Component {
 		private params: {
 			onTaskSelected?: (task: Task | null) => void;
 			onTaskCompleted?: (task: Task) => void;
+			onTaskUpdate?: (
+				originalTask: Task,
+				updatedTask: Task
+			) => Promise<void>;
 			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
 		} = {}
 	) {
@@ -820,6 +824,19 @@ export class ForecastComponent extends Component {
 			this.params.onTaskContextMenu &&
 				(section.renderer.onTaskContextMenu =
 					this.params.onTaskContextMenu);
+
+			// Set up task update callback - use params callback if available, otherwise use internal updateTask
+			section.renderer.onTaskUpdate = async (
+				originalTask: Task,
+				updatedTask: Task
+			) => {
+				if (this.params.onTaskUpdate) {
+					await this.params.onTaskUpdate(originalTask, updatedTask);
+				} else {
+					// Fallback to internal updateTask method
+					this.updateTask(updatedTask);
+				}
+			};
 
 			// Render tasks using the section's renderer
 			section.renderer.renderTasks(

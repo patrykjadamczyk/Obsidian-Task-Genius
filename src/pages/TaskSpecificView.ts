@@ -304,6 +304,9 @@ export class TaskSpecificView extends ItemView {
 				onTaskCompleted: (task: Task) => {
 					this.toggleTaskCompletion(task);
 				},
+				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					await this.handleTaskUpdate(originalTask, updatedTask);
+				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
 					this.handleTaskContextMenu(event, task);
 				},
@@ -1036,6 +1039,28 @@ export class TaskSpecificView extends ItemView {
 
 		await taskManager.updateTask(updatedTask);
 		// Task cache listener will trigger loadTasks -> triggerViewUpdate
+	}
+
+	private async handleTaskUpdate(originalTask: Task, updatedTask: Task) {
+		const taskManager = this.plugin.taskManager;
+		if (!taskManager) return;
+
+		console.log(
+			"handleTaskUpdate",
+			originalTask.content,
+			updatedTask.content,
+			originalTask.id,
+			updatedTask.id,
+			updatedTask,
+			originalTask
+		);
+
+		try {
+			await taskManager.updateTask(updatedTask);
+		} catch (error) {
+			console.error("Failed to update task:", error);
+			// You might want to show a notice to the user here
+		}
 	}
 
 	private async updateTask(
