@@ -9,12 +9,6 @@ on:
         # IMPORTANT: Change 'main' to your default branch if it's different (e.g., 'master')
         branches:
             - master
-    push:
-        # Only trigger on push to specific branches (more secure)
-        branches:
-            - master
-            - "feat/**"
-            - "release/**"
 
 env:
     PLUGIN_NAME: obsidian-task-genius
@@ -62,22 +56,22 @@ jobs:
             - name: "Get commit messages since last release"
               id: get_commits
               run: |
-                  # Get the most recent tag by creation date (not reachability)
-                  # This will find the newest tag regardless of branch ancestry
-                  LAST_TAG=$(git tag --sort=-version:refname | head -n 1 2>/dev/null || echo "")
+                  # Get the most recent tag that is reachable from the current commit
+                  # This will find the closest tag regardless of whether it's a public release or not
+                  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
                   if [ -z "$LAST_TAG" ]; then
                     echo "No previous tag found, getting all commits from the beginning"
-                    COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
+                    COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%an)" --no-merges)
                     echo "Getting all commits since repository creation"
                   else
                     echo "Getting commits since last tag: $LAST_TAG"
-                    # Get the commit hash of the tag
-                    TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG)
-                    echo "Tag $LAST_TAG points to commit: $TAG_COMMIT"
+                    COMMIT_MESSAGES=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%an)" --no-merges)
                     
-                    # Get commits since that tag commit
-                    COMMIT_MESSAGES=$(git log ${TAG_COMMIT}..HEAD --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
+                    # Check if this tag corresponds to a GitHub release
+                    TAG_TYPE="tag"
+                    # Try to determine if this was a public release by checking GitHub API
+                    # Note: This is optional and may not work in all environments
                   fi
 
                   # Handle empty commit messages
@@ -110,7 +104,7 @@ jobs:
                   body: |
                       ${{ github.event_name == 'pull_request' && format('🚀 Automated beta release for PR #{0}', github.event.pull_request.number) || '🚀 Automated beta release' }}
 
-                      ## 📝 Changes since last release${{ env.LAST_TAG && format(' ({0})', env.LAST_TAG) || '' }}:
+                      ## 📝 Changes since last beta release${{ env.LAST_BETA_TAG && format(' ({0})', env.LAST_BETA_TAG) || '' }}:
 
                       ${{ env.COMMIT_MESSAGES }}
 
