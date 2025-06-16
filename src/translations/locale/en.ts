@@ -1551,6 +1551,32 @@ const translations = {
 	"You can override the auto-assigned project":
 		"You can override the auto-assigned project",
 	"Complete substage and move to": "Complete substage and move to",
+
+	// Auto-move translations
+	"Auto-moved": "Auto-moved",
+	"tasks to": "tasks to",
+	"Failed to auto-move tasks:": "Failed to auto-move tasks:",
+	"Enable auto-move for completed tasks": "Enable auto-move for completed tasks",
+	"Automatically move completed tasks to a default file without manual selection.": "Automatically move completed tasks to a default file without manual selection.",
+	"Default target file": "Default target file",
+	"Default file to move completed tasks to (e.g., 'Archive.md')": "Default file to move completed tasks to (e.g., 'Archive.md')",
+	"Default insertion mode": "Default insertion mode",
+	"Where to insert completed tasks in the target file": "Where to insert completed tasks in the target file",
+	"Default heading name": "Default heading name",
+	"Heading name to insert tasks after (will be created if it doesn't exist)": "Heading name to insert tasks after (will be created if it doesn't exist)",
+	"Enable auto-move for incomplete tasks": "Enable auto-move for incomplete tasks",
+	"Automatically move incomplete tasks to a default file without manual selection.": "Automatically move incomplete tasks to a default file without manual selection.",
+	"Default target file for incomplete tasks": "Default target file for incomplete tasks",
+	"Default file to move incomplete tasks to (e.g., 'Backlog.md')": "Default file to move incomplete tasks to (e.g., 'Backlog.md')",
+	"Default insertion mode for incomplete tasks": "Default insertion mode for incomplete tasks",
+	"Where to insert incomplete tasks in the target file": "Where to insert incomplete tasks in the target file",
+	"Default heading name for incomplete tasks": "Default heading name for incomplete tasks",
+	"Heading name to insert incomplete tasks after (will be created if it doesn't exist)": "Heading name to insert incomplete tasks after (will be created if it doesn't exist)",
+	"Auto-move completed subtasks to default file": "Auto-move completed subtasks to default file",
+	"Auto-move direct completed subtasks to default file": "Auto-move direct completed subtasks to default file",
+	"Auto-move all subtasks to default file": "Auto-move all subtasks to default file",
+	"Auto-move incomplete subtasks to default file": "Auto-move incomplete subtasks to default file",
+	"Auto-move direct incomplete subtasks to default file": "Auto-move direct incomplete subtasks to default file",
 };
 
 export default translations;

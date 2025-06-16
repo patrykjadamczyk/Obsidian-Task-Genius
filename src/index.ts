@@ -43,6 +43,7 @@ import { moveTaskCommand } from "./commands/taskMover";
 import {
 	moveCompletedTasksCommand,
 	moveIncompletedTasksCommand,
+	autoMoveCompletedTasksCommand,
 } from "./commands/completedTaskMover";
 import {
 	createQuickWorkflowCommand,
@@ -685,6 +686,51 @@ export default class TaskProgressBarPlugin extends Plugin {
 					);
 				},
 			});
+
+			// Auto-move commands (using default settings)
+			if (this.settings.completedTaskMover.enableAutoMove) {
+				this.addCommand({
+					id: "auto-move-completed-subtasks",
+					name: t("Auto-move completed subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"allCompleted"
+						);
+					},
+				});
+
+				this.addCommand({
+					id: "auto-move-direct-completed-subtasks",
+					name: t("Auto-move direct completed subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"directChildren"
+						);
+					},
+				});
+
+				this.addCommand({
+					id: "auto-move-all-subtasks",
+					name: t("Auto-move all subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"all"
+						);
+					},
+				});
+			}
 		}
 
 		// Add commands for moving incomplete tasks
@@ -718,6 +764,37 @@ export default class TaskProgressBarPlugin extends Plugin {
 					);
 				},
 			});
+
+			// Auto-move commands for incomplete tasks (using default settings)
+			if (this.settings.completedTaskMover.enableIncompletedAutoMove) {
+				this.addCommand({
+					id: "auto-move-incomplete-subtasks",
+					name: t("Auto-move incomplete subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"allIncompleted"
+						);
+					},
+				});
+
+				this.addCommand({
+					id: "auto-move-direct-incomplete-subtasks",
+					name: t("Auto-move direct incomplete subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"directIncompletedChildren"
+						);
+					},
+				});
+			}
 		}
 
 		// Add command for toggling quick capture panel in editor

@@ -1473,3 +1473,216 @@ export function moveIncompletedTasksCommand(
 
 	return true;
 }
+
+/**
+ * Auto-move completed tasks using default settings
+ */
+export async function autoMoveCompletedTasks(
+	editor: Editor,
+	currentFile: TFile,
+	plugin: TaskProgressBarPlugin,
+	taskLines: number[],
+	moveMode:
+		| "allCompleted"
+		| "directChildren"
+		| "all"
+		| "allIncompleted"
+		| "directIncompletedChildren"
+): Promise<boolean> {
+	const settings = plugin.settings.completedTaskMover;
+
+	// Check if auto-move is enabled and default file is set
+	const isCompletedMode = moveMode === "allCompleted" || moveMode === "directChildren" || moveMode === "all";
+	const isAutoMoveEnabled = isCompletedMode ? settings.enableAutoMove : settings.enableIncompletedAutoMove;
+	const defaultTargetFile = isCompletedMode ? settings.defaultTargetFile : settings.incompletedDefaultTargetFile;
+	const defaultInsertionMode = isCompletedMode ? settings.defaultInsertionMode : settings.incompletedDefaultInsertionMode;
+	const defaultHeadingName = isCompletedMode ? settings.defaultHeadingName : settings.incompletedDefaultHeadingName;
+
+	if (!isAutoMoveEnabled || !defaultTargetFile) {
+		return false; // Auto-move not configured, fall back to manual selection
+	}
+
+	try {
+		// Get tasks content
+		const { content, linesToRemove } = TaskUtils.processSelectedTasks(
+			editor,
+			taskLines,
+			moveMode,
+			plugin.settings,
+			currentFile,
+			plugin.app
+		);
+
+		// Find or create target file
+		let targetFile = plugin.app.vault.getAbstractFileByPath(defaultTargetFile);
+
+		if (!targetFile) {
+			// Create the file if it doesn't exist
+			targetFile = await plugin.app.vault.create(defaultTargetFile, "");
+		}
+
+		if (!(targetFile instanceof TFile)) {
+			throw new Error(`Target path ${defaultTargetFile} is not a file`);
+		}
+
+		// Read target file content
+		const fileContent = await plugin.app.vault.read(targetFile);
+		const lines = fileContent.split("\n");
+
+		let insertPosition: number;
+		let indentLevel: number = 0;
+
+		// Determine insertion position based on mode
+		switch (defaultInsertionMode) {
+			case "beginning":
+				insertPosition = 0;
+				break;
+			case "end":
+				insertPosition = lines.length;
+				break;
+			case "after-heading":
+				// Find the heading or create it
+				const headingPattern = new RegExp(`^#+\\s+${defaultHeadingName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+				let headingLineIndex = lines.findIndex(line => headingPattern.test(line));
+
+				if (headingLineIndex === -1) {
+					// Create the heading at the end of the file
+					if (lines.length > 0 && lines[lines.length - 1].trim() !== "") {
+						lines.push(""); // Add empty line before heading
+					}
+					lines.push(`## ${defaultHeadingName}`);
+					lines.push(""); // Add empty line after heading
+					headingLineIndex = lines.length - 2; // Index of the heading line
+				}
+
+				insertPosition = headingLineIndex + 1;
+				// Skip any empty lines after the heading
+				while (insertPosition < lines.length && lines[insertPosition].trim() === "") {
+					insertPosition++;
+				}
+				break;
+			default:
+				insertPosition = lines.length;
+		}
+
+		// Adjust indentation of task content
+		const indentedTaskContent = TaskUtils.adjustIndentation(
+			content,
+			indentLevel,
+			plugin.app
+		);
+
+		// Insert task at the position
+		const newContent = [
+			...lines.slice(0, insertPosition),
+			indentedTaskContent,
+			...lines.slice(insertPosition),
+		].join("\n");
+
+		// Update target file
+		await plugin.app.vault.modify(targetFile, newContent);
+
+		// Remove tasks from source file
+		TaskUtils.removeTasksFromFile(editor, linesToRemove);
+
+		const taskType = isCompletedMode ? "completed" : "incomplete";
+		new Notice(`${t("Auto-moved")} ${taskType} ${t("tasks to")} ${defaultTargetFile}`);
+
+		return true;
+	} catch (error) {
+		new Notice(`${t("Failed to auto-move tasks:")} ${error}`);
+		console.error(error);
+		return false;
+	}
+}
+
+/**
+ * Command to auto-move completed tasks using default settings
+ */
+export function autoMoveCompletedTasksCommand(
+	checking: boolean,
+	editor: Editor,
+	ctx: MarkdownView | MarkdownFileInfo,
+	plugin: TaskProgressBarPlugin,
+	moveMode:
+		| "allCompleted"
+		| "directChildren"
+		| "all"
+		| "allIncompleted"
+		| "directIncompletedChildren"
+): boolean {
+	// Get the current file
+	const currentFile = ctx.file;
+
+	if (checking) {
+		// Check if auto-move is enabled for this mode
+		const isCompletedMode = moveMode === "allCompleted" || moveMode === "directChildren" || moveMode === "all";
+		const isAutoMoveEnabled = isCompletedMode
+			? plugin.settings.completedTaskMover.enableAutoMove
+			: plugin.settings.completedTaskMover.enableIncompletedAutoMove;
+		const defaultTargetFile = isCompletedMode
+			? plugin.settings.completedTaskMover.defaultTargetFile
+			: plugin.settings.completedTaskMover.incompletedDefaultTargetFile;
+
+		if (!isAutoMoveEnabled || !defaultTargetFile) {
+			return false; // Auto-move not configured
+		}
+
+		// If checking, return true if we're in a markdown file and cursor is on a task line
+		if (!currentFile || currentFile.extension !== "md") {
+			return false;
+		}
+
+		const selection = editor.getSelection();
+		if (selection.length === 0) {
+			const cursor = editor.getCursor();
+			const line = editor.getLine(cursor.line);
+			// Check if line is a task with any of the supported list markers (-, 1., *)
+			return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
+		}
+		return true;
+	}
+
+	// Execute the command
+	if (!currentFile) {
+		new Notice(t("No active file found"));
+		return false;
+	}
+
+	// Get all selections to support multi-line selection
+	const selections = editor.listSelections();
+
+	// Extract all selected lines from the selections
+	const selectedLinesSet = new Set<number>();
+	selections.forEach((selection) => {
+		// Get the start and end lines (accounting for selection direction)
+		const startLine = Math.min(selection.anchor.line, selection.head.line);
+		const endLine = Math.max(selection.anchor.line, selection.head.line);
+
+		// Add all lines in this selection range
+		for (let line = startLine; line <= endLine; line++) {
+			selectedLinesSet.add(line);
+		}
+	});
+
+	// Convert Set to Array for further processing
+	const selectedLines = Array.from(selectedLinesSet);
+
+	// Try auto-move first, fall back to manual selection if it fails
+	autoMoveCompletedTasks(editor, currentFile, plugin, selectedLines, moveMode)
+		.then((success) => {
+			if (!success) {
+				// Fall back to manual selection
+				new CompletedTaskFileSelectionModal(
+					plugin.app,
+					plugin,
+					editor,
+					currentFile,
+					selectedLines,
+					moveMode
+				).open();
+			}
+		});
+
+	return true;
+}

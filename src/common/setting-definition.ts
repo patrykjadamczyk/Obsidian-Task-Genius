@@ -212,6 +212,11 @@ export interface CompletedTaskMoverSettings {
 	treatAbandonedAsCompleted: boolean;
 	completeAllMovedTasks: boolean;
 	withCurrentFileLink: boolean;
+	// Default file and location settings for auto-move
+	enableAutoMove: boolean;
+	defaultTargetFile: string;
+	defaultInsertionMode: "beginning" | "end" | "after-heading";
+	defaultHeadingName: string; // Used when defaultInsertionMode is "after-heading"
 	// Settings for incomplete task mover
 	enableIncompletedTaskMover: boolean;
 	incompletedTaskMarkerType: "version" | "date" | "custom";
@@ -219,6 +224,11 @@ export interface CompletedTaskMoverSettings {
 	incompletedDateMarker: string;
 	incompletedCustomMarker: string;
 	withCurrentFileLinkForIncompleted: boolean;
+	// Default settings for incomplete task auto-move
+	enableIncompletedAutoMove: boolean;
+	incompletedDefaultTargetFile: string;
+	incompletedDefaultInsertionMode: "beginning" | "end" | "after-heading";
+	incompletedDefaultHeadingName: string;
 }
 
 /** Define the structure for quick capture settings */
@@ -585,6 +595,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		treatAbandonedAsCompleted: false,
 		completeAllMovedTasks: true,
 		withCurrentFileLink: true,
+		// Auto-move defaults for completed tasks
+		enableAutoMove: false,
+		defaultTargetFile: "Archive.md",
+		defaultInsertionMode: "end",
+		defaultHeadingName: "Completed Tasks",
 		// Incomplete Task Mover Defaults
 		enableIncompletedTaskMover: true,
 		incompletedTaskMarkerType: "date",
@@ -592,6 +607,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		incompletedDateMarker: t("moved on") + " {{date}}",
 		incompletedCustomMarker: t("moved") + " {{DATE:YYYY-MM-DD HH:mm}}",
 		withCurrentFileLinkForIncompleted: true,
+		// Auto-move defaults for incomplete tasks
+		enableIncompletedAutoMove: false,
+		incompletedDefaultTargetFile: "Backlog.md",
+		incompletedDefaultInsertionMode: "end",
+		incompletedDefaultHeadingName: "Incomplete Tasks",
 	},
 
 	// Quick Capture Defaults

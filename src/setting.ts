@@ -55,7 +55,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		{ id: "task-status", name: t("Task Status"), icon: "checkbox-glyph", category: "display" },
 
 		// Task Management
-		{ id: "task-handler", name: t("Task Management"), icon: "list-checks", category: "management" },
+		{ id: "task-handler", name: t("Task Handler"), icon: "list-checks", category: "management" },
 		{ id: "task-filter", name: t("Task Filter"), icon: "filter", category: "management" },
 		{ id: "project", name: t("Projects"), icon: "folder-open", category: "management" },
 
@@ -2695,6 +2695,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.plugin.settings.completedTaskMover.enableCompletedTaskMover =
 							value;
 						this.applySettingsUpdate();
+
+						setTimeout(() => {
+							this.display();
+						}, 200);
 					})
 			);
 
@@ -2845,6 +2849,103 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					});
 				});
+
+			// Auto-move settings for completed tasks
+			new Setting(containerEl)
+				.setName(t("Enable auto-move for completed tasks"))
+				.setDesc(
+					t(
+						"Automatically move completed tasks to a default file without manual selection."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover.enableAutoMove
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.enableAutoMove =
+							value;
+						this.applySettingsUpdate();
+						this.display(); // Refresh to show/hide auto-move settings
+					});
+				});
+
+			if (this.plugin.settings.completedTaskMover.enableAutoMove) {
+				new Setting(containerEl)
+					.setName(t("Default target file"))
+					.setDesc(
+						t(
+							"Default file to move completed tasks to (e.g., 'Archive.md')"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("Archive.md")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.defaultTargetFile
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.defaultTargetFile =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+
+				new Setting(containerEl)
+					.setName(t("Default insertion mode"))
+					.setDesc(
+						t(
+							"Where to insert completed tasks in the target file"
+						)
+					)
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("beginning", t("Beginning of file"))
+							.addOption("end", t("End of file"))
+							.addOption("after-heading", t("After heading"))
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.defaultInsertionMode
+							)
+							.onChange(
+								async (
+									value: "beginning" | "end" | "after-heading"
+								) => {
+									this.plugin.settings.completedTaskMover.defaultInsertionMode =
+										value;
+									this.applySettingsUpdate();
+									this.display(); // Refresh to show/hide heading setting
+								}
+							);
+					});
+
+				if (
+					this.plugin.settings.completedTaskMover
+						.defaultInsertionMode === "after-heading"
+				) {
+					new Setting(containerEl)
+						.setName(t("Default heading name"))
+						.setDesc(
+							t(
+								"Heading name to insert tasks after (will be created if it doesn't exist)"
+							)
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("Completed Tasks")
+								.setValue(
+									this.plugin.settings.completedTaskMover
+										.defaultHeadingName
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.completedTaskMover.defaultHeadingName =
+										value;
+									this.applySettingsUpdate();
+								})
+						);
+				}
+			}
 		}
 
 		// Add Incomplete Task Mover settings
@@ -2988,6 +3089,106 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						this.applySettingsUpdate();
 					});
 				});
+
+			// Auto-move settings for incomplete tasks
+			new Setting(containerEl)
+				.setName(t("Enable auto-move for incomplete tasks"))
+				.setDesc(
+					t(
+						"Automatically move incomplete tasks to a default file without manual selection."
+					)
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(
+						this.plugin.settings.completedTaskMover
+							.enableIncompletedAutoMove
+					);
+					toggle.onChange((value) => {
+						this.plugin.settings.completedTaskMover.enableIncompletedAutoMove =
+							value;
+						this.applySettingsUpdate();
+						this.display(); // Refresh to show/hide auto-move settings
+					});
+				});
+
+			if (
+				this.plugin.settings.completedTaskMover.enableIncompletedAutoMove
+			) {
+				new Setting(containerEl)
+					.setName(t("Default target file for incomplete tasks"))
+					.setDesc(
+						t(
+							"Default file to move incomplete tasks to (e.g., 'Backlog.md')"
+						)
+					)
+					.addText((text) =>
+						text
+							.setPlaceholder("Backlog.md")
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.incompletedDefaultTargetFile
+							)
+							.onChange(async (value) => {
+								this.plugin.settings.completedTaskMover.incompletedDefaultTargetFile =
+									value;
+								this.applySettingsUpdate();
+							})
+					);
+
+				new Setting(containerEl)
+					.setName(t("Default insertion mode for incomplete tasks"))
+					.setDesc(
+						t(
+							"Where to insert incomplete tasks in the target file"
+						)
+					)
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("beginning", t("Beginning of file"))
+							.addOption("end", t("End of file"))
+							.addOption("after-heading", t("After heading"))
+							.setValue(
+								this.plugin.settings.completedTaskMover
+									.incompletedDefaultInsertionMode
+							)
+							.onChange(
+								async (
+									value: "beginning" | "end" | "after-heading"
+								) => {
+									this.plugin.settings.completedTaskMover.incompletedDefaultInsertionMode =
+										value;
+									this.applySettingsUpdate();
+									this.display(); // Refresh to show/hide heading setting
+								}
+							);
+					});
+
+				if (
+					this.plugin.settings.completedTaskMover
+						.incompletedDefaultInsertionMode === "after-heading"
+				) {
+					new Setting(containerEl)
+						.setName(t("Default heading name for incomplete tasks"))
+						.setDesc(
+							t(
+								"Heading name to insert incomplete tasks after (will be created if it doesn't exist)"
+							)
+						)
+						.addText((text) =>
+							text
+								.setPlaceholder("Incomplete Tasks")
+								.setValue(
+									this.plugin.settings.completedTaskMover
+										.incompletedDefaultHeadingName
+								)
+								.onChange(async (value) => {
+									this.plugin.settings.completedTaskMover.incompletedDefaultHeadingName =
+										value;
+									this.applySettingsUpdate();
+								})
+						);
+				}
+			}
 		}
 
 		// --- Task Sorting Settings ---
