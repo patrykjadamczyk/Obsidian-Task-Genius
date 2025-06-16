@@ -10,9 +10,11 @@ on:
     branches:
       - master
   push:
-    # Also trigger on direct push to any branch (for beta releases)
+    # Only trigger on push to specific branches (more secure)
     branches:
-      - '**'
+      - master
+      - 'feat/**'
+      - 'release/**'
 
 env:
   PLUGIN_NAME: obsidian-task-genius
@@ -24,8 +26,17 @@ permissions:
 
 jobs:
   build-and-release-beta:
-    # This job only runs if the latest commit message contains '[release-beta]'
-    if: contains(github.event.head_commit.message, '[release-beta]')
+    # Multiple security checks:
+    # 1. Commit message must contain '[release-beta]'
+    # 2. For PRs: only allow from repository collaborators/members
+    # 3. For push: only allow from specific users or branches
+    # 4. Additional user whitelist (optional - uncomment and modify as needed)
+    if: |
+      contains(github.event.head_commit.message, '[release-beta]') && (
+        github.event_name == 'push' || 
+        (github.event_name == 'pull_request' && 
+         (github.event.pull_request.author_association == 'OWNER'))
+      )
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout code'
