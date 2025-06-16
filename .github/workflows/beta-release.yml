@@ -26,11 +26,6 @@ permissions:
 
 jobs:
   build-and-release-beta:
-    # Multiple security checks:
-    # 1. Commit message must contain '[release-beta]'
-    # 2. For PRs: only allow from repository collaborators/members
-    # 3. For push: only allow from specific users or branches
-    # 4. Additional user whitelist (optional - uncomment and modify as needed)
     if: |
       contains(github.event.head_commit.message, '[release-beta]') && (
         github.event_name == 'push' || 
