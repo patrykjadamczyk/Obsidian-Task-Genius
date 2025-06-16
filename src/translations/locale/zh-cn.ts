@@ -410,6 +410,16 @@ const translations = {
 	"Beta Features": "测试功能",
 	"Projects": "项目",
 	About: "关于",
+
+	// Category names
+	"Core Settings": "核心设置",
+	"Display & Progress": "显示与进度",
+	"Task Management": "任务管理",
+	"Workflow & Automation": "工作流与自动化",
+	"Gamification": "游戏化",
+	"Integration": "集成",
+	"Advanced": "高级",
+	"Information": "信息",
 	"Count sub children of current Task": "计算当前任务的子任务",
 	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
 		"切换此选项以允许此插件在生成进度条时计算子任务。",

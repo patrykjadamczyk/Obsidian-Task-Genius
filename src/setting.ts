@@ -70,7 +70,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		// Integration & Advanced
 		{ id: "ics-integration", name: t("Calendar Sync"), icon: "calendar-plus", category: "integration" },
-		{ id: "beta-test", name: t("Beta Features"), icon: "flask", category: "advanced" },
+		{ id: "beta-test", name: t("Beta Features"), icon: "flask-conical", category: "advanced" },
 		{ id: "about", name: t("About"), icon: "info", category: "info" },
 	];
 
@@ -87,10 +87,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		}, 100);
 	}
 
-	// Tabs management
-	private createTabsUI() {
+	// Tabs management with categories
+	private createCategorizedTabsUI() {
 		this.containerEl.toggleClass("task-genius-settings", true);
-		// Create tabs container
+		// Create header
 		new Setting(this.containerEl)
 			.setName("Task Genius")
 			.setClass("task-genius-settings-header")
@@ -101,48 +101,91 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			)
 			.setHeading();
 
-		const tabsContainer = this.containerEl.createDiv({
-			cls: "settings-tabs-container",
+		// Group tabs by category
+		const categories = {
+			core: { name: t("Core Settings"), tabs: [] as typeof this.tabs },
+			display: { name: t("Display & Progress"), tabs: [] as typeof this.tabs },
+			management: { name: t("Task Management"), tabs: [] as typeof this.tabs },
+			workflow: { name: t("Workflow & Automation"), tabs: [] as typeof this.tabs },
+			gamification: { name: t("Gamification"), tabs: [] as typeof this.tabs },
+			integration: { name: t("Integration"), tabs: [] as typeof this.tabs },
+			advanced: { name: t("Advanced"), tabs: [] as typeof this.tabs },
+			info: { name: t("Information"), tabs: [] as typeof this.tabs },
+		};
+
+		// Group tabs by category
+		this.tabs.forEach((tab) => {
+			const category = tab.category || "core";
+			if (categories[category as keyof typeof categories]) {
+				categories[category as keyof typeof categories].tabs.push(tab);
+			}
 		});
 
-		// Create tabs
-		this.tabs.forEach((tab) => {
-			const tabEl = tabsContainer.createDiv({
-				cls: `settings-tab${
-					this.currentTab === tab.id ? " settings-tab-active" : ""
-				}`,
-				attr: { "data-tab-id": tab.id },
-			});
+		// Create categorized tabs container
+		const tabsContainer = this.containerEl.createDiv();
+		tabsContainer.addClass("settings-tabs-categorized-container");
 
-			// Add icon if Obsidian has it
-			tabEl.createSpan({ cls: `settings-tab-icon` }, (el) => {
-				setIcon(el, tab.icon);
-			});
+		// Create tabs for each category
+		Object.entries(categories).forEach(([categoryKey, category]) => {
+			if (category.tabs.length === 0) return;
 
-			// Add label
-			tabEl.createSpan({
-				text:
+			// Create category section
+			const categorySection = tabsContainer.createDiv();
+			categorySection.addClass("settings-category-section");
+
+			// Category header
+			const categoryHeader = categorySection.createDiv();
+			categoryHeader.addClass("settings-category-header");
+			categoryHeader.setText(category.name);
+
+			// Category tabs container
+			const categoryTabsContainer = categorySection.createDiv();
+			categoryTabsContainer.addClass("settings-category-tabs");
+
+			// Create tabs for this category
+			category.tabs.forEach((tab) => {
+				const tabEl = categoryTabsContainer.createDiv();
+				tabEl.addClass("settings-tab");
+				if (this.currentTab === tab.id) {
+					tabEl.addClass("settings-tab-active");
+				}
+				tabEl.setAttribute("data-tab-id", tab.id);
+				tabEl.setAttribute("data-category", categoryKey);
+
+				// Add icon
+				const iconEl = tabEl.createSpan();
+				iconEl.addClass("settings-tab-icon");
+				setIcon(iconEl, tab.icon);
+
+				// Add label
+				const labelEl = tabEl.createSpan();
+				labelEl.addClass("settings-tab-label");
+				labelEl.setText(
 					tab.name +
 					(tab.id === "about"
-						? " Task Genius v" + this.plugin.manifest.version
-						: ""),
-			});
+						? " v" + this.plugin.manifest.version
+						: "")
+				);
 
-			// Add click handler
-			tabEl.addEventListener("click", () => {
-				this.switchToTab(tab.id);
+				// Add click handler
+				tabEl.addEventListener("click", () => {
+					this.switchToTab(tab.id);
+				});
 			});
 		});
 
 		// Create sections container
-		this.containerEl.createDiv({ cls: "settings-tab-sections" });
+		const sectionsContainer = this.containerEl.createDiv();
+		sectionsContainer.addClass("settings-tab-sections");
 	}
 
 	private switchToTab(tabId: string) {
+		console.log("Switching to tab:", tabId);
+
 		// Update current tab
 		this.currentTab = tabId;
 
-		// Update active tab
+		// Update active tab states
 		const tabs = this.containerEl.querySelectorAll(".settings-tab");
 		tabs.forEach((tab) => {
 			if (tab.getAttribute("data-tab-id") === tabId) {
@@ -159,10 +202,29 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		sections.forEach((section) => {
 			if (section.getAttribute("data-tab-id") === tabId) {
 				section.addClass("settings-tab-section-active");
+				(section as unknown as HTMLElement).style.display = "block";
 			} else {
 				section.removeClass("settings-tab-section-active");
+				(section as unknown as HTMLElement).style.display = "none";
 			}
 		});
+
+		// Handle tab container and header visibility based on selected tab
+		const tabsContainer = this.containerEl.querySelector(".settings-tabs-categorized-container");
+		const settingsHeader = this.containerEl.querySelector(".task-genius-settings-header");
+
+		if (tabId === "general") {
+			// Show tabs and header for general tab
+			if (tabsContainer) (tabsContainer as unknown as HTMLElement).style.display = "flex";
+			if (settingsHeader) (settingsHeader as unknown as HTMLElement).style.display = "block";
+		} else {
+			// Hide tabs and header for specific tab pages
+			if (tabsContainer) (tabsContainer as unknown as HTMLElement).style.display = "none";
+			if (settingsHeader) (settingsHeader as unknown as HTMLElement).style.display = "none";
+		}
+
+		console.log("Tab switched to:", tabId, "Active sections:",
+			this.containerEl.querySelectorAll(".settings-tab-section-active").length);
 	}
 
 	public openTab(tabId: string) {
@@ -178,40 +240,35 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		if (!sectionsContainer) return this.containerEl;
 
 		// Create section element
-		const section = sectionsContainer.createDiv({
-			cls: `settings-tab-section ${
-				this.currentTab === tabId ? "settings-tab-section-active" : ""
-			}`,
-			attr: { "data-tab-id": tabId },
-		});
+		const section = sectionsContainer.createDiv();
+		section.addClass("settings-tab-section");
+		if (this.currentTab === tabId) {
+			section.addClass("settings-tab-section-active");
+		}
+		section.setAttribute("data-tab-id", tabId);
 
-		section.createDiv(
-			{
-				cls: "settings-tab-section-header",
-			},
-			(el) => {
-				const button = new ButtonComponent(el)
-					.setClass("header-button")
-					.onClick(() => {
-						this.currentTab = "general";
-						this.display();
-					});
+		// Create header
+		if (tabId !== "general") {
+			const headerEl = section.createDiv();
+			headerEl.addClass("settings-tab-section-header");
 
-				button.buttonEl.createEl(
-					"span",
-					{
-						cls: "header-button-icon",
-					},
-					(el) => {
-						setIcon(el, "arrow-left");
-					}
-				);
-				button.buttonEl.createEl("span", {
-					cls: "header-button-text",
-					text: t("Back to main settings"),
+			const button = new ButtonComponent(headerEl)
+				.setClass("header-button")
+				.onClick(() => {
+					this.currentTab = "general"; 
+					this.display();
 				});
-			}
-		);
+
+			const iconEl = button.buttonEl.createEl("span");
+			iconEl.addClass("header-button-icon");
+			setIcon(iconEl, "arrow-left");
+
+			const textEl = button.buttonEl.createEl("span");
+			textEl.addClass("header-button-text");
+			textEl.setText(t("Back to main settings"));
+		}
+
+		
 
 		return section;
 	}
@@ -221,8 +278,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		// Create tabs UI
-		this.createTabsUI();
+		// Ensure we start with general tab if no tab is set
+		if (!this.currentTab) {
+			this.currentTab = "general";
+		}
+
+		// Create tabs UI with categories
+		this.createCategorizedTabsUI();
 
 		// General Tab
 		const generalSection = this.createTabSection("general");
@@ -283,6 +345,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// About Tab
 		const aboutSection = this.createTabSection("about");
 		this.displayAboutSettings(aboutSection);
+
+		// Initialize the correct tab state
+		this.switchToTab(this.currentTab);
 	}
 
 	private displayGeneralSettings(containerEl: HTMLElement): void {}

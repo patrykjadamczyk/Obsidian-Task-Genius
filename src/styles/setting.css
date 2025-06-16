@@ -120,6 +120,48 @@
 	cursor: pointer;
 }
 
+/* Categorized tabs container */
+.task-genius-settings .settings-tabs-categorized-container {
+	margin-top: var(--size-4-4);
+	margin-bottom: var(--size-4-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-6);
+}
+
+/* Category section */
+.task-genius-settings .settings-category-section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+/* Category header */
+.task-genius-settings .settings-category-header {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-weight-semibold);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: var(--size-4-1);
+}
+
+/* Category tabs container */
+.task-genius-settings .settings-category-tabs {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(200px, 1fr));
+	gap: var(--size-4-2);
+}
+
+@media (max-width: 768px) {
+	.task-genius-settings .settings-category-tabs {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Legacy tabs container (fallback) */
 .task-genius-settings .settings-tabs-container {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
@@ -137,17 +179,18 @@
 }
 
 .task-genius-settings .settings-tab {
-	padding: var(--size-4-2) var(--size-4-4);
-	border-radius: 4px;
+	padding: var(--size-4-3) var(--size-4-4);
+	border-radius: var(--radius-m);
 	cursor: pointer;
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	height: 100%;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-12);
 	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
 	position: relative;
 	overflow: hidden;
-	transition: all 0.3s ease;
+	transition: all 0.2s ease;
 }
 
 .task-genius-settings .settings-tab::after {
@@ -175,12 +218,60 @@
 	opacity: 0.3;
 }
 
+/* Tab content styling */
 .task-genius-settings .settings-tab-icon,
-.task-genius-settings .settings-tab span {
+.task-genius-settings .settings-tab span,
+.task-genius-settings .settings-tab-label {
 	position: relative;
 	z-index: 1;
 }
 
+/* Enhanced tab icon styling for categorized layout */
+.task-genius-settings .settings-category-tabs .settings-tab-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-4);
+	height: var(--size-4-4);
+	flex-shrink: 0;
+}
+
+.task-genius-settings .settings-category-tabs .settings-tab-icon svg {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+/* Enhanced tab label styling for categorized layout */
+.task-genius-settings .settings-category-tabs .settings-tab-label {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-weight-medium);
+	flex: 1;
+	text-align: left;
+}
+
+/* Enhanced hover and active states for categorized tabs */
+.task-genius-settings .settings-category-tabs .settings-tab:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-m);
+}
+
+.task-genius-settings .settings-category-tabs .settings-tab-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+	box-shadow: var(--shadow-m);
+	font-weight: var(--font-weight-semibold);
+}
+
+.task-genius-settings .settings-category-tabs .settings-tab-active:hover {
+	background: var(--interactive-accent-hover);
+	border-color: var(--interactive-accent-hover);
+	transform: translateY(-1px);
+}
+
+/* Legacy tab styles (fallback) */
 .task-genius-settings .settings-tab:hover {
 	background-color: var(--background-modifier-hover);
 }
@@ -226,31 +317,40 @@
 	justify-content: center;
 }
 
+/* Tab section header visibility rules */
 .task-genius-settings
-	.settings-tab-section[data-tab-id="general"]
-	.header-button {
+	.settings-tab[data-tab-id="general"]{
 	display: none;
 }
 
-.task-genius-settings
-	.settings-tabs-container:has(.settings-tab-active[data-tab-id="general"]) {
-	display: grid;
+/* Hide categorized tabs container when any non-general tab is active */
+.task-genius-settings .settings-tabs-categorized-container {
+	display: flex;
 }
 
-.task-genius-settings .settings-tab[data-tab-id="general"] {
+.task-genius-settings:has(.settings-tab-section-active:not([data-tab-id="general"]))
+	.settings-tabs-categorized-container {
 	display: none;
 }
 
+/* Legacy tabs container visibility (fallback) */
 .task-genius-settings .settings-tabs-container {
 	display: none;
 }
 
+/* Show legacy tabs when general tab is active (fallback behavior) */
 .task-genius-settings:has(.settings-tab-active[data-tab-id="general"])
-	.task-genius-settings-header {
+	.settings-tabs-container {
+	display: grid;
+}
+
+/* Settings header visibility - hide when non-general tab is active */
+.task-genius-settings-header {
 	display: block;
 }
 
-.task-genius-settings-header {
+.task-genius-settings:has(.settings-tab-section-active:not([data-tab-id="general"]))
+	.task-genius-settings-header {
 	display: none;
 }
 
