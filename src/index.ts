@@ -9,9 +9,7 @@ import {
 	addIcon,
 	requireApiVersion,
 } from "obsidian";
-import {
-	taskProgressBarExtension,
-} from "./editor-ext/progressBarWidget";
+import { taskProgressBarExtension } from "./editor-ext/progressBarWidget";
 import { updateProgressBarInElement } from "./components/readModeProgressbarWidget";
 import { applyTaskTextMarks } from "./components/readModeTextMark";
 import {
@@ -79,7 +77,7 @@ import "./styles/view-config.css";
 import "./styles/task-status.css";
 import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
-import { getTaskGeniusIcon } from "./icon";
+import { getStatusIcon, getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
 import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
@@ -199,6 +197,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.loadViews();
 
 			addIcon("task-genius", getTaskGeniusIcon());
+			addIcon("completed", getStatusIcon("completed"));
+			addIcon("inProgress", getStatusIcon("inProgress"));
+			addIcon("planned", getStatusIcon("planned"));
+			addIcon("abandoned", getStatusIcon("abandoned"));
+			addIcon("notStarted", getStatusIcon("notStarted"));
 
 			this.taskManager = new TaskManager(
 				this.app,
@@ -705,7 +708,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 				this.addCommand({
 					id: "auto-move-direct-completed-subtasks",
-					name: t("Auto-move direct completed subtasks to default file"),
+					name: t(
+						"Auto-move direct completed subtasks to default file"
+					),
 					editorCheckCallback: (checking, editor, ctx) => {
 						return autoMoveCompletedTasksCommand(
 							checking,
@@ -783,7 +788,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 				this.addCommand({
 					id: "auto-move-direct-incomplete-subtasks",
-					name: t("Auto-move direct incomplete subtasks to default file"),
+					name: t(
+						"Auto-move direct incomplete subtasks to default file"
+					),
 					editorCheckCallback: (checking, editor, ctx) => {
 						return autoMoveCompletedTasksCommand(
 							checking,

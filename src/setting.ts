@@ -13,6 +13,7 @@ import {
 } from "obsidian";
 import TaskProgressBarPlugin from ".";
 import { allStatusCollections } from "./common/task-status";
+import * as taskStatusModule from "./common/task-status";
 import { migrateOldFilterOptions } from "./editor-ext/filterTasks";
 import { t } from "./translations/helper";
 import { WorkflowDefinitionModal } from "./components/WorkflowDefinitionModal";
@@ -27,6 +28,7 @@ import {
 } from "./common/setting-definition";
 import { formatProgressText } from "./editor-ext/progressBarWidget";
 import "./styles/setting.css";
+import "./styles/setting-v2.css";
 import "./styles/beta-warning.css";
 import { ViewConfigModal } from "./components/ViewConfigModal";
 import {
@@ -45,32 +47,107 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	// Tabs management
 	private currentTab: string = "general";
-	private tabs: Array<{ id: string; name: string; icon: string; category?: string }> = [
+	private tabs: Array<{
+		id: string;
+		name: string;
+		icon: string;
+		category?: string;
+	}> = [
 		// Core Settings
-		{ id: "general", name: t("General"), icon: "settings", category: "core" },
-		{ id: "view-settings", name: t("Views & Index"), icon: "layout", category: "core" },
+		{
+			id: "general",
+			name: t("General"),
+			icon: "settings",
+			category: "core",
+		},
+		{
+			id: "view-settings",
+			name: t("Views & Index"),
+			icon: "layout",
+			category: "core",
+		},
 
 		// Display & Progress
-		{ id: "progress-bar", name: t("Progress Display"), icon: "trending-up", category: "display" },
-		{ id: "task-status", name: t("Task Status"), icon: "checkbox-glyph", category: "display" },
+		{
+			id: "progress-bar",
+			name: t("Progress Display"),
+			icon: "trending-up",
+			category: "display",
+		},
+		{
+			id: "task-status",
+			name: t("Task Status"),
+			icon: "checkbox-glyph",
+			category: "display",
+		},
 
 		// Task Management
-		{ id: "task-handler", name: t("Task Handler"), icon: "list-checks", category: "management" },
-		{ id: "task-filter", name: t("Task Filter"), icon: "filter", category: "management" },
-		{ id: "project", name: t("Projects"), icon: "folder-open", category: "management" },
+		{
+			id: "task-handler",
+			name: t("Task Handler"),
+			icon: "list-checks",
+			category: "management",
+		},
+		{
+			id: "task-filter",
+			name: t("Task Filter"),
+			icon: "filter",
+			category: "management",
+		},
+		{
+			id: "project",
+			name: t("Projects"),
+			icon: "folder-open",
+			category: "management",
+		},
 
 		// Workflow & Automation
-		{ id: "workflow", name: t("Workflows"), icon: "git-branch", category: "workflow" },
-		{ id: "date-priority", name: t("Dates & Priority"), icon: "calendar-clock", category: "workflow" },
-		{ id: "quick-capture", name: t("Quick Capture"), icon: "zap", category: "workflow" },
+		{
+			id: "workflow",
+			name: t("Workflows"),
+			icon: "git-branch",
+			category: "workflow",
+		},
+		{
+			id: "date-priority",
+			name: t("Dates & Priority"),
+			icon: "calendar-clock",
+			category: "workflow",
+		},
+		{
+			id: "quick-capture",
+			name: t("Quick Capture"),
+			icon: "zap",
+			category: "workflow",
+		},
 
 		// Gamification
-		{ id: "reward", name: t("Rewards"), icon: "gift", category: "gamification" },
-		{ id: "habit", name: t("Habits"), icon: "repeat", category: "gamification" },
+		{
+			id: "reward",
+			name: t("Rewards"),
+			icon: "gift",
+			category: "gamification",
+		},
+		{
+			id: "habit",
+			name: t("Habits"),
+			icon: "repeat",
+			category: "gamification",
+		},
 
 		// Integration & Advanced
-		{ id: "ics-integration", name: t("Calendar Sync"), icon: "calendar-plus", category: "integration" },
-		{ id: "beta-test", name: t("Beta Features"), icon: "flask-conical", category: "advanced" },
+		{
+			id: "ics-integration",
+			name: t("Calendar Sync"),
+			icon: "calendar-plus",
+			category: "integration",
+		},
+		{
+			id: "beta-test",
+			name: t("Beta Features"),
+			icon: "flask-conical",
+			category: "advanced",
+		},
 		{ id: "about", name: t("About"), icon: "info", category: "info" },
 	];
 
@@ -90,25 +167,30 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	// Tabs management with categories
 	private createCategorizedTabsUI() {
 		this.containerEl.toggleClass("task-genius-settings", true);
-		// Create header
-		new Setting(this.containerEl)
-			.setName("Task Genius")
-			.setClass("task-genius-settings-header")
-			.setDesc(
-				t(
-					"Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features."
-				)
-			)
-			.setHeading();
 
 		// Group tabs by category
 		const categories = {
 			core: { name: t("Core Settings"), tabs: [] as typeof this.tabs },
-			display: { name: t("Display & Progress"), tabs: [] as typeof this.tabs },
-			management: { name: t("Task Management"), tabs: [] as typeof this.tabs },
-			workflow: { name: t("Workflow & Automation"), tabs: [] as typeof this.tabs },
-			gamification: { name: t("Gamification"), tabs: [] as typeof this.tabs },
-			integration: { name: t("Integration"), tabs: [] as typeof this.tabs },
+			display: {
+				name: t("Display & Progress"),
+				tabs: [] as typeof this.tabs,
+			},
+			management: {
+				name: t("Task Management"),
+				tabs: [] as typeof this.tabs,
+			},
+			workflow: {
+				name: t("Workflow & Automation"),
+				tabs: [] as typeof this.tabs,
+			},
+			gamification: {
+				name: t("Gamification"),
+				tabs: [] as typeof this.tabs,
+			},
+			integration: {
+				name: t("Integration"),
+				tabs: [] as typeof this.tabs,
+			},
 			advanced: { name: t("Advanced"), tabs: [] as typeof this.tabs },
 			info: { name: t("Information"), tabs: [] as typeof this.tabs },
 		};
@@ -162,9 +244,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				labelEl.addClass("settings-tab-label");
 				labelEl.setText(
 					tab.name +
-					(tab.id === "about"
-						? " v" + this.plugin.manifest.version
-						: "")
+						(tab.id === "about"
+							? " v" + this.plugin.manifest.version
+							: "")
 				);
 
 				// Add click handler
@@ -210,21 +292,38 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		});
 
 		// Handle tab container and header visibility based on selected tab
-		const tabsContainer = this.containerEl.querySelector(".settings-tabs-categorized-container");
-		const settingsHeader = this.containerEl.querySelector(".task-genius-settings-header");
+		const tabsContainer = this.containerEl.querySelector(
+			".settings-tabs-categorized-container"
+		);
+		const settingsHeader = this.containerEl.querySelector(
+			".task-genius-settings-header"
+		);
 
 		if (tabId === "general") {
 			// Show tabs and header for general tab
-			if (tabsContainer) (tabsContainer as unknown as HTMLElement).style.display = "flex";
-			if (settingsHeader) (settingsHeader as unknown as HTMLElement).style.display = "block";
+			if (tabsContainer)
+				(tabsContainer as unknown as HTMLElement).style.display =
+					"flex";
+			if (settingsHeader)
+				(settingsHeader as unknown as HTMLElement).style.display =
+					"block";
 		} else {
 			// Hide tabs and header for specific tab pages
-			if (tabsContainer) (tabsContainer as unknown as HTMLElement).style.display = "none";
-			if (settingsHeader) (settingsHeader as unknown as HTMLElement).style.display = "none";
+			if (tabsContainer)
+				(tabsContainer as unknown as HTMLElement).style.display =
+					"none";
+			if (settingsHeader)
+				(settingsHeader as unknown as HTMLElement).style.display =
+					"none";
 		}
 
-		console.log("Tab switched to:", tabId, "Active sections:",
-			this.containerEl.querySelectorAll(".settings-tab-section-active").length);
+		console.log(
+			"Tab switched to:",
+			tabId,
+			"Active sections:",
+			this.containerEl.querySelectorAll(".settings-tab-section-active")
+				.length
+		);
 	}
 
 	public openTab(tabId: string) {
@@ -255,7 +354,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			const button = new ButtonComponent(headerEl)
 				.setClass("header-button")
 				.onClick(() => {
-					this.currentTab = "general"; 
+					this.currentTab = "general";
 					this.display();
 				});
 
@@ -267,8 +366,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			textEl.addClass("header-button-text");
 			textEl.setText(t("Back to main settings"));
 		}
-
-		
 
 		return section;
 	}
@@ -1150,15 +1247,12 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 						// Apply the selected theme's task statuses
 						try {
-							// Import the function dynamically based on the selected theme
+							// Get the function based on the selected theme
 							const functionName =
 								value.toLowerCase() + "SupportedStatuses";
-							const statusesModule = await import(
-								"./common/task-status"
-							);
 
 							// Use type assertion for the dynamic function access
-							const getStatuses = (statusesModule as any)[
+							const getStatuses = (taskStatusModule as any)[
 								functionName
 							];
 
@@ -1248,8 +1342,29 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 			});
 
+		const completeFragment = createFragment();
+		completeFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-icon",
+			},
+			(el) => {
+				setIcon(el, "completed");
+			}
+		);
+
+		completeFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-text",
+			},
+			(el) => {
+				el.setText(t("Completed"));
+			}
+		);
+
 		new Setting(containerEl)
-			.setName(t("Completed task markers"))
+			.setName(completeFragment)
 			.setDesc(
 				t(
 					'Characters in square brackets that represent completed tasks. Example: "x|X"'
@@ -1266,8 +1381,29 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					})
 			);
 
+		const plannedFragment = createFragment();
+		plannedFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-icon",
+			},
+			(el) => {
+				setIcon(el, "planned");
+			}
+		);
+
+		plannedFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-text",
+			},
+			(el) => {
+				el.setText(t("Planned"));
+			}
+		);
+
 		new Setting(containerEl)
-			.setName(t("Planned task markers"))
+			.setName(plannedFragment)
 			.setDesc(
 				t(
 					'Characters in square brackets that represent planned tasks. Example: "?"'
@@ -1284,8 +1420,29 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					})
 			);
 
+		const inProgressFragment = createFragment();
+		inProgressFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-icon",
+			},
+			(el) => {
+				setIcon(el, "inProgress");
+			}
+		);
+
+		inProgressFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-text",
+			},
+			(el) => {
+				el.setText(t("In Progress"));
+			}
+		);
+
 		new Setting(containerEl)
-			.setName(t("In progress task markers"))
+			.setName(inProgressFragment)
 			.setDesc(
 				t(
 					'Characters in square brackets that represent tasks in progress. Example: ">|/"'
@@ -1302,8 +1459,30 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					})
 			);
 
+		const abandonedFragment = createFragment();
+
+		abandonedFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-icon",
+			},
+			(el) => {
+				setIcon(el, "abandoned");
+			}
+		);
+
+		abandonedFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-text",
+			},
+			(el) => {
+				el.setText(t("Abandoned"));
+			}
+		);
+
 		new Setting(containerEl)
-			.setName(t("Abandoned task markers"))
+			.setName(abandonedFragment)
 			.setDesc(
 				t(
 					'Characters in square brackets that represent abandoned tasks. Example: "-"'
@@ -1320,8 +1499,30 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					})
 			);
 
+		const notStartedFragment = createFragment();
+
+		notStartedFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-icon",
+			},
+			(el) => {
+				setIcon(el, "notStarted");
+			}
+		);
+
+		notStartedFragment.createEl(
+			"span",
+			{
+				cls: "tg-status-text",
+			},
+			(el) => {
+				el.setText(t("Not Started"));
+			}
+		);
+
 		new Setting(containerEl)
-			.setName("Not started task markers")
+			.setName(notStartedFragment)
 			.setDesc(
 				t(
 					'Characters in square brackets that represent not started tasks. Default is space " "'
@@ -1556,15 +1757,12 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 							// Apply the selected theme's task statuses
 							try {
-								// Import the function dynamically based on the selected theme
+								// Get the function based on the selected theme
 								const functionName =
 									value.toLowerCase() + "SupportedStatuses";
-								const statusesModule = await import(
-									"./common/task-status"
-								);
 
 								// Use type assertion for the dynamic function access
-								const getStatuses = (statusesModule as any)[
+								const getStatuses = (taskStatusModule as any)[
 									functionName
 								];
 
@@ -2895,9 +3093,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				new Setting(containerEl)
 					.setName(t("Default insertion mode"))
 					.setDesc(
-						t(
-							"Where to insert completed tasks in the target file"
-						)
+						t("Where to insert completed tasks in the target file")
 					)
 					.addDropdown((dropdown) => {
 						dropdown
@@ -3112,7 +3308,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				});
 
 			if (
-				this.plugin.settings.completedTaskMover.enableIncompletedAutoMove
+				this.plugin.settings.completedTaskMover
+					.enableIncompletedAutoMove
 			) {
 				new Setting(containerEl)
 					.setName(t("Default target file for incomplete tasks"))
@@ -3138,9 +3335,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 				new Setting(containerEl)
 					.setName(t("Default insertion mode for incomplete tasks"))
 					.setDesc(
-						t(
-							"Where to insert incomplete tasks in the target file"
-						)
+						t("Where to insert incomplete tasks in the target file")
 					)
 					.addDropdown((dropdown) => {
 						dropdown
@@ -3482,7 +3677,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						] = value || "project";
 						this.applySettingsUpdate();
 						// Update format examples
-						const updateFn = (containerEl as any).updateFormatExamples;
+						const updateFn = (containerEl as any)
+							.updateFormatExamples;
 						if (updateFn) updateFn();
 					});
 			});
@@ -3512,7 +3708,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						] = value || (isDataviewFormat ? "context" : "@");
 						this.applySettingsUpdate();
 						// Update format examples
-						const updateFn = (containerEl as any).updateFormatExamples;
+						const updateFn = (containerEl as any)
+							.updateFormatExamples;
 						if (updateFn) updateFn();
 					});
 			});
@@ -3542,7 +3739,8 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 						] = value || "area";
 						this.applySettingsUpdate();
 						// Update format examples
-						const updateFn = (containerEl as any).updateFormatExamples;
+						const updateFn = (containerEl as any)
+							.updateFormatExamples;
 						if (updateFn) updateFn();
 					});
 			});
@@ -3555,9 +3753,12 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Function to update format examples
 		const updateFormatExamples = () => {
 			exampleContainer.empty();
-			exampleContainer.createEl("strong", { text: t("Format Examples:") });
+			exampleContainer.createEl("strong", {
+				text: t("Format Examples:"),
+			});
 
-			const currentIsDataviewFormat = this.plugin.settings.preferMetadataFormat === "dataview";
+			const currentIsDataviewFormat =
+				this.plugin.settings.preferMetadataFormat === "dataview";
 
 			if (currentIsDataviewFormat) {
 				exampleContainer.createEl("br");
@@ -3592,7 +3793,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					}/myproject`,
 				});
 				exampleContainer.createEl("span", {
-					text: `• ${t("Context")}: @home (${t("always uses @ prefix")})`,
+					text: `• ${t("Context")}: @home (${t(
+						"always uses @ prefix"
+					)})`,
 				});
 				exampleContainer.createEl("span", {
 					text: `• ${t("Area")}: #${
