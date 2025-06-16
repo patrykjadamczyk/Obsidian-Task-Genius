@@ -6,10 +6,79 @@
 import { IcsEvent, IcsParseResult, IcsSource } from "../../types/ics";
 
 export class IcsParser {
+	// Pre-compiled regular expressions for better performance
+	private static readonly CN_REGEX = /CN=([^;:]+)/;
+	private static readonly ROLE_REGEX = /ROLE=([^;:]+)/;
+	private static readonly PARTSTAT_REGEX = /PARTSTAT=([^;:]+)/;
+
+	// Cache for parsed content to avoid re-parsing identical content
+	private static readonly parseCache = new Map<string, IcsParseResult>();
+	private static readonly MAX_CACHE_SIZE = 50; // Limit cache size to prevent memory leaks
+
+	// Property handler map for faster lookup
+	private static readonly PROPERTY_HANDLERS = new Map<string, (event: Partial<IcsEvent>, value: string, fullLine: string) => void>([
+		['UID', (event, value) => { event.uid = value; }],
+		['SUMMARY', (event, value) => { event.summary = IcsParser.unescapeText(value); }],
+		['DESCRIPTION', (event, value) => { event.description = IcsParser.unescapeText(value); }],
+		['LOCATION', (event, value) => { event.location = IcsParser.unescapeText(value); }],
+		['STATUS', (event, value) => { event.status = value.toUpperCase(); }],
+		['PRIORITY', (event, value) => {
+			const priority = parseInt(value, 10);
+			if (!isNaN(priority)) event.priority = priority;
+		}],
+		['TRANSP', (event, value) => { event.transp = value.toUpperCase(); }],
+		['RRULE', (event, value) => { event.rrule = value; }],
+		['DTSTART', (event, value, fullLine) => {
+			const result = IcsParser.parseDateTime(value, fullLine);
+			event.dtstart = result.date;
+			if (result.allDay !== undefined) event.allDay = result.allDay;
+		}],
+		['DTEND', (event, value, fullLine) => {
+			event.dtend = IcsParser.parseDateTime(value, fullLine).date;
+		}],
+		['CREATED', (event, value, fullLine) => {
+			event.created = IcsParser.parseDateTime(value, fullLine).date;
+		}],
+		['LAST-MODIFIED', (event, value, fullLine) => {
+			event.lastModified = IcsParser.parseDateTime(value, fullLine).date;
+		}],
+		['CATEGORIES', (event, value) => {
+			event.categories = value.split(",").map(cat => cat.trim());
+		}],
+		['EXDATE', (event, value, fullLine) => {
+			if (!event.exdate) event.exdate = [];
+			const exdates = value.split(",");
+			for (const exdate of exdates) {
+				const date = IcsParser.parseDateTime(exdate.trim(), fullLine).date;
+				event.exdate.push(date);
+			}
+		}],
+		['ORGANIZER', (event, value, fullLine) => {
+			event.organizer = IcsParser.parseOrganizer(value, fullLine);
+		}],
+		['ATTENDEE', (event, value, fullLine) => {
+			if (!event.attendees) event.attendees = [];
+			event.attendees.push(IcsParser.parseAttendee(value, fullLine));
+		}]
+	]);
 	/**
 	 * Parse ICS content string into events
+	 * Includes caching mechanism for improved performance
 	 */
 	static parse(content: string, source: IcsSource): IcsParseResult {
+		// Create cache key based on content hash and source id
+		const cacheKey = this.createCacheKey(content, source.id);
+
+		// Check cache first
+		const cached = this.parseCache.get(cacheKey);
+		if (cached) {
+			// Return deep copy to prevent mutation of cached data
+			return {
+				events: cached.events.map(event => ({ ...event, source })),
+				errors: [...cached.errors],
+				metadata: { ...cached.metadata }
+			};
+		}
 		const result: IcsParseResult = {
 			events: [],
 			errors: [],
@@ -115,32 +184,85 @@ export class IcsParser {
 			});
 		}
 
+		// Cache the result before returning
+		this.cacheResult(cacheKey, result);
+
 		return result;
+	}
+
+	/**
+	 * Create cache key from content and source id
+	 */
+	private static createCacheKey(content: string, sourceId: string): string {
+		// Simple hash function for cache key
+		let hash = 0;
+		for (let i = 0; i < content.length; i++) {
+			const char = content.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash; // Convert to 32-bit integer
+		}
+		return `${sourceId}-${hash}`;
+	}
+
+	/**
+	 * Cache parsing result with size limit
+	 */
+	private static cacheResult(key: string, result: IcsParseResult): void {
+		// Implement LRU-like behavior by clearing cache when it gets too large
+		if (this.parseCache.size >= this.MAX_CACHE_SIZE) {
+			// Clear oldest entries (simple approach - clear half the cache)
+			const entries = Array.from(this.parseCache.entries());
+			const keepCount = Math.floor(this.MAX_CACHE_SIZE / 2);
+			this.parseCache.clear();
+
+			// Keep the most recent entries
+			for (let i = entries.length - keepCount; i < entries.length; i++) {
+				this.parseCache.set(entries[i][0], entries[i][1]);
+			}
+		}
+
+		// Store a copy to prevent external mutations
+		this.parseCache.set(key, {
+			events: result.events.map(event => ({ ...event })),
+			errors: [...result.errors],
+			metadata: { ...result.metadata }
+		});
 	}
 
 	/**
 	 * Unfold lines according to RFC 5545
 	 * Lines can be folded by inserting CRLF followed by a space or tab
+	 * Optimized version using array join instead of string concatenation
 	 */
 	private static unfoldLines(lines: string[]): string[] {
 		const unfolded: string[] = [];
-		let currentLine = "";
+		const currentLineParts: string[] = [];
+		let hasCurrentLine = false;
 
-		for (const line of lines) {
-			if (line.startsWith(" ") || line.startsWith("\t")) {
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			const firstChar = line.charCodeAt(0);
+
+			// Check for space (32) or tab (9) at the beginning
+			if (firstChar === 32 || firstChar === 9) {
 				// This is a continuation of the previous line
-				currentLine += line.substring(1);
+				if (hasCurrentLine) {
+					currentLineParts.push(' '); // Add space between folded parts
+					currentLineParts.push(line.slice(1));
+				}
 			} else {
 				// This is a new line
-				if (currentLine) {
-					unfolded.push(currentLine);
+				if (hasCurrentLine) {
+					unfolded.push(currentLineParts.join(''));
+					currentLineParts.length = 0; // Clear array efficiently
 				}
-				currentLine = line;
+				currentLineParts.push(line);
+				hasCurrentLine = true;
 			}
 		}
 
-		if (currentLine) {
-			unfolded.push(currentLine);
+		if (hasCurrentLine) {
+			unfolded.push(currentLineParts.join(''));
 		}
 
 		return unfolded;
@@ -148,6 +270,7 @@ export class IcsParser {
 
 	/**
 	 * Parse a single line into property and value
+	 * Optimized version with reduced string operations
 	 */
 	private static parseLine(line: string): [string, string] {
 		const colonIndex = line.indexOf(":");
@@ -155,21 +278,25 @@ export class IcsParser {
 			throw new Error("Invalid line format: missing colon");
 		}
 
-		const propertyPart = line.substring(0, colonIndex);
-		const value = line.substring(colonIndex + 1);
+		// Extract property name (before any parameters) and value in one pass
+		const semicolonIndex = line.indexOf(";");
+		let property: string;
 
-		// Extract property name (before any parameters)
-		const semicolonIndex = propertyPart.indexOf(";");
-		const property =
-			semicolonIndex === -1
-				? propertyPart
-				: propertyPart.substring(0, semicolonIndex);
+		if (semicolonIndex !== -1 && semicolonIndex < colonIndex) {
+			// Property has parameters
+			property = line.slice(0, semicolonIndex).toUpperCase();
+		} else {
+			// No parameters
+			property = line.slice(0, colonIndex).toUpperCase();
+		}
 
-		return [property.toUpperCase(), value];
+		const value = line.slice(colonIndex + 1);
+		return [property, value];
 	}
 
 	/**
 	 * Parse event-specific properties
+	 * Optimized version using property handler map for faster lookup
 	 */
 	private static parseEventProperty(
 		event: Partial<IcsEvent>,
@@ -177,152 +304,69 @@ export class IcsParser {
 		value: string,
 		fullLine: string
 	): void {
-		switch (property) {
-			case "UID":
-				event.uid = value;
-				break;
-
-			case "SUMMARY":
-				event.summary = this.unescapeText(value);
-				break;
-
-			case "DESCRIPTION":
-				event.description = this.unescapeText(value);
-				break;
-
-			case "LOCATION":
-				event.location = this.unescapeText(value);
-				break;
-
-			case "DTSTART":
-				const startResult = this.parseDateTime(value, fullLine);
-				event.dtstart = startResult.date;
-				if (startResult.allDay !== undefined) {
-					event.allDay = startResult.allDay;
-				}
-				break;
-
-			case "DTEND":
-				const endResult = this.parseDateTime(value, fullLine);
-				event.dtend = endResult.date;
-				break;
-
-			case "STATUS":
-				event.status = value.toUpperCase();
-				break;
-
-			case "CATEGORIES":
-				event.categories = value.split(",").map((cat) => cat.trim());
-				break;
-
-			case "PRIORITY":
-				const priority = parseInt(value, 10);
-				if (!isNaN(priority)) {
-					event.priority = priority;
-				}
-				break;
-
-			case "TRANSP":
-				event.transp = value.toUpperCase();
-				break;
-
-			case "CREATED":
-				event.created = this.parseDateTime(value, fullLine).date;
-				break;
-
-			case "LAST-MODIFIED":
-				event.lastModified = this.parseDateTime(value, fullLine).date;
-				break;
-
-			case "RRULE":
-				event.rrule = value;
-				break;
-
-			case "EXDATE":
-				if (!event.exdate) {
-					event.exdate = [];
-				}
-				// EXDATE can contain multiple dates separated by commas
-				const exdates = value.split(",");
-				for (const exdate of exdates) {
-					const date = this.parseDateTime(
-						exdate.trim(),
-						fullLine
-					).date;
-					event.exdate.push(date);
-				}
-				break;
-
-			case "ORGANIZER":
-				event.organizer = this.parseOrganizer(value, fullLine);
-				break;
-
-			case "ATTENDEE":
-				if (!event.attendees) {
-					event.attendees = [];
-				}
-				event.attendees.push(this.parseAttendee(value, fullLine));
-				break;
-
-			default:
-				// Store custom properties
-				if (property.startsWith("X-")) {
-					if (!event.customProperties) {
-						event.customProperties = {};
-					}
-					event.customProperties[property] = value;
-				}
-				break;
+		// Use property handler map for faster lookup
+		const handler = this.PROPERTY_HANDLERS.get(property);
+		if (handler) {
+			handler(event, value, fullLine);
+		} else if (property.charCodeAt(0) === 88 && property.charCodeAt(1) === 45) { // "X-"
+			// Store custom properties (X- prefix check optimized)
+			if (!event.customProperties) {
+				event.customProperties = {};
+			}
+			event.customProperties[property] = value;
 		}
 	}
 
 	/**
 	 * Parse date/time values
+	 * Optimized version with reduced string operations and better parsing
 	 */
 	private static parseDateTime(
 		value: string,
 		fullLine: string
 	): { date: Date; allDay?: boolean } {
 		// Check if it's an all-day event (VALUE=DATE parameter)
-		const isAllDay = fullLine.includes("VALUE=DATE");
+		const isAllDay = fullLine.indexOf("VALUE=DATE") !== -1;
 
-		// Remove timezone info for now (basic implementation)
+		// Extract actual date/time string, handling timezone info efficiently
 		let dateStr = value;
-		if (dateStr.includes("TZID=")) {
+		const tzidIndex = dateStr.indexOf("TZID=");
+		if (tzidIndex !== -1) {
 			// Extract the actual date/time part after timezone
 			const colonIndex = dateStr.lastIndexOf(":");
 			if (colonIndex !== -1) {
-				dateStr = dateStr.substring(colonIndex + 1);
+				dateStr = dateStr.slice(colonIndex + 1);
 			}
 		}
 
 		// Handle UTC times (ending with Z)
-		const isUtc = dateStr.endsWith("Z");
+		const isUtc = dateStr.charCodeAt(dateStr.length - 1) === 90; // 'Z'
 		if (isUtc) {
 			dateStr = dateStr.slice(0, -1);
 		}
 
+		// Parse date components using more efficient approach
+		const dateStrLen = dateStr.length;
 		let date: Date;
 
-		if (isAllDay || dateStr.length === 8) {
+		if (isAllDay || dateStrLen === 8) {
 			// All-day event or date-only format: YYYYMMDD
-			const year = parseInt(dateStr.substring(0, 4), 10);
-			const month = parseInt(dateStr.substring(4, 6), 10) - 1; // Month is 0-based
-			const day = parseInt(dateStr.substring(6, 8), 10);
+			// Use direct character code parsing for better performance
+			const year = this.parseIntFromString(dateStr, 0, 4);
+			const month = this.parseIntFromString(dateStr, 4, 2) - 1; // Month is 0-based
+			const day = this.parseIntFromString(dateStr, 6, 2);
 			date = new Date(year, month, day);
 		} else {
 			// Date-time format: YYYYMMDDTHHMMSS
-			const year = parseInt(dateStr.substring(0, 4), 10);
-			const month = parseInt(dateStr.substring(4, 6), 10) - 1;
-			const day = parseInt(dateStr.substring(6, 8), 10);
-			const hour = parseInt(dateStr.substring(9, 11), 10);
-			const minute = parseInt(dateStr.substring(11, 13), 10);
-			const second = parseInt(dateStr.substring(13, 15), 10) || 0;
+			const year = this.parseIntFromString(dateStr, 0, 4);
+			const month = this.parseIntFromString(dateStr, 4, 2) - 1;
+			const day = this.parseIntFromString(dateStr, 6, 2);
+			const hour = this.parseIntFromString(dateStr, 9, 2);
+			const minute = this.parseIntFromString(dateStr, 11, 2);
+			const second = dateStrLen >= 15 ? this.parseIntFromString(dateStr, 13, 2) : 0;
 
 			if (isUtc) {
-				date = new Date(
-					Date.UTC(year, month, day, hour, minute, second)
-				);
+				date = new Date(Date.UTC(year, month, day, hour, minute, second));
 			} else {
 				date = new Date(year, month, day, hour, minute, second);
 			}
@@ -332,7 +376,24 @@ export class IcsParser {
 	}
 
 	/**
+	 * Parse integer from string slice without creating substring
+	 * More efficient than parseInt(str.substring(...))
+	 */
+	private static parseIntFromString(str: string, start: number, length: number): number {
+		let result = 0;
+		const end = start + length;
+		for (let i = start; i < end && i < str.length; i++) {
+			const digit = str.charCodeAt(i) - 48; // '0' is 48
+			if (digit >= 0 && digit <= 9) {
+				result = result * 10 + digit;
+			}
+		}
+		return result;
+	}
+
+	/**
 	 * Parse organizer information
+	 * Optimized version using pre-compiled regex and efficient string operations
 	 */
 	private static parseOrganizer(
 		value: string,
@@ -340,13 +401,13 @@ export class IcsParser {
 	): { name?: string; email?: string } {
 		const organizer: { name?: string; email?: string } = {};
 
-		// Extract email from MAILTO: prefix
-		if (value.startsWith("MAILTO:")) {
-			organizer.email = value.substring(7);
+		// Extract email from MAILTO: prefix (optimized check)
+		if (value.charCodeAt(0) === 77 && value.startsWith("MAILTO:")) { // 'M'
+			organizer.email = value.slice(7);
 		}
 
-		// Extract name from CN parameter
-		const cnMatch = fullLine.match(/CN=([^;:]+)/);
+		// Extract name from CN parameter using pre-compiled regex
+		const cnMatch = fullLine.match(this.CN_REGEX);
 		if (cnMatch) {
 			organizer.name = this.unescapeText(cnMatch[1]);
 		}
@@ -356,6 +417,7 @@ export class IcsParser {
 
 	/**
 	 * Parse attendee information
+	 * Optimized version using pre-compiled regex and efficient string operations
 	 */
 	private static parseAttendee(
 		value: string,
@@ -368,25 +430,25 @@ export class IcsParser {
 			status?: string;
 		} = {};
 
-		// Extract email from MAILTO: prefix
-		if (value.startsWith("MAILTO:")) {
-			attendee.email = value.substring(7);
+		// Extract email from MAILTO: prefix (optimized check)
+		if (value.charCodeAt(0) === 77 && value.startsWith("MAILTO:")) { // 'M'
+			attendee.email = value.slice(7);
 		}
 
-		// Extract name from CN parameter
-		const cnMatch = fullLine.match(/CN=([^;:]+)/);
+		// Extract name from CN parameter using pre-compiled regex
+		const cnMatch = fullLine.match(this.CN_REGEX);
 		if (cnMatch) {
 			attendee.name = this.unescapeText(cnMatch[1]);
 		}
 
-		// Extract role from ROLE parameter
-		const roleMatch = fullLine.match(/ROLE=([^;:]+)/);
+		// Extract role from ROLE parameter using pre-compiled regex
+		const roleMatch = fullLine.match(this.ROLE_REGEX);
 		if (roleMatch) {
 			attendee.role = roleMatch[1];
 		}
 
-		// Extract status from PARTSTAT parameter
-		const statusMatch = fullLine.match(/PARTSTAT=([^;:]+)/);
+		// Extract status from PARTSTAT parameter using pre-compiled regex
+		const statusMatch = fullLine.match(this.PARTSTAT_REGEX);
 		if (statusMatch) {
 			attendee.status = statusMatch[1];
 		}
@@ -396,13 +458,37 @@ export class IcsParser {
 
 	/**
 	 * Unescape text according to RFC 5545
+	 * Optimized version that only processes if escape sequences are found
 	 */
 	private static unescapeText(text: string): string {
+		// Quick check if text contains escape sequences
+		if (text.indexOf('\\') === -1) {
+			return text;
+		}
+
+		// Only perform replacements if escape sequences are present
 		return text
 			.replace(/\\n/g, "\n")
 			.replace(/\\,/g, ",")
 			.replace(/\\;/g, ";")
 			.replace(/\\\\/g, "\\");
+	}
+
+	/**
+	 * Clear parsing cache to free memory
+	 */
+	static clearCache(): void {
+		this.parseCache.clear();
+	}
+
+	/**
+	 * Get cache statistics for monitoring
+	 */
+	static getCacheStats(): { size: number; maxSize: number } {
+		return {
+			size: this.parseCache.size,
+			maxSize: this.MAX_CACHE_SIZE
+		};
 	}
 
 	/**

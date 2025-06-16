@@ -11,7 +11,6 @@ import {
 } from "obsidian";
 import {
 	taskProgressBarExtension,
-	formatProgressText,
 } from "./editor-ext/progressBarWidget";
 import { updateProgressBarInElement } from "./components/readModeProgressbarWidget";
 import { applyTaskTextMarks } from "./components/readModeTextMark";
