@@ -31,4 +31,13 @@ export function renderAboutSettingsTab(
 				window.open("https://taskgenius.md/docs/getting-started");
 			});
 		});
+
+	new Setting(containerEl)
+		.setName(t("Discord"))
+		.setDesc(t("Chat with us"))
+		.addButton((button) => {
+			button.setButtonText(t("Open Discord")).onClick(() => {
+				window.open("https://discord.gg/ARR2rHHX6b");
+			});
+		});
 }
