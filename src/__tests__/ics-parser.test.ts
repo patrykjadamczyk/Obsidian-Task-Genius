@@ -14,7 +14,7 @@ describe("ICS Parser", () => {
 		enabled: true,
 		refreshInterval: 60,
 		showAllDayEvents: true,
-		showTimedEvents: true,
+		showTimedEvents: true, 
 		showType: "event",
 	};
 

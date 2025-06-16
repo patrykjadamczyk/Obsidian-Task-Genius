@@ -45,33 +45,33 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	// Tabs management
 	private currentTab: string = "general";
-	private tabs: Array<{ id: string; name: string; icon: string }> = [
-		{ id: "general", name: t("General"), icon: "gear" },
-		{ id: "progress-bar", name: t("Progress Bar"), icon: "route" },
-		{ id: "task-status", name: t("Task Status"), icon: "checkbox-glyph" },
-		{ id: "task-filter", name: t("Task Filter"), icon: "filter" },
-		{
-			id: "task-handler",
-			name: t("Task Handler"),
-			icon: "arrow-right-circle",
-		},
-		{
-			id: "quick-capture",
-			name: t("Quick Capture"),
-			icon: "lightbulb",
-		},
-		{ id: "workflow", name: t("Workflow"), icon: "workflow" },
-		{ id: "date-priority", name: t("Date & Priority"), icon: "calendar" },
-		{ id: "reward", name: t("Reward"), icon: "medal" },
-		{ id: "habit", name: t("Habit"), icon: "calendar-check" },
-		{
-			id: "ics-integration",
-			name: t("ICS Integration"),
-			icon: "calendar-plus",
-		},
-		{ id: "view-settings", name: t("View Config"), icon: "layout" },
-		{ id: "beta-test", name: t("Beta"), icon: "test-tube" },
-		{ id: "about", name: t("About"), icon: "info" },
+	private tabs: Array<{ id: string; name: string; icon: string; category?: string }> = [
+		// Core Settings
+		{ id: "general", name: t("General"), icon: "settings", category: "core" },
+		{ id: "view-settings", name: t("Views & Index"), icon: "layout", category: "core" },
+
+		// Display & Progress
+		{ id: "progress-bar", name: t("Progress Display"), icon: "trending-up", category: "display" },
+		{ id: "task-status", name: t("Task Status"), icon: "checkbox-glyph", category: "display" },
+
+		// Task Management
+		{ id: "task-handler", name: t("Task Management"), icon: "list-checks", category: "management" },
+		{ id: "task-filter", name: t("Task Filter"), icon: "filter", category: "management" },
+		{ id: "project", name: t("Projects"), icon: "folder-open", category: "management" },
+
+		// Workflow & Automation
+		{ id: "workflow", name: t("Workflows"), icon: "git-branch", category: "workflow" },
+		{ id: "date-priority", name: t("Dates & Priority"), icon: "calendar-clock", category: "workflow" },
+		{ id: "quick-capture", name: t("Quick Capture"), icon: "zap", category: "workflow" },
+
+		// Gamification
+		{ id: "reward", name: t("Rewards"), icon: "gift", category: "gamification" },
+		{ id: "habit", name: t("Habits"), icon: "repeat", category: "gamification" },
+
+		// Integration & Advanced
+		{ id: "ics-integration", name: t("Calendar Sync"), icon: "calendar-plus", category: "integration" },
+		{ id: "beta-test", name: t("Beta Features"), icon: "flask", category: "advanced" },
+		{ id: "about", name: t("About"), icon: "info", category: "info" },
 	];
 
 	constructor(app: App, plugin: TaskProgressBarPlugin) {
@@ -255,6 +255,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		// Date & Priority Tab
 		const datePrioritySection = this.createTabSection("date-priority");
 		this.displayDatePrioritySettings(datePrioritySection);
+
+		// Project Tab
+		const projectSection = this.createTabSection("project");
+		this.displayProjectSettings(projectSection);
 
 		// View Settings Tab
 		const viewSettingsSection = this.createTabSection("view-settings");
@@ -3211,6 +3215,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							this.plugin.settings.preferMetadataFormat
 						] = value || "project";
 						this.applySettingsUpdate();
+						// Update format examples
+						const updateFn = (containerEl as any).updateFormatExamples;
+						if (updateFn) updateFn();
 					});
 			});
 
@@ -3238,6 +3245,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							this.plugin.settings.preferMetadataFormat
 						] = value || (isDataviewFormat ? "context" : "@");
 						this.applySettingsUpdate();
+						// Update format examples
+						const updateFn = (containerEl as any).updateFormatExamples;
+						if (updateFn) updateFn();
 					});
 			});
 
@@ -3265,6 +3275,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 							this.plugin.settings.preferMetadataFormat
 						] = value || "area";
 						this.applySettingsUpdate();
+						// Update format examples
+						const updateFn = (containerEl as any).updateFormatExamples;
+						if (updateFn) updateFn();
 					});
 			});
 
@@ -3272,45 +3285,64 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const exampleContainer = containerEl.createDiv({
 			cls: "task-genius-format-examples",
 		});
-		exampleContainer.createEl("strong", { text: t("Format Examples:") });
 
-		if (isDataviewFormat) {
-			exampleContainer.createEl("br");
-			exampleContainer.createEl("span", {
-				text: `• ${t("Project")}: [${
-					this.plugin.settings.projectTagPrefix[
-						this.plugin.settings.preferMetadataFormat
-					]
-				}:: myproject]`,
-			});
-			exampleContainer.createEl("span", {
-				text: `• ${t("Context")}: [${
-					this.plugin.settings.contextTagPrefix[
-						this.plugin.settings.preferMetadataFormat
-					]
-				}:: home]`,
-			});
-			exampleContainer.createEl("span", {
-				text: `• ${t("Area")}: [${
-					this.plugin.settings.areaTagPrefix
-				}:: work]`,
-			});
-		} else {
-			exampleContainer.createEl("br");
-			exampleContainer.createEl("span", {
-				text: `• ${t("Project")}: #${
-					this.plugin.settings.projectTagPrefix
-				}/myproject`,
-			});
-			exampleContainer.createEl("span", {
-				text: `• ${t("Context")}: @home (${t("always uses @ prefix")})`,
-			});
-			exampleContainer.createEl("span", {
-				text: `• ${t("Area")}: #${
-					this.plugin.settings.areaTagPrefix
-				}/work`,
-			});
-		}
+		// Function to update format examples
+		const updateFormatExamples = () => {
+			exampleContainer.empty();
+			exampleContainer.createEl("strong", { text: t("Format Examples:") });
+
+			const currentIsDataviewFormat = this.plugin.settings.preferMetadataFormat === "dataview";
+
+			if (currentIsDataviewFormat) {
+				exampleContainer.createEl("br");
+				exampleContainer.createEl("span", {
+					text: `• ${t("Project")}: [${
+						this.plugin.settings.projectTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					}:: myproject]`,
+				});
+				exampleContainer.createEl("span", {
+					text: `• ${t("Context")}: [${
+						this.plugin.settings.contextTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					}:: home]`,
+				});
+				exampleContainer.createEl("span", {
+					text: `• ${t("Area")}: [${
+						this.plugin.settings.areaTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					}:: work]`,
+				});
+			} else {
+				exampleContainer.createEl("br");
+				exampleContainer.createEl("span", {
+					text: `• ${t("Project")}: #${
+						this.plugin.settings.projectTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					}/myproject`,
+				});
+				exampleContainer.createEl("span", {
+					text: `• ${t("Context")}: @home (${t("always uses @ prefix")})`,
+				});
+				exampleContainer.createEl("span", {
+					text: `• ${t("Area")}: #${
+						this.plugin.settings.areaTagPrefix[
+							this.plugin.settings.preferMetadataFormat
+						]
+					}/work`,
+				});
+			}
+		};
+
+		// Initial display of format examples
+		updateFormatExamples();
+
+		// Store the update function for later use
+		(containerEl as any).updateFormatExamples = updateFormatExamples;
 
 		new Setting(containerEl)
 			.setName(t("Use daily note path as date"))
@@ -3452,75 +3484,6 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					this.applySettingsUpdate();
 				});
 			});
-
-		// Enhanced Project Configuration Section
-		new Setting(containerEl)
-			.setName(t("Enhanced Project Configuration"))
-			.setDesc(
-				t(
-					"Configure advanced project detection and management features"
-				)
-			)
-			.setHeading();
-
-		new Setting(containerEl)
-			.setName(t("Enable enhanced project features"))
-			.setDesc(
-				t(
-					"Enable path-based, metadata-based, and config file-based project detection"
-				)
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(
-						this.plugin.settings.projectConfig
-							?.enableEnhancedProject || false
-					)
-					.onChange(async (value) => {
-						if (!this.plugin.settings.projectConfig) {
-							this.plugin.settings.projectConfig = {
-								enableEnhancedProject: false,
-								pathMappings: [],
-								metadataConfig: {
-									metadataKey: "project",
-									inheritFromFrontmatter: true,
-									enabled: false,
-								},
-								configFile: {
-									fileName: "project.md",
-									searchRecursively: true,
-									enabled: false,
-								},
-							};
-						}
-						this.plugin.settings.projectConfig.enableEnhancedProject =
-							value;
-						this.applySettingsUpdate();
-						setTimeout(() => {
-							this.display();
-						}, 200);
-					});
-			});
-
-		if (this.plugin.settings.projectConfig?.enableEnhancedProject) {
-			new Setting(containerEl)
-				.setName(t("Configure Enhanced Projects"))
-				.setDesc(t("Open the enhanced project configuration dialog"))
-				.addButton((button) => {
-					button
-						.setButtonText(t("Configure Projects"))
-						.setCta()
-						.onClick(() => {
-							new EnhancedProjectConfigModal(
-								this.app,
-								this.plugin,
-								() => {
-									this.applySettingsUpdate();
-								}
-							).open();
-						});
-				});
-		}
 
 		if (!this.plugin.settings.enableView) return;
 
@@ -3805,6 +3768,77 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 					}).open();
 				});
 			});
+	}
+
+	private displayProjectSettings(containerEl: HTMLElement): void {
+		// Enhanced Project Configuration Section
+		new Setting(containerEl)
+			.setName(t("Enhanced Project Configuration"))
+			.setDesc(
+				t(
+					"Configure advanced project detection and management features"
+				)
+			)
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Enable enhanced project features"))
+			.setDesc(
+				t(
+					"Enable path-based, metadata-based, and config file-based project detection"
+				)
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(
+						this.plugin.settings.projectConfig
+							?.enableEnhancedProject || false
+					)
+					.onChange(async (value) => {
+						if (!this.plugin.settings.projectConfig) {
+							this.plugin.settings.projectConfig = {
+								enableEnhancedProject: false,
+								pathMappings: [],
+								metadataConfig: {
+									metadataKey: "project",
+									inheritFromFrontmatter: true,
+									enabled: false,
+								},
+								configFile: {
+									fileName: "project.md",
+									searchRecursively: true,
+									enabled: false,
+								},
+							};
+						}
+						this.plugin.settings.projectConfig.enableEnhancedProject =
+							value;
+						this.applySettingsUpdate();
+						setTimeout(() => {
+							this.display();
+						}, 200);
+					});
+			});
+
+		if (this.plugin.settings.projectConfig?.enableEnhancedProject) {
+			new Setting(containerEl)
+				.setName(t("Configure Enhanced Projects"))
+				.setDesc(t("Open the enhanced project configuration dialog"))
+				.addButton((button) => {
+					button
+						.setButtonText(t("Configure Projects"))
+						.setCta()
+						.onClick(() => {
+							new EnhancedProjectConfigModal(
+								this.app,
+								this.plugin,
+								() => {
+									this.applySettingsUpdate();
+								}
+							).open();
+						});
+				});
+		}
 	}
 
 	private displayIcsSettings(containerEl: HTMLElement): void {
