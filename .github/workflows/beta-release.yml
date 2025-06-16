@@ -9,6 +9,12 @@ on:
         # IMPORTANT: Change 'main' to your default branch if it's different (e.g., 'master')
         branches:
             - master
+    push:
+        # Only trigger on push to specific branches (more secure)
+        branches:
+            - master
+            - "feat/**"
+            - "release/**"
 
 env:
     PLUGIN_NAME: obsidian-task-genius
@@ -22,8 +28,9 @@ jobs:
     build-and-release-beta:
         if: |
             contains(github.event.head_commit.message, '[release-beta]') && (
-              github.event_name == 'pull_request' && 
-               (github.event.pull_request.author_association == 'OWNER')
+              github.event_name == 'push' || 
+              (github.event_name == 'pull_request' && 
+               (github.event.pull_request.author_association == 'OWNER'))
             )
         runs-on: ubuntu-latest
         steps:
@@ -56,35 +63,35 @@ jobs:
               id: get_commits
               run: |
                   # Get the most recent tag by creation date (not reachability)
-                   # This will find the newest tag regardless of branch ancestry
-                   LAST_TAG=$(git tag --sort=-version:refname | head -n 1 2>/dev/null || echo "")
+                  # This will find the newest tag regardless of branch ancestry
+                  LAST_TAG=$(git tag --sort=-version:refname | head -n 1 2>/dev/null || echo "")
 
-                   if [ -z "$LAST_TAG" ]; then
-                     echo "No previous tag found, getting all commits from the beginning"
-                     COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
-                     echo "Getting all commits since repository creation"
-                   else
-                     echo "Getting commits since last tag: $LAST_TAG"
-                     # Get the commit hash of the tag
-                     TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG)
-                     echo "Tag $LAST_TAG points to commit: $TAG_COMMIT"
-                     
-                     # Get commits since that tag commit
-                     COMMIT_MESSAGES=$(git log ${TAG_COMMIT}..HEAD --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
-                   fi
+                  if [ -z "$LAST_TAG" ]; then
+                    echo "No previous tag found, getting all commits from the beginning"
+                    COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
+                    echo "Getting all commits since repository creation"
+                  else
+                    echo "Getting commits since last tag: $LAST_TAG"
+                    # Get the commit hash of the tag
+                    TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG)
+                    echo "Tag $LAST_TAG points to commit: $TAG_COMMIT"
+                    
+                    # Get commits since that tag commit
+                    COMMIT_MESSAGES=$(git log ${TAG_COMMIT}..HEAD --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
+                  fi
 
-                   # Handle empty commit messages
-                   if [ -z "$COMMIT_MESSAGES" ]; then
-                     COMMIT_MESSAGES="- No new commits since last release"
-                   fi
+                  # Handle empty commit messages
+                  if [ -z "$COMMIT_MESSAGES" ]; then
+                    COMMIT_MESSAGES="- No new commits since last release"
+                  fi
 
-                   # Save commit messages to environment variable (handle multiline)
-                   echo "COMMIT_MESSAGES<<EOF" >> $GITHUB_ENV
-                   echo "$COMMIT_MESSAGES" >> $GITHUB_ENV
-                   echo "EOF" >> $GITHUB_ENV
+                  # Save commit messages to environment variable (handle multiline)
+                  echo "COMMIT_MESSAGES<<EOF" >> $GITHUB_ENV
+                  echo "$COMMIT_MESSAGES" >> $GITHUB_ENV
+                  echo "EOF" >> $GITHUB_ENV
 
-                   # Also save the last tag for reference
-                   echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
+                  # Also save the last tag for reference
+                  echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
 
             - name: "Build and package plugin"
               id: build
@@ -103,7 +110,7 @@ jobs:
                   body: |
                       ${{ github.event_name == 'pull_request' && format('🚀 Automated beta release for PR #{0}', github.event.pull_request.number) || '🚀 Automated beta release' }}
 
-                      ## 📝 Changes since last beta release${{ env.LAST_BETA_TAG && format(' ({0})', env.LAST_BETA_TAG) || '' }}:
+                      ## 📝 Changes since last release${{ env.LAST_TAG && format(' ({0})', env.LAST_TAG) || '' }}:
 
                       ${{ env.COMMIT_MESSAGES }}
 
