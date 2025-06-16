@@ -1,0 +1,81 @@
+# .github/workflows/beta-release.yml
+
+name: 'Automatic Beta Release on PR Commit'
+
+on:
+  pull_request:
+    # Trigger on PR creation or when new commits are pushed
+    types: [opened, synchronize]
+    # IMPORTANT: Change 'main' to your default branch if it's different (e.g., 'master')
+    branches:
+      - main
+
+env:
+  PLUGIN_NAME: obsidian-task-genius
+
+# Grant permissions for the action to create a release
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  build-and-release-beta:
+    # This job only runs if the latest commit message on the PR contains '[release-beta]'
+    if: contains(github.event.head_commit.message, '[release-beta]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+
+      - name: 'Use Node.js 22'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 'Install pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+      - name: 'Install dependencies'
+        run: pnpm install
+
+      # --- New Step to read version ---
+      - name: 'Get version from package.json'
+        id: get_version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+      
+      - name: 'Build and package plugin'
+        id: build
+        run: |
+          pnpm run build
+          # Create a directory and copy files for zipping
+          mkdir ${{ env.PLUGIN_NAME }}
+          cp main.js manifest.json styles.css ${{ env.PLUGIN_NAME }}/
+          # Create the zip file for the release, using the version from package.json
+          zip -r ${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip ./${{ env.PLUGIN_NAME }}
+
+      - name: 'Create Beta Pre-Release'
+        uses: softprops/action-gh-release@v2
+        with:
+          # Use the body of the PR for the release notes
+          body: |
+            Automated beta release for PR #${{ github.event.pull_request.number }}.
+            Commit: `${{ github.sha }}`
+
+            ${{ github.event.pull_request.body }}
+          
+          # Mark this as a pre-release, so it doesn't count as a latest official release
+          prerelease: true
+          
+          # Use the version from package.json for the tag and release name
+          tag_name: "v${{ env.VERSION }}"
+          name: "Beta Release v${{ env.VERSION }}"
+          
+          # Upload all required assets in one step, using the versioned zip file name
+          files: |
+            ${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip
+            main.js
+            manifest.json
+            styles.css
+
