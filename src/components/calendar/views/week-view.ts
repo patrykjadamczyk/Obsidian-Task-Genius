@@ -38,7 +38,7 @@ export class WeekView extends CalendarViewComponent {
 	}
 
 	render(): void {
-		// Get view settings, including the first day of the week override
+		// Get view settings, including the first day of the week override and weekend hiding
 		const viewConfig = getViewSettingOrDefault(
 			this.plugin,
 			this.currentViewId
@@ -47,6 +47,7 @@ export class WeekView extends CalendarViewComponent {
 		const firstDayOfWeekSetting = (
 			viewConfig.specificConfig as CalendarSpecificConfig
 		).firstDayOfWeek;
+		const hideWeekends = (viewConfig.specificConfig as CalendarSpecificConfig)?.hideWeekends ?? false;
 		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
@@ -57,6 +58,13 @@ export class WeekView extends CalendarViewComponent {
 
 		this.containerEl.empty();
 		this.containerEl.addClass("view-week");
+
+		// Add hide-weekends class if weekend hiding is enabled
+		if (hideWeekends) {
+			this.containerEl.addClass("hide-weekends");
+		} else {
+			this.containerEl.removeClass("hide-weekends");
+		}
 
 		// 1. Render Header Row (Days of the week + Dates)
 		const headerRow = this.containerEl.createDiv("calendar-week-header");
@@ -69,14 +77,32 @@ export class WeekView extends CalendarViewComponent {
 			...weekdays.slice(effectiveFirstDay),
 			...weekdays.slice(0, effectiveFirstDay),
 		];
+
+		// Filter out weekends if hideWeekends is enabled
+		const filteredWeekdays = hideWeekends
+			? rotatedWeekdays.filter((_, index) => {
+				// Calculate the actual day of week for this header position
+				const dayOfWeek = (effectiveFirstDay + index) % 7;
+				return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+			})
+			: rotatedWeekdays;
+
 		let dayIndex = 0;
 
 		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue; // Don't increment dayIndex for skipped days
+			}
+
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			const headerCell = headerRow.createDiv("calendar-header-cell");
 			dayHeaderCells[dateStr] = headerCell; // Store header cell if needed
 			const weekdayEl = headerCell.createDiv("calendar-weekday");
-			weekdayEl.textContent = rotatedWeekdays[dayIndex % 7]; // Use rotated weekday name
+			weekdayEl.textContent = filteredWeekdays[dayIndex]; // Use filtered weekday names
 			const dayNumEl = headerCell.createDiv("calendar-day-number");
 			dayNumEl.textContent = currentDayIter.format("D"); // Date number
 
@@ -96,6 +122,14 @@ export class WeekView extends CalendarViewComponent {
 		currentDayIter = startOfWeek.clone();
 
 		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue;
+			}
+
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			const dayCell = weekGrid.createEl("div", {
 				cls: "calendar-day-column",
@@ -110,7 +144,7 @@ export class WeekView extends CalendarViewComponent {
 			if (currentDayIter.isSame(moment(), "day")) {
 				dayCell.addClass("is-today"); // Apply to the main day cell
 			}
-			if (currentDayIter.day() === 0 || currentDayIter.day() === 6) {
+			if (isWeekend) {
 				// This weekend check is based on Sun/Sat, might need adjustment if start day changes weekend definition visually
 				dayCell.addClass("is-weekend"); // Apply to the main day cell
 			}

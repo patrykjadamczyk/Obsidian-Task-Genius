@@ -60,6 +60,11 @@ export class CalendarComponent extends Component {
 			cls: "mini-calendar-container",
 		});
 
+		// Add hide-weekends class if weekend hiding is enabled
+		if (!this.options.showWeekends) {
+			this.containerEl.addClass("hide-weekends");
+		}
+
 		// Create header with navigation
 		this.createCalendarHeader();
 
@@ -142,14 +147,19 @@ export class CalendarComponent extends Component {
 			}
 		}
 
+		// Filter out weekend headers if showWeekends is false
+		const filteredDayNames = this.options.showWeekends
+			? sortedDayNames
+			: sortedDayNames.filter(day => day !== "Sat" && day !== "Sun");
+
 		// Add day header cells
-		sortedDayNames.forEach((day) => {
+		filteredDayNames.forEach((day) => {
 			const dayHeaderEl = this.calendarGridEl.createDiv({
 				cls: "calendar-day-header",
 				text: day,
 			});
 
-			// Highlight weekend headers
+			// Highlight weekend headers (only if they're shown)
 			if (
 				(day === "Sat" || day === "Sun") &&
 				!this.options.showWeekends
@@ -263,6 +273,12 @@ export class CalendarComponent extends Component {
 		isFuture: boolean,
 		isThisMonth: boolean = false
 	) {
+		// Skip weekend days if showWeekends is false
+		const isWeekend = date.getDay() === 0 || date.getDay() === 6; // Sunday or Saturday
+		if (!this.options.showWeekends && isWeekend) {
+			return; // Skip creating this day
+		}
+
 		// Filter tasks for this day
 		const dayTasks = this.getTasksForDate(date);
 

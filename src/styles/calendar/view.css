@@ -409,6 +409,30 @@
 	background-color: var(--background-secondary);
 }
 
+/* Adjust grid layouts when weekends are hidden */
+.full-calendar-container .calendar-view-container.hide-weekends .calendar-weekday-header {
+	grid-template-columns: repeat(5, 1fr) !important; /* 5 columns instead of 7 when weekends hidden */
+}
+
+.full-calendar-container .calendar-view-container.hide-weekends .calendar-month-grid {
+	grid-template-columns: repeat(5, 1fr) !important; /* 5 columns instead of 7 when weekends hidden */
+}
+
+.full-calendar-container .calendar-view-container.hide-weekends .calendar-week-header {
+	grid-template-columns: repeat(5, 1fr) !important; /* 5 columns instead of 7 when weekends hidden */
+}
+
+.full-calendar-container .calendar-view-container.hide-weekends .calendar-week-grid {
+	grid-template-columns: repeat(5, 1fr) !important; /* 5 columns instead of 7 when weekends hidden */
+}
+
+.full-calendar-container .calendar-view-container.hide-weekends .mini-month-grid {
+	grid-template-columns: repeat(5, 1fr) !important; /* 5 columns instead of 7 when weekends hidden */
+}
+
+/* Note: Weekend elements are not created when hideWeekends is enabled,
+   so no hiding rules are needed. The grid layout adjustments above are sufficient. */
+
 .full-calendar-container .calendar-day-events-container {
 	/* Renamed class */
 	/* This container might not be strictly necessary if .calendar-day-column uses flex */

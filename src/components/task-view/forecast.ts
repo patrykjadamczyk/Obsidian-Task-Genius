@@ -6,7 +6,7 @@ import {
 	setIcon,
 } from "obsidian";
 import { Task } from "../../types/task";
-import { CalendarComponent } from "./calendar";
+import { CalendarComponent, CalendarOptions } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/forecast.css";
@@ -269,11 +269,20 @@ export class ForecastComponent extends Component {
 		});
 
 		// Create and initialize calendar component
+		const forecastConfig = this.plugin.settings.viewConfiguration.find(
+			(view) => view.id === "forecast"
+		)?.specificConfig as ForecastSpecificConfig;
+
+		// Convert ForecastSpecificConfig to CalendarOptions
+		const calendarOptions: Partial<CalendarOptions> = {
+			firstDayOfWeek: forecastConfig?.firstDayOfWeek ?? 0,
+			showWeekends: !(forecastConfig?.hideWeekends ?? false), // Invert hideWeekends to showWeekends
+			showTaskCounts: true,
+		};
+
 		this.calendarComponent = new CalendarComponent(
 			this.calendarContainerEl,
-			this.plugin.settings.viewConfiguration.find(
-				(view) => view.id === "forecast"
-			)?.specificConfig as ForecastSpecificConfig
+			calendarOptions
 		);
 		this.addChild(this.calendarComponent);
 		this.calendarComponent.load();

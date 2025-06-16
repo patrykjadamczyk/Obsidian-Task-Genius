@@ -323,6 +323,30 @@ export class ViewConfigModal extends Modal {
 						this.checkForChanges();
 					});
 				});
+
+			// Add weekend hiding toggle for calendar view
+			new Setting(contentEl)
+				.setName(t("Hide weekends"))
+				.setDesc(t("Hide weekend columns (Saturday and Sunday) in calendar views."))
+				.addToggle((toggle) => {
+					const currentValue = (this.viewConfig.specificConfig as CalendarSpecificConfig)?.hideWeekends ?? false;
+					toggle.setValue(currentValue);
+					toggle.onChange((value) => {
+						if (
+							!this.viewConfig.specificConfig ||
+							this.viewConfig.specificConfig.viewType !== "calendar"
+						) {
+							this.viewConfig.specificConfig = {
+								viewType: "calendar",
+								firstDayOfWeek: undefined,
+								hideWeekends: value,
+							};
+						} else {
+							(this.viewConfig.specificConfig as CalendarSpecificConfig).hideWeekends = value;
+						}
+						this.checkForChanges();
+					});
+				});
 		} else if (isKanbanView) {
 			new Setting(contentEl)
 				.setName(t("Group by"))
@@ -757,6 +781,30 @@ export class ViewConfigModal extends Modal {
 								this.viewConfig
 									.specificConfig as ForecastSpecificConfig
 							).firstDayOfWeek = newFirstDayOfWeek;
+						}
+						this.checkForChanges();
+					});
+				});
+
+			// Add weekend hiding toggle for forecast view
+			new Setting(contentEl)
+				.setName(t("Hide weekends"))
+				.setDesc(t("Hide weekend columns (Saturday and Sunday) in forecast calendar."))
+				.addToggle((toggle) => {
+					const currentValue = (this.viewConfig.specificConfig as ForecastSpecificConfig)?.hideWeekends ?? false;
+					toggle.setValue(currentValue);
+					toggle.onChange((value) => {
+						if (
+							!this.viewConfig.specificConfig ||
+							this.viewConfig.specificConfig.viewType !== "forecast"
+						) {
+							this.viewConfig.specificConfig = {
+								viewType: "forecast",
+								firstDayOfWeek: undefined,
+								hideWeekends: value,
+							};
+						} else {
+							(this.viewConfig.specificConfig as ForecastSpecificConfig).hideWeekends = value;
 						}
 						this.checkForChanges();
 					});

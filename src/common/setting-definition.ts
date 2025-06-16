@@ -113,6 +113,7 @@ export interface KanbanColumnConfig {
 export interface CalendarSpecificConfig {
 	viewType: "calendar"; // Discriminator
 	firstDayOfWeek?: number; // 0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default
+	hideWeekends?: boolean; // Whether to hide weekend columns/cells in calendar views
 }
 
 export interface GanttSpecificConfig {
@@ -124,6 +125,7 @@ export interface GanttSpecificConfig {
 export interface ForecastSpecificConfig {
 	viewType: "forecast"; // Discriminator
 	firstDayOfWeek?: number; // 0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default
+	hideWeekends?: boolean; // Whether to hide weekend columns/cells in forecast calendar
 }
 
 export interface TwoColumnSpecificConfig {
@@ -736,6 +738,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
 			filterBlanks: false,
+			specificConfig: {
+				viewType: "forecast",
+				firstDayOfWeek: undefined, // Use locale default initially
+				hideWeekends: false, // Show weekends by default
+			} as ForecastSpecificConfig,
 		},
 		{
 			id: "projects",
@@ -789,6 +796,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			specificConfig: {
 				viewType: "calendar",
 				firstDayOfWeek: undefined, // Use locale default initially
+				hideWeekends: false, // Show weekends by default
 			} as CalendarSpecificConfig,
 		},
 		{

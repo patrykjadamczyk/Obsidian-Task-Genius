@@ -305,6 +305,10 @@ function momentFn(input?: any) {
 	return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 };
 
+(momentFn as any).weekdaysMin = function (localeData?: boolean) {
+	return ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+};
+
 export const moment = momentFn as any;
 
 // Mock Component class

@@ -46,11 +46,12 @@ export class MonthView extends CalendarViewComponent {
 	}
 
 	render(): void {
-		// Get view settings, including the first day of the week override
+		// Get view settings, including the first day of the week override and weekend hiding
 		const viewConfig = this.plugin.settings.viewConfiguration.find(
 			(v) => v.id === this.currentViewId
 		)?.specificConfig as CalendarSpecificConfig; // Assuming 'calendar' view for settings lookup, adjust if needed
 		const firstDayOfWeekSetting = viewConfig?.firstDayOfWeek;
+		const hideWeekends = viewConfig?.hideWeekends ?? false;
 		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
@@ -63,16 +64,49 @@ export class MonthView extends CalendarViewComponent {
 		// Calculate grid end based on the week containing the end of the month, adjusted for the effective first day
 		let gridEnd = endOfMonth.clone().weekday(effectiveFirstDay + 6); // moment handles wrapping correctly
 
-		// Ensure grid covers at least 6 weeks (42 days) for consistent layout
-		// This logic should still work fine with custom start/end days
-		if (gridEnd.diff(gridStart, "days") + 1 < 42) {
-			// Add full weeks until at least 42 days are covered
-			const daysToAdd = 42 - (gridEnd.diff(gridStart, "days") + 1);
-			gridEnd.add(daysToAdd, "days");
+		// Adjust grid coverage based on whether weekends are hidden
+		if (hideWeekends) {
+			// When weekends are hidden, we need fewer days to fill the grid
+			// Calculate how many work days we need (approximately 6 weeks * 5 work days = 30 days)
+			let workDaysCount = 0;
+			let tempIter = gridStart.clone();
+
+			// Count existing work days in the current range
+			while (tempIter.isSameOrBefore(gridEnd, "day")) {
+				const isWeekend = tempIter.day() === 0 || tempIter.day() === 6;
+				if (!isWeekend) {
+					workDaysCount++;
+				}
+				tempIter.add(1, "day");
+			}
+
+			// Ensure we have at least 30 work days (6 weeks * 5 days) for consistent layout
+			while (workDaysCount < 30) {
+				gridEnd.add(1, "day");
+				const isWeekend = gridEnd.day() === 0 || gridEnd.day() === 6;
+				if (!isWeekend) {
+					workDaysCount++;
+				}
+			}
+		} else {
+			// Original logic for when weekends are shown
+			// Ensure grid covers at least 6 weeks (42 days) for consistent layout
+			if (gridEnd.diff(gridStart, "days") + 1 < 42) {
+				// Add full weeks until at least 42 days are covered
+				const daysToAdd = 42 - (gridEnd.diff(gridStart, "days") + 1);
+				gridEnd.add(daysToAdd, "days");
+			}
 		}
 
 		this.containerEl.empty();
 		this.containerEl.addClass("view-month"); // Add class for styling
+
+		// Add hide-weekends class if weekend hiding is enabled
+		if (hideWeekends) {
+			this.containerEl.addClass("hide-weekends");
+		} else {
+			this.containerEl.removeClass("hide-weekends");
+		}
 
 		// 2. Add weekday headers, rotated according to effective first day
 		const headerRow = this.containerEl.createDiv("calendar-weekday-header");
@@ -81,7 +115,17 @@ export class MonthView extends CalendarViewComponent {
 			...weekdays.slice(effectiveFirstDay),
 			...weekdays.slice(0, effectiveFirstDay),
 		];
-		rotatedWeekdays.forEach((day) => {
+
+		// Filter out weekends if hideWeekends is enabled
+		const filteredWeekdays = hideWeekends
+			? rotatedWeekdays.filter((_, index) => {
+				// Calculate the actual day of week for this header position
+				const dayOfWeek = (effectiveFirstDay + index) % 7;
+				return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+			})
+			: rotatedWeekdays;
+
+		filteredWeekdays.forEach((day) => {
 			const weekdayEl = headerRow.createDiv("calendar-weekday");
 			weekdayEl.textContent = day;
 		});
@@ -92,6 +136,14 @@ export class MonthView extends CalendarViewComponent {
 		let currentDayIter = gridStart.clone();
 
 		while (currentDayIter.isSameOrBefore(gridEnd, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue;
+			}
+
 			const cell = gridContainer.createEl("div", {
 				cls: "calendar-day-cell",
 				attr: {
@@ -113,9 +165,9 @@ export class MonthView extends CalendarViewComponent {
 			if (currentDayIter.isSame(moment(), "day")) {
 				cell.addClass("is-today");
 			}
-			// Weekend check might need adjustment depending on visual definition of weekend with custom start day
-			if (currentDayIter.day() === 0 || currentDayIter.day() === 6) {
-				// Sunday or Saturday
+			// Note: We don't add is-weekend class when hideWeekends is enabled
+			// because weekend cells are not created at all
+			if (!hideWeekends && isWeekend) {
 				cell.addClass("is-weekend");
 			}
 
