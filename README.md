@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="media/task-genius.svg" alt="Task Genius Logo" width="150">
+    <img src="media/task-genius.webp" alt="Task Genius Logo" width="300">
 </p>
 
 Full documentation is available at [Docs](https://taskgenius.md/docs/getting-started).
