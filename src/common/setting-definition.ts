@@ -429,6 +429,24 @@ export interface ProjectConfiguration {
 	defaultProjectNaming: ProjectNamingStrategy;
 }
 
+/** File parsing configuration for extracting tasks from file metadata and tags */
+export interface FileParsingConfiguration {
+	/** Enable parsing tasks from file metadata */
+	enableFileMetadataParsing: boolean;
+	/** Metadata fields that should be treated as tasks (e.g., "dueDate", "todo", "complete") */
+	metadataFieldsToParseAsTasks: string[];
+	/** Enable parsing tasks from file tags */
+	enableTagBasedTaskParsing: boolean;
+	/** Tags that should be treated as tasks (e.g., "#todo", "#task", "#action") */
+	tagsToParseAsTasks: string[];
+	/** Which metadata field to use as task content (default: "title" or filename) */
+	taskContentFromMetadata: string;
+	/** Default status for tasks created from metadata (default: " " for incomplete) */
+	defaultTaskStatus: string;
+	/** Whether to use worker for file parsing performance */
+	enableWorkerProcessing: boolean;
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -503,6 +521,9 @@ export interface TaskProgressBarSettings {
 
 	// Enhanced Project Configuration
 	projectConfig: ProjectConfiguration;
+
+	// File Parsing Configuration
+	fileParsingConfig: FileParsingConfiguration;
 
 	// Date Settings
 	useRelativeTimeForDate: boolean;
@@ -775,6 +796,17 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			stripExtension: true,
 			enabled: false,
 		},
+	},
+
+	// File Parsing Configuration
+	fileParsingConfig: {
+		enableFileMetadataParsing: false,
+		metadataFieldsToParseAsTasks: ["dueDate", "todo", "complete", "task"],
+		enableTagBasedTaskParsing: false,
+		tagsToParseAsTasks: ["#todo", "#task", "#action", "#due"],
+		taskContentFromMetadata: "title",
+		defaultTaskStatus: " ",
+		enableWorkerProcessing: true,
 	},
 
 	// Date Settings

@@ -16,7 +16,11 @@ import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
 import { getConfig } from "../common/task-parser-config";
 import { getEffectiveProject, isProjectReadonly } from "./taskUtil";
 import { HolidayDetector } from "./ics/HolidayDetector";
-import { TaskParsingService, TaskParsingServiceOptions } from "./TaskParsingService";
+import {
+	TaskParsingService,
+	TaskParsingServiceOptions,
+} from "./TaskParsingService";
+import { FileMetadataTaskUpdater } from "./workers/FileMetadataTaskUpdater";
 
 /**
  * TaskManager options
@@ -61,6 +65,8 @@ export class TaskManager extends Component {
 	private taskParser: MarkdownTaskParser;
 	/** Enhanced task parsing service with project support */
 	private taskParsingService?: TaskParsingService;
+	/** File metadata task updater for handling metadata-based tasks */
+	private fileMetadataUpdater?: FileMetadataTaskUpdater;
 
 	/**
 	 * Create a new task manager
@@ -96,6 +102,9 @@ export class TaskManager extends Component {
 			const content = await this.vault.cachedRead(file);
 			return this.parseFileWithConfigurableParser(file.path, content);
 		});
+
+		// Initialize file parsing configuration
+		this.updateFileParsingConfiguration();
 
 		// Preload tasks from persister to improve initialization speed
 		this.preloadTasksFromCache();
@@ -136,14 +145,26 @@ export class TaskManager extends Component {
 			const serviceOptions: TaskParsingServiceOptions = {
 				vault: this.vault,
 				metadataCache: this.metadataCache,
-				parserConfig: getConfig(this.plugin.settings.preferMetadataFormat, this.plugin),
+				parserConfig: getConfig(
+					this.plugin.settings.preferMetadataFormat,
+					this.plugin
+				),
 				projectConfigOptions: {
-					configFileName: this.plugin.settings.projectConfig.configFile.fileName,
-					searchRecursively: this.plugin.settings.projectConfig.configFile.searchRecursively,
-					metadataKey: this.plugin.settings.projectConfig.metadataConfig.metadataKey,
-					pathMappings: this.plugin.settings.projectConfig.pathMappings,
-					metadataMappings: this.plugin.settings.projectConfig.metadataMappings || [],
-					defaultProjectNaming: this.plugin.settings.projectConfig.defaultProjectNaming || {
+					configFileName:
+						this.plugin.settings.projectConfig.configFile.fileName,
+					searchRecursively:
+						this.plugin.settings.projectConfig.configFile
+							.searchRecursively,
+					metadataKey:
+						this.plugin.settings.projectConfig.metadataConfig
+							.metadataKey,
+					pathMappings:
+						this.plugin.settings.projectConfig.pathMappings,
+					metadataMappings:
+						this.plugin.settings.projectConfig.metadataMappings ||
+						[],
+					defaultProjectNaming: this.plugin.settings.projectConfig
+						.defaultProjectNaming || {
 						strategy: "filename",
 						stripExtension: true,
 						enabled: false,
@@ -152,7 +173,9 @@ export class TaskManager extends Component {
 			};
 
 			this.taskParsingService = new TaskParsingService(serviceOptions);
-			this.log("Enhanced task parsing service initialized with project support");
+			this.log(
+				"Enhanced task parsing service initialized with project support"
+			);
 		} else {
 			this.taskParsingService = undefined;
 		}
@@ -181,7 +204,36 @@ export class TaskManager extends Component {
 			// since it references this.plugin.settings directly
 		}
 
+		// Update file parsing configuration
+		this.updateFileParsingConfiguration();
+
 		this.log("Parsing configuration updated");
+	}
+
+	/**
+	 * Update file parsing configuration when settings change
+	 */
+	public updateFileParsingConfiguration(): void {
+		if (this.workerManager) {
+			this.workerManager.setFileParsingConfig(
+				this.plugin.settings.fileParsingConfig
+			);
+		}
+
+		// Initialize or update file metadata updater
+		if (
+			this.plugin.settings.fileParsingConfig.enableFileMetadataParsing ||
+			this.plugin.settings.fileParsingConfig.enableTagBasedTaskParsing
+		) {
+			this.fileMetadataUpdater = new FileMetadataTaskUpdater(
+				this.app,
+				this.plugin.settings.fileParsingConfig
+			);
+		} else {
+			this.fileMetadataUpdater = undefined;
+		}
+
+		this.log("File parsing configuration updated");
 	}
 
 	/**
@@ -217,8 +269,14 @@ export class TaskManager extends Component {
 		try {
 			if (this.taskParsingService) {
 				// Use enhanced parsing service with project support
-				const tasks = await this.taskParsingService.parseTasksFromContentLegacy(content, filePath);
-				this.log(`Parsed ${tasks.length} tasks using enhanced parsing service for ${filePath}`);
+				const tasks =
+					await this.taskParsingService.parseTasksFromContentLegacy(
+						content,
+						filePath
+					);
+				this.log(
+					`Parsed ${tasks.length} tasks using enhanced parsing service for ${filePath}`
+				);
 				return this.applyHeadingFilters(tasks);
 			} else {
 				// Fallback to regular parser
@@ -240,10 +298,7 @@ export class TaskManager extends Component {
 	private applyHeadingFilters(tasks: Task[]): Task[] {
 		return tasks.filter((task) => {
 			// Filter by ignore heading
-			if (
-				this.plugin.settings.ignoreHeading &&
-				task.metadata.heading
-			) {
+			if (this.plugin.settings.ignoreHeading && task.metadata.heading) {
 				const headings = Array.isArray(task.metadata.heading)
 					? task.metadata.heading
 					: [task.metadata.heading];
@@ -258,10 +313,7 @@ export class TaskManager extends Component {
 			}
 
 			// Filter by focus heading
-			if (
-				this.plugin.settings.focusHeading &&
-				task.metadata.heading
-			) {
+			if (this.plugin.settings.focusHeading && task.metadata.heading) {
 				const headings = Array.isArray(task.metadata.heading)
 					? task.metadata.heading
 					: [task.metadata.heading];
@@ -503,17 +555,37 @@ export class TaskManager extends Component {
 			if (this.workerManager && filesToProcess.length > 0) {
 				try {
 					// Pre-compute enhanced project data if TaskParsingService is available
-					let enhancedProjectData: import("./workers/TaskIndexWorkerMessage").EnhancedProjectData | undefined;
+					let enhancedProjectData:
+						| import("./workers/TaskIndexWorkerMessage").EnhancedProjectData
+						| undefined;
 					if (this.taskParsingService) {
-						this.log("Pre-computing enhanced project data for worker processing...");
-						const allFilePaths = filesToProcess.map(file => file.path);
-						enhancedProjectData = await this.taskParsingService.computeEnhancedProjectData(allFilePaths);
-						this.log(`Pre-computed project data for ${Object.keys(enhancedProjectData.fileProjectMap).length} files with projects`);
-						this.log(`Pre-computed project data: ${JSON.stringify(enhancedProjectData)}`);
-						
+						this.log(
+							"Pre-computing enhanced project data for worker processing..."
+						);
+						const allFilePaths = filesToProcess.map(
+							(file) => file.path
+						);
+						enhancedProjectData =
+							await this.taskParsingService.computeEnhancedProjectData(
+								allFilePaths
+							);
+						this.log(
+							`Pre-computed project data for ${
+								Object.keys(enhancedProjectData.fileProjectMap)
+									.length
+							} files with projects`
+						);
+						this.log(
+							`Pre-computed project data: ${JSON.stringify(
+								enhancedProjectData
+							)}`
+						);
+
 						// Update worker manager settings with enhanced data
 						if (this.workerManager) {
-							this.workerManager.setEnhancedProjectData(enhancedProjectData);
+							this.workerManager.setEnhancedProjectData(
+								enhancedProjectData
+							);
 						}
 					}
 
@@ -552,7 +624,10 @@ export class TaskManager extends Component {
 								} else {
 									// Cache doesn't exist or is outdated, process with worker
 									// Don't trigger events - we'll trigger once when initialization is complete
-									await this.processFileWithoutEvents(file, enhancedProjectData);
+									await this.processFileWithoutEvents(
+										file,
+										enhancedProjectData
+									);
 									importedCount++;
 								}
 							} catch (error) {
@@ -616,7 +691,7 @@ export class TaskManager extends Component {
 	 * Process a file using worker without triggering events - used during initialization
 	 */
 	private async processFileWithoutEvents(
-		file: TFile, 
+		file: TFile,
 		enhancedProjectData?: import("./workers/TaskIndexWorkerMessage").EnhancedProjectData
 	): Promise<void> {
 		if (!this.workerManager) {
@@ -1239,6 +1314,42 @@ export class TaskManager extends Component {
 			originalTask.metadata.dueDate
 		);
 
+		// Check if this is a file metadata task and handle it specially
+		if (
+			this.fileMetadataUpdater &&
+			this.fileMetadataUpdater.isFileMetadataTask(originalTask)
+		) {
+			try {
+				const result =
+					await this.fileMetadataUpdater.updateFileMetadataTask(
+						originalTask,
+						updatedTask
+					);
+				if (result.success) {
+					// Update the task in the index
+					this.indexer.updateTask(updatedTask);
+					this.log(`Updated file metadata task ${updatedTask.id}`);
+
+					// Re-index the file to pick up the changes
+					const file = this.vault.getFileByPath(updatedTask.filePath);
+					if (file instanceof TFile) {
+						await this.indexFile(file);
+					}
+					return;
+				} else {
+					throw new Error(
+						result.error || "Failed to update file metadata task"
+					);
+				}
+			} catch (error) {
+				console.error(
+					`Error updating file metadata task ${updatedTask.id}:`,
+					error
+				);
+				throw error;
+			}
+		}
+
 		// Check if this is a completion of a recurring task
 		const isCompletingRecurringTask =
 			!originalTask.completed &&
@@ -1432,8 +1543,10 @@ export class TaskManager extends Component {
 
 			// 2. Project - Only write project if it's not a read-only tgProject
 			// Check if the project should be written to the file
-			const shouldWriteProject = updatedTask.metadata.project && !isProjectReadonly(originalTask);
-			
+			const shouldWriteProject =
+				updatedTask.metadata.project &&
+				!isProjectReadonly(originalTask);
+
 			if (shouldWriteProject) {
 				if (useDataviewFormat) {
 					const projectPrefix =
@@ -1833,8 +1946,9 @@ export class TaskManager extends Component {
 		}
 
 		// 2. Project - Only write project if it's not a read-only tgProject
-		const shouldWriteProject = completedTask.metadata.project && !isProjectReadonly(completedTask);
-		
+		const shouldWriteProject =
+			completedTask.metadata.project && !isProjectReadonly(completedTask);
+
 		if (shouldWriteProject) {
 			if (useDataviewFormat) {
 				const projectPrefix =

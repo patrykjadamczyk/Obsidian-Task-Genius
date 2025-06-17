@@ -5,6 +5,7 @@
 import { CachedMetadata, FileStats, ListItemCache } from "obsidian";
 import { Task } from "../../types/task";
 import { MetadataFormat } from "../taskUtil";
+import { FileParsingConfiguration } from "../../common/setting-definition";
 
 /**
  * Command to parse tasks from a file
@@ -34,6 +35,7 @@ export interface ParseTasksCommand {
 		dailyNotePath: string;
 		ignoreHeading: string;
 		focusHeading: string;
+		fileParsingConfig?: FileParsingConfiguration;
 	};
 }
 
@@ -66,6 +68,7 @@ export interface BatchIndexCommand {
 		dailyNotePath: string;
 		ignoreHeading: string;
 		focusHeading: string;
+		fileParsingConfig?: FileParsingConfiguration;
 	};
 }
 
@@ -145,11 +148,14 @@ export type IndexerResult = TaskParseResult | BatchIndexResult | ErrorResult;
  */
 export interface EnhancedProjectData {
 	/** File path to project mapping */
-	fileProjectMap: Record<string, {
-		project: string;
-		source: string;
-		readonly: boolean;
-	}>;
+	fileProjectMap: Record<
+		string,
+		{
+			project: string;
+			source: string;
+			readonly: boolean;
+		}
+	>;
 	/** File path to enhanced metadata mapping */
 	fileMetadataMap: Record<string, Record<string, any>>;
 	/** Computed project configuration data */
@@ -187,4 +193,7 @@ export type TaskWorkerSettings = {
 
 	// Pre-computed enhanced project data from TaskParsingService
 	enhancedProjectData?: EnhancedProjectData;
+
+	// File parsing configuration for metadata and tag-based task extraction
+	fileParsingConfig?: FileParsingConfiguration;
 };

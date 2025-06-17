@@ -16,6 +16,11 @@ import {
 	ParseTasksCommand,
 	TaskParseResult,
 } from "./TaskIndexWorkerMessage";
+import {
+	FileMetadataTaskParser,
+	FileTaskParsingResult,
+} from "./FileMetadataTaskParser";
+import { FileParsingConfiguration } from "../../common/setting-definition";
 
 // Import worker and utilities
 // @ts-ignore Ignore type error for worker import
@@ -44,6 +49,7 @@ export interface WorkerPoolOptions {
 		dailyNotePath: string;
 		ignoreHeading: string;
 		focusHeading: string;
+		fileParsingConfig?: FileParsingConfiguration;
 	};
 }
 
@@ -144,6 +150,8 @@ export class TaskWorkerManager extends Component {
 	private isProcessingBatch: boolean = false;
 	/** Maximum number of retry attempts for a task */
 	private maxRetries: number = 2;
+	/** File metadata task parser */
+	private fileMetadataParser?: FileMetadataTaskParser;
 
 	/**
 	 * Create a new worker pool
@@ -160,6 +168,36 @@ export class TaskWorkerManager extends Component {
 
 		// Initialize workers up to max
 		this.initializeWorkers();
+	}
+
+	/**
+	 * Set file parsing configuration
+	 */
+	public setFileParsingConfig(config: FileParsingConfiguration): void {
+		if (
+			config.enableFileMetadataParsing ||
+			config.enableTagBasedTaskParsing
+		) {
+			this.fileMetadataParser = new FileMetadataTaskParser(config);
+		} else {
+			this.fileMetadataParser = undefined;
+		}
+
+		// Update worker options to include file parsing config
+		if (this.options.settings) {
+			this.options.settings.fileParsingConfig = config;
+		} else {
+			this.options.settings = {
+				preferMetadataFormat: "tasks",
+				useDailyNotePathAsDate: false,
+				dailyNoteFormat: "yyyy-MM-dd",
+				useAsDateType: "due",
+				dailyNotePath: "",
+				ignoreHeading: "",
+				focusHeading: "",
+				fileParsingConfig: config,
+			};
+		}
 	}
 
 	/**
@@ -203,8 +241,19 @@ export class TaskWorkerManager extends Component {
 			availableAt: Date.now(),
 		};
 
-		worker.worker.onmessage = (evt: MessageEvent) =>
-			this.finish(worker, evt.data);
+		worker.worker.onmessage = (evt: MessageEvent) => {
+			this.finish(worker, evt.data).catch((error) => {
+				console.error("Error in finish handler:", error);
+				// Handle the error by rejecting the active promise if it exists
+				if (worker.active) {
+					const [file, promise] = worker.active;
+					promise.reject(error);
+					worker.active = undefined;
+					this.outstanding.delete(file.path);
+					this.schedule();
+				}
+			});
+		};
 		worker.worker.onerror = (event: ErrorEvent) => {
 			console.error("Worker error:", event);
 
@@ -461,6 +510,7 @@ export class TaskWorkerManager extends Component {
 							dailyNotePath: "",
 							ignoreHeading: "",
 							focusHeading: "",
+							fileParsingConfig: undefined,
 						},
 					};
 
@@ -493,7 +543,10 @@ export class TaskWorkerManager extends Component {
 	/**
 	 * Handle worker completion and process result
 	 */
-	private finish(worker: PoolWorker, data: IndexerResult): void {
+	private async finish(
+		worker: PoolWorker,
+		data: IndexerResult
+	): Promise<void> {
 		if (!worker.active) {
 			console.log("Received a stale worker message. Ignoring.", data);
 			return;
@@ -522,7 +575,40 @@ export class TaskWorkerManager extends Component {
 			}
 		} else if (data.type === "parseResult") {
 			const parseResult = data as TaskParseResult;
-			promise.resolve(parseResult.tasks);
+
+			// Combine worker tasks with file metadata tasks
+			let allTasks = [...parseResult.tasks];
+
+			if (this.fileMetadataParser) {
+				try {
+					const fileCache = this.metadataCache.getFileCache(file);
+					const fileContent = await this.vault.cachedRead(file);
+					const fileMetadataResult =
+						this.fileMetadataParser.parseFileForTasks(
+							file.path,
+							fileContent,
+							fileCache || undefined
+						);
+
+					// Add file metadata tasks to the result
+					allTasks.push(...fileMetadataResult.tasks);
+
+					// Log any errors from file metadata parsing
+					if (fileMetadataResult.errors.length > 0) {
+						console.warn(
+							`File metadata parsing errors for ${file.path}:`,
+							fileMetadataResult.errors
+						);
+					}
+				} catch (error) {
+					console.error(
+						`Error in file metadata parsing for ${file.path}:`,
+						error
+					);
+				}
+			}
+
+			promise.resolve(allTasks);
 			this.outstanding.delete(file.path);
 		} else if (data.type === "batchResult") {
 			// For batch results, we handle differently as we don't have tasks directly
@@ -665,10 +751,13 @@ export class TaskWorkerManager extends Component {
 	/**
 	 * Set enhanced project data for worker processing
 	 */
-	public setEnhancedProjectData(enhancedProjectData: import("./TaskIndexWorkerMessage").EnhancedProjectData): void {
+	public setEnhancedProjectData(
+		enhancedProjectData: import("./TaskIndexWorkerMessage").EnhancedProjectData
+	): void {
 		// Update the settings with enhanced project data
 		if (this.options.settings) {
-			(this.options.settings as any).enhancedProjectData = enhancedProjectData;
+			(this.options.settings as any).enhancedProjectData =
+				enhancedProjectData;
 		}
 	}
 

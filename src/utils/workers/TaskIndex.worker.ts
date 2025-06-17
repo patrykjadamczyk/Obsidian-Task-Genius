@@ -15,6 +15,11 @@ import {
 import { parse } from "date-fns/parse";
 import { MarkdownTaskParser } from "./ConfigurableTaskParser";
 import { getConfig } from "../../common/task-parser-config";
+import {
+	FileMetadataTaskParser,
+	FileTaskParsingResult,
+} from "./FileMetadataTaskParser";
+import { FileParsingConfiguration } from "../../common/setting-definition";
 
 /**
  * Enhanced task parsing using configurable parser
@@ -42,31 +47,48 @@ function parseTasksWithConfigurableParser(
 
 		if (settings.enhancedProjectData) {
 			// Use pre-computed enhanced metadata if available (this already contains MetadataMapping transforms)
-			const precomputedMetadata = settings.enhancedProjectData.fileMetadataMap[filePath];
+			const precomputedMetadata =
+				settings.enhancedProjectData.fileMetadataMap[filePath];
 			if (precomputedMetadata) {
 				// Use the pre-computed metadata directly since it already includes the original metadata + mappings
 				enhancedFileMetadata = precomputedMetadata;
 			}
 
 			// Use pre-computed project config data
-			const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-			projectConfigData = settings.enhancedProjectData.projectConfigMap[dirPath];
+			const dirPath = filePath.substring(0, filePath.lastIndexOf("/"));
+			projectConfigData =
+				settings.enhancedProjectData.projectConfigMap[dirPath];
 
 			// Use pre-computed tgProject
-			const projectInfo = settings.enhancedProjectData.fileProjectMap[filePath];
+			const projectInfo =
+				settings.enhancedProjectData.fileProjectMap[filePath];
 			if (projectInfo) {
 				tgProject = {
-					type: projectInfo.source as "metadata" | "path" | "config" | "default",
+					type: projectInfo.source as
+						| "metadata"
+						| "path"
+						| "config"
+						| "default",
 					name: projectInfo.project,
-					source: projectInfo.source === 'path' ? 'path-mapping' : 
-						   projectInfo.source === 'metadata' ? 'frontmatter' : 'config-file',
+					source:
+						projectInfo.source === "path"
+							? "path-mapping"
+							: projectInfo.source === "metadata"
+							? "frontmatter"
+							: "config-file",
 					readonly: projectInfo.readonly,
 				};
 			}
 		}
 
 		// Use the parseLegacy method with enhanced data
-		const tasks = parser.parseLegacy(content, filePath, enhancedFileMetadata, projectConfigData, tgProject);
+		const tasks = parser.parseLegacy(
+			content,
+			filePath,
+			enhancedFileMetadata,
+			projectConfigData,
+			tgProject
+		);
 
 		// Apply heading filters if specified
 		return tasks.filter((task) => {
@@ -221,12 +243,47 @@ function processFile(
 		}
 
 		// Use the configurable parser
-		const tasks = parseTasksWithConfigurableParser(
+		let tasks = parseTasksWithConfigurableParser(
 			filePath,
 			content,
 			settings,
 			fileMetadata
 		);
+
+		// Add file metadata tasks if file parsing is enabled
+		if (
+			settings.fileParsingConfig &&
+			(settings.fileParsingConfig.enableFileMetadataParsing ||
+				settings.fileParsingConfig.enableTagBasedTaskParsing)
+		) {
+			try {
+				const fileMetadataParser = new FileMetadataTaskParser(
+					settings.fileParsingConfig
+				);
+				const fileMetadataResult = fileMetadataParser.parseFileForTasks(
+					filePath,
+					content,
+					metadata?.fileCache
+				);
+
+				// Add file metadata tasks to the result
+				tasks.push(...fileMetadataResult.tasks);
+
+				// Log any errors from file metadata parsing
+				if (fileMetadataResult.errors.length > 0) {
+					console.warn(
+						`Worker: File metadata parsing errors for ${filePath}:`,
+						fileMetadataResult.errors
+					);
+				}
+			} catch (error) {
+				console.error(
+					`Worker: Error in file metadata parsing for ${filePath}:`,
+					error
+				);
+			}
+		}
+
 		const completedTasks = tasks.filter((t) => t.completed).length;
 
 		// Apply daily note date extraction if configured
@@ -355,6 +412,7 @@ self.onmessage = async (event) => {
 			ignoreHeading: "",
 			focusHeading: "",
 			projectConfig: undefined,
+			fileParsingConfig: undefined,
 		};
 
 		if (message.type === "parseTasks") {
