@@ -8,6 +8,7 @@ import {
 	TaskStatusConfig,
 } from "../../common/setting-definition";
 import * as taskStatusModule from "../../common/task-status";
+import { getStatusIcon } from "../../icon";
 
 export function renderTaskStatusSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
@@ -1000,4 +1001,20 @@ export function renderTaskStatusSettingsTab(
 					})
 			);
 	}
+
+	// Use Task Genius icons
+	new Setting(containerEl)
+		.setName(t("Other settings"))
+		.setHeading();
+
+	new Setting(containerEl)
+		.setName(t("Use Task Genius icons"))
+		.setDesc(t("Use Task Genius icons for task statuses"))
+		.addToggle((toggle) =>
+			toggle.setValue(settingTab.plugin.settings.enableTaskGeniusIcons)
+			.onChange(async (value) => {
+				settingTab.plugin.settings.enableTaskGeniusIcons = value;
+				settingTab.applySettingsUpdate();
+			})
+		);
 }

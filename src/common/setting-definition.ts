@@ -466,6 +466,8 @@ export interface TaskProgressBarSettings {
 	taskStatusMarks: TaskStatusCycle;
 	excludeMarksFromCycle: string[];
 
+	enableTaskGeniusIcons: boolean;
+
 	// Priority & Date Settings
 	enablePriorityPicker: boolean;
 	enablePriorityKeyboardShortcuts: boolean;
@@ -602,6 +604,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		Planned: "?",
 	},
 	excludeMarksFromCycle: [],
+	enableTaskGeniusIcons: false,
 
 	// Priority & Date Defaults
 	enablePriorityPicker: false,

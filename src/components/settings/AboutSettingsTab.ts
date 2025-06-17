@@ -1,4 +1,4 @@
-import { Setting } from "obsidian";
+import { setIcon, Setting } from "obsidian";
 import { TaskProgressBarSettingTab } from "../../setting";
 import { t } from "../../translations/helper";
 
@@ -40,4 +40,37 @@ export function renderAboutSettingsTab(
 				window.open("https://discord.gg/ARR2rHHX6b");
 			});
 		});
+
+	const descFragment = document.createDocumentFragment();
+	descFragment.createEl("span", {
+		cls: "tg-icons-desc",
+	}, (el) => {
+		el.setText(t("Task Genius icons are designed by"))
+	});
+	descFragment.createEl("a", {
+		href: "https://github.com/jsmorabito",
+		attr: {
+			target: "_blank",
+			rel: "noopener noreferrer",
+		},
+	}, (el) => {
+		el.setText(" @Jsmorabito");
+	});
+
+	// Task Genius Icons Settings
+	new Setting(containerEl)
+		.setName(t("Task Genius Icons"))
+		.setDesc(descFragment)
+		.setHeading();
+
+	containerEl.createDiv({
+		cls: "tg-icons-container",
+	}, (el) => {
+		for(const status of Object.keys(settingTab.plugin.settings.taskStatuses)) {
+			const iconEl = el.createSpan();
+			setIcon(iconEl, status as "notStarted" | "inProgress" | "completed" | "abandoned" | "planned")
+		}
+		const tgIconEl = el.createSpan();
+		setIcon(tgIconEl, "task-genius")
+	})
 }

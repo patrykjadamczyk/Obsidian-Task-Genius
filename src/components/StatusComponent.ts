@@ -1,10 +1,11 @@
-import { ExtraButtonComponent, Menu } from "obsidian";
+import { ExtraButtonComponent, Menu, setIcon } from "obsidian";
 import { Component } from "obsidian";
 import TaskProgressBarPlugin from "../index";
 import { Task } from "../types/task";
 import { createTaskCheckbox } from "./task-view/details";
 import { getStatusText } from "./task-view/details";
 import { t } from "../translations/helper";
+import { getStatusIcon } from "../icon";
 
 export class StatusComponent extends Component {
 	constructor(
@@ -51,7 +52,7 @@ export class StatusComponent extends Component {
 					cls:
 						"status-option" +
 						(status.text === this.task.status
-							? " current-status"
+							? " current"
 							: ""),
 					attr: {
 						"aria-label": getStatusText(
@@ -61,13 +62,20 @@ export class StatusComponent extends Component {
 					},
 				});
 
-				// Create checkbox-like element for the status
-				const checkbox = createTaskCheckbox(
-					status.text,
-					this.task,
-					statusEl
-				);
-				this.registerDomEvent(checkbox, "click", (evt) => {
+				// Create checkbox-like element or icon for the status
+				let interactiveElement: HTMLElement = statusEl;
+				if (this.plugin.settings.enableTaskGeniusIcons) {
+					setIcon(interactiveElement, status.status);
+				} else {
+					// Create checkbox-like element for the status
+					interactiveElement = createTaskCheckbox(
+						status.text,
+						this.task,
+						statusEl
+					);
+				}
+
+				this.registerDomEvent(interactiveElement, "click", (evt) => {
 					evt.stopPropagation();
 					evt.preventDefault();
 					if (status.text === this.getTaskStatus()) {
@@ -117,15 +125,42 @@ export class StatusComponent extends Component {
 					// Create menu items from unique statuses
 					for (const [status, mark] of uniqueStatuses) {
 						menu.addItem((item) => {
-							item.titleEl.createEl(
-								"span",
-								{
-									cls: "status-option-checkbox",
-								},
-								(el) => {
-									createTaskCheckbox(mark, this.task, el);
-								}
-							);
+							// Map marks to their corresponding icon names
+							const markToIcon: Record<string, string> = {
+								" ": "notStarted",     // Empty/space for not started
+								"/": "inProgress",     // Forward slash for in progress  
+								"x": "completed",      // x for completed
+								"-": "abandoned",      // Dash for abandoned
+								"?": "planned",         // Question mark for planned
+								">": "inProgress",
+								"X": "completed",
+							};
+							
+							const iconName = markToIcon[mark];
+							
+							if (this.plugin.settings.enableTaskGeniusIcons && iconName) {
+								// Use icon in menu
+								item.titleEl.createEl(
+									"span",
+									{
+										cls: "status-option-icon",
+									},
+									(el) => {
+										setIcon(el, iconName);
+									}
+								);
+							} else {
+								// Use checkbox in menu
+								item.titleEl.createEl(
+									"span",
+									{
+										cls: "status-option-checkbox",
+									},
+									(el) => {
+										createTaskCheckbox(mark, this.task, el);
+									}
+								);
+							}
 							item.titleEl.createEl("span", {
 								cls: "status-option",
 								text: status,

@@ -158,6 +158,18 @@
 	display: none;
 }
 
+.menu-item:has(.status-option-icon) .menu-item-icon {
+	display: none;
+}
+
+.status-option-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	margin-right: var(--size-2-2);
+}
+
 .status-option-checkbox {
 	display: flex;
 	align-items: center;
@@ -171,18 +183,18 @@
 	text-transform: uppercase;
 }
 
-.status-option.current-status {
+.status-option.current {
 	outline-offset: 2px;
 	outline: 1px solid
 		hsl(var(--accent-h), var(--accent-s), var(--accent-l), 0.3);
 	outline-style: dashed;
 }
 
-.status-option:not(.current-status) {
+.status-option:not(.current) {
 	opacity: 0.8;
 }
 
-.status-option:not(.current-status):hover {
+.status-option:not(.current):hover {
 	opacity: 1;
 }
 
