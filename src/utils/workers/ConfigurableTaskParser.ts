@@ -167,7 +167,7 @@ export class MarkdownTaskParser {
 						inheritedMetadata,
 						"startDate"
 					),
-					dueDate: this.extractLegacyDate(inheritedMetadata, "due"),
+					dueDate: this.extractLegacyDate(inheritedMetadata, "dueDate"),
 					scheduledDate: this.extractLegacyDate(
 						inheritedMetadata,
 						"scheduledDate"
