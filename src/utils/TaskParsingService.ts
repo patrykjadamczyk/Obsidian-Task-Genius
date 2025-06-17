@@ -35,6 +35,17 @@ export interface TaskParsingServiceOptions {
 			projectName: string;
 			enabled: boolean;
 		}>;
+		metadataMappings: Array<{
+			sourceKey: string;
+			targetKey: string;
+			enabled: boolean;
+		}>;
+		defaultProjectNaming: {
+			strategy: "filename" | "foldername" | "metadata";
+			metadataKey?: string;
+			stripExtension?: boolean;
+			enabled: boolean;
+		};
 	};
 }
 
@@ -252,6 +263,17 @@ export class TaskParsingService {
 				projectName: string;
 				enabled: boolean;
 			}>;
+			metadataMappings: Array<{
+				sourceKey: string;
+				targetKey: string;
+				enabled: boolean;
+			}>;
+			defaultProjectNaming: {
+				strategy: "filename" | "foldername" | "metadata";
+				metadataKey?: string;
+				stripExtension?: boolean;
+				enabled: boolean;
+			};
 		}
 	): void {
 		if (enabled && projectConfigOptions) {
@@ -276,5 +298,95 @@ export class TaskParsingService {
 	 */
 	isEnhancedProjectEnabled(): boolean {
 		return !!this.projectConfigManager;
+	}
+
+	/**
+	 * Pre-compute enhanced project data for all files in the vault
+	 * This is designed to be called before Worker processing to provide
+	 * complete project information that requires file system access
+	 */
+	async computeEnhancedProjectData(filePaths: string[]): Promise<import("./workers/TaskIndexWorkerMessage").EnhancedProjectData> {
+		if (!this.projectConfigManager) {
+			return {
+				fileProjectMap: {},
+				fileMetadataMap: {},
+				projectConfigMap: {},
+			};
+		}
+
+		const fileProjectMap: Record<string, {
+			project: string;
+			source: string;
+			readonly: boolean;
+		}> = {};
+		const fileMetadataMap: Record<string, Record<string, any>> = {};
+		const projectConfigMap: Record<string, Record<string, any>> = {};
+
+		// Process each file to determine its project and metadata
+		for (const filePath of filePaths) {
+			try {
+				// Get tgProject for this file
+				const tgProject = await this.projectConfigManager.determineTgProject(filePath);
+				if (tgProject) {
+					fileProjectMap[filePath] = {
+						project: tgProject.name,
+						source: tgProject.source || tgProject.type,
+						readonly: tgProject.readonly ?? true,
+					};
+				}
+
+				// Get enhanced metadata for this file
+				const enhancedMetadata = await this.projectConfigManager.getEnhancedMetadata(filePath);
+				if (Object.keys(enhancedMetadata).length > 0) {
+					fileMetadataMap[filePath] = enhancedMetadata;
+				}
+
+				// Get project config for this file's directory
+				const projectConfig = await this.projectConfigManager.getProjectConfig(filePath);
+				if (projectConfig && Object.keys(projectConfig).length > 0) {
+					// Use directory path as key for project config
+					const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+					projectConfigMap[dirPath] = projectConfig;
+				}
+			} catch (error) {
+				console.warn(`Failed to compute enhanced project data for ${filePath}:`, error);
+			}
+		}
+
+		return {
+			fileProjectMap,
+			fileMetadataMap,
+			projectConfigMap,
+		};
+	}
+
+	/**
+	 * Get enhanced project data for a specific file (for single file operations)
+	 */
+	async getEnhancedDataForFile(filePath: string): Promise<{
+		tgProject?: import("../types/task").TgProject;
+		fileMetadata?: Record<string, any>;
+		projectConfigData?: Record<string, any>;
+	}> {
+		if (!this.projectConfigManager) {
+			return {};
+		}
+
+		try {
+			const [tgProject, enhancedMetadata, projectConfigData] = await Promise.all([
+				this.projectConfigManager.determineTgProject(filePath),
+				this.projectConfigManager.getEnhancedMetadata(filePath),
+				this.projectConfigManager.getProjectConfig(filePath),
+			]);
+
+			return {
+				tgProject,
+				fileMetadata: Object.keys(enhancedMetadata).length > 0 ? enhancedMetadata : undefined,
+				projectConfigData: projectConfigData && Object.keys(projectConfigData).length > 0 ? projectConfigData : undefined,
+			};
+		} catch (error) {
+			console.warn(`Failed to get enhanced data for ${filePath}:`, error);
+			return {};
+		}
 	}
 }

@@ -140,6 +140,22 @@ export type IndexerResult = TaskParseResult | BatchIndexResult | ErrorResult;
  * Custom settings for the task worker
  */
 
+/**
+ * Enhanced project data computed by TaskParsingService
+ */
+export interface EnhancedProjectData {
+	/** File path to project mapping */
+	fileProjectMap: Record<string, {
+		project: string;
+		source: string;
+		readonly: boolean;
+	}>;
+	/** File path to enhanced metadata mapping */
+	fileMetadataMap: Record<string, Record<string, any>>;
+	/** Computed project configuration data */
+	projectConfigMap: Record<string, Record<string, any>>;
+}
+
 export type TaskWorkerSettings = {
 	preferMetadataFormat: MetadataFormat;
 	useDailyNotePathAsDate: boolean;
@@ -149,7 +165,7 @@ export type TaskWorkerSettings = {
 	ignoreHeading: string;
 	focusHeading: string;
 
-	// Enhanced project configuration
+	// Enhanced project configuration (basic config for fallback)
 	projectConfig?: {
 		enableEnhancedProject: boolean;
 		pathMappings: Array<{
@@ -168,4 +184,7 @@ export type TaskWorkerSettings = {
 			enabled: boolean;
 		};
 	};
+
+	// Pre-computed enhanced project data from TaskParsingService
+	enhancedProjectData?: EnhancedProjectData;
 };

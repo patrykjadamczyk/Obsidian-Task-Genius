@@ -1261,11 +1261,13 @@
 }
 
 /* Enhanced Project Configuration Styles */
-.project-path-mappings-container {
+.project-path-mappings-container,
+.project-metadata-mappings-container {
 	margin-top: 10px;
 }
 
-.project-path-mapping-row {
+.project-path-mapping-row,
+.project-metadata-mapping-row {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	margin-bottom: 10px;

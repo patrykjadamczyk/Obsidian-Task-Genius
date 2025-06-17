@@ -35,9 +35,37 @@ function parseTasksWithConfigurableParser(
 
 		const parser = new MarkdownTaskParser(config);
 
-		// Use the parseLegacy method to get Task[] format for compatibility
-		// Pass file metadata to the parser
-		const tasks = parser.parseLegacy(content, filePath, fileMetadata);
+		// Enhanced parsing: use pre-computed data if available
+		let enhancedFileMetadata = fileMetadata;
+		let projectConfigData: Record<string, any> | undefined;
+		let tgProject: import("../../types/task").TgProject | undefined;
+
+		if (settings.enhancedProjectData) {
+			// Use pre-computed enhanced metadata if available
+			const precomputedMetadata = settings.enhancedProjectData.fileMetadataMap[filePath];
+			if (precomputedMetadata) {
+				enhancedFileMetadata = { ...fileMetadata, ...precomputedMetadata };
+			}
+
+			// Use pre-computed project config data
+			const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+			projectConfigData = settings.enhancedProjectData.projectConfigMap[dirPath];
+
+			// Use pre-computed tgProject
+			const projectInfo = settings.enhancedProjectData.fileProjectMap[filePath];
+			if (projectInfo) {
+				tgProject = {
+					type: projectInfo.source,
+					name: projectInfo.project,
+					source: projectInfo.source === 'path' ? 'path-mapping' : 
+						   projectInfo.source === 'metadata' ? 'frontmatter' : 'config-file',
+					readonly: projectInfo.readonly,
+				};
+			}
+		}
+
+		// Use the parseLegacy method with enhanced data
+		const tasks = parser.parseLegacy(content, filePath, enhancedFileMetadata, projectConfigData, tgProject);
 
 		// Apply heading filters if specified
 		return tasks.filter((task) => {

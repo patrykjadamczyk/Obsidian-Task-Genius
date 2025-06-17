@@ -71,7 +71,7 @@ export interface StandardTaskMetadata {
 /** Task Genius Project interface */
 export interface TgProject {
 	/** Type of project source */
-	type: "path" | "metadata" | "config";
+	type: "path" | "metadata" | "config" | "default";
 	/** Project name */
 	name: string;
 	/** Source path or metadata key */

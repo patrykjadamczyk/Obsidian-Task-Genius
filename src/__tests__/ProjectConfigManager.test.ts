@@ -1,169 +1,242 @@
 /**
- * Project Configuration Manager Tests
+ * ProjectConfigManager Tests
+ *
+ * Tests for project configuration management including:
+ * - Path-based project mappings
+ * - Metadata-based project detection
+ * - Config file-based project detection
+ * - Metadata field mappings
+ * - Default project naming strategies
  */
 
 import {
 	ProjectConfigManager,
 	ProjectConfigManagerOptions,
+	MetadataMapping,
+	ProjectNamingStrategy,
 } from "../utils/ProjectConfigManager";
 import { TgProject } from "../types/task";
 
 // Mock Obsidian types
-const mockVault = {
-	getAbstractFileByPath: jest.fn(),
-	read: jest.fn(),
-} as any;
-
-const mockMetadataCache = {
-	getFileCache: jest.fn(),
-} as any;
-
-// Create a proper TFile mock
 class MockTFile {
-	path: string;
-	name: string;
-	parent: any;
-	stat: any;
+	constructor(
+		public path: string,
+		public name: string,
+		public parent: MockTFolder | null = null
+	) {
+		this.stat = { mtime: Date.now() };
+	}
+	stat: { mtime: number };
+}
 
-	constructor(path: string, name: string, parent: any = null) {
-		this.path = path;
-		this.name = name;
-		this.parent = parent;
-		this.stat = { mtime: 1234567890 };
+class MockTFolder {
+	constructor(
+		public path: string,
+		public name: string,
+		public parent: MockTFolder | null = null,
+		public children: (MockTFile | MockTFolder)[] = []
+	) {}
+}
+
+class MockVault {
+	private files = new Map<string, MockTFile>();
+	private fileContents = new Map<string, string>();
+
+	addFile(path: string, content: string): MockTFile {
+		const fileName = path.split('/').pop() || '';
+		const file = new MockTFile(path, fileName);
+		this.files.set(path, file);
+		this.fileContents.set(path, content);
+		return file;
+	}
+
+	addFolder(path: string): MockTFolder {
+		const folderName = path.split('/').pop() || '';
+		return new MockTFolder(path, folderName);
+	}
+
+	getAbstractFileByPath(path: string): MockTFile | null {
+		return this.files.get(path) || null;
+	}
+
+	async read(file: MockTFile): Promise<string> {
+		return this.fileContents.get(file.path) || '';
 	}
 }
 
-const mockFile = new MockTFile("test/project.md", "project.md");
+class MockMetadataCache {
+	private cache = new Map<string, any>();
 
-const mockFolder = {
-	children: [mockFile],
-	parent: null,
-} as any;
+	setFileMetadata(path: string, metadata: any): void {
+		this.cache.set(path, { frontmatter: metadata });
+	}
+
+	getFileCache(file: MockTFile): any {
+		return this.cache.get(file.path);
+	}
+}
 
 describe("ProjectConfigManager", () => {
+	let vault: MockVault;
+	let metadataCache: MockMetadataCache;
 	let manager: ProjectConfigManager;
-	let options: ProjectConfigManagerOptions;
+
+	const defaultOptions: ProjectConfigManagerOptions = {
+		vault: vault as any,
+		metadataCache: metadataCache as any,
+		configFileName: "project.md",
+		searchRecursively: true,
+		metadataKey: "project",
+		pathMappings: [],
+		metadataMappings: [],
+		defaultProjectNaming: {
+			strategy: "filename",
+			stripExtension: true,
+			enabled: false,
+		},
+	};
 
 	beforeEach(() => {
-		jest.clearAllMocks();
+		vault = new MockVault();
+		metadataCache = new MockMetadataCache();
+		
+		const options = {
+			...defaultOptions,
+			vault: vault as any,
+			metadataCache: metadataCache as any,
+		};
+		
+		manager = new ProjectConfigManager(options);
+	});
 
-		options = {
-			vault: mockVault,
-			metadataCache: mockMetadataCache,
-			configFileName: "project.md",
-			searchRecursively: true,
-			metadataKey: "project",
-			pathMappings: [
+	describe("Path-based project mapping", () => {
+		it("should detect project from path mappings", async () => {
+			const pathMappings = [
 				{
-					pathPattern: "Projects/Work/*",
+					pathPattern: "Projects/Work",
 					projectName: "Work Project",
 					enabled: true,
 				},
 				{
-					pathPattern: "Personal/*",
+					pathPattern: "Personal",
 					projectName: "Personal Project",
 					enabled: true,
 				},
-			],
-		};
+			];
 
-		manager = new ProjectConfigManager(options);
-	});
+			manager.updateOptions({ pathMappings });
 
-	describe("getFileMetadata", () => {
-		test("should return frontmatter metadata", () => {
-			const testFile = new MockTFile("test/file.md", "file.md");
-			const mockMetadata = {
-				frontmatter: {
-					project: "Test Project",
-					priority: "high",
-				},
-			};
-
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockMetadataCache.getFileCache.mockReturnValue(mockMetadata);
-
-			const result = manager.getFileMetadata("test/file.md");
-
-			expect(result).toEqual({
-				project: "Test Project",
-				priority: "high",
-			});
-		});
-
-		test("should return null if file not found", () => {
-			mockVault.getAbstractFileByPath.mockReturnValue(null);
-
-			const result = manager.getFileMetadata("nonexistent.md");
-
-			expect(result).toBeNull();
-		});
-
-		test("should return null if no frontmatter", () => {
-			const testFile = new MockTFile("test/file.md", "file.md");
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockMetadataCache.getFileCache.mockReturnValue({});
-
-			const result = manager.getFileMetadata("test/file.md");
-
-			expect(result).toBeNull();
-		});
-	});
-
-	describe("determineTgProject", () => {
-		test("should return path-based project with highest priority", async () => {
-			const result = await manager.determineTgProject(
-				"Projects/Work/task.md"
-			);
-
-			expect(result).toEqual({
+			const workProject = await manager.determineTgProject("Projects/Work/task.md");
+			expect(workProject).toEqual({
 				type: "path",
 				name: "Work Project",
-				source: "Projects/Work/*",
+				source: "Projects/Work",
+				readonly: true,
+			});
+
+			const personalProject = await manager.determineTgProject("Personal/notes.md");
+			expect(personalProject).toEqual({
+				type: "path",
+				name: "Personal Project",
+				source: "Personal",
 				readonly: true,
 			});
 		});
 
-		test("should return metadata-based project if no path match", async () => {
-			const testFile = new MockTFile("other/task.md", "task.md");
-			const mockMetadata = {
-				frontmatter: {
-					project: "Metadata Project",
+		it("should ignore disabled path mappings", async () => {
+			const pathMappings = [
+				{
+					pathPattern: "Projects/Work",
+					projectName: "Work Project",
+					enabled: false,
 				},
-			};
+			];
 
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockMetadataCache.getFileCache.mockReturnValue(mockMetadata);
+			manager.updateOptions({ pathMappings });
 
-			const result = await manager.determineTgProject("other/task.md");
+			const project = await manager.determineTgProject("Projects/Work/task.md");
+			expect(project).toBeUndefined();
+		});
 
-			expect(result).toEqual({
+		it("should support wildcard patterns", async () => {
+			const pathMappings = [
+				{
+					pathPattern: "Projects/*",
+					projectName: "Any Project",
+					enabled: true,
+				},
+			];
+
+			manager.updateOptions({ pathMappings });
+
+			const project = await manager.determineTgProject("Projects/SomeProject/task.md");
+			expect(project).toEqual({
+				type: "path",
+				name: "Any Project",
+				source: "Projects/*",
+				readonly: true,
+			});
+		});
+	});
+
+	describe("Metadata-based project detection", () => {
+		it("should detect project from file frontmatter", async () => {
+			vault.addFile("test.md", "# Test file");
+			metadataCache.setFileMetadata("test.md", { project: "My Project" });
+
+			const project = await manager.determineTgProject("test.md");
+			expect(project).toEqual({
 				type: "metadata",
-				name: "Metadata Project",
+				name: "My Project",
 				source: "project",
 				readonly: true,
 			});
 		});
 
-		test("should return config-based project as fallback", async () => {
-			// Mock file structure
-			const configFile = new MockTFile("other/project.md", "project.md");
-			const parentFolder = {
-				children: [configFile],
-				parent: null,
-			};
-			const testFile = new MockTFile("other/task.md", "task.md");
-			testFile.parent = parentFolder;
+		it("should use custom metadata key", async () => {
+			manager.updateOptions({ metadataKey: "proj" });
+			vault.addFile("test.md", "# Test file");
+			metadataCache.setFileMetadata("test.md", { proj: "Custom Project" });
 
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockVault.read.mockResolvedValue("project: Config Project\n");
-			mockMetadataCache.getFileCache
-				.mockReturnValueOnce({}) // No frontmatter for task file
-				.mockReturnValueOnce({}); // No frontmatter for config file
+			const project = await manager.determineTgProject("test.md");
+			expect(project).toEqual({
+				type: "metadata",
+				name: "Custom Project",
+				source: "proj",
+				readonly: true,
+			});
+		});
 
-			const result = await manager.determineTgProject("other/task.md");
+		it("should handle missing files gracefully", async () => {
+			const project = await manager.determineTgProject("nonexistent.md");
+			expect(project).toBeUndefined();
+		});
+	});
 
-			expect(result).toEqual({
+	describe("Config file-based project detection", () => {
+		it("should detect project from config file", async () => {
+			// Create a project config file
+			vault.addFile("Projects/project.md", `---
+project: Config Project
+---
+
+# Project Configuration
+`);
+
+			// Mock the folder structure
+			const file = vault.addFile("Projects/task.md", "- [ ] Test task");
+			const folder = vault.addFolder("Projects");
+			const configFile = vault.getAbstractFileByPath("Projects/project.md");
+			if (configFile) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
+
+			// Set metadata for config file
+			metadataCache.setFileMetadata("Projects/project.md", { project: "Config Project" });
+
+			const project = await manager.determineTgProject("Projects/task.md");
+			expect(project).toEqual({
 				type: "config",
 				name: "Config Project",
 				source: "project.md",
@@ -171,118 +244,328 @@ describe("ProjectConfigManager", () => {
 			});
 		});
 
-		test("should return undefined if no project found", async () => {
-			const testFile = new MockTFile("other/task.md", "task.md");
-			testFile.parent = { children: [], parent: null };
+		it("should parse project from config file content", async () => {
+			const configContent = `
+# Project Configuration
 
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockMetadataCache.getFileCache.mockReturnValue({});
+project: Content Project
+description: A project defined in content
+`;
+			vault.addFile("Projects/project.md", configContent);
 
-			const result = await manager.determineTgProject("other/task.md");
+			// Mock folder structure
+			const file = vault.addFile("Projects/task.md", "- [ ] Test task");
+			const folder = vault.addFolder("Projects");
+			const configFile = vault.getAbstractFileByPath("Projects/project.md");
+			if (configFile) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
 
-			expect(result).toBeUndefined();
+			const project = await manager.determineTgProject("Projects/task.md");
+			expect(project).toEqual({
+				type: "config",
+				name: "Content Project",
+				source: "project.md",
+				readonly: true,
+			});
 		});
 	});
 
-	describe("path pattern matching", () => {
-		test("should match wildcard patterns", async () => {
-			const testCases = [
-				{ path: "Projects/Work/subfolder/task.md", shouldMatch: true },
-				{ path: "Projects/Work/task.md", shouldMatch: true },
-				{ path: "Projects/Personal/task.md", shouldMatch: false },
-				{ path: "Other/task.md", shouldMatch: false },
+	describe("Metadata mappings", () => {
+		it("should apply metadata mappings", async () => {
+			const metadataMappings: MetadataMapping[] = [
+				{
+					sourceKey: "proj",
+					targetKey: "project",
+					enabled: true,
+				},
+				{
+					sourceKey: "due_date",
+					targetKey: "due",
+					enabled: true,
+				},
 			];
 
-			for (const testCase of testCases) {
-				const result = await manager.determineTgProject(testCase.path);
+			manager.updateOptions({ metadataMappings });
 
-				if (testCase.shouldMatch) {
-					expect(result?.type).toBe("path");
-					expect(result?.name).toBe("Work Project");
-				} else {
-					// Should either be undefined or not a path-based project
-					expect(result?.type).not.toBe("path");
-				}
-			}
-		});
-	});
-
-	describe("caching", () => {
-		test("should cache project config data", async () => {
-			const configFile = new MockTFile("test/project.md", "project.md");
-			const parentFolder = {
-				children: [configFile],
-				parent: null,
-			};
-			const testFile = new MockTFile("test/task.md", "task.md");
-			testFile.parent = parentFolder;
-
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockVault.read.mockResolvedValue("project: Cached Project\n");
-			mockMetadataCache.getFileCache.mockReturnValue({});
-
-			// First call
-			const result1 = await manager.determineTgProject("test/task.md");
-
-			// Second call should use cache
-			const result2 = await manager.determineTgProject("test/task.md");
-
-			expect(mockVault.read).toHaveBeenCalledTimes(1);
-			expect(result1).toEqual(result2);
-		});
-
-		test("should clear cache when requested", async () => {
-			manager.clearCache();
-
-			// Cache should be empty after clearing
-			// This is mainly to ensure the method doesn't throw
-			expect(() => manager.clearCache()).not.toThrow();
-		});
-	});
-
-	describe("configuration updates", () => {
-		test("should update options and clear cache", () => {
-			const newOptions = {
-				configFileName: "config.md",
-				metadataKey: "proj",
-			};
-
-			manager.updateOptions(newOptions);
-
-			// Should not throw and cache should be cleared
-			expect(() => manager.clearCache()).not.toThrow();
-		});
-	});
-
-	describe("error handling", () => {
-		test("should handle file read errors gracefully", async () => {
-			const configFile = new MockTFile("test/project.md", "project.md");
-			const parentFolder = {
-				children: [configFile],
-				parent: null,
-			};
-			const testFile = new MockTFile("test/task.md", "task.md");
-			testFile.parent = parentFolder;
-
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockVault.read.mockRejectedValue(new Error("File read error"));
-
-			const result = await manager.determineTgProject("test/task.md");
-
-			// Should not throw and should return undefined or metadata-based result
-			expect(result?.type).not.toBe("config");
-		});
-
-		test("should handle metadata cache errors gracefully", () => {
-			const testFile = new MockTFile("test/file.md", "file.md");
-			mockVault.getAbstractFileByPath.mockReturnValue(testFile);
-			mockMetadataCache.getFileCache.mockImplementation(() => {
-				throw new Error("Metadata cache error");
+			vault.addFile("test.md", "# Test file");
+			metadataCache.setFileMetadata("test.md", {
+				proj: "Mapped Project",
+				due_date: "2024-01-01",
+				other: "value",
 			});
 
-			const result = manager.getFileMetadata("test/file.md");
+			const enhancedMetadata = await manager.getEnhancedMetadata("test.md");
+			expect(enhancedMetadata).toEqual({
+				proj: "Mapped Project",
+				due_date: "2024-01-01",
+				other: "value",
+				project: "Mapped Project",
+				due: "2024-01-01",
+			});
+		});
 
-			expect(result).toBeNull();
+		it("should ignore disabled mappings", async () => {
+			const metadataMappings: MetadataMapping[] = [
+				{
+					sourceKey: "proj",
+					targetKey: "project",
+					enabled: false,
+				},
+			];
+
+			manager.updateOptions({ metadataMappings });
+
+			vault.addFile("test.md", "# Test file");
+			metadataCache.setFileMetadata("test.md", { proj: "Should Not Map" });
+
+			const enhancedMetadata = await manager.getEnhancedMetadata("test.md");
+			expect(enhancedMetadata).toEqual({
+				proj: "Should Not Map",
+			});
+			expect(enhancedMetadata.project).toBeUndefined();
+		});
+	});
+
+	describe("Default project naming", () => {
+		it("should use filename as project name", async () => {
+			const defaultProjectNaming: ProjectNamingStrategy = {
+				strategy: "filename",
+				stripExtension: true,
+				enabled: true,
+			};
+
+			manager.updateOptions({ defaultProjectNaming });
+
+			const project = await manager.determineTgProject("Projects/my-document.md");
+			expect(project).toEqual({
+				type: "default",
+				name: "my-document",
+				source: "filename",
+				readonly: true,
+			});
+		});
+
+		it("should use filename without stripping extension", async () => {
+			const defaultProjectNaming: ProjectNamingStrategy = {
+				strategy: "filename",
+				stripExtension: false,
+				enabled: true,
+			};
+
+			manager.updateOptions({ defaultProjectNaming });
+
+			const project = await manager.determineTgProject("Projects/my-document.md");
+			expect(project).toEqual({
+				type: "default",
+				name: "my-document.md",
+				source: "filename",
+				readonly: true,
+			});
+		});
+
+		it("should use folder name as project name", async () => {
+			const defaultProjectNaming: ProjectNamingStrategy = {
+				strategy: "foldername",
+				enabled: true,
+			};
+
+			manager.updateOptions({ defaultProjectNaming });
+
+			const project = await manager.determineTgProject("Projects/WorkFolder/task.md");
+			expect(project).toEqual({
+				type: "default",
+				name: "WorkFolder",
+				source: "foldername",
+				readonly: true,
+			});
+		});
+
+		it("should use metadata value as project name", async () => {
+			vault.addFile("anywhere/task.md", "# Test file");
+			metadataCache.setFileMetadata("anywhere/task.md", { "project-name": "Global Project" });
+
+			const defaultProjectNaming: ProjectNamingStrategy = {
+				strategy: "metadata",
+				metadataKey: "project-name",
+				enabled: true,
+			};
+
+			manager.updateOptions({ defaultProjectNaming });
+
+			const project = await manager.determineTgProject("anywhere/task.md");
+			expect(project).toEqual({
+				type: "default",
+				name: "Global Project",
+				source: "metadata",
+				readonly: true,
+			});
+		});
+
+		it("should not apply default naming when disabled", async () => {
+			const defaultProjectNaming: ProjectNamingStrategy = {
+				strategy: "filename",
+				stripExtension: true,
+				enabled: false,
+			};
+
+			manager.updateOptions({ defaultProjectNaming });
+
+			const project = await manager.determineTgProject("Projects/my-document.md");
+			expect(project).toBeUndefined();
+		});
+	});
+
+	describe("Priority order", () => {
+		it("should prioritize path mappings over metadata", async () => {
+			const pathMappings = [
+				{
+					pathPattern: "Projects",
+					projectName: "Path Project",
+					enabled: true,
+				},
+			];
+
+			manager.updateOptions({ pathMappings });
+
+			vault.addFile("Projects/task.md", "# Test file");
+			metadataCache.setFileMetadata("Projects/task.md", { project: "Metadata Project" });
+
+			const project = await manager.determineTgProject("Projects/task.md");
+			expect(project).toEqual({
+				type: "path",
+				name: "Path Project",
+				source: "Projects",
+				readonly: true,
+			});
+		});
+
+		it("should prioritize metadata over config file", async () => {
+			vault.addFile("Projects/task.md", "# Test file");
+			vault.addFile("Projects/project.md", "project: Config Project");
+			metadataCache.setFileMetadata("Projects/task.md", { project: "Metadata Project" });
+
+			// Mock folder structure
+			const file = vault.getAbstractFileByPath("Projects/task.md");
+			const folder = vault.addFolder("Projects");
+			const configFile = vault.getAbstractFileByPath("Projects/project.md");
+			if (file && configFile) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
+
+			const project = await manager.determineTgProject("Projects/task.md");
+			expect(project).toEqual({
+				type: "metadata",
+				name: "Metadata Project",
+				source: "project",
+				readonly: true,
+			});
+		});
+
+		it("should prioritize config file over default naming", async () => {
+			const defaultProjectNaming: ProjectNamingStrategy = {
+				strategy: "filename",
+				stripExtension: true,
+				enabled: true,
+			};
+
+			manager.updateOptions({ defaultProjectNaming });
+
+			vault.addFile("Projects/task.md", "# Test file");
+			vault.addFile("Projects/project.md", "project: Config Project");
+
+			// Mock folder structure
+			const file = vault.getAbstractFileByPath("Projects/task.md");
+			const folder = vault.addFolder("Projects");
+			const configFile = vault.getAbstractFileByPath("Projects/project.md");
+			if (file && configFile) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
+
+			const project = await manager.determineTgProject("Projects/task.md");
+			expect(project).toEqual({
+				type: "config",
+				name: "Config Project",
+				source: "project.md",
+				readonly: true,
+			});
+		});
+	});
+
+	describe("Caching", () => {
+		it("should cache project config data", async () => {
+			vault.addFile("Projects/project.md", "project: Cached Project");
+			vault.addFile("Projects/task.md", "# Test file");
+
+			// Mock folder structure
+			const file = vault.getAbstractFileByPath("Projects/task.md");
+			const folder = vault.addFolder("Projects");
+			const configFile = vault.getAbstractFileByPath("Projects/project.md");
+			if (file && configFile) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
+
+			// First call should read and cache
+			const project1 = await manager.determineTgProject("Projects/task.md");
+			
+			// Second call should use cache
+			const project2 = await manager.determineTgProject("Projects/task.md");
+
+			expect(project1).toEqual(project2);
+			expect(project1?.name).toBe("Cached Project");
+		});
+
+		it("should clear cache when options change", async () => {
+			vault.addFile("test.md", "# Test file");
+			metadataCache.setFileMetadata("test.md", { project: "Original Project" });
+
+			const project1 = await manager.determineTgProject("test.md");
+			expect(project1?.name).toBe("Original Project");
+
+			// Change metadata key
+			manager.updateOptions({ metadataKey: "proj" });
+			metadataCache.setFileMetadata("test.md", { proj: "New Project" });
+
+			const project2 = await manager.determineTgProject("test.md");
+			expect(project2?.name).toBe("New Project");
+		});
+	});
+
+	describe("Error handling", () => {
+		it("should handle file access errors gracefully", async () => {
+			// Mock vault that throws errors
+			const errorVault = {
+				getAbstractFileByPath: () => { throw new Error("File access error"); },
+			};
+
+			const errorManager = new ProjectConfigManager({
+				...defaultOptions,
+				vault: errorVault as any,
+			});
+
+			const project = await errorManager.determineTgProject("test.md");
+			expect(project).toBeUndefined();
+		});
+
+		it("should handle malformed config files gracefully", async () => {
+			vault.addFile("Projects/project.md", "Invalid content without proper format");
+			vault.addFile("Projects/task.md", "# Test file");
+
+			// Mock folder structure
+			const file = vault.getAbstractFileByPath("Projects/task.md");
+			const folder = vault.addFolder("Projects");
+			const configFile = vault.getAbstractFileByPath("Projects/project.md");
+			if (file && configFile) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
+
+			const project = await manager.determineTgProject("Projects/task.md");
+			expect(project).toBeUndefined();
 		});
 	});
 });

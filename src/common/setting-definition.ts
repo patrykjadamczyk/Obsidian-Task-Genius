@@ -391,6 +391,28 @@ export interface ProjectConfigFile {
 	enabled: boolean;
 }
 
+/** Metadata mapping configuration */
+export interface MetadataMapping {
+	/** Source metadata key */
+	sourceKey: string;
+	/** Target metadata key */
+	targetKey: string;
+	/** Whether this mapping is enabled */
+	enabled: boolean;
+}
+
+/** Default project naming strategy */
+export interface ProjectNamingStrategy {
+	/** Naming strategy type */
+	strategy: "filename" | "foldername" | "metadata";
+	/** Metadata key for metadata strategy */
+	metadataKey?: string;
+	/** Whether to strip file extension for filename strategy */
+	stripExtension?: boolean;
+	/** Whether this strategy is enabled */
+	enabled: boolean;
+}
+
 /** Enhanced project configuration */
 export interface ProjectConfiguration {
 	/** Path-based project mappings */
@@ -401,6 +423,10 @@ export interface ProjectConfiguration {
 	configFile: ProjectConfigFile;
 	/** Whether to enable enhanced project features */
 	enableEnhancedProject: boolean;
+	/** Metadata key mappings */
+	metadataMappings: MetadataMapping[];
+	/** Default project naming strategy */
+	defaultProjectNaming: ProjectNamingStrategy;
 }
 
 /** Define the main settings structure */
@@ -738,6 +764,12 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		configFile: {
 			fileName: "project.md",
 			searchRecursively: true,
+			enabled: false,
+		},
+		metadataMappings: [],
+		defaultProjectNaming: {
+			strategy: "filename" as const,
+			stripExtension: true,
 			enabled: false,
 		},
 	},

@@ -142,6 +142,12 @@ export class TaskManager extends Component {
 					searchRecursively: this.plugin.settings.projectConfig.configFile.searchRecursively,
 					metadataKey: this.plugin.settings.projectConfig.metadataConfig.metadataKey,
 					pathMappings: this.plugin.settings.projectConfig.pathMappings,
+					metadataMappings: this.plugin.settings.projectConfig.metadataMappings || [],
+					defaultProjectNaming: this.plugin.settings.projectConfig.defaultProjectNaming || {
+						strategy: "filename",
+						stripExtension: true,
+						enabled: false,
+					},
 				},
 			};
 
@@ -488,6 +494,20 @@ export class TaskManager extends Component {
 
 			if (this.workerManager && filesToProcess.length > 0) {
 				try {
+					// Pre-compute enhanced project data if TaskParsingService is available
+					let enhancedProjectData: import("./workers/TaskIndexWorkerMessage").EnhancedProjectData | undefined;
+					if (this.taskParsingService) {
+						this.log("Pre-computing enhanced project data for worker processing...");
+						const allFilePaths = filesToProcess.map(file => file.path);
+						enhancedProjectData = await this.taskParsingService.computeEnhancedProjectData(allFilePaths);
+						this.log(`Pre-computed project data for ${Object.keys(enhancedProjectData.fileProjectMap).length} files with projects`);
+						
+						// Update worker manager settings with enhanced data
+						if (this.workerManager) {
+							this.workerManager.setEnhancedProjectData(enhancedProjectData);
+						}
+					}
+
 					// Process files in batches to avoid excessive memory usage
 					const batchSize = 200;
 					let importedCount = 0;
@@ -523,7 +543,7 @@ export class TaskManager extends Component {
 								} else {
 									// Cache doesn't exist or is outdated, process with worker
 									// Don't trigger events - we'll trigger once when initialization is complete
-									await this.processFileWithoutEvents(file);
+									await this.processFileWithoutEvents(file, enhancedProjectData);
 									importedCount++;
 								}
 							} catch (error) {
@@ -586,7 +606,10 @@ export class TaskManager extends Component {
 	/**
 	 * Process a file using worker without triggering events - used during initialization
 	 */
-	private async processFileWithoutEvents(file: TFile): Promise<void> {
+	private async processFileWithoutEvents(
+		file: TFile, 
+		enhancedProjectData?: import("./workers/TaskIndexWorkerMessage").EnhancedProjectData
+	): Promise<void> {
 		if (!this.workerManager) {
 			// If worker manager is not available, use main thread processing
 			await this.indexer.indexFile(file);

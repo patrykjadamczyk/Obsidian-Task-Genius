@@ -663,6 +663,16 @@ export class TaskWorkerManager extends Component {
 	}
 
 	/**
+	 * Set enhanced project data for worker processing
+	 */
+	public setEnhancedProjectData(enhancedProjectData: import("./TaskIndexWorkerMessage").EnhancedProjectData): void {
+		// Update the settings with enhanced project data
+		if (this.options.settings) {
+			(this.options.settings as any).enhancedProjectData = enhancedProjectData;
+		}
+	}
+
+	/**
 	 * Check if the worker pool is currently processing a batch
 	 */
 	public isProcessingBatchTask(): boolean {

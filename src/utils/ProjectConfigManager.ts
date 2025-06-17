@@ -13,6 +13,19 @@ export interface ProjectConfigData {
 	[key: string]: any;
 }
 
+export interface MetadataMapping {
+	sourceKey: string;
+	targetKey: string;
+	enabled: boolean;
+}
+
+export interface ProjectNamingStrategy {
+	strategy: "filename" | "foldername" | "metadata";
+	metadataKey?: string;
+	stripExtension?: boolean;
+	enabled: boolean;
+}
+
 export interface ProjectConfigManagerOptions {
 	vault: Vault;
 	metadataCache: MetadataCache;
@@ -24,6 +37,8 @@ export interface ProjectConfigManagerOptions {
 		projectName: string;
 		enabled: boolean;
 	}>;
+	metadataMappings: MetadataMapping[];
+	defaultProjectNaming: ProjectNamingStrategy;
 }
 
 export class ProjectConfigManager {
@@ -37,6 +52,8 @@ export class ProjectConfigManager {
 		projectName: string;
 		enabled: boolean;
 	}>;
+	private metadataMappings: MetadataMapping[];
+	private defaultProjectNaming: ProjectNamingStrategy;
 
 	// Cache for project configurations
 	private configCache = new Map<string, ProjectConfigData>();
@@ -49,6 +66,12 @@ export class ProjectConfigManager {
 		this.searchRecursively = options.searchRecursively;
 		this.metadataKey = options.metadataKey;
 		this.pathMappings = options.pathMappings;
+		this.metadataMappings = options.metadataMappings || [];
+		this.defaultProjectNaming = options.defaultProjectNaming || {
+			strategy: "filename",
+			stripExtension: true,
+			enabled: false,
+		};
 	}
 
 	/**
@@ -175,6 +198,19 @@ export class ProjectConfigManager {
 			}
 		}
 
+		// 4. Apply default project naming strategy (lowest priority)
+		if (this.defaultProjectNaming.enabled) {
+			const defaultProject = this.generateDefaultProjectName(filePath);
+			if (defaultProject) {
+				return {
+					type: "default",
+					name: defaultProject,
+					source: this.defaultProjectNaming.strategy,
+					readonly: true,
+				};
+			}
+		}
+
 		return undefined;
 	}
 
@@ -186,7 +222,12 @@ export class ProjectConfigManager {
 		const configData = (await this.getProjectConfig(filePath)) || {};
 
 		// Merge metadata, with file metadata taking precedence
-		return { ...configData, ...fileMetadata };
+		let mergedMetadata = { ...configData, ...fileMetadata };
+
+		// Apply metadata mappings
+		mergedMetadata = this.applyMetadataMappings(mergedMetadata);
+
+		return mergedMetadata;
 	}
 
 	/**
@@ -340,6 +381,65 @@ export class ProjectConfigManager {
 	}
 
 	/**
+	 * Apply metadata mappings to transform source metadata keys to target keys
+	 */
+	private applyMetadataMappings(metadata: Record<string, any>): Record<string, any> {
+		const result = { ...metadata };
+
+		for (const mapping of this.metadataMappings) {
+			if (!mapping.enabled) continue;
+
+			const sourceValue = metadata[mapping.sourceKey];
+			if (sourceValue !== undefined) {
+				result[mapping.targetKey] = sourceValue;
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Generate default project name based on configured strategy
+	 */
+	private generateDefaultProjectName(filePath: string): string | null {
+		if (!this.defaultProjectNaming.enabled) {
+			return null;
+		}
+
+		switch (this.defaultProjectNaming.strategy) {
+			case "filename": {
+				const fileName = filePath.split("/").pop() || "";
+				if (this.defaultProjectNaming.stripExtension) {
+					return fileName.replace(/\.[^/.]+$/, "");
+				}
+				return fileName;
+			}
+			case "foldername": {
+				const pathParts = filePath.split("/");
+				// Get the parent folder name
+				if (pathParts.length > 1) {
+					return pathParts[pathParts.length - 2] || "";
+				}
+				return "";
+			}
+			case "metadata": {
+				const metadataKey = this.defaultProjectNaming.metadataKey;
+				if (!metadataKey) {
+					return null;
+				}
+				const fileMetadata = this.getFileMetadata(filePath);
+				if (fileMetadata && fileMetadata[metadataKey]) {
+					const value = fileMetadata[metadataKey];
+					return typeof value === "string" ? value.trim() : String(value);
+				}
+				return null;
+			}
+			default:
+				return null;
+		}
+	}
+
+	/**
 	 * Update configuration options
 	 */
 	updateOptions(options: Partial<ProjectConfigManagerOptions>): void {
@@ -354,6 +454,12 @@ export class ProjectConfigManager {
 		}
 		if (options.pathMappings !== undefined) {
 			this.pathMappings = options.pathMappings;
+		}
+		if (options.metadataMappings !== undefined) {
+			this.metadataMappings = options.metadataMappings;
+		}
+		if (options.defaultProjectNaming !== undefined) {
+			this.defaultProjectNaming = options.defaultProjectNaming;
 		}
 
 		// Clear cache when options change
