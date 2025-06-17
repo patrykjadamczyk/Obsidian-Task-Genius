@@ -41,10 +41,11 @@ function parseTasksWithConfigurableParser(
 		let tgProject: import("../../types/task").TgProject | undefined;
 
 		if (settings.enhancedProjectData) {
-			// Use pre-computed enhanced metadata if available
+			// Use pre-computed enhanced metadata if available (this already contains MetadataMapping transforms)
 			const precomputedMetadata = settings.enhancedProjectData.fileMetadataMap[filePath];
 			if (precomputedMetadata) {
-				enhancedFileMetadata = { ...fileMetadata, ...precomputedMetadata };
+				// Use the pre-computed metadata directly since it already includes the original metadata + mappings
+				enhancedFileMetadata = precomputedMetadata;
 			}
 
 			// Use pre-computed project config data
@@ -55,7 +56,7 @@ function parseTasksWithConfigurableParser(
 			const projectInfo = settings.enhancedProjectData.fileProjectMap[filePath];
 			if (projectInfo) {
 				tgProject = {
-					type: projectInfo.source,
+					type: projectInfo.source as "metadata" | "path" | "config" | "default",
 					name: projectInfo.project,
 					source: projectInfo.source === 'path' ? 'path-mapping' : 
 						   projectInfo.source === 'metadata' ? 'frontmatter' : 'config-file',

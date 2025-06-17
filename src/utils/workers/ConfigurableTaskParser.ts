@@ -161,20 +161,20 @@ export class MarkdownTaskParser {
 					priority: this.extractLegacyPriority(inheritedMetadata),
 					startDate: this.extractLegacyDate(
 						inheritedMetadata,
-						"start_date"
+						"startDate"
 					),
 					dueDate: this.extractLegacyDate(inheritedMetadata, "due"),
 					scheduledDate: this.extractLegacyDate(
 						inheritedMetadata,
-						"scheduled"
+						"scheduledDate"
 					),
 					completedDate: this.extractLegacyDate(
 						inheritedMetadata,
-						"completed_date"
+						"completedDate"
 					),
 					createdDate: this.extractLegacyDate(
 						inheritedMetadata,
-						"created_date"
+						"createdDate"
 					),
 					recurrence: inheritedMetadata.recurrence,
 					project: inheritedMetadata.project,
@@ -864,10 +864,20 @@ export class MarkdownTaskParser {
 			completed: enhancedTask.completed,
 			status: enhancedTask.rawStatus,
 			originalMarkdown: enhancedTask.originalMarkdown,
+			children: enhancedTask.children || [],
+			priority: enhancedTask.priority,
+			startDate: enhancedTask.startDate,
+			dueDate: enhancedTask.dueDate,
+			scheduledDate: enhancedTask.scheduledDate,
+			completedDate: enhancedTask.completedDate,
+			createdDate: enhancedTask.createdDate,
+			recurrence: enhancedTask.recurrence,
+			project: enhancedTask.project,
+			context: enhancedTask.context,
 			metadata: {
 				tags: enhancedTask.tags,
 				children: enhancedTask.children,
-				priority: enhancedTask.priority,
+				priority: enhancedTask.metadata.priority || enhancedTask.priority,
 				startDate: enhancedTask.startDate,
 				dueDate: enhancedTask.dueDate,
 				scheduledDate: enhancedTask.scheduledDate,
@@ -885,7 +895,7 @@ export class MarkdownTaskParser {
 				parent: enhancedTask.parentId,
 				tgProject: enhancedTask.tgProject,
 			},
-		};
+		} as any;
 	}
 
 	/**
@@ -963,13 +973,13 @@ export class MarkdownTaskParser {
 	}
 
 	/**
-	 * Inherit metadata from file frontmatter
+	 * Inherit metadata from file frontmatter and project configuration
 	 */
 	private inheritFileMetadata(
 		taskMetadata: Record<string, string>
 	): Record<string, string> {
+		// If inheritance is disabled, return task metadata as-is
 		if (
-			!this.fileMetadata ||
 			!this.config.projectConfig?.metadataConfig?.inheritFromFrontmatter
 		) {
 			return taskMetadata;
@@ -977,18 +987,61 @@ export class MarkdownTaskParser {
 
 		const inherited = { ...taskMetadata };
 
-		// Inherit common metadata fields if not already present in task
-		const inheritableFields = [
-			"dueDate",
-			"startDate",
-			"scheduledDate",
-			"priority",
-			"context",
-		];
+		// List of fields that should NOT be inherited (task-specific only)
+		const nonInheritableFields = new Set([
+			'id',
+			'content', 
+			'status',
+			'rawStatus',
+			'completed',
+			'line',
+			'lineNumber',
+			'originalMarkdown',
+			'filePath',
+			'heading',
+			'headingLevel',
+			'parent',
+			'parentId',
+			'children',
+			'childrenIds',
+			'tags', // Tags are task-specific
+			'comment', // Comments are task-specific
+			'indentLevel',
+			'actualIndent',
+			'listMarker'
+		]);
 
-		for (const field of inheritableFields) {
-			if (!inherited[field] && this.fileMetadata[field]) {
-				inherited[field] = String(this.fileMetadata[field]);
+		// Inherit from file metadata (frontmatter) if available
+		if (this.fileMetadata) {
+			for (const [key, value] of Object.entries(this.fileMetadata)) {
+				// Only inherit if:
+				// 1. The field is not in the non-inheritable list
+				// 2. The task doesn't already have this field
+				// 3. The value is not undefined/null
+				if (!nonInheritableFields.has(key) && 
+					!inherited[key] && 
+					value !== undefined && 
+					value !== null) {
+					inherited[key] = String(value);
+				}
+			}
+		}
+
+		// Inherit from project configuration data if available
+		if (this.projectConfigCache) {
+			for (const [key, value] of Object.entries(this.projectConfigCache)) {
+				// Only inherit if:
+				// 1. The field is not in the non-inheritable list
+				// 2. The task doesn't already have this field (task metadata takes precedence)
+				// 3. File metadata doesn't have this field (file metadata takes precedence over project config)
+				// 4. The value is not undefined/null
+				if (!nonInheritableFields.has(key) && 
+					!inherited[key] && 
+					!(this.fileMetadata && this.fileMetadata[key] !== undefined) &&
+					value !== undefined && 
+					value !== null) {
+					inherited[key] = String(value);
+				}
 			}
 		}
 

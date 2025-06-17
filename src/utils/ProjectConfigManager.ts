@@ -399,6 +399,13 @@ export class ProjectConfigManager {
 	}
 
 	/**
+	 * Public method to apply metadata mappings to any metadata object
+	 */
+	public applyMappingsToMetadata(metadata: Record<string, any>): Record<string, any> {
+		return this.applyMetadataMappings(metadata);
+	}
+
+	/**
 	 * Generate default project name based on configured strategy
 	 */
 	private generateDefaultProjectName(filePath: string): string | null {

@@ -87,13 +87,13 @@ export interface EnhancedTask {
 export function createDefaultParserConfig(): TaskParserConfig {
 	const emojiMapping: Record<string, string> = {
 		// Basic date and time emojis
-		"📅": "due",
-		"🗓️": "due", // Alternative date emoji
-		"⏰": "scheduled",
-		"⏳": "scheduled", // Alternative scheduled time emoji
-		"🛫": "start_date",
-		"✅": "completed_date",
-		"➕": "created_date",
+		"📅": "dueDate",
+		"🗓️": "dueDate", // Alternative date emoji
+		"⏰": "scheduledDate",
+		"⏳": "scheduledDate", // Alternative scheduled time emoji
+		"🛫": "startDate",
+		"✅": "completedDate",
+		"➕": "createdDate",
 
 		// Priority emojis (Tasks plugin style)
 		"🔺": "priority", // highest

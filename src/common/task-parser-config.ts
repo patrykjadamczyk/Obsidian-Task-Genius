@@ -54,11 +54,11 @@ export const getConfig = (
 
 		// Emoji to metadata mapping
 		emojiMapping: {
-			"📅": "due",
-			"🛫": "start_date",
-			"⏳": "scheduled",
-			"✅": "completed_date",
-			"➕": "created_date",
+			"📅": "dueDate",
+			"🛫": "startDate",
+			"⏳": "scheduledDate",
+			"✅": "completedDate",
+			"➕": "createdDate",
 			"🔁": "recurrence",
 			"🔺": "priority",
 			"⏫": "priority",

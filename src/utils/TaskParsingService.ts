@@ -84,13 +84,13 @@ export class TaskParsingService {
 		let projectConfigData: Record<string, any> | undefined;
 		let tgProject: TgProject | undefined;
 
-		// Get enhanced metadata if project config manager is available
+		// Get metadata based on whether enhanced project is enabled
 		if (this.projectConfigManager) {
 			try {
-				// Get file metadata (frontmatter)
-				fileMetadata =
-					this.projectConfigManager.getFileMetadata(filePath) ||
-					undefined;
+				// Always use enhanced metadata when project config manager is available
+				// as it only exists when enhanced project is enabled
+				const enhancedMetadata = await this.projectConfigManager.getEnhancedMetadata(filePath);
+				fileMetadata = enhancedMetadata;
 
 				// Get project configuration data
 				projectConfigData =
@@ -107,10 +107,12 @@ export class TaskParsingService {
 					`Failed to get enhanced metadata for ${filePath}:`,
 					error
 				);
+				// Fallback to basic file metadata if enhanced metadata fails
+				fileMetadata = this.projectConfigManager.getFileMetadata(filePath) || undefined;
 			}
 		}
 
-		// Parse tasks with enhanced data
+		// Parse tasks with metadata (enhanced or basic depending on configuration)
 		return this.parser.parse(
 			content,
 			filePath,
@@ -131,16 +133,21 @@ export class TaskParsingService {
 		let projectConfigData: Record<string, any> | undefined;
 		let tgProject: TgProject | undefined;
 
-		// Get enhanced metadata if project config manager is available
+		// Get metadata based on whether enhanced project is enabled
 		if (this.projectConfigManager) {
 			try {
-				fileMetadata =
-					this.projectConfigManager.getFileMetadata(filePath) ||
-					undefined;
+				// Always use enhanced metadata when project config manager is available
+				// as it only exists when enhanced project is enabled
+				const enhancedMetadata = await this.projectConfigManager.getEnhancedMetadata(filePath);
+				fileMetadata = enhancedMetadata;
+
+				// Get project configuration data
 				projectConfigData =
 					(await this.projectConfigManager.getProjectConfig(
 						filePath
 					)) || undefined;
+				
+				// Determine tgProject
 				tgProject = await this.projectConfigManager.determineTgProject(
 					filePath
 				);
@@ -149,16 +156,37 @@ export class TaskParsingService {
 					`Failed to get enhanced metadata for ${filePath}:`,
 					error
 				);
+				// Fallback to basic file metadata if enhanced metadata fails
+				fileMetadata = this.projectConfigManager.getFileMetadata(filePath) || undefined;
 			}
 		}
 
-		// Parse tasks with enhanced data
+		// Parse tasks with metadata (enhanced or basic depending on configuration)
 		return this.parser.parseLegacy(
 			content,
 			filePath,
 			fileMetadata,
 			projectConfigData,
 			tgProject
+		);
+	}
+
+	/**
+	 * Parse tasks from content without enhanced project features
+	 * This method always uses basic file metadata without MetadataMapping transforms
+	 */
+	async parseTasksFromContentBasic(
+		content: string,
+		filePath: string
+	): Promise<Task[]> {
+		// Parse tasks with NO metadata, project config, or tgProject
+		// This ensures no enhanced features are applied
+		return this.parser.parseLegacy(
+			content,
+			filePath,
+			undefined, // No file metadata
+			undefined, // No project config data
+			undefined  // No tgProject
 		);
 	}
 
@@ -344,9 +372,12 @@ export class TaskParsingService {
 				// Get project config for this file's directory
 				const projectConfig = await this.projectConfigManager.getProjectConfig(filePath);
 				if (projectConfig && Object.keys(projectConfig).length > 0) {
+					// Apply metadata mappings to project config data as well
+					const enhancedProjectConfig = this.projectConfigManager.applyMappingsToMetadata(projectConfig);
+					
 					// Use directory path as key for project config
 					const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-					projectConfigMap[dirPath] = projectConfig;
+					projectConfigMap[dirPath] = enhancedProjectConfig;
 				}
 			} catch (error) {
 				console.warn(`Failed to compute enhanced project data for ${filePath}:`, error);

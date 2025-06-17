@@ -167,6 +167,14 @@ export class TaskManager extends Component {
 			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
 		);
 
+		// Reinitialize TaskParsingService to pick up new project configuration settings
+		this.initializeTaskParsingService();
+
+		// Clear project configuration cache to force re-reading of project config files
+		if (this.taskParsingService) {
+			this.taskParsingService.clearProjectConfigCache();
+		}
+
 		// Update worker manager settings if available
 		if (this.workerManager) {
 			// Worker manager will pick up the new settings automatically on next use
@@ -501,6 +509,7 @@ export class TaskManager extends Component {
 						const allFilePaths = filesToProcess.map(file => file.path);
 						enhancedProjectData = await this.taskParsingService.computeEnhancedProjectData(allFilePaths);
 						this.log(`Pre-computed project data for ${Object.keys(enhancedProjectData.fileProjectMap).length} files with projects`);
+						this.log(`Pre-computed project data: ${JSON.stringify(enhancedProjectData)}`);
 						
 						// Update worker manager settings with enhanced data
 						if (this.workerManager) {
