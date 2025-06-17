@@ -1,17 +1,14 @@
 <div align="center">
   <img src="media/task-genius.webp" alt="Task Genius Logo" width="300">
 
-  # Task Genius
-
   **The Ultimate Task Management Plugin for Obsidian**
 
   [![Version](https://img.shields.io/badge/version-9.0.0--beta.7-blue.svg)](https://github.com/Quorafind/Obsidian-Task-Genius)
-  [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-  [![Discord](https://img.shields.io/discord/YOUR_DISCORD_ID?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/ARR2rHHX6b)
+  [![Discord](https://img.shields.io/discord/1382008288706695229?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/ARR2rHHX6b)
 
   Transform your Obsidian vault into a powerful task management system with advanced features, beautiful visualizations, and seamless workflow integration.
 
-  [📖 Documentation](https://taskgenius.md/docs/getting-started) • [🚀 Installation Guide](https://taskgenius.md/docs/installation) • [💬 Discord Community](https://discord.gg/ARR2rHHX6b)
+  [📖 Documentation](https://taskgenius.md/docs/getting-started) • [🚀 Installation](https://taskgenius.md/docs/installation) • [💬 Community](https://discord.gg/ARR2rHHX6b)
 </div>
 
 ---
@@ -177,16 +174,12 @@ For detailed installation instructions, visit our [Installation Guide](https://t
 ### Resources
 
 - **📖 [Complete Documentation](https://taskgenius.md/docs/getting-started)**: Comprehensive guides and tutorials
-- **🎥 Video Tutorials**: Step-by-step video guides (coming soon)
-- **📝 Example Workflows**: Real-world usage examples and templates
-- **🔧 API Documentation**: For developers and advanced users
 
 ### Community & Support
 
 - **💬 [Discord Community](https://discord.gg/ARR2rHHX6b)**: Get help, share tips, and connect with other users
 - **🐛 [Issue Tracker](https://github.com/Quorafind/Obsidian-Task-Genius/issues)**: Report bugs and request features
 - **💡 [Feature Requests](https://github.com/Quorafind/Obsidian-Task-Genius/discussions)**: Suggest new features and improvements
-- **📧 Direct Support**: Contact the developer for priority support
 
 ---
 
@@ -205,49 +198,3 @@ Your support helps:
 - 🐛 **Faster Bug Fixes**: Quicker response to issues and problems
 - 📚 **Better Documentation**: Comprehensive guides and tutorials
 - 🎯 **Feature Requests**: Priority development of community-requested features
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Whether you're a developer, designer, or documentation enthusiast, there are many ways to help:
-
-### For Developers
-- **🔧 Code Contributions**: Submit pull requests for bug fixes and new features
-- **🧪 Beta Testing**: Test new features and provide feedback
-- **📊 Performance Optimization**: Help improve plugin performance
-
-### For Users
-- **📝 Documentation**: Help improve guides and tutorials
-- **🌍 Translations**: Contribute translations for international users
-- **💡 Feature Ideas**: Share your workflow needs and suggestions
-- **🎨 Design**: Contribute to UI/UX improvements
-
-### Getting Started with Development
-1. **Fork the Repository**: Create your own copy of the project
-2. **Set Up Development Environment**: Follow our development setup guide
-3. **Join Discord**: Connect with other contributors
-4. **Read Contributing Guidelines**: Check our contribution standards
-
----
-
-## 📄 License
-
-Task Genius is released under the [MIT License](LICENSE). This means you're free to use, modify, and distribute the plugin according to the license terms.
-
----
-
-## 🙏 Acknowledgments
-
-Special thanks to:
-- **The Obsidian Team**: For creating an amazing platform for knowledge management
-- **The Community**: For feedback, bug reports, and feature suggestions
-- **Contributors**: Everyone who has helped improve Task Genius
-- **Beta Testers**: Early adopters who help refine new features
-
----
-
-<div align="center">
-  <strong>Ready to transform your task management?</strong><br>
-  <a href="https://taskgenius.md/docs/getting-started">Get Started Today</a> • <a href="https://discord.gg/ARR2rHHX6b">Join Our Community</a>
-</div>
