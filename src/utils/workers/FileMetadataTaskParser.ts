@@ -4,7 +4,7 @@
  */
 
 import { TFile, CachedMetadata } from "obsidian";
-import { Task } from "../../types/task";
+import { StandardFileTaskMetadata, Task } from "../../types/task";
 import { FileParsingConfiguration } from "../../common/setting-definition";
 
 export interface FileTaskParsingResult {
@@ -30,9 +30,20 @@ export class FileMetadataTaskParser {
 		const tasks: Task[] = [];
 		const errors: string[] = [];
 
+		console.log(
+			"fileCache",
+			fileCache,
+			this.config.enableFileMetadataParsing,
+			this.config.enableTagBasedTaskParsing
+		);
+
 		try {
 			// Parse tasks from frontmatter metadata
-			if (this.config.enableFileMetadataParsing && fileCache?.frontmatter) {
+			if (
+				this.config.enableFileMetadataParsing &&
+				fileCache?.frontmatter
+			) {
+				console.log("fileCache.frontmatter", fileCache.frontmatter);
 				const metadataTasks = this.parseMetadataTasks(
 					filePath,
 					fileCache.frontmatter,
@@ -72,6 +83,9 @@ export class FileMetadataTaskParser {
 		const errors: string[] = [];
 
 		for (const fieldName of this.config.metadataFieldsToParseAsTasks) {
+			console.log("fieldName", fieldName);
+			console.log("frontmatter", frontmatter);
+			console.log("frontmatter[fieldName]", frontmatter[fieldName]);
 			if (frontmatter[fieldName] !== undefined) {
 				try {
 					const task = this.createTaskFromMetadata(
@@ -107,13 +121,15 @@ export class FileMetadataTaskParser {
 		const tasks: Task[] = [];
 		const errors: string[] = [];
 
-		const fileTags = tags.map(t => t.tag);
-		
+		const fileTags = tags.map((t) => t.tag);
+
 		for (const targetTag of this.config.tagsToParseAsTasks) {
 			// Normalize tag format (ensure it starts with #)
-			const normalizedTargetTag = targetTag.startsWith('#') ? targetTag : `#${targetTag}`;
-			
-			if (fileTags.some(tag => tag === normalizedTargetTag)) {
+			const normalizedTargetTag = targetTag.startsWith("#")
+				? targetTag
+				: `#${targetTag}`;
+
+			if (fileTags.some((tag) => tag === normalizedTargetTag)) {
 				try {
 					const task = this.createTaskFromTag(
 						filePath,
@@ -147,16 +163,22 @@ export class FileMetadataTaskParser {
 	): Task | null {
 		// Get task content from specified metadata field or filename
 		const taskContent = this.getTaskContent(frontmatter, filePath);
-		
+
 		// Create unique task ID
 		const taskId = `${filePath}-metadata-${fieldName}`;
 
 		// Determine task status based on field value and name
 		const status = this.determineTaskStatus(fieldName, fieldValue);
-		const completed = status.toLowerCase() === 'x';
+		const completed = status.toLowerCase() === "x";
 
 		// Extract additional metadata
-		const metadata = this.extractTaskMetadata(frontmatter, fieldName, fieldValue);
+		const metadata = this.extractTaskMetadata(
+			frontmatter,
+			fieldName,
+			fieldValue
+		);
+
+		console.log("metadata", metadata);
 
 		const task: Task = {
 			id: taskId,
@@ -172,10 +194,10 @@ export class FileMetadataTaskParser {
 				children: [],
 				heading: [],
 				// Add source information
-				source: 'file-metadata',
+				source: "file-metadata",
 				sourceField: fieldName,
 				sourceValue: fieldValue,
-			},
+			} as StandardFileTaskMetadata,
 		};
 
 		return task;
@@ -192,16 +214,20 @@ export class FileMetadataTaskParser {
 	): Task | null {
 		// Get task content from specified metadata field or filename
 		const taskContent = this.getTaskContent(frontmatter, filePath);
-		
+
 		// Create unique task ID
-		const taskId = `${filePath}-tag-${tag.replace('#', '')}`;
+		const taskId = `${filePath}-tag-${tag.replace("#", "")}`;
 
 		// Use default task status
 		const status = this.config.defaultTaskStatus;
-		const completed = status.toLowerCase() === 'x';
+		const completed = status.toLowerCase() === "x";
 
 		// Extract additional metadata
-		const metadata = this.extractTaskMetadata(frontmatter || {}, 'tag', tag);
+		const metadata = this.extractTaskMetadata(
+			frontmatter || {},
+			"tag",
+			tag
+		);
 
 		const task: Task = {
 			id: taskId,
@@ -217,9 +243,9 @@ export class FileMetadataTaskParser {
 				children: [],
 				heading: [],
 				// Add source information
-				source: 'file-tag',
+				source: "file-tag",
 				sourceTag: tag,
-			},
+			} as StandardFileTaskMetadata,
 		};
 
 		return task;
@@ -228,14 +254,17 @@ export class FileMetadataTaskParser {
 	/**
 	 * Get task content from metadata or filename
 	 */
-	private getTaskContent(frontmatter: Record<string, any> | undefined, filePath: string): string {
+	private getTaskContent(
+		frontmatter: Record<string, any> | undefined,
+		filePath: string
+	): string {
 		if (frontmatter && frontmatter[this.config.taskContentFromMetadata]) {
 			return String(frontmatter[this.config.taskContentFromMetadata]);
 		}
 
 		// Fallback to filename without extension
-		const fileName = filePath.split('/').pop() || filePath;
-		return fileName.replace(/\.[^/.]+$/, '');
+		const fileName = filePath.split("/").pop() || filePath;
+		return fileName.replace(/\.[^/.]+$/, "");
 	}
 
 	/**
@@ -243,25 +272,31 @@ export class FileMetadataTaskParser {
 	 */
 	private determineTaskStatus(fieldName: string, fieldValue: any): string {
 		// If field name suggests completion
-		if (fieldName.toLowerCase().includes('complete') || fieldName.toLowerCase().includes('done')) {
-			return fieldValue ? 'x' : ' ';
+		if (
+			fieldName.toLowerCase().includes("complete") ||
+			fieldName.toLowerCase().includes("done")
+		) {
+			return fieldValue ? "x" : " ";
 		}
 
 		// If field name suggests todo/task
-		if (fieldName.toLowerCase().includes('todo') || fieldName.toLowerCase().includes('task')) {
+		if (
+			fieldName.toLowerCase().includes("todo") ||
+			fieldName.toLowerCase().includes("task")
+		) {
 			// If it's a boolean, use it to determine status
-			if (typeof fieldValue === 'boolean') {
-				return fieldValue ? 'x' : ' ';
+			if (typeof fieldValue === "boolean") {
+				return fieldValue ? "x" : " ";
 			}
 			// If it's a string that looks like a status
-			if (typeof fieldValue === 'string' && fieldValue.length === 1) {
+			if (typeof fieldValue === "string" && fieldValue.length === 1) {
 				return fieldValue;
 			}
 		}
 
 		// If field name suggests due date
-		if (fieldName.toLowerCase().includes('due')) {
-			return ' '; // Due dates are typically incomplete tasks
+		if (fieldName.toLowerCase().includes("due")) {
+			return " "; // Due dates are typically incomplete tasks
 		}
 
 		// Default to configured default status
@@ -302,7 +337,7 @@ export class FileMetadataTaskParser {
 		}
 
 		// If the source field is a date field, use it appropriately
-		if (sourceField.toLowerCase().includes('due') && sourceValue) {
+		if (sourceField.toLowerCase().includes("due") && sourceValue) {
 			metadata.dueDate = this.parseDate(sourceValue);
 		}
 
@@ -312,7 +347,9 @@ export class FileMetadataTaskParser {
 	/**
 	 * Extract tags from frontmatter
 	 */
-	private extractTags(frontmatter: Record<string, any> | undefined): string[] {
+	private extractTags(
+		frontmatter: Record<string, any> | undefined
+	): string[] {
 		if (!frontmatter) return [];
 
 		const tags: string[] = [];
@@ -320,7 +357,7 @@ export class FileMetadataTaskParser {
 		// Extract from tags field
 		if (frontmatter.tags) {
 			if (Array.isArray(frontmatter.tags)) {
-				tags.push(...frontmatter.tags.map(tag => String(tag)));
+				tags.push(...frontmatter.tags.map((tag) => String(tag)));
 			} else {
 				tags.push(String(frontmatter.tags));
 			}
@@ -329,7 +366,7 @@ export class FileMetadataTaskParser {
 		// Extract from tag field (singular)
 		if (frontmatter.tag) {
 			if (Array.isArray(frontmatter.tag)) {
-				tags.push(...frontmatter.tag.map(tag => String(tag)));
+				tags.push(...frontmatter.tag.map((tag) => String(tag)));
 			} else {
 				tags.push(String(frontmatter.tag));
 			}
@@ -344,11 +381,11 @@ export class FileMetadataTaskParser {
 	private parseDate(dateValue: any): number | undefined {
 		if (!dateValue) return undefined;
 
-		if (typeof dateValue === 'number') {
+		if (typeof dateValue === "number") {
 			return dateValue;
 		}
 
-		if (typeof dateValue === 'string') {
+		if (typeof dateValue === "string") {
 			const parsed = Date.parse(dateValue);
 			return isNaN(parsed) ? undefined : parsed;
 		}
@@ -364,11 +401,11 @@ export class FileMetadataTaskParser {
 	 * Parse priority from various formats
 	 */
 	private parsePriority(priorityValue: any): number | undefined {
-		if (typeof priorityValue === 'number') {
+		if (typeof priorityValue === "number") {
 			return Math.max(1, Math.min(3, Math.round(priorityValue)));
 		}
 
-		if (typeof priorityValue === 'string') {
+		if (typeof priorityValue === "string") {
 			const num = parseInt(priorityValue, 10);
 			if (!isNaN(num)) {
 				return Math.max(1, Math.min(3, num));
@@ -376,9 +413,9 @@ export class FileMetadataTaskParser {
 
 			// Handle text priorities
 			const lower = priorityValue.toLowerCase();
-			if (lower.includes('high') || lower.includes('urgent')) return 3;
-			if (lower.includes('medium') || lower.includes('normal')) return 2;
-			if (lower.includes('low')) return 1;
+			if (lower.includes("high") || lower.includes("urgent")) return 3;
+			if (lower.includes("medium") || lower.includes("normal")) return 2;
+			if (lower.includes("low")) return 1;
 		}
 
 		return undefined;

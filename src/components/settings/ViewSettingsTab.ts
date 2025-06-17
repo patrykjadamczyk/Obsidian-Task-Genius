@@ -245,10 +245,33 @@ export function renderViewSettingsTab(
 				settingTab.plugin.settings.fileParsingConfig
 					.enableFileMetadataParsing
 			);
-			toggle.onChange((value) => {
+			toggle.onChange(async (value) => {
+				const previousValue =
+					settingTab.plugin.settings.fileParsingConfig
+						.enableFileMetadataParsing;
 				settingTab.plugin.settings.fileParsingConfig.enableFileMetadataParsing =
 					value;
 				settingTab.applySettingsUpdate();
+
+				// If file metadata parsing was just enabled, trigger a full reindex
+				if (!previousValue && value && settingTab.plugin.taskManager) {
+					try {
+						new Notice(
+							t(
+								"File metadata parsing enabled. Rebuilding task index..."
+							)
+						);
+						await settingTab.plugin.taskManager.forceReindex();
+						new Notice(t("Task index rebuilt successfully"));
+					} catch (error) {
+						console.error(
+							"Failed to reindex after enabling file metadata parsing:",
+							error
+						);
+						new Notice(t("Failed to rebuild task index"));
+					}
+				}
+
 				settingTab.display(); // Refresh to show/hide related settings
 			});
 		});

@@ -68,6 +68,20 @@ export interface StandardTaskMetadata {
 	tgProject?: TgProject;
 }
 
+export interface StandardFileTaskMetadata extends StandardTaskMetadata {
+	/** Task source */
+	source: "file-metadata" | "file-tag";
+
+	/** Source field */
+	sourceField?: string;
+
+	/** Source value */
+	sourceValue?: string;
+
+	/** Source tag */
+	sourceTag?: string;
+}
+
 /** Task Genius Project interface */
 export interface TgProject {
 	/** Type of project source */

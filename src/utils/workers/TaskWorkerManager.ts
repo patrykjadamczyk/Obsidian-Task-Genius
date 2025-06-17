@@ -3,6 +3,7 @@
  */
 
 import {
+	CachedMetadata,
 	Component,
 	ListItemCache,
 	MetadataCache,
@@ -16,10 +17,7 @@ import {
 	ParseTasksCommand,
 	TaskParseResult,
 } from "./TaskIndexWorkerMessage";
-import {
-	FileMetadataTaskParser,
-	FileTaskParsingResult,
-} from "./FileMetadataTaskParser";
+import { FileMetadataTaskParser } from "./FileMetadataTaskParser";
 import { FileParsingConfiguration } from "../../common/setting-definition";
 
 // Import worker and utilities
@@ -440,6 +438,53 @@ export class TaskWorkerManager extends Component {
 	}
 
 	/**
+	 * Safely serialize CachedMetadata for worker transfer
+	 * Removes non-serializable objects like functions and circular references
+	 */
+	private serializeCachedMetadata(fileCache: CachedMetadata | null): any {
+		if (!fileCache) return undefined;
+
+		try {
+			// Create a safe copy with only serializable properties
+			const safeCopy: any = {};
+
+			// Copy basic properties that are typically safe to serialize
+			const safeProperties = [
+				"frontmatter",
+				"tags",
+				"headings",
+				"sections",
+				"listItems",
+				"links",
+				"embeds",
+				"blocks",
+			];
+
+			for (const prop of safeProperties) {
+				if ((fileCache as any)[prop] !== undefined) {
+					// Deep clone to avoid any potential circular references
+					safeCopy[prop] = JSON.parse(
+						JSON.stringify((fileCache as any)[prop])
+					);
+				}
+			}
+
+			return safeCopy;
+		} catch (error) {
+			console.warn(
+				"Failed to serialize CachedMetadata, using fallback:",
+				error
+			);
+			// Fallback: only include frontmatter which is most commonly needed
+			return {
+				frontmatter: fileCache.frontmatter
+					? JSON.parse(JSON.stringify(fileCache.frontmatter))
+					: undefined,
+			};
+		}
+	}
+
+	/**
 	 * Get task metadata from the file and Obsidian cache
 	 */
 	private async getTaskMetadata(file: TFile): Promise<TaskMetadata> {
@@ -498,9 +543,9 @@ export class TaskWorkerManager extends Component {
 						stats: metadata.stats,
 						metadata: {
 							listItems: metadata.listItems || [],
-							fileCache:
-								this.metadataCache.getFileCache(file) ||
-								undefined,
+							fileCache: this.serializeCachedMetadata(
+								this.metadataCache.getFileCache(file)
+							),
 						},
 						settings: this.options.settings || {
 							preferMetadataFormat: "tasks",

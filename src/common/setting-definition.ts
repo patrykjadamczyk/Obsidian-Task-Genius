@@ -800,7 +800,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// File Parsing Configuration
 	fileParsingConfig: {
-		enableFileMetadataParsing: false,
+		enableFileMetadataParsing: true,
 		metadataFieldsToParseAsTasks: ["dueDate", "todo", "complete", "task"],
 		enableTagBasedTaskParsing: false,
 		tagsToParseAsTasks: ["#todo", "#task", "#action", "#due"],

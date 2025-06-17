@@ -236,6 +236,12 @@ function processFile(
 ): TaskParseResult {
 	const startTime = performance.now();
 	try {
+		// Log metadata availability for debugging
+		console.log(
+			`Worker: Processing ${filePath}, metadata available:`,
+			!!metadata?.fileCache
+		);
+
 		// Extract frontmatter metadata if available
 		let fileMetadata: Record<string, any> | undefined;
 		if (metadata?.fileCache?.frontmatter) {
@@ -259,6 +265,10 @@ function processFile(
 			try {
 				const fileMetadataParser = new FileMetadataTaskParser(
 					settings.fileParsingConfig
+				);
+				console.log(
+					`Worker: Calling FileMetadataTaskParser with fileCache:`,
+					!!metadata?.fileCache
 				);
 				const fileMetadataResult = fileMetadataParser.parseFileForTasks(
 					filePath,
@@ -421,7 +431,8 @@ self.onmessage = async (event) => {
 					message.filePath,
 					message.content,
 					message.stats,
-					settings
+					settings,
+					message.metadata
 				);
 				self.postMessage(result);
 			} catch (error) {
