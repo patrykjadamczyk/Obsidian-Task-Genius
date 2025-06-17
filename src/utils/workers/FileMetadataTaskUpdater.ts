@@ -4,7 +4,7 @@
  */
 
 import { App, TFile, Vault } from "obsidian";
-import { Task } from "../../types/task";
+import { StandardFileTaskMetadata, Task } from "../../types/task";
 import { FileParsingConfiguration } from "../../common/setting-definition";
 
 export interface FileMetadataUpdateResult {
@@ -48,10 +48,24 @@ export class FileMetadataTaskUpdater {
 			}
 
 			// Handle different types of file metadata tasks
-			if (originalTask.metadata.source === "file-metadata") {
-				return await this.updateMetadataFieldTask(file, originalTask, updatedTask);
-			} else if (originalTask.metadata.source === "file-tag") {
-				return await this.updateTagTask(file, originalTask, updatedTask);
+			if (
+				(originalTask.metadata as StandardFileTaskMetadata).source ===
+				"file-metadata"
+			) {
+				return await this.updateMetadataFieldTask(
+					file,
+					originalTask,
+					updatedTask
+				);
+			} else if (
+				(originalTask.metadata as StandardFileTaskMetadata).source ===
+				"file-tag"
+			) {
+				return await this.updateTagTask(
+					file,
+					originalTask,
+					updatedTask
+				);
 			}
 
 			return {
@@ -71,8 +85,9 @@ export class FileMetadataTaskUpdater {
 	 */
 	isFileMetadataTask(task: Task): boolean {
 		return (
-			task.metadata.source === "file-metadata" ||
-			task.metadata.source === "file-tag"
+			(task.metadata as StandardFileTaskMetadata).source ===
+				"file-metadata" ||
+			(task.metadata as StandardFileTaskMetadata).source === "file-tag"
 		);
 	}
 
@@ -85,7 +100,9 @@ export class FileMetadataTaskUpdater {
 		updatedTask: Task
 	): Promise<FileMetadataUpdateResult> {
 		try {
-			const sourceField = originalTask.metadata.sourceField;
+			const sourceField = (
+				originalTask.metadata as StandardFileTaskMetadata
+			).sourceField;
 			if (!sourceField) {
 				return {
 					success: false,
@@ -103,18 +120,24 @@ export class FileMetadataTaskUpdater {
 			}
 
 			// Handle status changes
-			if (updatedTask.status !== originalTask.status || 
-				updatedTask.completed !== originalTask.completed) {
-				frontmatterUpdates[sourceField] = this.convertStatusToMetadataValue(
-					sourceField,
-					updatedTask.status,
-					updatedTask.completed
-				);
+			if (
+				updatedTask.status !== originalTask.status ||
+				updatedTask.completed !== originalTask.completed
+			) {
+				frontmatterUpdates[sourceField] =
+					this.convertStatusToMetadataValue(
+						sourceField,
+						updatedTask.status,
+						updatedTask.completed
+					);
 			}
 
 			// Handle metadata changes
 			if (this.hasMetadataChanges(originalTask, updatedTask)) {
-				const metadataUpdates = this.extractMetadataUpdates(originalTask, updatedTask);
+				const metadataUpdates = this.extractMetadataUpdates(
+					originalTask,
+					updatedTask
+				);
 				Object.assign(frontmatterUpdates, metadataUpdates);
 			}
 
@@ -152,7 +175,10 @@ export class FileMetadataTaskUpdater {
 
 			// Handle metadata changes
 			if (this.hasMetadataChanges(originalTask, updatedTask)) {
-				const metadataUpdates = this.extractMetadataUpdates(originalTask, updatedTask);
+				const metadataUpdates = this.extractMetadataUpdates(
+					originalTask,
+					updatedTask
+				);
 				Object.assign(frontmatterUpdates, metadataUpdates);
 			}
 
@@ -178,22 +204,35 @@ export class FileMetadataTaskUpdater {
 	/**
 	 * Update file name when task content changes
 	 */
-	private async updateFileName(file: TFile, newContent: string): Promise<void> {
+	private async updateFileName(
+		file: TFile,
+		newContent: string
+	): Promise<void> {
 		try {
 			const currentPath = file.path;
 			const lastSlashIndex = currentPath.lastIndexOf("/");
-			const directory = lastSlashIndex > 0 ? currentPath.substring(0, lastSlashIndex) : "";
-			const extension = currentPath.substring(currentPath.lastIndexOf("."));
+			const directory =
+				lastSlashIndex > 0
+					? currentPath.substring(0, lastSlashIndex)
+					: "";
+			const extension = currentPath.substring(
+				currentPath.lastIndexOf(".")
+			);
 
 			// Ensure newContent doesn't already have the extension
 			let cleanContent = newContent;
 			if (cleanContent.endsWith(extension)) {
-				cleanContent = cleanContent.substring(0, cleanContent.length - extension.length);
+				cleanContent = cleanContent.substring(
+					0,
+					cleanContent.length - extension.length
+				);
 			}
 
 			// Sanitize filename
 			const sanitizedContent = cleanContent.replace(/[<>:"/\\|?*]/g, "_");
-			const newPath = directory ? `${directory}/${sanitizedContent}${extension}` : `${sanitizedContent}${extension}`;
+			const newPath = directory
+				? `${directory}/${sanitizedContent}${extension}`
+				: `${sanitizedContent}${extension}`;
 
 			if (newPath !== currentPath) {
 				await this.vault.rename(file, newPath);
@@ -212,9 +251,12 @@ export class FileMetadataTaskUpdater {
 		updates: Record<string, any>
 	): Promise<void> {
 		try {
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				Object.assign(frontmatter, updates);
-			});
+			await this.app.fileManager.processFrontMatter(
+				file,
+				(frontmatter) => {
+					Object.assign(frontmatter, updates);
+				}
+			);
 		} catch (error) {
 			console.error("Error updating frontmatter:", error);
 			throw error;
@@ -230,12 +272,18 @@ export class FileMetadataTaskUpdater {
 		completed: boolean
 	): any {
 		// If field name suggests completion
-		if (fieldName.toLowerCase().includes("complete") || fieldName.toLowerCase().includes("done")) {
+		if (
+			fieldName.toLowerCase().includes("complete") ||
+			fieldName.toLowerCase().includes("done")
+		) {
 			return completed;
 		}
 
 		// If field name suggests todo/task
-		if (fieldName.toLowerCase().includes("todo") || fieldName.toLowerCase().includes("task")) {
+		if (
+			fieldName.toLowerCase().includes("todo") ||
+			fieldName.toLowerCase().includes("task")
+		) {
 			return completed;
 		}
 
@@ -247,11 +295,19 @@ export class FileMetadataTaskUpdater {
 	 * Check if there are metadata changes
 	 */
 	private hasMetadataChanges(originalTask: Task, updatedTask: Task): boolean {
-		const metadataFields = ["dueDate", "startDate", "scheduledDate", "priority", "project", "context", "area"];
-		
-		return metadataFields.some(field => {
-			const originalValue = originalTask.metadata[field];
-			const updatedValue = updatedTask.metadata[field];
+		const metadataFields = [
+			"dueDate",
+			"startDate",
+			"scheduledDate",
+			"priority",
+			"project",
+			"context",
+			"area",
+		] as const;
+
+		return metadataFields.some((field) => {
+			const originalValue = (originalTask.metadata as any)[field];
+			const updatedValue = (updatedTask.metadata as any)[field];
 			return originalValue !== updatedValue;
 		});
 	}
@@ -259,18 +315,34 @@ export class FileMetadataTaskUpdater {
 	/**
 	 * Extract metadata updates
 	 */
-	private extractMetadataUpdates(originalTask: Task, updatedTask: Task): Record<string, any> {
+	private extractMetadataUpdates(
+		originalTask: Task,
+		updatedTask: Task
+	): Record<string, any> {
 		const updates: Record<string, any> = {};
-		const metadataFields = ["dueDate", "startDate", "scheduledDate", "priority", "project", "context", "area"];
+		const metadataFields = [
+			"dueDate",
+			"startDate",
+			"scheduledDate",
+			"priority",
+			"project",
+			"context",
+			"area",
+		] as const;
 
-		metadataFields.forEach(field => {
-			const originalValue = originalTask.metadata[field];
-			const updatedValue = updatedTask.metadata[field];
-			
+		metadataFields.forEach((field) => {
+			const originalValue = (originalTask.metadata as any)[field];
+			const updatedValue = (updatedTask.metadata as any)[field];
+
 			if (originalValue !== updatedValue) {
-				if (field.includes("Date") && typeof updatedValue === "number") {
+				if (
+					field.includes("Date") &&
+					typeof updatedValue === "number"
+				) {
 					// Convert timestamp back to date string
-					updates[field] = new Date(updatedValue).toISOString().split("T")[0];
+					updates[field] = new Date(updatedValue)
+						.toISOString()
+						.split("T")[0];
 				} else {
 					updates[field] = updatedValue;
 				}

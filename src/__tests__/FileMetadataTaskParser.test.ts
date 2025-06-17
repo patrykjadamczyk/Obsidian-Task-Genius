@@ -5,7 +5,7 @@
 import { FileMetadataTaskParser } from "../utils/workers/FileMetadataTaskParser";
 import { FileMetadataTaskUpdater } from "../utils/workers/FileMetadataTaskUpdater";
 import { FileParsingConfiguration } from "../common/setting-definition";
-import { Task } from "../types/task";
+import { StandardFileTaskMetadata, Task } from "../types/task";
 
 describe("FileMetadataTaskParser", () => {
 	let parser: FileMetadataTaskParser;
@@ -54,7 +54,9 @@ describe("FileMetadataTaskParser", () => {
 
 			// Check dueDate task
 			const dueDateTask = result.tasks.find(
-				(t) => t.metadata.sourceField === "dueDate"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceField ===
+					"dueDate"
 			);
 			expect(dueDateTask).toBeDefined();
 			expect(dueDateTask?.content).toBe("Test Task");
@@ -63,7 +65,9 @@ describe("FileMetadataTaskParser", () => {
 
 			// Check todo task
 			const todoTask = result.tasks.find(
-				(t) => t.metadata.sourceField === "todo"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceField ===
+					"todo"
 			);
 			expect(todoTask).toBeDefined();
 			expect(todoTask?.content).toBe("Test Task");
@@ -98,7 +102,7 @@ describe("FileMetadataTaskParser", () => {
 			const result = parser.parseFileForTasks(
 				filePath,
 				fileContent,
-				fileCache
+				fileCache as any
 			);
 
 			expect(result.errors).toHaveLength(0);
@@ -106,7 +110,9 @@ describe("FileMetadataTaskParser", () => {
 
 			// Check todo tag task
 			const todoTask = result.tasks.find(
-				(t) => t.metadata.sourceTag === "#todo"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceTag ===
+					"#todo"
 			);
 			expect(todoTask).toBeDefined();
 			expect(todoTask?.content).toBe("Test Task");
@@ -114,7 +120,9 @@ describe("FileMetadataTaskParser", () => {
 
 			// Check action tag task
 			const actionTask = result.tasks.find(
-				(t) => t.metadata.sourceTag === "#action"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceTag ===
+					"#action"
 			);
 			expect(actionTask).toBeDefined();
 			expect(actionTask?.content).toBe("Test Task");
@@ -166,19 +174,25 @@ describe("FileMetadataTaskParser", () => {
 
 			// Check complete task
 			const completeTask = result.tasks.find(
-				(t) => t.metadata.sourceField === "complete"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceField ===
+					"complete"
 			);
 			expect(completeTask?.status).toBe("x"); // complete: true should be completed
 
 			// Check todo task
 			const todoTask = result.tasks.find(
-				(t) => t.metadata.sourceField === "todo"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceField ===
+					"todo"
 			);
 			expect(todoTask?.status).toBe(" "); // todo: false should be incomplete
 
 			// Check dueDate task
 			const dueDateTask = result.tasks.find(
-				(t) => t.metadata.sourceField === "dueDate"
+				(t) =>
+					(t.metadata as StandardFileTaskMetadata).sourceField ===
+					"dueDate"
 			);
 			expect(dueDateTask?.status).toBe(" "); // Due dates are typically incomplete
 		});
@@ -216,7 +230,7 @@ describe("FileMetadataTaskParser", () => {
 			const result = disabledParser.parseFileForTasks(
 				filePath,
 				fileContent,
-				fileCache
+				fileCache as any
 			);
 
 			expect(result.errors).toHaveLength(0);
@@ -264,7 +278,7 @@ describe("FileMetadataTaskParser", () => {
 			const result = parser.parseFileForTasks(
 				filePath,
 				fileContent,
-				fileCache
+				fileCache as any
 			);
 
 			expect(result.tasks).toHaveLength(0);
@@ -377,7 +391,7 @@ describe("FileMetadataTaskUpdater", () => {
 					tags: [],
 					children: [],
 					heading: [],
-				},
+				} as StandardFileTaskMetadata,
 			};
 
 			const tagTask: Task = {
@@ -394,7 +408,7 @@ describe("FileMetadataTaskUpdater", () => {
 					tags: [],
 					children: [],
 					heading: [],
-				},
+				} as StandardFileTaskMetadata,
 			};
 
 			const regularTask: Task = {
@@ -434,7 +448,7 @@ describe("FileMetadataTaskUpdater", () => {
 					tags: [],
 					children: [],
 					heading: [],
-				},
+				} as StandardFileTaskMetadata,
 			};
 
 			const updatedTask = {
