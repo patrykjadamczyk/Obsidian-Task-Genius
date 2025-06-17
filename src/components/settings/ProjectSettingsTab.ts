@@ -35,6 +35,7 @@ export function renderProjectSettingsTab(
 							metadataConfig: {
 								metadataKey: "project",
 								inheritFromFrontmatter: true,
+								inheritFromFrontmatterForSubtasks: false,
 								enabled: false,
 							},
 							configFile: {
@@ -60,8 +61,7 @@ export function renderProjectSettingsTab(
 		});
 
 	if (settingTab.plugin.settings.projectConfig?.enableEnhancedProject) {
-
-			new Setting(containerEl)
+		new Setting(containerEl)
 			.setName(t("Path-based Project Mappings"))
 			.setDesc(t("Configure project names based on file paths"))
 			.setHeading();
@@ -81,6 +81,7 @@ export function renderProjectSettingsTab(
 					metadataConfig: {
 						metadataKey: "project",
 						inheritFromFrontmatter: true,
+						inheritFromFrontmatterForSubtasks: false,
 						enabled: false,
 					},
 					configFile: {
@@ -99,7 +100,9 @@ export function renderProjectSettingsTab(
 
 			if (
 				!settingTab.plugin.settings.projectConfig.pathMappings ||
-				!Array.isArray(settingTab.plugin.settings.projectConfig.pathMappings)
+				!Array.isArray(
+					settingTab.plugin.settings.projectConfig.pathMappings
+				)
 			) {
 				settingTab.plugin.settings.projectConfig.pathMappings = [];
 			}
@@ -191,6 +194,7 @@ export function renderProjectSettingsTab(
 								metadataConfig: {
 									metadataKey: "project",
 									inheritFromFrontmatter: true,
+									inheritFromFrontmatterForSubtasks: false,
 									enabled: false,
 								},
 								configFile: {
@@ -210,7 +214,8 @@ export function renderProjectSettingsTab(
 						// Ensure pathMappings is an array
 						if (
 							!Array.isArray(
-								settingTab.plugin.settings.projectConfig.pathMappings
+								settingTab.plugin.settings.projectConfig
+									.pathMappings
 							)
 						) {
 							settingTab.plugin.settings.projectConfig.pathMappings =
@@ -218,11 +223,13 @@ export function renderProjectSettingsTab(
 						}
 
 						// Add new mapping
-						settingTab.plugin.settings.projectConfig.pathMappings.push({
-							pathPattern: "",
-							projectName: "",
-							enabled: true,
-						});
+						settingTab.plugin.settings.projectConfig.pathMappings.push(
+							{
+								pathPattern: "",
+								projectName: "",
+								enabled: true,
+							}
+						);
 
 						await settingTab.plugin.saveSettings();
 						setTimeout(() => {
@@ -251,7 +258,8 @@ export function renderProjectSettingsTab(
 					)
 					.onChange(async (value) => {
 						if (
-							settingTab.plugin.settings.projectConfig?.metadataConfig
+							settingTab.plugin.settings.projectConfig
+								?.metadataConfig
 						) {
 							settingTab.plugin.settings.projectConfig.metadataConfig.enabled =
 								value;
@@ -271,7 +279,8 @@ export function renderProjectSettingsTab(
 					)
 					.onChange(async (value) => {
 						if (
-							settingTab.plugin.settings.projectConfig?.metadataConfig
+							settingTab.plugin.settings.projectConfig
+								?.metadataConfig
 						) {
 							settingTab.plugin.settings.projectConfig.metadataConfig.metadataKey =
 								value || "project";
@@ -291,9 +300,35 @@ export function renderProjectSettingsTab(
 					)
 					.onChange(async (value) => {
 						if (
-							settingTab.plugin.settings.projectConfig?.metadataConfig
+							settingTab.plugin.settings.projectConfig
+								?.metadataConfig
 						) {
 							settingTab.plugin.settings.projectConfig.metadataConfig.inheritFromFrontmatter =
+								value;
+							await settingTab.plugin.saveSettings();
+						}
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t("Inherit from frontmatter for subtasks"))
+			.setDesc(
+				t(
+					"Allow subtasks to inherit metadata from file frontmatter. When disabled, only top-level tasks inherit file metadata."
+				)
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(
+						settingTab.plugin.settings.projectConfig?.metadataConfig
+							?.inheritFromFrontmatterForSubtasks || false
+					)
+					.onChange(async (value) => {
+						if (
+							settingTab.plugin.settings.projectConfig
+								?.metadataConfig
+						) {
+							settingTab.plugin.settings.projectConfig.metadataConfig.inheritFromFrontmatterForSubtasks =
 								value;
 							await settingTab.plugin.saveSettings();
 						}
@@ -316,7 +351,9 @@ export function renderProjectSettingsTab(
 							?.enabled || false
 					)
 					.onChange(async (value) => {
-						if (settingTab.plugin.settings.projectConfig?.configFile) {
+						if (
+							settingTab.plugin.settings.projectConfig?.configFile
+						) {
 							settingTab.plugin.settings.projectConfig.configFile.enabled =
 								value;
 							await settingTab.plugin.saveSettings();
@@ -334,7 +371,9 @@ export function renderProjectSettingsTab(
 							?.fileName || "project.md"
 					)
 					.onChange(async (value) => {
-						if (settingTab.plugin.settings.projectConfig?.configFile) {
+						if (
+							settingTab.plugin.settings.projectConfig?.configFile
+						) {
 							settingTab.plugin.settings.projectConfig.configFile.fileName =
 								value || "project.md";
 							await settingTab.plugin.saveSettings();
@@ -352,7 +391,9 @@ export function renderProjectSettingsTab(
 							?.searchRecursively || true
 					)
 					.onChange(async (value) => {
-						if (settingTab.plugin.settings.projectConfig?.configFile) {
+						if (
+							settingTab.plugin.settings.projectConfig?.configFile
+						) {
 							settingTab.plugin.settings.projectConfig.configFile.searchRecursively =
 								value;
 							await settingTab.plugin.saveSettings();
@@ -363,7 +404,9 @@ export function renderProjectSettingsTab(
 		// Metadata mappings section
 		new Setting(containerEl)
 			.setName(t("Metadata Mappings"))
-			.setDesc(t("Configure how metadata fields are mapped and transformed"))
+			.setDesc(
+				t("Configure how metadata fields are mapped and transformed")
+			)
 			.setHeading();
 
 		const metadataMappingsContainer = containerEl.createDiv({
@@ -374,14 +417,21 @@ export function renderProjectSettingsTab(
 			metadataMappingsContainer.empty();
 
 			// Ensure metadataMappings is always an array
-			if (!settingTab.plugin.settings.projectConfig?.metadataMappings || 
-				!Array.isArray(settingTab.plugin.settings.projectConfig.metadataMappings)) {
+			if (
+				!settingTab.plugin.settings.projectConfig?.metadataMappings ||
+				!Array.isArray(
+					settingTab.plugin.settings.projectConfig.metadataMappings
+				)
+			) {
 				if (settingTab.plugin.settings.projectConfig) {
-					settingTab.plugin.settings.projectConfig.metadataMappings = [];
+					settingTab.plugin.settings.projectConfig.metadataMappings =
+						[];
 				}
 			}
 
-			const metadataMappings = settingTab.plugin.settings.projectConfig?.metadataMappings || [];
+			const metadataMappings =
+				settingTab.plugin.settings.projectConfig?.metadataMappings ||
+				[];
 
 			if (metadataMappings.length === 0) {
 				metadataMappingsContainer.createDiv({
@@ -399,23 +449,26 @@ export function renderProjectSettingsTab(
 				const usedTargetKeys = new Set(
 					metadataMappings
 						.filter((_, i) => i !== index)
-						.map(m => m.targetKey)
-						.filter(key => key && key.trim() !== '')
+						.map((m) => m.targetKey)
+						.filter((key) => key && key.trim() !== "")
 				);
 
 				// Available target keys from StandardTaskMetadata
 				const availableTargetKeys = [
-					'project',
-					'context', 
-					'priority',
-					'tags',
-					'startDate',
-					'scheduledDate',
-					'dueDate',
-					'completedDate',
-					'createdDate',
-					'recurrence',
-				].filter(key => !usedTargetKeys.has(key) || key === mapping.targetKey);
+					"project",
+					"context",
+					"priority",
+					"tags",
+					"startDate",
+					"scheduledDate",
+					"dueDate",
+					"completedDate",
+					"createdDate",
+					"recurrence",
+				].filter(
+					(key) =>
+						!usedTargetKeys.has(key) || key === mapping.targetKey
+				);
 
 				new Setting(mappingRow)
 					.setName(`${t("Mapping")} ${index + 1}`)
@@ -424,7 +477,9 @@ export function renderProjectSettingsTab(
 							.setValue(mapping.sourceKey)
 							.onChange(async (value) => {
 								if (settingTab.plugin.settings.projectConfig) {
-									settingTab.plugin.settings.projectConfig.metadataMappings[index].sourceKey = value;
+									settingTab.plugin.settings.projectConfig.metadataMappings[
+										index
+									].sourceKey = value;
 									await settingTab.plugin.saveSettings();
 								}
 							});
@@ -432,17 +487,19 @@ export function renderProjectSettingsTab(
 					.addDropdown((dropdown) => {
 						// Add empty option
 						dropdown.addOption("", t("Select target field"));
-						
+
 						// Add available options
-						availableTargetKeys.forEach(key => {
+						availableTargetKeys.forEach((key) => {
 							dropdown.addOption(key, key);
 						});
-						
+
 						dropdown
 							.setValue(mapping.targetKey)
 							.onChange(async (value) => {
 								if (settingTab.plugin.settings.projectConfig) {
-									settingTab.plugin.settings.projectConfig.metadataMappings[index].targetKey = value;
+									settingTab.plugin.settings.projectConfig.metadataMappings[
+										index
+									].targetKey = value;
 									await settingTab.plugin.saveSettings();
 									// Refresh to update available options for other dropdowns
 									refreshMetadataMappings();
@@ -455,7 +512,9 @@ export function renderProjectSettingsTab(
 							.setValue(mapping.enabled)
 							.onChange(async (value) => {
 								if (settingTab.plugin.settings.projectConfig) {
-									settingTab.plugin.settings.projectConfig.metadataMappings[index].enabled = value;
+									settingTab.plugin.settings.projectConfig.metadataMappings[
+										index
+									].enabled = value;
 									await settingTab.plugin.saveSettings();
 								}
 							});
@@ -466,7 +525,10 @@ export function renderProjectSettingsTab(
 							.setTooltip(t("Remove"))
 							.onClick(async () => {
 								if (settingTab.plugin.settings.projectConfig) {
-									settingTab.plugin.settings.projectConfig.metadataMappings.splice(index, 1);
+									settingTab.plugin.settings.projectConfig.metadataMappings.splice(
+										index,
+										1
+									);
 									await settingTab.plugin.saveSettings();
 									refreshMetadataMappings();
 								}
@@ -481,15 +543,23 @@ export function renderProjectSettingsTab(
 					.setCta()
 					.onClick(async () => {
 						if (settingTab.plugin.settings.projectConfig) {
-							if (!Array.isArray(settingTab.plugin.settings.projectConfig.metadataMappings)) {
-								settingTab.plugin.settings.projectConfig.metadataMappings = [];
+							if (
+								!Array.isArray(
+									settingTab.plugin.settings.projectConfig
+										.metadataMappings
+								)
+							) {
+								settingTab.plugin.settings.projectConfig.metadataMappings =
+									[];
 							}
 
-							settingTab.plugin.settings.projectConfig.metadataMappings.push({
-								sourceKey: "",
-								targetKey: "",
-								enabled: true,
-							});
+							settingTab.plugin.settings.projectConfig.metadataMappings.push(
+								{
+									sourceKey: "",
+									targetKey: "",
+									enabled: true,
+								}
+							);
 
 							await settingTab.plugin.saveSettings();
 							setTimeout(() => {
@@ -505,18 +575,33 @@ export function renderProjectSettingsTab(
 		// Default project naming section
 		new Setting(containerEl)
 			.setName(t("Default Project Naming"))
-			.setDesc(t("Configure fallback project naming when no explicit project is found"))
+			.setDesc(
+				t(
+					"Configure fallback project naming when no explicit project is found"
+				)
+			)
 			.setHeading();
 
 		new Setting(containerEl)
 			.setName(t("Enable default project naming"))
-			.setDesc(t("Use default naming strategy when no project is explicitly defined"))
+			.setDesc(
+				t(
+					"Use default naming strategy when no project is explicitly defined"
+				)
+			)
 			.addToggle((toggle) => {
 				toggle
-					.setValue(settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.enabled || false)
+					.setValue(
+						settingTab.plugin.settings.projectConfig
+							?.defaultProjectNaming?.enabled || false
+					)
 					.onChange(async (value) => {
-						if (settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
-							settingTab.plugin.settings.projectConfig.defaultProjectNaming.enabled = value;
+						if (
+							settingTab.plugin.settings.projectConfig
+								?.defaultProjectNaming
+						) {
+							settingTab.plugin.settings.projectConfig.defaultProjectNaming.enabled =
+								value;
 							await settingTab.plugin.saveSettings();
 
 							setTimeout(() => {
@@ -526,7 +611,7 @@ export function renderProjectSettingsTab(
 					});
 			});
 
-		if(!settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
+		if (!settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
 			settingTab.plugin.settings.projectConfig.defaultProjectNaming = {
 				strategy: "filename",
 				stripExtension: true,
@@ -542,17 +627,28 @@ export function renderProjectSettingsTab(
 					.addOption("filename", t("Use filename"))
 					.addOption("foldername", t("Use folder name"))
 					.addOption("metadata", t("Use metadata field"))
-					.setValue(settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.strategy || "filename")
+					.setValue(
+						settingTab.plugin.settings.projectConfig
+							?.defaultProjectNaming?.strategy || "filename"
+					)
 					.onChange(async (value) => {
-						if(!settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
-							settingTab.plugin.settings.projectConfig.defaultProjectNaming = {
-								strategy: "filename",
-								stripExtension: true,
-								enabled: false,
-							};
+						if (
+							!settingTab.plugin.settings.projectConfig
+								?.defaultProjectNaming
+						) {
+							settingTab.plugin.settings.projectConfig.defaultProjectNaming =
+								{
+									strategy: "filename",
+									stripExtension: true,
+									enabled: false,
+								};
 						}
-						if (settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
-							settingTab.plugin.settings.projectConfig.defaultProjectNaming.strategy = value as "filename" | "foldername" | "metadata";
+						if (
+							settingTab.plugin.settings.projectConfig
+								?.defaultProjectNaming
+						) {
+							settingTab.plugin.settings.projectConfig.defaultProjectNaming.strategy =
+								value as "filename" | "foldername" | "metadata";
 							await settingTab.plugin.saveSettings();
 							// Refresh to show/hide metadata key field
 							setTimeout(() => {
@@ -562,38 +658,65 @@ export function renderProjectSettingsTab(
 					});
 			});
 
-		console.log(settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.strategy);
+		console.log(
+			settingTab.plugin.settings.projectConfig?.defaultProjectNaming
+				?.strategy
+		);
 
 		// Show metadata key field only for metadata strategy
-		if (settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.strategy === "metadata") {
+		if (
+			settingTab.plugin.settings.projectConfig?.defaultProjectNaming
+				?.strategy === "metadata"
+		) {
 			new Setting(containerEl)
 				.setName(t("Metadata key"))
 				.setDesc(t("Metadata field to use as project name"))
 				.addText((text) => {
-					text.setPlaceholder(t("Enter metadata key (e.g., project-name)"))
-						.setValue(settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.metadataKey || "")
+					text.setPlaceholder(
+						t("Enter metadata key (e.g., project-name)")
+					)
+						.setValue(
+							settingTab.plugin.settings.projectConfig
+								?.defaultProjectNaming?.metadataKey || ""
+						)
 						.onChange(async (value) => {
-							if (settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
-								settingTab.plugin.settings.projectConfig.defaultProjectNaming.metadataKey = value;
+							if (
+								settingTab.plugin.settings.projectConfig
+									?.defaultProjectNaming
+							) {
+								settingTab.plugin.settings.projectConfig.defaultProjectNaming.metadataKey =
+									value;
 								await settingTab.plugin.saveSettings();
 							}
 						});
 				});
 		}
 
-
-
 		// Show strip extension option only for filename strategy
-		if (settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.strategy === "filename") {
+		if (
+			settingTab.plugin.settings.projectConfig?.defaultProjectNaming
+				?.strategy === "filename"
+		) {
 			new Setting(containerEl)
 				.setName(t("Strip file extension"))
-				.setDesc(t("Remove file extension from filename when using as project name"))
+				.setDesc(
+					t(
+						"Remove file extension from filename when using as project name"
+					)
+				)
 				.addToggle((toggle) => {
 					toggle
-						.setValue(settingTab.plugin.settings.projectConfig?.defaultProjectNaming?.stripExtension || true)
+						.setValue(
+							settingTab.plugin.settings.projectConfig
+								?.defaultProjectNaming?.stripExtension || true
+						)
 						.onChange(async (value) => {
-							if (settingTab.plugin.settings.projectConfig?.defaultProjectNaming) {
-								settingTab.plugin.settings.projectConfig.defaultProjectNaming.stripExtension = value;
+							if (
+								settingTab.plugin.settings.projectConfig
+									?.defaultProjectNaming
+							) {
+								settingTab.plugin.settings.projectConfig.defaultProjectNaming.stripExtension =
+									value;
 								await settingTab.plugin.saveSettings();
 							}
 						});

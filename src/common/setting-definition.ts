@@ -377,6 +377,8 @@ export interface ProjectMetadataConfig {
 	metadataKey: string;
 	/** Whether to inherit from file frontmatter */
 	inheritFromFrontmatter: boolean;
+	/** Whether subtasks should inherit metadata from file frontmatter */
+	inheritFromFrontmatterForSubtasks: boolean;
 	/** Whether this config is enabled */
 	enabled: boolean;
 }
@@ -783,6 +785,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		metadataConfig: {
 			metadataKey: "project",
 			inheritFromFrontmatter: true,
+			inheritFromFrontmatterForSubtasks: false,
 			enabled: false,
 		},
 		configFile: {
