@@ -904,7 +904,6 @@ export class MarkdownTaskParser {
 	}
 
 	private convertToLegacyTask(enhancedTask: EnhancedTask): Task {
-		console.log("enhancedTask", enhancedTask);
 		return {
 			id: enhancedTask.id,
 			content: enhancedTask.content,

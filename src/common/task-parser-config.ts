@@ -75,12 +75,12 @@ export const getConfig = (
 		},
 
 		// Performance and parsing limits
-		maxParseIterations: 1000,
-		maxMetadataIterations: 100,
+		maxParseIterations: 4000,
+		maxMetadataIterations: 400,
 		maxTagLength: 100,
 		maxEmojiValueLength: 200,
-		maxStackOperations: 1000,
-		maxStackSize: 100,
+		maxStackOperations: 4000,
+		maxStackSize: 1000,
 		maxIndentSize: 8,
 
 		// Enhanced project configuration
