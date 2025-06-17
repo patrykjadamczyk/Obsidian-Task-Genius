@@ -1106,6 +1106,13 @@ export class MarkdownTaskParser {
 			inherited.priority = convertPriorityValue(inherited.priority);
 		}
 
+		// Early return if enhanced project features are disabled
+		// Without enhanced project, metadata inheritance should not work
+		if (!this.config.projectConfig?.enableEnhancedProject) {
+			return inherited;
+		}
+
+		// Check if frontmatter inheritance is enabled
 		if (
 			!this.config.projectConfig?.metadataConfig?.inheritFromFrontmatter
 		) {

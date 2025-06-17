@@ -30,13 +30,6 @@ export class FileMetadataTaskParser {
 		const tasks: Task[] = [];
 		const errors: string[] = [];
 
-		console.log(
-			"fileCache",
-			fileCache,
-			this.config.enableFileMetadataParsing,
-			this.config.enableTagBasedTaskParsing
-		);
-
 		try {
 			// Parse tasks from frontmatter metadata
 			if (
