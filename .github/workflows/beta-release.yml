@@ -27,17 +27,15 @@ permissions:
 jobs:
     build-and-release-beta:
         if: |
-            contains(github.event.head_commit.message, '[release-beta]') && (
-              github.event_name == 'push' || 
-              (github.event_name == 'pull_request' && 
-               (github.event.pull_request.author_association == 'OWNER'))
-            )
+          contains(github.event.head_commit.message, '[release-beta]') && (
+            (github.event_name == 'push' && github.actor == github.repository_owner) ||
+            (github.event_name == 'pull_request' && github.event.pull_request.author_association == 'OWNER')
+          )
         runs-on: ubuntu-latest
         steps:
             - name: "Checkout code"
               uses: actions/checkout@v4
               with:
-                  # Fetch full history to get all tags and commits
                   fetch-depth: 0
 
             - name: "Use Node.js 22"
@@ -53,60 +51,41 @@ jobs:
             - name: "Install dependencies"
               run: pnpm install
 
-            # --- New Step to read version ---
             - name: "Get version from package.json"
               id: get_version
               run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
-            # --- Get commit messages since last release ---
             - name: "Get commit messages since last release"
               id: get_commits
               run: |
-                  # Get the most recent tag by creation date (not reachability)
-                  # This will find the newest tag regardless of branch ancestry
                   LAST_TAG=$(git tag --sort=-version:refname | head -n 1 2>/dev/null || echo "")
-
                   if [ -z "$LAST_TAG" ]; then
                     echo "No previous tag found, getting all commits from the beginning"
                     COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
-                    echo "Getting all commits since repository creation"
                   else
                     echo "Getting commits since last tag: $LAST_TAG"
-                    # Get the commit hash of the tag
                     TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG)
-                    echo "Tag $LAST_TAG points to commit: $TAG_COMMIT"
-                    
-                    # Get commits since that tag commit
                     COMMIT_MESSAGES=$(git log ${TAG_COMMIT}..HEAD --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
                   fi
-
-                  # Handle empty commit messages
                   if [ -z "$COMMIT_MESSAGES" ]; then
                     COMMIT_MESSAGES="- No new commits since last release"
                   fi
-
-                  # Save commit messages to environment variable (handle multiline)
                   echo "COMMIT_MESSAGES<<EOF" >> $GITHUB_ENV
                   echo "$COMMIT_MESSAGES" >> $GITHUB_ENV
                   echo "EOF" >> $GITHUB_ENV
-
-                  # Also save the last tag for reference
                   echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
 
             - name: "Build and package plugin"
               id: build
               run: |
                   pnpm run build
-                  # Create a directory and copy files for zipping
                   mkdir ${{ env.PLUGIN_NAME }}
                   cp main.js manifest.json styles.css ${{ env.PLUGIN_NAME }}/
-                  # Create the zip file for the release, using the version from package.json
                   zip -r ${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip ./${{ env.PLUGIN_NAME }}
 
             - name: "Create Beta Pre-Release"
               uses: softprops/action-gh-release@v2
               with:
-                  # Use commit messages since last beta release for the release notes
                   body: |
                       ${{ github.event_name == 'pull_request' && format('🚀 Automated beta release for PR #{0}', github.event.pull_request.number) || '🚀 Automated beta release' }}
 
@@ -117,15 +96,9 @@ jobs:
                       ---
 
                       ${{ github.event_name == 'pull_request' && github.event.pull_request.body || '' }}
-
-                  # Mark this as a pre-release, so it doesn't count as a latest official release
                   prerelease: true
-
-                  # Use the version from package.json for the tag and release name
                   tag_name: "v${{ env.VERSION }}"
                   name: "Beta Release v${{ env.VERSION }}"
-
-                  # Upload all required assets in one step, using the versioned zip file name
                   files: |
                       ${{ env.PLUGIN_NAME }}-${{ env.VERSION }}.zip
                       main.js
