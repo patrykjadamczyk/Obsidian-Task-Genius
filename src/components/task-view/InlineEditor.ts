@@ -380,7 +380,10 @@ export class InlineEditor extends Component {
 		);
 
 		const updateProject = (value: string) => {
-			this.task.metadata.project = value || undefined;
+			// Only update project if it's not a read-only tgProject
+			if (!isReadonly) {
+				this.task.metadata.project = value || undefined;
+			}
 		};
 
 		this.setupInputEvents(input, updateProject, "project");

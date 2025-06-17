@@ -201,21 +201,41 @@ export class TaskListItemComponent extends Component {
 
 		this.renderMetadata();
 
-		console.log("task", this.task);
-
 		// Priority indicator if available
 		if (this.task.metadata.priority) {
 			console.log("priority", this.task.metadata.priority);
+			
+			// Convert priority to numeric value
+			let numericPriority: number;
+			if (typeof this.task.metadata.priority === 'string') {
+				switch ((this.task.metadata.priority as string).toLowerCase()) {
+					case 'low':
+						numericPriority = 1;
+						break;
+					case 'medium':
+						numericPriority = 2;
+						break;
+					case 'high':
+						numericPriority = 3;
+						break;
+					default:
+						numericPriority = parseInt(this.task.metadata.priority) || 1;
+						break;
+				}
+			} else {
+				numericPriority = this.task.metadata.priority;
+			}
+			
 			const priorityEl = createDiv({
 				cls: [
 					"task-priority",
-					`priority-${this.task.metadata.priority}`,
+					`priority-${numericPriority}`,
 				],
 			});
 
 			// Priority icon based on level
 			let icon = "•";
-			icon = "!".repeat(this.task.metadata.priority);
+			icon = "!".repeat(numericPriority);
 
 			priorityEl.textContent = icon;
 			this.element.appendChild(priorityEl);

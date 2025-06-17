@@ -65,7 +65,7 @@ function getIndentationLevel(line: string): number {
 }
 
 // --- Refactored Task Parsing using taskUtil ---
-function parseTasksForSorting(
+export function parseTasksForSorting(
 	blockText: string,
 	lineOffset: number = 0,
 	filePath: string, // Added filePath
@@ -697,8 +697,6 @@ export function sortTasksInDocument(
 	const doc = view.state.doc;
 	const settings = plugin.settings;
 	const metadataFormat: MetadataFormat = settings.preferMetadataFormat;
-
-	console.log("settings", settings.sortCriteria);
 
 	// --- Get sortCriteria from settings ---
 	const sortCriteria = settings.sortCriteria || DEFAULT_SETTINGS.sortCriteria; // Get from settings, use default if missing

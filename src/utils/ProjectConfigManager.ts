@@ -434,13 +434,13 @@ export class ProjectConfigManager {
 				return timestamp !== undefined ? timestamp : value;
 			}
 		} else if (isPriorityField && typeof value === 'string') {
-			// Convert priority string to number
+			// Convert priority string to number using the standard PRIORITY_MAP scale
 			const priorityMap: Record<string, number> = {
-				'highest': 1, 'urgent': 1, 'critical': 1,
-				'high': 2, 'important': 2,
+				'highest': 5, 'urgent': 5, 'critical': 5,
+				'high': 4, 'important': 4,
 				'medium': 3, 'normal': 3, 'moderate': 3,
-				'low': 4, 'minor': 4,
-				'lowest': 5, 'trivial': 5
+				'low': 2, 'minor': 2,
+				'lowest': 1, 'trivial': 1
 			};
 
 			const numericPriority = parseInt(value, 10);

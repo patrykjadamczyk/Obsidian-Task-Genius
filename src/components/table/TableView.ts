@@ -13,6 +13,7 @@ import { TreeManager } from "./TreeManager";
 import { VirtualScrollManager } from "./VirtualScrollManager";
 import { TableHeader, TableHeaderCallbacks } from "./TableHeader";
 import { sortTasks } from "../../commands/sortTaskCommands";
+import { isProjectReadonly } from "../../utils/taskUtil";
 import "../../styles/table.css";
 
 export interface TableViewCallbacks {
@@ -990,7 +991,10 @@ export class TableView extends Component {
 				}
 				break;
 			case "project":
-				task.metadata.project = value || undefined;
+				// Only update project if it's not a read-only tgProject
+				if (!isProjectReadonly(task)) {
+					task.metadata.project = value || undefined;
+				}
 				break;
 			case "context":
 				task.metadata.context = value || undefined;

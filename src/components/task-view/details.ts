@@ -497,9 +497,14 @@ export class TaskDetailsComponent extends Component {
 			// Update metadata properties
 			const metadata = { ...updatedTask.metadata };
 
-			// Parse and update project
+			// Parse and update project - Only update if not readonly tgProject
 			const projectValue = projectInput.getValue();
-			metadata.project = projectValue || undefined;
+			if (!isReadonly) {
+				metadata.project = projectValue || undefined;
+			} else {
+				// Preserve original project metadata for readonly tgProject
+				metadata.project = task.metadata.project;
+			}
 
 			// Parse and update tags
 			const tagsValue = tagsInput.getValue();

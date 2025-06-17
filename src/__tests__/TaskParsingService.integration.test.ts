@@ -199,7 +199,7 @@ describe('TaskParsingService Integration', () => {
 			expect(tasks[1].completed).toBe(true);
 
 			expect(tasks[2].content).toBe('Send email to team');
-			expect(tasks[2].metadata.priority).toBe('high');
+			expect(tasks[2].metadata.priority).toBe(4);
 		});
 
 		it('should parse tasks with metadata-based projects', async () => {
@@ -359,7 +359,7 @@ describe('TaskParsingService Integration', () => {
 				importance: 'critical',
 				category: 'work',
 				due: new Date(2024, 3, 1).getTime(), // Date converted to timestamp
-				priority: 1, // 'critical' converted to number
+				priority: 5, // 'critical' converted to number (highest priority)
 			});
 
 			expect(tasks).toHaveLength(1);
@@ -416,7 +416,7 @@ describe('TaskParsingService Integration', () => {
 				'优先级': 'high',
 				deadline: '2024-05-01',
 				description: 'Test description',
-				priority: 2,      // Mapped from '优先级' and converted to number
+				priority: 4,      // Mapped from '优先级' and converted to number
 				dueDate: new Date(2024, 4, 1).getTime(), // Mapped from 'deadline' and converted to timestamp
 			});
 
@@ -528,7 +528,7 @@ describe('TaskParsingService Integration', () => {
 				deadline: '2024-04-01', // Should remain as 'deadline', not mapped to 'due'
 				importance: 'critical',
 				category: 'work',
-				priority: 1, // Should be mapped from 'importance' to 'priority' and converted to number
+				priority: 5, // Should be mapped from 'importance' to 'priority' and converted to number (critical = 5)
 			});
 
 			// Should NOT have 'due' field since that mapping is disabled
@@ -637,7 +637,7 @@ describe('TaskParsingService Integration', () => {
 				'优先级': 'high',
 				deadline: '2024-05-01',
 				description: 'Project-level metadata',
-				priority: 2,      // Mapped from '优先级' and converted to number
+				priority: 4,      // Mapped from '优先级' and converted to number
 				dueDate: new Date(2024, 4, 1).getTime(), // Mapped from 'deadline' and converted to timestamp
 			});
 
@@ -709,7 +709,7 @@ describe('TaskParsingService Integration', () => {
 			});
 
 			// 核心验证：MetadataMapping 转写功能和项目属性继承
-			expect(task.metadata.priority).toBe("2"); // 从 '优先级' 映射而来，在任务级别仍为字符串
+			expect(task.metadata.priority).toBe(4); // 从 '优先级' 映射而来，应该是数字 4 (high)
 			expect(task.metadata.context).toBe('work');  // 直接从项目配置继承
 			
 			// 这个测试证明了：
@@ -770,7 +770,7 @@ describe('TaskParsingService Integration', () => {
 
 			// Verify that priority field was converted to number
 			expect(typeof enhancedMetadata.priority).toBe('number');
-			expect(enhancedMetadata.priority).toBe(2); // 'high' -> 2
+			expect(enhancedMetadata.priority).toBe(4); // 'high' -> 4
 
 			// Verify that non-mapped fields remain unchanged
 			expect(enhancedMetadata.description).toBe('Some text');
@@ -807,12 +807,12 @@ describe('TaskParsingService Integration', () => {
 
 			// Test different priority formats
 			const testCases = [
-				{ input: 'highest', expected: 1 },
-				{ input: 'urgent', expected: 1 },
-				{ input: 'high', expected: 2 },
+				{ input: 'highest', expected: 5 },
+				{ input: 'urgent', expected: 5 },
+				{ input: 'high', expected: 4 },
 				{ input: 'medium', expected: 3 },
-				{ input: 'low', expected: 4 },
-				{ input: 'lowest', expected: 5 },
+				{ input: 'low', expected: 2 },
+				{ input: 'lowest', expected: 1 },
 				{ input: '3', expected: 3 },  // Numeric string
 				{ input: 'unknown', expected: 'unknown' }, // Should remain unchanged
 			];
@@ -918,7 +918,7 @@ describe('TaskParsingService Integration', () => {
 			expect(task!.content).toBe('Single line task');
 			expect(task!.line).toBe(5);
 			expect(task!.metadata.dueDate).toBe(1714492800000);
-			expect(task!.metadata.priority).toBe('high');
+			expect(task!.metadata.priority).toBe(4);
 			expect(task!.metadata.tgProject).toEqual({
 				type: 'path',
 				name: 'Single Task Project',

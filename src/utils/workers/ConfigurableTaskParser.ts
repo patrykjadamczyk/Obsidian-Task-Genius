@@ -832,20 +832,31 @@ export class MarkdownTaskParser {
 	): number | undefined {
 		if (!metadata.priority) return undefined;
 
+		// Use the standard PRIORITY_MAP for consistent priority values
 		const priorityMap: Record<string, number> = {
-			highest: 1,
-			high: 2,
+			highest: 5,
+			high: 4,
 			medium: 3,
-			low: 4,
-			lowest: 5,
+			low: 2,
+			lowest: 1,
+			urgent: 5,    // Alias for highest
+			critical: 5,  // Alias for highest
+			important: 4, // Alias for high
+			normal: 3,    // Alias for medium
+			moderate: 3,  // Alias for medium
+			minor: 2,     // Alias for low
+			trivial: 1,   // Alias for lowest
 		};
 
+		// First try to parse as number
 		const numericPriority = parseInt(metadata.priority, 10);
 		if (!isNaN(numericPriority)) {
 			return numericPriority;
 		}
 
-		return priorityMap[metadata.priority.toLowerCase()];
+		// Then try to map string values
+		const mappedPriority = priorityMap[metadata.priority.toLowerCase()];
+		return mappedPriority;
 	}
 
 	private extractLegacyDate(
@@ -891,7 +902,7 @@ export class MarkdownTaskParser {
 			metadata: {
 				tags: enhancedTask.tags || enhancedTask.metadata.tags,
 				children: enhancedTask.children,
-				priority: enhancedTask.metadata.priority || enhancedTask.priority,
+				priority: enhancedTask.priority || enhancedTask.metadata.priority,
 				startDate: enhancedTask.startDate || enhancedTask.metadata.startDate,
 				dueDate: enhancedTask.dueDate || enhancedTask.metadata.dueDate,
 				scheduledDate: enhancedTask.scheduledDate || enhancedTask.metadata.scheduledDate,
@@ -1009,14 +1020,62 @@ export class MarkdownTaskParser {
 	private inheritFileMetadata(
 		taskMetadata: Record<string, string>
 	): Record<string, string> {
-		// If inheritance is disabled, return task metadata as-is
+		// Helper function to convert priority values to numbers
+		const convertPriorityValue = (value: any): string => {
+			if (value === undefined || value === null) {
+				return String(value);
+			}
+
+			// If it's already a number, convert to string and return
+			if (typeof value === 'number') {
+				return String(value);
+			}
+
+			// If it's a string, try to convert priority values to numbers, but return as string
+			// since the metadata record expects string values that will later be processed by extractLegacyPriority
+			const strValue = String(value);
+			const priorityMap: Record<string, number> = {
+				highest: 5,
+				high: 4,
+				medium: 3,
+				low: 2,
+				lowest: 1,
+				urgent: 5,
+				critical: 5,
+				important: 4,
+				normal: 3,
+				moderate: 3,
+				minor: 2,
+				trivial: 1,
+			};
+
+			// Try numeric conversion first
+			const numericValue = parseInt(strValue, 10);
+			if (!isNaN(numericValue)) {
+				return String(numericValue);
+			}
+
+			// Try priority mapping
+			const mappedPriority = priorityMap[strValue.toLowerCase()];
+			if (mappedPriority !== undefined) {
+				return String(mappedPriority);
+			}
+
+			// Return original value if no conversion applies
+			return strValue;
+		};
+
+		// Always convert priority values in task metadata, even if inheritance is disabled
+		const inherited = { ...taskMetadata };
+		if (inherited.priority !== undefined) {
+			inherited.priority = convertPriorityValue(inherited.priority);
+		}
+
 		if (
 			!this.config.projectConfig?.metadataConfig?.inheritFromFrontmatter
 		) {
-			return taskMetadata;
+			return inherited;
 		}
-
-		const inherited = { ...taskMetadata };
 
 		// List of fields that should NOT be inherited (task-specific only)
 		const nonInheritableFields = new Set([
@@ -1053,7 +1112,12 @@ export class MarkdownTaskParser {
 					!inherited[key] && 
 					value !== undefined && 
 					value !== null) {
-					inherited[key] = String(value);
+					// Convert priority values to numbers before inheritance
+					if (key === 'priority') {
+						inherited[key] = convertPriorityValue(value);
+					} else {
+						inherited[key] = String(value);
+					}
 				}
 			}
 		}
@@ -1071,7 +1135,12 @@ export class MarkdownTaskParser {
 					!(this.fileMetadata && this.fileMetadata[key] !== undefined) &&
 					value !== undefined && 
 					value !== null) {
-					inherited[key] = String(value);
+					// Convert priority values to numbers before inheritance
+					if (key === 'priority') {
+						inherited[key] = convertPriorityValue(value);
+					} else {
+						inherited[key] = String(value);
+					}
 				}
 			}
 		}

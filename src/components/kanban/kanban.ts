@@ -22,7 +22,7 @@ import {
 	KanbanSpecificConfig,
 	KanbanColumnConfig,
 } from "../../common/setting-definition";
-import { getEffectiveProject } from "../../utils/taskUtil";
+import { getEffectiveProject, isProjectReadonly } from "../../utils/taskUtil";
 
 // CSS classes for drop indicators
 const DROP_INDICATOR_BEFORE_CLASS = "tg-kanban-card--drop-indicator-before";
@@ -1010,8 +1010,11 @@ export class KanbanComponent extends Component {
 				}
 				break;
 			case "project":
-				updatedTask.metadata.project =
-					newValue === null || newValue === "" ? undefined : newValue;
+				// Only update project if it's not a read-only tgProject
+				if (!isProjectReadonly(taskToUpdate)) {
+					updatedTask.metadata.project =
+						newValue === null || newValue === "" ? undefined : newValue;
+				}
 				break;
 			case "context":
 				updatedTask.metadata.context =

@@ -14,7 +14,7 @@ import TaskProgressBarPlugin from "../index";
 import { RRule, RRuleSet, rrulestr } from "rrule";
 import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
 import { getConfig } from "../common/task-parser-config";
-import { getEffectiveProject } from "./taskUtil";
+import { getEffectiveProject, isProjectReadonly } from "./taskUtil";
 import { HolidayDetector } from "./ics/HolidayDetector";
 import { TaskParsingService, TaskParsingServiceOptions } from "./TaskParsingService";
 
@@ -1430,8 +1430,11 @@ export class TaskManager extends Component {
 				}
 			}
 
-			// 2. Project
-			if (updatedTask.metadata.project) {
+			// 2. Project - Only write project if it's not a read-only tgProject
+			// Check if the project should be written to the file
+			const shouldWriteProject = updatedTask.metadata.project && !isProjectReadonly(originalTask);
+			
+			if (shouldWriteProject) {
 				if (useDataviewFormat) {
 					const projectPrefix =
 						this.plugin.settings.projectTagPrefix[
@@ -1829,8 +1832,10 @@ export class TaskManager extends Component {
 			}
 		}
 
-		// 2. Project
-		if (completedTask.metadata.project) {
+		// 2. Project - Only write project if it's not a read-only tgProject
+		const shouldWriteProject = completedTask.metadata.project && !isProjectReadonly(completedTask);
+		
+		if (shouldWriteProject) {
 			if (useDataviewFormat) {
 				const projectPrefix =
 					this.plugin.settings.projectTagPrefix[
