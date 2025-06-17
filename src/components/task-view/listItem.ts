@@ -201,8 +201,11 @@ export class TaskListItemComponent extends Component {
 
 		this.renderMetadata();
 
+		console.log("task", this.task);
+
 		// Priority indicator if available
 		if (this.task.metadata.priority) {
+			console.log("priority", this.task.metadata.priority);
 			const priorityEl = createDiv({
 				cls: [
 					"task-priority",

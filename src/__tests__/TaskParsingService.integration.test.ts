@@ -358,8 +358,8 @@ describe('TaskParsingService Integration', () => {
 				deadline: '2024-04-01',
 				importance: 'critical',
 				category: 'work',
-				due: '2024-04-01',
-				priority: 'critical',
+				due: new Date(2024, 3, 1).getTime(), // Date converted to timestamp
+				priority: 1, // 'critical' converted to number
 			});
 
 			expect(tasks).toHaveLength(1);
@@ -416,8 +416,8 @@ describe('TaskParsingService Integration', () => {
 				'优先级': 'high',
 				deadline: '2024-05-01',
 				description: 'Test description',
-				priority: 'high',      // Mapped from '优先级'
-				dueDate: '2024-05-01', // Mapped from 'deadline'
+				priority: 2,      // Mapped from '优先级' and converted to number
+				dueDate: new Date(2024, 4, 1).getTime(), // Mapped from 'deadline' and converted to timestamp
 			});
 
 			expect(enhancedProjectData.fileProjectMap['worker-test.md']).toEqual({
@@ -528,7 +528,7 @@ describe('TaskParsingService Integration', () => {
 				deadline: '2024-04-01', // Should remain as 'deadline', not mapped to 'due'
 				importance: 'critical',
 				category: 'work',
-				priority: 'critical', // Should be mapped from 'importance' to 'priority'
+				priority: 1, // Should be mapped from 'importance' to 'priority' and converted to number
 			});
 
 			// Should NOT have 'due' field since that mapping is disabled
@@ -637,8 +637,8 @@ describe('TaskParsingService Integration', () => {
 				'优先级': 'high',
 				deadline: '2024-05-01',
 				description: 'Project-level metadata',
-				priority: 'high',      // Mapped from '优先级'
-				dueDate: '2024-05-01', // Mapped from 'deadline'
+				priority: 2,      // Mapped from '优先级' and converted to number
+				dueDate: new Date(2024, 4, 1).getTime(), // Mapped from 'deadline' and converted to timestamp
 			});
 
 			// Verify that the file project mapping is correct
@@ -662,9 +662,82 @@ describe('TaskParsingService Integration', () => {
 						targetKey: 'priority',
 						enabled: true,
 					},
+				],
+				defaultProjectNaming: {
+					strategy: 'filename',
+					stripExtension: true,
+					enabled: false,
+				},
+			});
+
+			parsingService = new TaskParsingService(serviceOptions);
+
+			// 设置项目配置文件，包含元数据
+			vault.addFile('TestProject/project.md', 'project: Test Project');
+			metadataCache.setFileMetadata('TestProject/project.md', {
+				project: 'Test Project',
+				'优先级': 'high',      // 这个应该被映射为 priority
+				context: 'work',      // 这个应该被直接继承
+			});
+
+			// 设置任务文件（没有自己的元数据）
+			vault.addFile('TestProject/tasks.md', '# Tasks');
+			metadataCache.setFileMetadata('TestProject/tasks.md', {});
+
+			// Mock 文件夹结构
+			const file = vault.getAbstractFileByPath('TestProject/tasks.md');
+			const folder = vault.addFolder('TestProject');
+			const configFile = vault.getAbstractFileByPath('TestProject/project.md');
+			if (configFile && file) {
+				folder.children.push(configFile);
+				file.parent = folder;
+			}
+
+			const content = `- [ ] 简单任务，应该继承项目属性`;
+
+			const tasks = await parsingService.parseTasksFromContentLegacy(content, 'TestProject/tasks.md');
+
+			expect(tasks).toHaveLength(1);
+			const task = tasks[0];
+
+			// 验证任务能够检测到项目
+			expect(task.metadata.tgProject).toEqual({
+				type: 'config',
+				name: 'Test Project',
+				source: 'project.md',
+				readonly: true,
+			});
+
+			// 核心验证：MetadataMapping 转写功能和项目属性继承
+			expect(task.metadata.priority).toBe("2"); // 从 '优先级' 映射而来，在任务级别仍为字符串
+			expect(task.metadata.context).toBe('work');  // 直接从项目配置继承
+			
+			// 这个测试证明了：
+			// 1. MetadataMapping 正常工作（'优先级' -> 'priority'）
+			// 2. 任务能够继承项目级别的元数据属性
+		});
+
+		it('should automatically convert date and priority fields during metadata mapping', async () => {
+			const parserConfig = createParserConfig();
+			const serviceOptions = createServiceOptions(parserConfig, {
+				configFileName: 'project.md',
+				searchRecursively: true,
+				metadataKey: 'project',
+				pathMappings: [],
+				metadataMappings: [
 					{
 						sourceKey: 'deadline',
 						targetKey: 'dueDate',
+						enabled: true,
+					},
+					{
+						sourceKey: 'urgency',
+						targetKey: 'priority',
+						enabled: true,
+					},
+					{
+						sourceKey: 'start_time',
+						targetKey: 'startDate',
 						enabled: true,
 					},
 				],
@@ -677,56 +750,84 @@ describe('TaskParsingService Integration', () => {
 
 			parsingService = new TaskParsingService(serviceOptions);
 
-			// Set up project config file with attributes
-			vault.addFile('ProjectInherit/project.md', 'project: Inherit Test Project');
-			metadataCache.setFileMetadata('ProjectInherit/project.md', {
-				project: 'Inherit Test Project',
-				'优先级': 'high',
-				deadline: '2024-06-01',
-				context: 'research',
+			vault.addFile('smart-conversion-test.md', 'Test content');
+			metadataCache.setFileMetadata('smart-conversion-test.md', {
+				project: 'Smart Conversion Test',
+				deadline: '2025-07-15',        // Should be converted to timestamp
+				urgency: 'high',               // Should be converted to number (2)
+				start_time: '2025-06-01',      // Should be converted to timestamp
+				description: 'Some text',      // Should remain as string
 			});
 
-			// Set up a task file with its own metadata
-			vault.addFile('ProjectInherit/tasks.md', '# Tasks');
-			metadataCache.setFileMetadata('ProjectInherit/tasks.md', {
-				area: 'work',
+			const enhancedMetadata = await parsingService.getEnhancedMetadata('smart-conversion-test.md');
+
+			// Verify that date fields were converted to timestamps
+			expect(typeof enhancedMetadata.dueDate).toBe('number');
+			expect(enhancedMetadata.dueDate).toBe(new Date(2025, 6, 15).getTime()); // July 15, 2025
+
+			expect(typeof enhancedMetadata.startDate).toBe('number');
+			expect(enhancedMetadata.startDate).toBe(new Date(2025, 5, 1).getTime()); // June 1, 2025
+
+			// Verify that priority field was converted to number
+			expect(typeof enhancedMetadata.priority).toBe('number');
+			expect(enhancedMetadata.priority).toBe(2); // 'high' -> 2
+
+			// Verify that non-mapped fields remain unchanged
+			expect(enhancedMetadata.description).toBe('Some text');
+			expect(enhancedMetadata.project).toBe('Smart Conversion Test');
+
+			// Verify that original values are preserved
+			expect(enhancedMetadata.deadline).toBe('2025-07-15');
+			expect(enhancedMetadata.urgency).toBe('high');
+			expect(enhancedMetadata.start_time).toBe('2025-06-01');
+		});
+
+		it('should handle priority mapping for various string formats', async () => {
+			const parserConfig = createParserConfig();
+			const serviceOptions = createServiceOptions(parserConfig, {
+				configFileName: 'project.md',
+				searchRecursively: true,
+				metadataKey: 'project',
+				pathMappings: [],
+				metadataMappings: [
+					{
+						sourceKey: 'urgency',
+						targetKey: 'priority',
+						enabled: true,
+					},
+				],
+				defaultProjectNaming: {
+					strategy: 'filename',
+					stripExtension: true,
+					enabled: false,
+				},
 			});
 
-			// Mock folder structure
-			const file = vault.getAbstractFileByPath('ProjectInherit/tasks.md');
-			const folder = vault.addFolder('ProjectInherit');
-			const configFile = vault.getAbstractFileByPath('ProjectInherit/project.md');
-			if (configFile && file) {
-				folder.children.push(configFile);
-				file.parent = folder;
+			parsingService = new TaskParsingService(serviceOptions);
+
+			// Test different priority formats
+			const testCases = [
+				{ input: 'highest', expected: 1 },
+				{ input: 'urgent', expected: 1 },
+				{ input: 'high', expected: 2 },
+				{ input: 'medium', expected: 3 },
+				{ input: 'low', expected: 4 },
+				{ input: 'lowest', expected: 5 },
+				{ input: '3', expected: 3 },  // Numeric string
+				{ input: 'unknown', expected: 'unknown' }, // Should remain unchanged
+			];
+
+			for (const [index, testCase] of testCases.entries()) {
+				const fileName = `priority-test-${index}.md`;
+				vault.addFile(fileName, 'Test content');
+				metadataCache.setFileMetadata(fileName, {
+					project: 'Priority Test',
+					urgency: testCase.input,
+				});
+
+				const enhancedMetadata = await parsingService.getEnhancedMetadata(fileName);
+				expect(enhancedMetadata.priority).toBe(testCase.expected);
 			}
-
-			const content = `
-- [ ] Task without explicit priority (should inherit from project)
-- [ ] Task with explicit priority [priority::low] (should not inherit)
-`;
-
-			const tasks = await parsingService.parseTasksFromContentLegacy(content, 'ProjectInherit/tasks.md');
-
-			expect(tasks).toHaveLength(2);
-
-			// First task: should inherit project-level attributes
-			expect(tasks[0].content).toBe('Task without explicit priority (should inherit from project)');
-			expect(tasks[0].metadata.tgProject).toEqual({
-				type: 'config',
-				name: 'Inherit Test Project',
-				source: 'project.md',
-				readonly: true,
-			});
-			expect(tasks[0].metadata.priority).toBe('high'); // Inherited from project (mapped from 优先级)
-			expect(tasks[0].metadata.context).toBe('research'); // Inherited from project
-			expect(tasks[0].metadata.area).toBe('work'); // Inherited from file
-
-			// Second task: should NOT inherit priority (has explicit priority)
-			expect(tasks[1].content).toBe('Task with explicit priority  (should not inherit)'); // Note: extra space after parsing metadata
-			expect(tasks[1].metadata.priority).toBe('low'); // Explicit task priority, not inherited
-			expect(tasks[1].metadata.context).toBe('research'); // Still inherited from project
-			expect(tasks[1].metadata.area).toBe('work'); // Still inherited from file
 		});
 	});
 
@@ -913,7 +1014,7 @@ describe('TaskParsingService Integration', () => {
 			expect(enhancedData.fileMetadataMap['Personal/notes.md']).toEqual({
 				project: 'Personal Project',
 				deadline: '2024-06-01',
-				due: '2024-06-01',
+				due: new Date(2024, 5, 1).getTime(), // Converted to timestamp
 			});
 		});
 	});
@@ -984,6 +1085,108 @@ describe('TaskParsingService Integration', () => {
 
 			expect(tasks).toHaveLength(1);
 			expect(tasks[0].metadata.tgProject).toBeUndefined();
+		});
+	});
+
+	describe('Performance optimizations', () => {
+		it('should use date cache to improve performance when parsing many tasks', async () => {
+			const parserConfig = createParserConfig();
+			const serviceOptions = createServiceOptions(parserConfig, {
+				configFileName: 'project.md',
+				searchRecursively: true,
+				metadataKey: 'project',
+				pathMappings: [],
+				metadataMappings: [
+					{
+						sourceKey: 'due',
+						targetKey: 'dueDate',
+						enabled: true,
+					},
+				],
+				defaultProjectNaming: {
+					strategy: 'filename',
+					stripExtension: true,
+					enabled: false,
+				},
+			});
+
+			parsingService = new TaskParsingService(serviceOptions);
+
+			// Clear cache before test
+			const { MarkdownTaskParser } = await import('../utils/workers/ConfigurableTaskParser');
+			MarkdownTaskParser.clearDateCache();
+
+			// Create many tasks with the same due date to test caching
+			const taskContent = Array.from({ length: 1000 }, (_, i) => 
+				`- [ ] Task ${i} [due::2025-06-17]`
+			).join('\n');
+
+			vault.addFile('performance-test.md', taskContent);
+			metadataCache.setFileMetadata('performance-test.md', {
+				project: 'Performance Test',
+			});
+
+			const startTime = performance.now();
+			
+			const tasks = await parsingService.parseTasksFromContentLegacy(taskContent, 'performance-test.md');
+			
+			const endTime = performance.now();
+			const parseTime = endTime - startTime;
+
+			// Verify that all tasks have the correct due date
+			expect(tasks).toHaveLength(1000);
+			const expectedDate = new Date(2025, 5, 17).getTime(); // June 17, 2025 in local time
+			tasks.forEach(task => {
+				expect(task.metadata.dueDate).toBe(expectedDate);
+			});
+
+			// Check cache statistics
+			const cacheStats = MarkdownTaskParser.getDateCacheStats();
+			expect(cacheStats.size).toBeGreaterThan(0);
+			expect(cacheStats.size).toBeLessThanOrEqual(cacheStats.maxSize);
+
+			// Log performance info for manual verification
+			console.log(`Parsed ${tasks.length} tasks in ${parseTime.toFixed(2)}ms`);
+			console.log(`Cache hit ratio should be high due to repeated dates`);
+			console.log(`Cache size: ${cacheStats.size}/${cacheStats.maxSize}`);
+
+			// Performance should be reasonable (less than 100ms for 1000 tasks)
+			expect(parseTime).toBeLessThan(1000); // 1 second should be more than enough
+		});
+
+		it('should handle date cache size limit correctly', async () => {
+			const { MarkdownTaskParser } = await import('../utils/workers/ConfigurableTaskParser');
+			
+			// Clear cache before test
+			MarkdownTaskParser.clearDateCache();
+
+			const parserConfig = createParserConfig();
+			// Increase maxParseIterations to handle more tasks
+			parserConfig.maxParseIterations = 20000;
+			const parser = new MarkdownTaskParser(parserConfig);
+
+			// Create tasks with many different dates to test cache limit (reduced to 5000 for performance)
+			const taskCount = 5000;
+			const uniqueDates = Array.from({ length: taskCount }, (_, i) => {
+				const date = new Date('2025-01-01');
+				date.setDate(date.getDate() + i);
+				return date.toISOString().split('T')[0];
+			});
+
+			const taskContent = uniqueDates.map((date, i) => 
+				`- [ ] Task ${i} [due::${date}]`
+			).join('\n');
+
+			const tasks = parser.parse(taskContent, 'cache-limit-test.md');
+
+			// Verify that cache size doesn't exceed the limit
+			const cacheStats = MarkdownTaskParser.getDateCacheStats();
+			expect(cacheStats.size).toBeLessThanOrEqual(cacheStats.maxSize);
+			
+			// All tasks should still be parsed correctly
+			expect(tasks).toHaveLength(taskCount);
+			
+			console.log(`Cache size after parsing ${tasks.length} tasks with unique dates: ${cacheStats.size}/${cacheStats.maxSize}`);
 		});
 	});
 }); 

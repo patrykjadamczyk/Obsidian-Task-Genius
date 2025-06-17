@@ -77,8 +77,8 @@ class MockMetadataCache {
 }
 
 describe("ProjectConfigManager", () => {
-	let vault: MockVault;
-	let metadataCache: MockMetadataCache;
+	let vault: MockVault = new MockVault();
+	let metadataCache: MockMetadataCache = new MockMetadataCache();
 	let manager: ProjectConfigManager;
 
 	const defaultOptions: ProjectConfigManagerOptions = {
@@ -302,7 +302,7 @@ description: A project defined in content
 				due_date: "2024-01-01",
 				other: "value",
 				project: "Mapped Project",
-				due: "2024-01-01",
+				due: 1704038400000,
 			});
 		});
 

@@ -26,6 +26,10 @@ export class MarkdownTaskParser {
 	private fileMetadata?: Record<string, any>; // Store file frontmatter metadata
 	private projectConfigCache?: Record<string, any>; // Cache for project config files
 
+	// Date parsing cache to improve performance for large-scale parsing
+	private static dateCache = new Map<string, number | undefined>();
+	private static readonly MAX_CACHE_SIZE = 10000; // Limit cache size to prevent memory issues
+
 	constructor(config: TaskParserConfig) {
 		this.config = config;
 	}
@@ -851,11 +855,30 @@ export class MarkdownTaskParser {
 		const dateStr = metadata[key];
 		if (!dateStr) return undefined;
 
+		// Check cache first to avoid repeated date parsing
+		const cachedDate = MarkdownTaskParser.dateCache.get(dateStr);
+		if (cachedDate !== undefined) {
+			return cachedDate;
+		}
+
+		// Parse date and cache the result
 		const date = parseLocalDate(dateStr);
+		
+		// Implement cache size limit to prevent memory issues
+		if (MarkdownTaskParser.dateCache.size >= MarkdownTaskParser.MAX_CACHE_SIZE) {
+			// Remove oldest entries (simple FIFO eviction)
+			const firstKey = MarkdownTaskParser.dateCache.keys().next().value;
+			if (firstKey) {
+				MarkdownTaskParser.dateCache.delete(firstKey);
+			}
+		}
+		
+		MarkdownTaskParser.dateCache.set(dateStr, date);
 		return date;
 	}
 
 	private convertToLegacyTask(enhancedTask: EnhancedTask): Task {
+		console.log("enhancedTask", enhancedTask);
 		return {
 			id: enhancedTask.id,
 			content: enhancedTask.content,
@@ -865,27 +888,18 @@ export class MarkdownTaskParser {
 			status: enhancedTask.rawStatus,
 			originalMarkdown: enhancedTask.originalMarkdown,
 			children: enhancedTask.children || [],
-			priority: enhancedTask.priority,
-			startDate: enhancedTask.startDate,
-			dueDate: enhancedTask.dueDate,
-			scheduledDate: enhancedTask.scheduledDate,
-			completedDate: enhancedTask.completedDate,
-			createdDate: enhancedTask.createdDate,
-			recurrence: enhancedTask.recurrence,
-			project: enhancedTask.project,
-			context: enhancedTask.context,
 			metadata: {
-				tags: enhancedTask.tags,
+				tags: enhancedTask.tags || enhancedTask.metadata.tags,
 				children: enhancedTask.children,
 				priority: enhancedTask.metadata.priority || enhancedTask.priority,
-				startDate: enhancedTask.startDate,
-				dueDate: enhancedTask.dueDate,
-				scheduledDate: enhancedTask.scheduledDate,
-				completedDate: enhancedTask.completedDate,
-				createdDate: enhancedTask.createdDate,
-				recurrence: enhancedTask.recurrence,
-				project: enhancedTask.project,
-				context: enhancedTask.context,
+				startDate: enhancedTask.startDate || enhancedTask.metadata.startDate,
+				dueDate: enhancedTask.dueDate || enhancedTask.metadata.dueDate,
+				scheduledDate: enhancedTask.scheduledDate || enhancedTask.metadata.scheduledDate,
+				completedDate: enhancedTask.completedDate || enhancedTask.metadata.completedDate,
+				createdDate: enhancedTask.createdDate || enhancedTask.metadata.createdDate,
+				recurrence: enhancedTask.recurrence || enhancedTask.metadata.recurrence,
+				project: enhancedTask.project || enhancedTask.metadata.project,
+				context: enhancedTask.context || enhancedTask.metadata.context,
 				area: enhancedTask.metadata.area,
 				heading: Array.isArray(enhancedTask.heading)
 					? enhancedTask.heading
@@ -970,6 +984,23 @@ export class MarkdownTaskParser {
 		}
 
 		return undefined;
+	}
+
+	/**
+	 * Static method to clear the date cache when needed (e.g., for memory management)
+	 */
+	public static clearDateCache(): void {
+		MarkdownTaskParser.dateCache.clear();
+	}
+
+	/**
+	 * Static method to get cache statistics
+	 */
+	public static getDateCacheStats(): { size: number; maxSize: number } {
+		return {
+			size: MarkdownTaskParser.dateCache.size,
+			maxSize: MarkdownTaskParser.MAX_CACHE_SIZE
+		};
 	}
 
 	/**

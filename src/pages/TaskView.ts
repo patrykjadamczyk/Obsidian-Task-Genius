@@ -937,6 +937,8 @@ export class TaskView extends ItemView {
 					filterOptions.advancedFilter = this.currentFilterState;
 				}
 
+				console.log("tasks", this.tasks);
+
 				targetComponent.setTasks(
 					filterTasks(this.tasks, viewId, this.plugin, filterOptions),
 					this.tasks

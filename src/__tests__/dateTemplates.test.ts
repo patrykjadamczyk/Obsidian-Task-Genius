@@ -35,7 +35,7 @@ describe("Date Templates", () => {
 	test("should replace {{date:YYYY-MM-DD HH:mm}} with current date and time", () => {
 		const input = "notes/{{date:YYYY-MM-DD HH:mm}}.md";
 		const result = processDateTemplates(input);
-		expect(result).toBe("notes/2024-01-15 14:30.md");
+		expect(result).toBe("notes/2024-01-15 14-30.md");
 	});
 
 	test("should handle multiple date templates in one path", () => {

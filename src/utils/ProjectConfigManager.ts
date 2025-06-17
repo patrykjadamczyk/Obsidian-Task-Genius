@@ -391,11 +391,71 @@ export class ProjectConfigManager {
 
 			const sourceValue = metadata[mapping.sourceKey];
 			if (sourceValue !== undefined) {
-				result[mapping.targetKey] = sourceValue;
+				// Apply intelligent type conversion for common field types
+				result[mapping.targetKey] = this.convertMetadataValue(mapping.targetKey, sourceValue);
 			}
 		}
 
 		return result;
+	}
+
+	/**
+	 * Convert metadata value based on target key type
+	 */
+	private convertMetadataValue(targetKey: string, value: any): any {
+		// Date field detection patterns
+		const dateFieldPatterns = [
+			'due', 'dueDate', 'deadline',
+			'start', 'startDate', 'started',
+			'scheduled', 'scheduledDate', 'scheduled_for',
+			'completed', 'completedDate', 'finished',
+			'created', 'createdDate', 'created_at'
+		];
+
+		// Priority field detection patterns
+		const priorityFieldPatterns = ['priority', 'urgency', 'importance'];
+
+		// Check if it's a date field
+		const isDateField = dateFieldPatterns.some(pattern => 
+			targetKey.toLowerCase().includes(pattern.toLowerCase())
+		);
+
+		// Check if it's a priority field
+		const isPriorityField = priorityFieldPatterns.some(pattern => 
+			targetKey.toLowerCase().includes(pattern.toLowerCase())
+		);
+
+		if (isDateField && typeof value === 'string') {
+			// Try to convert date string to timestamp for better performance
+			if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+				// Use the same date parsing logic as MarkdownTaskParser
+				const { parseLocalDate } = require('./dateUtil');
+				const timestamp = parseLocalDate(value);
+				return timestamp !== undefined ? timestamp : value;
+			}
+		} else if (isPriorityField && typeof value === 'string') {
+			// Convert priority string to number
+			const priorityMap: Record<string, number> = {
+				'highest': 1, 'urgent': 1, 'critical': 1,
+				'high': 2, 'important': 2,
+				'medium': 3, 'normal': 3, 'moderate': 3,
+				'low': 4, 'minor': 4,
+				'lowest': 5, 'trivial': 5
+			};
+
+			const numericPriority = parseInt(value, 10);
+			if (!isNaN(numericPriority)) {
+				return numericPriority;
+			}
+
+			const mappedPriority = priorityMap[value.toLowerCase()];
+			if (mappedPriority !== undefined) {
+				return mappedPriority;
+			}
+		}
+
+		// Return original value if no conversion is needed
+		return value;
 	}
 
 	/**
