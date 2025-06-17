@@ -140,8 +140,13 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 	applySettingsUpdate() {
 		clearTimeout(this.applyDebounceTimer);
 		const plugin = this.plugin;
-		this.applyDebounceTimer = window.setTimeout(() => {
-			plugin.saveSettings();
+		this.applyDebounceTimer = window.setTimeout(async () => {
+			await plugin.saveSettings();
+			
+			// Update TaskManager parsing configuration if it exists
+			if (plugin.taskManager) {
+				plugin.taskManager.updateParsingConfiguration();
+			}
 		}, 100);
 	}
 

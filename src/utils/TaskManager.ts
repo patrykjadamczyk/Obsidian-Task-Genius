@@ -16,6 +16,7 @@ import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
 import { getConfig } from "../common/task-parser-config";
 import { getEffectiveProject } from "./taskUtil";
 import { HolidayDetector } from "./ics/HolidayDetector";
+import { TaskParsingService, TaskParsingServiceOptions } from "./TaskParsingService";
 
 /**
  * TaskManager options
@@ -58,6 +59,8 @@ export class TaskManager extends Component {
 	persister: LocalStorageCache;
 	/** Configurable task parser for main thread fallback */
 	private taskParser: MarkdownTaskParser;
+	/** Enhanced task parsing service with project support */
+	private taskParsingService?: TaskParsingService;
 
 	/**
 	 * Create a new task manager
@@ -84,6 +87,9 @@ export class TaskManager extends Component {
 		this.taskParser = new MarkdownTaskParser(
 			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
 		);
+
+		// Initialize enhanced task parsing service if enhanced project is enabled
+		this.initializeTaskParsingService();
 
 		// Set up the indexer's parse callback to use our parser
 		this.indexer.setParseFileCallback(async (file: TFile) => {
@@ -123,6 +129,48 @@ export class TaskManager extends Component {
 	}
 
 	/**
+	 * Initialize enhanced task parsing service if enhanced project is enabled
+	 */
+	private initializeTaskParsingService(): void {
+		if (this.plugin.settings.projectConfig?.enableEnhancedProject) {
+			const serviceOptions: TaskParsingServiceOptions = {
+				vault: this.vault,
+				metadataCache: this.metadataCache,
+				parserConfig: getConfig(this.plugin.settings.preferMetadataFormat, this.plugin),
+				projectConfigOptions: {
+					configFileName: this.plugin.settings.projectConfig.configFile.fileName,
+					searchRecursively: this.plugin.settings.projectConfig.configFile.searchRecursively,
+					metadataKey: this.plugin.settings.projectConfig.metadataConfig.metadataKey,
+					pathMappings: this.plugin.settings.projectConfig.pathMappings,
+				},
+			};
+
+			this.taskParsingService = new TaskParsingService(serviceOptions);
+			this.log("Enhanced task parsing service initialized with project support");
+		} else {
+			this.taskParsingService = undefined;
+		}
+	}
+
+	/**
+	 * Update parsing configuration when settings change
+	 */
+	public updateParsingConfiguration(): void {
+		// Update the regular parser
+		this.taskParser = new MarkdownTaskParser(
+			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
+		);
+
+		// Update worker manager settings if available
+		if (this.workerManager) {
+			// Worker manager will pick up the new settings automatically on next use
+			// since it references this.plugin.settings directly
+		}
+
+		this.log("Parsing configuration updated");
+	}
+
+	/**
 	 * Parse a file using the configurable parser
 	 */
 	private parseFileWithConfigurableParser(
@@ -134,45 +182,7 @@ export class TaskManager extends Component {
 			const tasks = this.taskParser.parseLegacy(content, filePath);
 
 			// Apply heading filters if specified in settings
-			return tasks.filter((task) => {
-				// Filter by ignore heading
-				if (
-					this.plugin.settings.ignoreHeading &&
-					task.metadata.heading
-				) {
-					const headings = Array.isArray(task.metadata.heading)
-						? task.metadata.heading
-						: [task.metadata.heading];
-
-					if (
-						headings.some((h) =>
-							h.includes(this.plugin.settings.ignoreHeading)
-						)
-					) {
-						return false;
-					}
-				}
-
-				// Filter by focus heading
-				if (
-					this.plugin.settings.focusHeading &&
-					task.metadata.heading
-				) {
-					const headings = Array.isArray(task.metadata.heading)
-						? task.metadata.heading
-						: [task.metadata.heading];
-
-					if (
-						!headings.some((h) =>
-							h.includes(this.plugin.settings.focusHeading)
-						)
-					) {
-						return false;
-					}
-				}
-
-				return true;
-			});
+			return this.applyHeadingFilters(tasks);
 		} catch (error) {
 			console.error(
 				`Error parsing file ${filePath} with configurable parser:`,
@@ -181,6 +191,78 @@ export class TaskManager extends Component {
 			// Return empty array as fallback
 			return [];
 		}
+	}
+
+	/**
+	 * Parse a file using enhanced parsing service (async version)
+	 */
+	private async parseFileWithEnhancedParser(
+		filePath: string,
+		content: string
+	): Promise<Task[]> {
+		try {
+			if (this.taskParsingService) {
+				// Use enhanced parsing service with project support
+				const tasks = await this.taskParsingService.parseTasksFromContentLegacy(content, filePath);
+				this.log(`Parsed ${tasks.length} tasks using enhanced parsing service for ${filePath}`);
+				return this.applyHeadingFilters(tasks);
+			} else {
+				// Fallback to regular parser
+				return this.parseFileWithConfigurableParser(filePath, content);
+			}
+		} catch (error) {
+			console.error(
+				`Error parsing file ${filePath} with enhanced parser:`,
+				error
+			);
+			// Fallback to regular parser
+			return this.parseFileWithConfigurableParser(filePath, content);
+		}
+	}
+
+	/**
+	 * Apply heading filters to a list of tasks
+	 */
+	private applyHeadingFilters(tasks: Task[]): Task[] {
+		return tasks.filter((task) => {
+			// Filter by ignore heading
+			if (
+				this.plugin.settings.ignoreHeading &&
+				task.metadata.heading
+			) {
+				const headings = Array.isArray(task.metadata.heading)
+					? task.metadata.heading
+					: [task.metadata.heading];
+
+				if (
+					headings.some((h) =>
+						h.includes(this.plugin.settings.ignoreHeading)
+					)
+				) {
+					return false;
+				}
+			}
+
+			// Filter by focus heading
+			if (
+				this.plugin.settings.focusHeading &&
+				task.metadata.heading
+			) {
+				const headings = Array.isArray(task.metadata.heading)
+					? task.metadata.heading
+					: [task.metadata.heading];
+
+				if (
+					!headings.some((h) =>
+						h.includes(this.plugin.settings.focusHeading)
+					)
+				) {
+					return false;
+				}
+			}
+
+			return true;
+		});
 	}
 
 	/**

@@ -1,8 +1,16 @@
 /**
  * Task Parsing Service
  *
- * Integrates ProjectConfigManager with MarkdownTaskParser to provide
- * enhanced task parsing with project configuration support
+ * Provides enhanced task parsing with project configuration support for main thread operations.
+ * This service is designed to complement the Worker-based parsing system by providing:
+ * 
+ * 1. File system access for project configuration files
+ * 2. Frontmatter metadata resolution 
+ * 3. Enhanced project detection that requires file system traversal
+ * 
+ * Note: The bulk of task parsing is handled by the Worker system, which already
+ * includes basic project configuration support. This service is for cases where
+ * main thread file system access is required.
  */
 
 import { Vault, MetadataCache } from "obsidian";

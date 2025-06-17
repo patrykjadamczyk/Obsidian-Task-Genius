@@ -142,14 +142,26 @@ const getTaskFromLine = (
 	line: string,
 	lineNum: number
 ): Task | null => {
-	// Lazily load the task parser
-	if (!taskParser) {
-		taskParser = new MarkdownTaskParser(
-			getConfig(plugin.settings.preferMetadataFormat) as TaskParserConfig
-		);
-	}
-
 	try {
+		// Try to use TaskParsingService from TaskManager if available and enhanced project is enabled
+		if (plugin.taskManager && plugin.settings.projectConfig?.enableEnhancedProject) {
+			// Use TaskManager's parsing capability which includes TaskParsingService support
+			const tasks = plugin.taskManager['parseFileWithConfigurableParser'](filePath, line);
+			if (tasks.length > 0) {
+				const task = tasks[0];
+				// Override line number to match the expected behavior
+				task.line = lineNum;
+				return task;
+			}
+		}
+
+		// Fallback to direct parser
+		if (!taskParser) {
+			taskParser = new MarkdownTaskParser(
+				getConfig(plugin.settings.preferMetadataFormat, plugin) as TaskParserConfig
+			);
+		}
+
 		return taskParser.parseTask(line, filePath, lineNum);
 	} catch (error) {
 		console.error("Error parsing task:", error);
