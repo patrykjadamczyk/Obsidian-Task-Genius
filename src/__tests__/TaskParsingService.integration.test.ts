@@ -95,7 +95,7 @@ describe('TaskParsingService Integration', () => {
 			cancelled: '-',
 		},
 		emojiMapping: {
-			'📅': 'due',
+			'📅': 'dueDate',
 			'🔺': 'priority',
 		},
 		metadataParseMode: MetadataParseMode.Both,
@@ -320,7 +320,7 @@ describe('TaskParsingService Integration', () => {
 				metadataMappings: [
 					{
 						sourceKey: 'deadline',
-						targetKey: 'due',
+						targetKey: 'dueDate',
 						enabled: true,
 					},
 					{
@@ -358,7 +358,7 @@ describe('TaskParsingService Integration', () => {
 				deadline: '2024-04-01',
 				importance: 'critical',
 				category: 'work',
-				due: new Date(2024, 3, 1).getTime(), // Date converted to timestamp
+				dueDate: new Date(2024, 3, 1).getTime(), // Date converted to timestamp
 				priority: 5, // 'critical' converted to number (highest priority)
 			});
 
@@ -465,7 +465,7 @@ describe('TaskParsingService Integration', () => {
 			vault.addFile('test-no-mapping.md', '# Test file');
 			metadataCache.setFileMetadata('test-no-mapping.md', {
 				project: 'Test Project',
-				deadline: '2024-04-01', // This should NOT be mapped to 'due'
+				deadline: '2024-04-01', // This should NOT be mapped to 'dueDate'
 				importance: 'critical',  // This should NOT be mapped to 'priority'
 				category: 'work',
 			});
@@ -495,7 +495,7 @@ describe('TaskParsingService Integration', () => {
 				metadataMappings: [
 					{
 						sourceKey: 'deadline',
-						targetKey: 'due',
+						targetKey: 'dueDate',
 						enabled: false, // Disabled mapping
 					},
 					{
@@ -525,14 +525,14 @@ describe('TaskParsingService Integration', () => {
 
 			expect(enhancedMetadata).toEqual({
 				project: 'Test Project',
-				deadline: '2024-04-01', // Should remain as 'deadline', not mapped to 'due'
+				deadline: '2024-04-01', // Should remain as 'deadline', not mapped to 'dueDate'
 				importance: 'critical',
 				category: 'work',
 				priority: 5, // Should be mapped from 'importance' to 'priority' and converted to number (critical = 5)
 			});
 
-			// Should NOT have 'due' field since that mapping is disabled
-			expect(enhancedMetadata.due).toBeUndefined();
+			// Should NOT have 'dueDate' field since that mapping is disabled
+			expect(enhancedMetadata.dueDate).toBeUndefined();
 		});
 
 		it('should use basic metadata with parseTasksFromContentBasic method', async () => {
@@ -545,7 +545,7 @@ describe('TaskParsingService Integration', () => {
 				metadataMappings: [
 					{
 						sourceKey: 'deadline',
-						targetKey: 'due',
+						targetKey: 'dueDate',
 						enabled: true,
 					},
 				],
@@ -945,7 +945,7 @@ describe('TaskParsingService Integration', () => {
 				metadataMappings: [
 					{
 						sourceKey: 'deadline',
-						targetKey: 'due',
+						targetKey: 'dueDate',
 						enabled: true,
 					},
 				],
@@ -1014,7 +1014,7 @@ describe('TaskParsingService Integration', () => {
 			expect(enhancedData.fileMetadataMap['Personal/notes.md']).toEqual({
 				project: 'Personal Project',
 				deadline: '2024-06-01',
-				due: new Date(2024, 5, 1).getTime(), // Converted to timestamp
+				dueDate: new Date(2024, 5, 1).getTime(), // Converted to timestamp
 			});
 		});
 	});

@@ -444,8 +444,23 @@ export class MarkdownTaskParser {
 		const parts = bracketContent.split("::", 2);
 		if (parts.length !== 2) return null;
 
-		const key = parts[0].trim();
+		let key = parts[0].trim();
 		const value = parts[1].trim();
+
+		// Map dataview keys to standard field names for consistency
+		const dataviewKeyMapping: Record<string, string> = {
+			"due": "dueDate",
+			"start": "startDate",
+			"scheduled": "scheduledDate",
+			"completion": "completedDate",
+			"created": "createdDate"
+		};
+
+		// Apply key mapping if it exists
+		const mappedKey = dataviewKeyMapping[key.toLowerCase()];
+		if (mappedKey) {
+			key = mappedKey;
+		}
 
 		if (key && value) {
 			const before = content.substring(0, start);
