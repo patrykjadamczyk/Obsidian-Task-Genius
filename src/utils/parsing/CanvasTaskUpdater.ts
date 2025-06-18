@@ -163,10 +163,30 @@ export class CanvasTaskUpdater {
      * Check if a line matches a specific task
      */
     private lineMatchesTask(line: string, task: Task): boolean {
-        // Remove the task status and compare the content
+        // First try to match using originalMarkdown if available
+        if (task.originalMarkdown) {
+            // Remove indentation from both for comparison
+            const normalizedLine = line.trim();
+            const normalizedOriginal = task.originalMarkdown.trim();
+
+            // Direct match
+            if (normalizedLine === normalizedOriginal) {
+                return true;
+            }
+
+            // Try matching without the checkbox status (in case status changed)
+            const lineWithoutStatus = normalizedLine.replace(/^[-*+]\s*\[[^\]]*\]\s*/, '- [ ] ');
+            const originalWithoutStatus = normalizedOriginal.replace(/^[-*+]\s*\[[^\]]*\]\s*/, '- [ ] ');
+
+            if (lineWithoutStatus === originalWithoutStatus) {
+                return true;
+            }
+        }
+
+        // Fallback to content matching (legacy behavior)
         const lineContent = line.replace(/^\s*[-*+]\s*\[[^\]]*\]\s*/, '').trim();
         const taskContent = task.content.trim();
-        
+
         return lineContent === taskContent;
     }
 
