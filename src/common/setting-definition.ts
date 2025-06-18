@@ -571,11 +571,11 @@ export interface TaskProgressBarSettings {
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// General Defaults
 	progressBarDisplayMode: "both",
-	supportHoverToShowProgressInfo: true,
+	supportHoverToShowProgressInfo: false,
 	addProgressBarToNonTaskBullet: false,
-	addTaskProgressBarToHeading: true,
-	enableProgressbarInReadingMode: true,
-	countSubLevel: true,
+	addTaskProgressBarToHeading: false,
+	enableProgressbarInReadingMode: false,
+	countSubLevel: false,
 	displayMode: "bracketFraction",
 	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",
 	showPercentage: false,
@@ -637,7 +637,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Task Filter Defaults
 	taskFilter: {
-		enableTaskFilter: true,
+		enableTaskFilter: false,
 		presetTaskFilters: [], // Start empty, maybe add defaults later or via a reset button
 	},
 
@@ -648,7 +648,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Completed Task Mover Defaults
 	completedTaskMover: {
-		enableCompletedTaskMover: true,
+		enableCompletedTaskMover: false,
 		taskMarkerType: "date",
 		versionMarker: "version 1.0",
 		dateMarker: t("archived on") + " {{date}}",
@@ -677,7 +677,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Quick Capture Defaults
 	quickCapture: {
-		enableQuickCapture: true,
+		enableQuickCapture: false,
 		targetFile: "QuickCapture.md",
 		placeholder: t("Capture your thoughts..."),
 		appendToFile: "append",
@@ -784,26 +784,26 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		pathMappings: [],
 		metadataConfig: {
 			metadataKey: "project",
-			inheritFromFrontmatter: true,
+			inheritFromFrontmatter: false,
 			inheritFromFrontmatterForSubtasks: false,
 			enabled: false,
 		},
 		configFile: {
 			fileName: "project.md",
-			searchRecursively: true,
+			searchRecursively: false,
 			enabled: false,
 		},
 		metadataMappings: [],
 		defaultProjectNaming: {
 			strategy: "filename" as const,
-			stripExtension: true,
+			stripExtension: false,
 			enabled: false,
 		},
 	},
 
 	// File Parsing Configuration
 	fileParsingConfig: {
-		enableFileMetadataParsing: true,
+		enableFileMetadataParsing: false,
 		metadataFieldsToParseAsTasks: ["dueDate", "todo", "complete", "task"],
 		enableTagBasedTaskParsing: false,
 		tagsToParseAsTasks: ["#todo", "#task", "#action", "#due"],
@@ -1092,10 +1092,10 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		sources: [],
 		globalRefreshInterval: 60, // 1 hour
 		maxCacheAge: 24, // 24 hours
-		enableBackgroundRefresh: true,
+		enableBackgroundRefresh: false,
 		networkTimeout: 30, // 30 seconds
 		maxEventsPerSource: 1000,
-		showInCalendar: true,
+		showInCalendar: false,
 		showInTaskLists: false,
 		defaultEventColor: "#3b82f6", // Blue color
 	},
