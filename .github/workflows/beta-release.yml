@@ -126,36 +126,48 @@ jobs:
 
             - name: "Install dependencies"
               if: steps.check_release_tag.outputs.SHOULD_RELEASE == 'true'
-              run: pnpm install
+              run: |
+                  # Install jq for JSON parsing
+                  sudo apt-get update && sudo apt-get install -y jq
+                  pnpm install
 
             - name: "Get version from package.json"
               if: steps.check_release_tag.outputs.SHOULD_RELEASE == 'true'
               id: get_version
               run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
-            - name: "Get commit messages since last tag"
+            - name: "Get commit messages since last release"
               if: steps.check_release_tag.outputs.SHOULD_RELEASE == 'true'
               id: get_commits
               run: |
-                  # Get the most recent tag (including pre-releases)
-                  LAST_TAG=$(git tag --sort=-version:refname | head -n 1 2>/dev/null || echo "")
+                  # Get all releases (including pre-releases) and find the most recent one
+                  echo "Fetching all releases from GitHub API..."
+                  LAST_RELEASE=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | jq -r '.[0].tag_name // empty' 2>/dev/null || echo "")
                   
-                  if [ -z "$LAST_TAG" ]; then
-                    echo "No previous tag found, getting all commits from the beginning"
+                  # If no release found via API, try to get the most recent tag with proper semantic version sorting
+                  if [ -z "$LAST_RELEASE" ]; then
+                    echo "No release found via API, looking for latest tag..."
+                    # Get all tags and sort them properly using semantic versioning
+                    LAST_RELEASE=$(git tag -l | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1 2>/dev/null || echo "")
+                  fi
+                  
+                  if [ -z "$LAST_RELEASE" ]; then
+                    echo "No previous release or tag found, getting all commits from the beginning"
                     COMMIT_MESSAGES=$(git log --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
+                    LAST_RELEASE="(initial)"
                   else
-                    echo "Getting commits since last tag: $LAST_TAG"
-                    TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG)
-                    COMMIT_MESSAGES=$(git log ${TAG_COMMIT}..HEAD --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
+                    echo "Getting commits since last release: $LAST_RELEASE"
+                    RELEASE_COMMIT=$(git rev-list -n 1 $LAST_RELEASE 2>/dev/null || git rev-list -n 1 HEAD~10)
+                    COMMIT_MESSAGES=$(git log ${RELEASE_COMMIT}..HEAD --pretty=format:"- %s (%an) [%h](https://github.com/${{ github.repository }}/commit/%H)" --no-merges)
                   fi
                   
                   if [ -z "$COMMIT_MESSAGES" ]; then
-                    COMMIT_MESSAGES="- No new commits since last tag"
+                    COMMIT_MESSAGES="- No new commits since last release"
                   fi
                   echo "COMMIT_MESSAGES<<EOF" >> $GITHUB_ENV
                   echo "$COMMIT_MESSAGES" >> $GITHUB_ENV
                   echo "EOF" >> $GITHUB_ENV
-                  echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
+                  echo "LAST_RELEASE=$LAST_RELEASE" >> $GITHUB_ENV
 
             - name: "Build and package plugin"
               if: steps.check_release_tag.outputs.SHOULD_RELEASE == 'true'
@@ -173,7 +185,7 @@ jobs:
                   body: |
                       ${{ github.event_name == 'pull_request' && format('🚀 Automated beta release for PR #{0}', github.event.pull_request.number) || '🚀 Automated beta release' }}
 
-                      ## 📝 Changes since last tag${{ env.LAST_TAG && format(' ({0})', env.LAST_TAG) || '' }}:
+                      ## 📝 Changes since last release${{ env.LAST_RELEASE && format(' ({0})', env.LAST_RELEASE) || '' }}:
 
                       ${{ env.COMMIT_MESSAGES }}
 
