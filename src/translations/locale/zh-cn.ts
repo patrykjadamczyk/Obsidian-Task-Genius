@@ -410,8 +410,6 @@ const translations = {
 	"Beta Features": "测试功能",
 	Projects: "项目",
 	About: "关于",
-
-	// Category names
 	"Core Settings": "核心设置",
 	"Display & Progress": "显示与进度",
 	"Workflow & Automation": "工作流与自动化",
@@ -1233,8 +1231,6 @@ const translations = {
 	"Advanced Filtering": "高级过滤器",
 	"Use advanced multi-group filtering with complex conditions":
 		"使用高级多组过滤器，支持复杂条件",
-
-	// Project auto-assignment translations
 	"Auto-assigned from path": "从路径自动分配",
 	"Auto-assigned from file metadata": "从文件元数据自动分配",
 	"Auto-assigned from config file": "从配置文件自动分配",
@@ -1252,8 +1248,6 @@ const translations = {
 	"Start workflow": "开始工作流",
 	"Complete substage and move to": "完成子阶段并移动到",
 	Continue: "继续",
-
-	// Timeline Sidebar translations
 	Timeline: "时间轴",
 	"Timeline Sidebar": "时间轴侧边栏",
 	"Open Timeline Sidebar": "打开时间轴侧边栏",
@@ -1281,6 +1275,463 @@ const translations = {
 	"Go to task": "转到任务",
 	"What's on your mind?": "你在想什么？",
 	to: "到",
+	"Auto-moved": "自动移动",
+	"tasks to": "个任务到",
+	"Failed to auto-move tasks:": "自动移动任务失败：",
+	"Workflow created successfully": "工作流创建成功",
+	"No task structure found at cursor position": "在光标位置未找到任务结构",
+	"Use similar existing workflow": "使用类似的现有工作流",
+	"Create new workflow": "创建新工作流",
+	"No workflows defined. Create a workflow first.":
+		"未定义工作流。请先创建一个工作流。",
+	"Workflow task created": "工作流任务已创建",
+	"Task converted to workflow root": "任务已转换为工作流根节点",
+	"Failed to convert task": "转换任务失败",
+	"No workflows to duplicate": "没有可复制的工作流",
+	Duplicate: "复制",
+	"Workflow duplicated and saved": "工作流已复制并保存",
+	"Workflow created from task structure": "从任务结构创建了工作流",
+	"Create Quick Workflow": "创建快速工作流",
+	"Convert Task to Workflow": "将任务转换为工作流",
+	"Convert to Workflow Root": "转换为工作流根节点",
+	"Start Workflow Here": "在此开始工作流",
+	"Duplicate Workflow": "复制工作流",
+	"Simple Linear Workflow": "简单线性工作流",
+	"A basic linear workflow with sequential stages":
+		"具有顺序阶段的基本线性工作流",
+	"To Do": "待办",
+	Done: "完成",
+	"Project Management": "项目管理",
+	Coding: "编程",
+	"Research Process": "研究流程",
+	"Academic or professional research workflow": "学术或专业研究工作流",
+	"Literature Review": "文献综述",
+	"Data Collection": "数据收集",
+	Analysis: "分析",
+	Writing: "写作",
+	Published: "已发布",
+	"Custom Workflow": "自定义工作流",
+	"Create a custom workflow from scratch": "从头创建自定义工作流",
+	"Quick Workflow Creation": "快速工作流创建",
+	"Workflow Template": "工作流模板",
+	"Choose a template to start with or create a custom workflow":
+		"选择一个模板开始或创建自定义工作流",
+	"Workflow Name": "工作流名称",
+	"A descriptive name for your workflow": "工作流的描述性名称",
+	"Enter workflow name": "输入工作流名称",
+	"Unique identifier (auto-generated from name)":
+		"唯一标识符（从名称自动生成）",
+	"Optional description of the workflow purpose": "工作流目的的可选描述",
+	"Describe your workflow...": "描述您的工作流...",
+	"Preview of workflow stages (edit after creation for advanced options)":
+		"工作流阶段预览（创建后编辑以获得高级选项）",
+	"Add Stage": "添加阶段",
+	"No stages defined. Choose a template or add stages manually.":
+		"未定义阶段。选择模板或手动添加阶段。",
+	"Remove stage": "移除阶段",
+	"Create Workflow": "创建工作流",
+	"Please provide a workflow name and ID": "请提供工作流名称和ID",
+	"Please add at least one stage to the workflow":
+		"请至少为工作流添加一个阶段",
+	Discord: "Discord",
+	"Chat with us": "与我们聊天",
+	"Open Discord": "打开 Discord",
+	"Task Genius icons are designed by": "Task Genius 图标由以下设计师设计",
+	"Task Genius Icons": "Task Genius 图标",
+	"ICS Calendar Integration": "ICS 日历集成",
+	"Configure external calendar sources to display events in your task views.":
+		"配置外部日历源以在任务视图中显示事件。",
+	"Add New Calendar Source": "添加新日历源",
+	"Global Settings": "全局设置",
+	"Enable Background Refresh": "启用后台刷新",
+	"Automatically refresh calendar sources in the background":
+		"在后台自动刷新日历源",
+	"Global Refresh Interval": "全局刷新间隔",
+	"Default refresh interval for all sources (minutes)":
+		"所有源的默认刷新间隔（分钟）",
+	"Maximum Cache Age": "最大缓存时间",
+	"How long to keep cached data (hours)": "保存缓存数据的时间（小时）",
+	"Network Timeout": "网络超时",
+	"Request timeout in seconds": "请求超时时间（秒）",
+	"Max Events Per Source": "每个源的最大事件数",
+	"Maximum number of events to load from each source":
+		"从每个源加载的最大事件数",
+	"Default Event Color": "默认事件颜色",
+	"Default color for events without a specific color":
+		"没有特定颜色的事件的默认颜色",
+	"Calendar Sources": "日历源",
+	"No calendar sources configured. Add a source to get started.":
+		"未配置日历源。添加一个源开始使用。",
+	"ICS Enabled": "ICS 已启用",
+	"ICS Disabled": "ICS 已禁用",
+	URL: "网址",
+	Refresh: "刷新",
+	min: "分钟",
+	Color: "颜色",
+	"Edit this calendar source": "编辑此日历源",
+	Sync: "同步",
+	"Sync this calendar source now": "立即同步此日历源",
+	"Syncing...": "正在同步...",
+	"Sync completed successfully": "同步成功完成",
+	"Sync failed: ": "同步失败：",
+	Disable: "禁用",
+	"Disable this source": "禁用此源",
+	"Enable this source": "启用此源",
+	"Delete this calendar source": "删除此日历源",
+	"Are you sure you want to delete this calendar source?":
+		"您确定要删除此日历源吗？",
+	"Edit ICS Source": "编辑 ICS 源",
+	"Add ICS Source": "添加 ICS 源",
+	"ICS Source Name": "ICS 源名称",
+	"Display name for this calendar source": "此日历源的显示名称",
+	"My Calendar": "我的日历",
+	"ICS URL": "ICS 网址",
+	"URL to the ICS/iCal file": "ICS/iCal 文件的网址",
+	"Whether this source is active": "此源是否处于活动状态",
+	"Refresh Interval": "刷新间隔",
+	"How often to refresh this source (minutes)": "刷新此源的频率（分钟）",
+	"Color for events from this source (optional)":
+		"来自此源的事件颜色（可选）",
+	"Show Type": "显示类型",
+	"How to display events from this source in calendar views":
+		"如何在日历视图中显示来自此源的事件",
+	Event: "事件",
+	Badge: "徽章",
+	"Show All-Day Events": "显示全天事件",
+	"Include all-day events from this source": "包含来自此源的全天事件",
+	"Show Timed Events": "显示定时事件",
+	"Include timed events from this source": "包含来自此源的定时事件",
+	"Authentication (Optional)": "身份验证（可选）",
+	"Authentication Type": "身份验证类型",
+	"Type of authentication required": "所需的身份验证类型",
+	"ICS Auth None": "无 ICS 身份验证",
+	"Basic Auth": "基本身份验证",
+	"Bearer Token": "Bearer 令牌",
+	"Custom Headers": "自定义标头",
+	"Text Replacements": "文本替换",
+	"Configure rules to modify event text using regular expressions":
+		"配置使用正则表达式修改事件文本的规则",
+	"No text replacement rules configured": "未配置文本替换规则",
+	Enabled: "已启用",
+	Disabled: "已禁用",
+	Target: "目标",
+	Pattern: "模式",
+	Replacement: "替换",
+	"Are you sure you want to delete this text replacement rule?":
+		"您确定要删除此文本替换规则吗？",
+	"Add Text Replacement Rule": "添加文本替换规则",
+	"ICS Username": "ICS 用户名",
+	"ICS Password": "ICS 密码",
+	"ICS Bearer Token": "ICS Bearer 令牌",
+	"JSON object with custom headers": "带有自定义标头的 JSON 对象",
+	"Holiday Configuration": "节假日配置",
+	"Configure how holiday events are detected and displayed":
+		"配置如何检测和显示节假日事件",
+	"Enable Holiday Detection": "启用节假日检测",
+	"Automatically detect and group holiday events":
+		"自动检测和分组节假日事件",
+	"Status Mapping": "状态映射",
+	"Configure how ICS events are mapped to task statuses":
+		"配置如何将 ICS 事件映射到任务状态",
+	"Enable Status Mapping": "启用状态映射",
+	"Automatically map ICS events to specific task statuses":
+		"自动将 ICS 事件映射到特定任务状态",
+	"Grouping Strategy": "分组策略",
+	"How to handle consecutive holiday events":
+		"如何处理连续的节假日事件",
+	"Show All Events": "显示所有事件",
+	"Show First Day Only": "仅显示第一天",
+	"Show Summary": "显示摘要",
+	"Show First and Last": "显示首末日",
+	"Maximum Gap Days": "最大间隔天数",
+	"Maximum days between events to consider them consecutive":
+		"认为事件连续的最大间隔天数",
+	"Show in Forecast": "在预测中显示",
+	"Whether to show holiday events in forecast view":
+		"是否在预测视图中显示节假日事件",
+	"Show in Calendar": "在日历中显示",
+	"Whether to show holiday events in calendar view":
+		"是否在日历视图中显示节假日事件",
+	"Detection Patterns": "检测模式",
+	"Summary Patterns": "摘要模式",
+	"Regex patterns to match in event titles (one per line)":
+		"在事件标题中匹配的正则表达式模式（每行一个）",
+	Keywords: "关键词",
+	"Keywords to detect in event text (one per line)":
+		"在事件文本中检测的关键词（每行一个）",
+	Categories: "类别",
+	"Event categories that indicate holidays (one per line)":
+		"表示节假日的事件类别（每行一个）",
+	"Group Display Format": "分组显示格式",
+	"Format for grouped holiday display. Use {title}, {count}, {startDate}, {endDate}":
+		"分组节假日显示格式。使用 {title}、{count}、{startDate}、{endDate}",
+	"Override ICS Status": "覆盖 ICS 状态",
+	"Override original ICS event status with mapped status":
+		"用映射状态覆盖原始 ICS 事件状态",
+	"Timing Rules": "时间规则",
+	"Past Events Status": "过去事件状态",
+	"Status for events that have already ended":
+		"已结束事件的状态",
+	"Status Incomplete": "状态未完成",
+	"Status Complete": "状态已完成",
+	"Status Cancelled": "状态已取消",
+	"Status In Progress": "状态进行中",
+	"Status Question": "状态疑问",
+	"Current Events Status": "当前事件状态",
+	"Status for events happening today": "今天发生的事件状态",
+	"Future Events Status": "未来事件状态",
+	"Status for events in the future": "未来事件的状态",
+	"Property Rules": "属性规则",
+	"Optional rules based on event properties (higher priority than timing rules)":
+		"基于事件属性的可选规则（优先级高于时间规则）",
+	"Holiday Status": "节假日状态",
+	"Status for events detected as holidays":
+		"检测为节假日的事件状态",
+	"Use timing rules": "使用时间规则",
+	"Category Mapping": "类别映射",
+	"Map specific categories to statuses (format: category:status, one per line)":
+		"将特定类别映射到状态（格式：类别:状态，每行一个）",
+	"Please enter a name for the source": "请输入源的名称",
+	"Please enter a URL for the source": "请输入源的网址",
+	"Please enter a valid URL": "请输入有效的网址",
+	"Edit Text Replacement Rule": "编辑文本替换规则",
+	"Rule Name": "规则名称",
+	"Descriptive name for this replacement rule":
+		"此替换规则的描述性名称",
+	"Remove Meeting Prefix": "移除会议前缀",
+	"Whether this rule is active": "此规则是否处于活动状态",
+	"Target Field": "目标字段",
+	"Which field to apply the replacement to":
+		"要应用替换的字段",
+	"Summary/Title": "摘要/标题",
+	Location: "位置",
+	"All Fields": "所有字段",
+	"Pattern (Regular Expression)": "模式（正则表达式）",
+	"Regular expression pattern to match. Use parentheses for capture groups.":
+		"要匹配的正则表达式模式。使用括号进行捕获组。",
+	"Text to replace matches with. Use $1, $2, etc. for capture groups.":
+		"用于替换匹配项的文本。使用 $1、$2 等表示捕获组。",
+	"Regex Flags": "正则表达式标志",
+	"Regular expression flags (e.g., 'g' for global, 'i' for case-insensitive)":
+		"正则表达式标志（例如，'g' 表示全局，'i' 表示不区分大小写）",
+	Examples: "示例",
+	"Remove prefix": "移除前缀",
+	"Replace room numbers": "替换房间号",
+	"Swap words": "交换单词",
+	"Test Rule": "测试规则",
+	"Output: ": "输出：",
+	"Test Input": "测试输入",
+	"Enter text to test the replacement rule":
+		"输入文本以测试替换规则",
+	"Please enter a name for the rule": "请输入规则名称",
+	"Please enter a pattern": "请输入模式",
+	"Invalid regular expression pattern": "无效的正则表达式模式",
+	"Enhanced Project Configuration": "增强项目配置",
+	"Configure advanced project detection and management features":
+		"配置高级项目检测和管理功能",
+	"Enable enhanced project features": "启用增强项目功能",
+	"Enable path-based, metadata-based, and config file-based project detection":
+		"启用基于路径、元数据和配置文件的项目检测",
+	"Path-based Project Mappings": "基于路径的项目映射",
+	"Configure project names based on file paths":
+		"基于文件路径配置项目名称",
+	"No path mappings configured yet.": "尚未配置路径映射。",
+	Mapping: "映射",
+	"Path pattern (e.g., Projects/Work)": "路径模式（例如，Projects/Work）",
+	"Add Path Mapping": "添加路径映射",
+	"Metadata-based Project Configuration":
+		"基于元数据的项目配置",
+	"Configure project detection from file frontmatter":
+		"配置从文件前言检测项目",
+	"Enable metadata project detection": "启用元数据项目检测",
+	"Detect project from file frontmatter metadata":
+		"从文件前言元数据检测项目",
+	"Metadata key": "元数据键",
+	"The frontmatter key to use for project name":
+		"用于项目名称的前言键",
+	"Inherit from frontmatter": "从前言继承",
+	"Inherit other metadata fields from file frontmatter":
+		"从文件前言继承其他元数据字段",
+	"Inherit from frontmatter for subtasks":
+		"为子任务从前言继承",
+	"Allow subtasks to inherit metadata from file frontmatter. When disabled, only top-level tasks inherit file metadata.":
+		"允许子任务从文件前言继承元数据。禁用时，只有顶级任务继承文件元数据。",
+	"Project Configuration File": "项目配置文件",
+	"Configure project detection from project config files":
+		"配置从项目配置文件检测项目",
+	"Enable config file project detection":
+		"启用配置文件项目检测",
+	"Detect project from project configuration files":
+		"从项目配置文件检测项目",
+	"Config file name": "配置文件名",
+	"Name of the project configuration file":
+		"项目配置文件的名称",
+	"Search recursively": "递归搜索",
+	"Search for config files in parent directories":
+		"在父目录中搜索配置文件",
+	"Metadata Mappings": "元数据映射",
+	"Configure how metadata fields are mapped and transformed":
+		"配置元数据字段如何映射和转换",
+	"No metadata mappings configured yet.":
+		"尚未配置元数据映射。",
+	"Source key (e.g., proj)": "源键（例如，proj）",
+	"Select target field": "选择目标字段",
+	"Add Metadata Mapping": "添加元数据映射",
+	"Default Project Naming": "默认项目命名",
+	"Configure fallback project naming when no explicit project is found":
+		"配置未找到明确项目时的后备项目命名",
+	"Enable default project naming": "启用默认项目命名",
+	"Use default naming strategy when no project is explicitly defined":
+		"当没有明确定义项目时使用默认命名策略",
+	"Naming strategy": "命名策略",
+	"Strategy for generating default project names":
+		"生成默认项目名称的策略",
+	"Use filename": "使用文件名",
+	"Use folder name": "使用文件夹名",
+	"Use metadata field": "使用元数据字段",
+	"Metadata field to use as project name":
+		"用作项目名称的元数据字段",
+	"Enter metadata key (e.g., project-name)":
+		"输入元数据键（例如，project-name）",
+	"Strip file extension": "去除文件扩展名",
+	"Remove file extension from filename when using as project name":
+		"用作项目名称时从文件名中移除文件扩展名",
+	"Target type": "目标类型",
+	"Choose whether to capture to a fixed file or daily note":
+		"选择是否捕获到固定文件或每日笔记",
+	"Fixed file": "固定文件",
+	"Daily note": "每日笔记",
+	"The file where captured text will be saved. You can include a path, e.g., 'folder/Quick Capture.md'. Supports date templates like {{DATE:YYYY-MM-DD}} or {{date:YYYY-MM-DD-HHmm}}":
+		"保存捕获文本的文件。您可以包含路径，例如 'folder/Quick Capture.md'。支持日期模板，如 {{DATE:YYYY-MM-DD}} 或 {{date:YYYY-MM-DD-HHmm}}",
+	"Sync with Daily Notes plugin": "与每日笔记插件同步",
+	"Automatically sync settings from the Daily Notes plugin":
+		"自动从每日笔记插件同步设置",
+	"Sync now": "立即同步",
+	"Daily notes settings synced successfully":
+		"每日笔记设置同步成功",
+	"Daily Notes plugin is not enabled": "每日笔记插件未启用",
+	"Failed to sync daily notes settings":
+		"同步每日笔记设置失败",
+	"Date format for daily notes (e.g., YYYY-MM-DD)":
+		"每日笔记的日期格式（例如，YYYY-MM-DD）",
+	"Daily note folder": "每日笔记文件夹",
+	"Folder path for daily notes (leave empty for root)":
+		"每日笔记的文件夹路径（留空表示根目录）",
+	"Daily note template": "每日笔记模板",
+	"Template file path for new daily notes (optional)":
+		"新每日笔记的模板文件路径（可选）",
+	"Target heading": "目标标题",
+	"Optional heading to append content under (leave empty to append to file)":
+		"要在其下追加内容的可选标题（留空表示追加到文件）",
+	"How to add captured content to the target location":
+		"如何将捕获的内容添加到目标位置",
+	Append: "追加",
+	Prepend: "前置",
+	Replace: "替换",
+	"Enable auto-move for completed tasks":
+		"为已完成任务启用自动移动",
+	"Automatically move completed tasks to a default file without manual selection.":
+		"自动将已完成任务移动到默认文件，无需手动选择。",
+	"Default target file": "默认目标文件",
+	"Default file to move completed tasks to (e.g., 'Archive.md')":
+		"移动已完成任务的默认文件（例如，'Archive.md'）",
+	"Default insertion mode": "默认插入模式",
+	"Where to insert completed tasks in the target file":
+		"在目标文件中插入已完成任务的位置",
+	"Default heading name": "默认标题名称",
+	"Heading name to insert tasks after (will be created if it doesn't exist)":
+		"在其后插入任务的标题名称（如果不存在将创建）",
+	"Enable auto-move for incomplete tasks":
+		"为未完成任务启用自动移动",
+	"Automatically move incomplete tasks to a default file without manual selection.":
+		"自动将未完成任务移动到默认文件，无需手动选择。",
+	"Default target file for incomplete tasks":
+		"未完成任务的默认目标文件",
+	"Default file to move incomplete tasks to (e.g., 'Backlog.md')":
+		"移动未完成任务的默认文件（例如，'Backlog.md'）",
+	"Default insertion mode for incomplete tasks":
+		"未完成任务的默认插入模式",
+	"Where to insert incomplete tasks in the target file":
+		"在目标文件中插入未完成任务的位置",
+	"Default heading name for incomplete tasks":
+		"未完成任务的默认标题名称",
+	"Heading name to insert incomplete tasks after (will be created if it doesn't exist)":
+		"在其后插入未完成任务的标题名称（如果不存在将创建）",
+	"Other settings": "其他设置",
+	"Use Task Genius icons": "使用 Task Genius 图标",
+	"Use Task Genius icons for task statuses":
+		"为任务状态使用 Task Genius 图标",
+	"Customize the prefix used for context tags in dataview format (e.g., 'context' for [context:: home]). Changes require reindexing.":
+		"自定义在 dataview 格式中用于上下文标签的前缀（例如，'context' 用于 [context:: home]）。更改需要重新索引。",
+	"Customize the prefix used for context tags (e.g., '@home' for @home). Changes require reindexing.":
+		"自定义用于上下文标签的前缀（例如，'@home' 用于 @home）。更改需要重新索引。",
+	Area: "区域",
+	"File Parsing Configuration": "文件解析配置",
+	"Configure how to extract tasks from file metadata and tags.":
+		"配置如何从文件元数据和标签中提取任务。",
+	"Enable file metadata parsing": "启用文件元数据解析",
+	"Parse tasks from file frontmatter metadata fields. When enabled, files with specific metadata fields will be treated as tasks.":
+		"从文件前言元数据字段解析任务。启用时，具有特定元数据字段的文件将被视为任务。",
+	"File metadata parsing enabled. Rebuilding task index...":
+		"文件元数据解析已启用。正在重建任务索引...",
+	"Task index rebuilt successfully": "任务索引重建成功",
+	"Failed to rebuild task index": "重建任务索引失败",
+	"Metadata fields to parse as tasks": "要解析为任务的元数据字段",
+	"Comma-separated list of metadata fields that should be treated as tasks (e.g., dueDate, todo, complete, task)":
+		"应被视为任务的元数据字段的逗号分隔列表（例如，dueDate、todo、complete、task）",
+	"Task content from metadata": "来自元数据的任务内容",
+	"Which metadata field to use as task content. If not found, will use filename.":
+		"用作任务内容的元数据字段。如果未找到，将使用文件名。",
+	"Default task status": "默认任务状态",
+	"Default status for tasks created from metadata (space for incomplete, x for complete)":
+		"从元数据创建的任务的默认状态（空格表示未完成，x 表示已完成）",
+	"Enable tag-based task parsing": "启用基于标签的任务解析",
+	"Parse tasks from file tags. When enabled, files with specific tags will be treated as tasks.":
+		"从文件标签解析任务。启用时，具有特定标签的文件将被视为任务。",
+	"Tags to parse as tasks": "要解析为任务的标签",
+	"Comma-separated list of tags that should be treated as tasks (e.g., #todo, #task, #action, #due)":
+		"应被视为任务的标签的逗号分隔列表（例如，#todo、#task、#action、#due）",
+	"Enable worker processing": "启用工作线程处理",
+	"Use background worker for file parsing to improve performance. Recommended for large vaults.":
+		"使用后台工作线程进行文件解析以提高性能。推荐用于大型库。",
+	"What do you want to do today?": "您今天想做什么？",
+	"More options": "更多选项",
+	"Hide weekends": "隐藏周末",
+	"Hide weekend columns (Saturday and Sunday) in calendar views.":
+		"在日历视图中隐藏周末列（周六和周日）。",
+	"Hide weekend columns (Saturday and Sunday) in forecast calendar.":
+		"在预测日历中隐藏周末列（周六和周日）。",
+	Repeatable: "可重复",
+	Final: "最终",
+	Sequential: "顺序",
+	"Current: ": "当前：",
+	completed: "已完成",
+	"Convert to workflow template": "转换为工作流模板",
+	"Start workflow here": "在此开始工作流",
+	"Create quick workflow": "创建快速工作流",
+	"Workflow not found": "未找到工作流",
+	"Stage not found": "未找到阶段",
+	"Current stage": "当前阶段",
+	Type: "类型",
+	Next: "下一个",
+	"Auto-move completed subtasks to default file":
+		"自动将已完成的子任务移动到默认文件",
+	"Auto-move direct completed subtasks to default file":
+		"自动将直接已完成的子任务移动到默认文件",
+	"Auto-move all subtasks to default file":
+		"自动将所有子任务移动到默认文件",
+	"Auto-move incomplete subtasks to default file":
+		"自动将未完成的子任务移动到默认文件",
+	"Auto-move direct incomplete subtasks to default file":
+		"自动将直接未完成的子任务移动到默认文件",
+	"Convert task to workflow template": "将任务转换为工作流模板",
+	"Convert current task to workflow root":
+		"将当前任务转换为工作流根",
+	"Duplicate workflow": "复制工作流",
+	"Workflow quick actions": "工作流快速操作",
+	"Workflow generated from task structure":
+		"从任务结构生成的工作流",
+	"Workflow based on existing pattern": "基于现有模式的工作流",
 };
 
 export default translations;
