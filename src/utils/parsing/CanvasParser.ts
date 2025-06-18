@@ -11,7 +11,7 @@ import {
     AllCanvasNodeData
 } from "../../types/canvas";
 import { MarkdownTaskParser } from "../workers/ConfigurableTaskParser";
-import { TaskParserConfig } from "../../common/task-parser-config";
+import { TaskParserConfig } from "../../types/TaskParserConfig";
 
 /**
  * Default options for canvas parsing

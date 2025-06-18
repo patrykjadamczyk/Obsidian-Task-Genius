@@ -183,7 +183,7 @@ describe('Canvas File Monitoring', () => {
             // Verify that the modify event was triggered
             expect(modifyEventTriggered).toBe(true);
             expect(lastModifiedFile).toBeTruthy();
-            expect(lastModifiedFile?.path).toBe('test.canvas');
+            expect((lastModifiedFile as any).path).toBe('test.canvas');
         });
 
         it('should trigger create event when new Canvas file is created', () => {
