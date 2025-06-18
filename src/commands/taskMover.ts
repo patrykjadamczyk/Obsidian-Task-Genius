@@ -13,6 +13,7 @@ import {
 import TaskProgressBarPlugin from "../index";
 import { buildIndentString } from "../utils";
 import { t } from "../translations/helper";
+import { isSupportedFile } from "../utils/fileTypeUtils";
 
 /**
  * Modal for selecting a target file to move tasks to
@@ -39,11 +40,12 @@ export class FileSelectionModal extends FuzzySuggestModal<TFile | string> {
 	}
 
 	getItems(): (TFile | string)[] {
-		// Get all markdown files
-		const files = this.app.vault.getMarkdownFiles();
+		// Get all supported files (markdown and canvas)
+		const allFiles = this.app.vault.getFiles();
+		const supportedFiles = allFiles.filter(file => isSupportedFile(file));
 
 		// Filter out the current file
-		const filteredFiles = files.filter(
+		const filteredFiles = supportedFiles.filter(
 			(file) => file.path !== this.currentFile.path
 		);
 
@@ -545,16 +547,23 @@ export function moveTaskCommand(
 	const currentFile = ctx.file;
 
 	if (checking) {
-		// If checking, return true if we're in a markdown file and cursor is on a task line
-		if (!currentFile || currentFile.extension !== "md") {
+		// If checking, return true if we're in a supported file and cursor is on a task line
+		if (!currentFile || !isSupportedFile(currentFile)) {
 			return false;
 		}
 
-		const cursor = editor.getCursor();
-		const line = editor.getLine(cursor.line);
+		// For markdown files, check if cursor is on a task line
+		if (currentFile.extension === "md") {
+			const cursor = editor.getCursor();
+			const line = editor.getLine(cursor.line);
 
-		// Check if line is a task with any of the supported list markers (-, 1., *)
-		return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
+			// Check if line is a task with any of the supported list markers (-, 1., *)
+			return line.match(/^\s*(-|\d+\.|\*) \[(.)\]/i) !== null;
+		}
+
+		// For canvas files, we don't support direct editing yet
+		// This command is primarily for markdown files
+		return false;
 	}
 
 	// Execute the command

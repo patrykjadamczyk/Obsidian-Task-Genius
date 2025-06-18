@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {
+      "id": "f45be18f3f651ff7",
+      "type": "text",
+      "text": "- [ ] Task In Canvas",
+      "collapsed": true,
+      "x": -300,
+      "y": -220,
+      "width": 250,
+      "height": 140
+    }
+  ],
+  "edges": []
+}

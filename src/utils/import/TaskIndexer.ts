@@ -20,6 +20,7 @@ import {
 	TaskFilter,
 	TaskIndexer as TaskIndexerInterface,
 } from "../../types/task";
+import { isSupportedFile } from "../fileTypeUtils";
 
 /**
  * Utility to format a date for index keys (YYYY-MM-DD)
@@ -92,7 +93,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		// Watch for file modifications
 		this.registerEvent(
 			this.vault.on("modify", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.queueFileForIndexing(file);
 				}
 			})
@@ -101,7 +102,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		// Watch for file deletions
 		this.registerEvent(
 			this.vault.on("delete", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.removeFileFromIndex(file);
 				}
 			})
@@ -110,7 +111,7 @@ export class TaskIndexer extends Component implements TaskIndexerInterface {
 		// Watch for new files
 		this.registerEvent(
 			this.vault.on("create", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.queueFileForIndexing(file);
 				}
 			})
