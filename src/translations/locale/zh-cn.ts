@@ -1280,6 +1280,7 @@ const translations = {
 	"No events to display": "没有事件可显示",
 	"Go to task": "转到任务",
 	"What's on your mind?": "你在想什么？",
+	to: "到",
 };
 
 export default translations;

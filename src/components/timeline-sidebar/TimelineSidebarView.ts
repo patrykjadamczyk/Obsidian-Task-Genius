@@ -7,6 +7,7 @@ import {
 	debounce,
 	ButtonComponent,
 	Platform,
+	TFile,
 } from "obsidian";
 import { Task } from "../../types/task";
 import { t } from "../../translations/helper";
@@ -152,10 +153,15 @@ export class TimelineSidebarView extends ItemView {
 			"timeline-quick-input"
 		);
 
-		// Input header
+		// Input header with target info
 		const inputHeaderEl =
 			this.quickInputContainerEl.createDiv("quick-input-header");
-		inputHeaderEl.setText(t("Quick Capture"));
+
+		const headerTitle = inputHeaderEl.createDiv("quick-input-title");
+		headerTitle.setText(t("Quick Capture"));
+
+		const targetInfo = inputHeaderEl.createDiv("quick-input-target-info");
+		this.updateTargetInfo(targetInfo);
 
 		// Editor container
 		const editorContainer =
@@ -379,9 +385,23 @@ export class TimelineSidebarView extends ItemView {
 			});
 		}
 
-		// Event text
+		// Event text with icon
 		const textEl = contentEl.createDiv("timeline-event-text");
-		textEl.setText(event.content);
+
+		// Add icon based on event type
+		const iconEl = textEl.createSpan("timeline-event-icon");
+		if (event.task) {
+			if (event.task.completed) {
+				iconEl.setText("✅");
+			} else {
+				iconEl.setText("📝");
+			}
+		} else {
+			iconEl.setText("📅");
+		}
+
+		const contentSpan = textEl.createSpan("timeline-event-content-text");
+		contentSpan.setText(event.content);
 
 		// Event actions
 		const actionsEl = eventEl.createDiv("timeline-event-actions");
@@ -406,19 +426,34 @@ export class TimelineSidebarView extends ItemView {
 
 	private async goToTask(task: Task): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(task.filePath);
-		if (file) {
-			const leaf = this.app.workspace.getLeaf(false);
-			await leaf.openFile(file as any);
+		if (!(file instanceof TFile)) return;
 
-			// Try to navigate to the specific line
-			const view = leaf.view;
-			if (view && "editor" in view && view.editor) {
-				const editor = view.editor as any;
-				if (editor.setCursor && task.line !== undefined) {
-					editor.setCursor(task.line, 0);
-				}
-			}
+		// Check if it's a canvas file
+		if ((task.metadata as any).sourceType === "canvas") {
+			// For canvas files, open directly
+			const leaf = this.app.workspace.getLeaf("tab");
+			await leaf.openFile(file);
+			this.app.workspace.setActiveLeaf(leaf, { focus: true });
+			return;
 		}
+
+		// For markdown files, prefer activating existing leaf if file is open
+		const existingLeaf = this.app.workspace
+			.getLeavesOfType("markdown")
+			.find(
+				(leaf) => (leaf.view as any).file === file // Type assertion needed here
+			);
+
+		const leafToUse = existingLeaf || this.app.workspace.getLeaf("tab"); // Open in new tab if not open
+
+		await leafToUse.openFile(file, {
+			active: true, // Ensure the leaf becomes active
+			eState: {
+				line: task.line,
+			},
+		});
+		// Focus the editor after opening
+		this.app.workspace.setActiveLeaf(leafToUse, { focus: true });
 	}
 
 	private async handleQuickCapture(): Promise<void> {
@@ -460,7 +495,10 @@ export class TimelineSidebarView extends ItemView {
 	}
 
 	private toggleFocusMode(): void {
-		this.timelineContainerEl.toggleClass("focus-mode", true);
+		this.timelineContainerEl.toggleClass(
+			"focus-mode",
+			!this.timelineContainerEl.hasClass("focus-mode")
+		);
 		// In focus mode, only show today's events
 		// Implementation depends on specific requirements
 	}
@@ -508,5 +546,32 @@ export class TimelineSidebarView extends ItemView {
 		if (!taskManager) return;
 
 		await taskManager.updateTask(updatedTask);
+	}
+
+	private updateTargetInfo(targetInfoEl: HTMLElement): void {
+		targetInfoEl.empty();
+
+		const settings = this.plugin.settings.quickCapture;
+		let targetText = "";
+
+		if (settings.targetType === "daily-note") {
+			const dateStr = moment().format(settings.dailyNoteSettings.format);
+			const fileName = `${dateStr}.md`;
+			const fullPath = settings.dailyNoteSettings.folder
+				? `${settings.dailyNoteSettings.folder}/${fileName}`
+				: fileName;
+			targetText = `${t("to")} ${fullPath}`;
+		} else {
+			targetText = `${t("to")} ${
+				settings.targetFile || "Quick Capture.md"
+			}`;
+		}
+
+		if (settings.targetHeading) {
+			targetText += ` → ${settings.targetHeading}`;
+		}
+
+		targetInfoEl.setText(targetText);
+		targetInfoEl.setAttribute("title", targetText);
 	}
 }
