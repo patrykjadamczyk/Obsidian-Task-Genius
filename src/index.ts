@@ -77,6 +77,10 @@ import "./styles/view-config.css";
 import "./styles/task-status.css";
 import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
+import {
+	TimelineSidebarView,
+	TIMELINE_SIDEBAR_VIEW_TYPE,
+} from "./components/timeline-sidebar/TimelineSidebarView";
 import { getStatusIcon, getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
@@ -355,6 +359,12 @@ export default class TaskProgressBarPlugin extends Plugin {
 					(leaf) => new TaskSpecificView(leaf, this)
 				);
 
+				// Register the Timeline Sidebar View
+				this.registerView(
+					TIMELINE_SIDEBAR_VIEW_TYPE,
+					(leaf) => new TimelineSidebarView(leaf, this)
+				);
+
 				// Add a ribbon icon for opening the TaskView
 				this.addRibbonIcon(
 					"task-genius",
@@ -369,6 +379,15 @@ export default class TaskProgressBarPlugin extends Plugin {
 					name: t("Open Task Genius view"),
 					callback: () => {
 						this.activateTaskView();
+					},
+				});
+
+				// Add a command to open the Timeline Sidebar View
+				this.addCommand({
+					id: "open-timeline-sidebar-view",
+					name: t("Open Timeline Sidebar"),
+					callback: () => {
+						this.activateTimelineSidebarView();
 					},
 				});
 			}
@@ -390,6 +409,22 @@ export default class TaskProgressBarPlugin extends Plugin {
 				this.icsManager.initialize().catch((error) => {
 					console.error("Failed to initialize ICS manager:", error);
 				});
+			}
+
+			// Auto-open timeline sidebar if enabled
+			if (
+				this.settings.timelineSidebar.enableTimelineSidebar &&
+				this.settings.timelineSidebar.autoOpenOnStartup
+			) {
+				// Delay opening to ensure workspace is ready
+				setTimeout(() => {
+					this.activateTimelineSidebarView().catch((error) => {
+						console.error(
+							"Failed to auto-open timeline sidebar:",
+							error
+						);
+					});
+				}, 1000);
 			}
 		});
 
@@ -1024,6 +1059,28 @@ export default class TaskProgressBarPlugin extends Plugin {
 		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: TASK_VIEW_TYPE });
 		workspace.revealLeaf(leaf);
+	}
+
+	async activateTimelineSidebarView() {
+		const { workspace } = this.app;
+
+		// Check if view is already open
+		const existingLeaf = workspace.getLeavesOfType(
+			TIMELINE_SIDEBAR_VIEW_TYPE
+		)[0];
+
+		if (existingLeaf) {
+			// If view is already open, just reveal it
+			workspace.revealLeaf(existingLeaf);
+			return;
+		}
+
+		// Open in the right sidebar
+		const leaf = workspace.getRightLeaf(false);
+		if (leaf) {
+			await leaf.setViewState({ type: TIMELINE_SIDEBAR_VIEW_TYPE });
+			workspace.revealLeaf(leaf);
+		}
 	}
 
 	async triggerViewUpdate() {

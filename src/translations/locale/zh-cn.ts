@@ -401,24 +401,24 @@ const translations = {
 	"Views & Index": "视图与索引",
 	"Progress Display": "进度显示",
 	"Task Management": "任务管理",
-	"Workflows": "工作流",
+	Workflows: "工作流",
 	"Dates & Priority": "日期与优先级",
 	"Quick Capture": "快速捕获",
-	"Rewards": "奖励",
-	"Habits": "习惯",
+	Rewards: "奖励",
+	Habits: "习惯",
 	"Calendar Sync": "日历同步",
 	"Beta Features": "测试功能",
-	"Projects": "项目",
+	Projects: "项目",
 	About: "关于",
 
 	// Category names
 	"Core Settings": "核心设置",
 	"Display & Progress": "显示与进度",
 	"Workflow & Automation": "工作流与自动化",
-	"Gamification": "游戏化",
-	"Integration": "集成",
-	"Advanced": "高级",
-	"Information": "信息",
+	Gamification: "游戏化",
+	Integration: "集成",
+	Advanced: "高级",
+	Information: "信息",
 	"Count sub children of current Task": "计算当前任务的子任务",
 	"Toggle this to allow this plugin to count sub tasks when generating progress bar\t.":
 		"切换此选项以允许此插件在生成进度条时计算子任务。",
@@ -1252,6 +1252,34 @@ const translations = {
 	"Start workflow": "开始工作流",
 	"Complete substage and move to": "完成子阶段并移动到",
 	Continue: "继续",
+
+	// Timeline Sidebar translations
+	Timeline: "时间轴",
+	"Timeline Sidebar": "时间轴侧边栏",
+	"Open Timeline Sidebar": "打开时间轴侧边栏",
+	"Enable Timeline Sidebar": "启用时间轴侧边栏",
+	"Toggle this to enable the timeline sidebar view for quick access to your daily events and tasks.":
+		"切换此选项以启用时间轴侧边栏视图，快速访问您的日常事件和任务。",
+	"Auto-open on startup": "启动时自动打开",
+	"Automatically open the timeline sidebar when Obsidian starts.":
+		"在 Obsidian 启动时自动打开时间轴侧边栏。",
+	"Show completed tasks": "显示已完成任务",
+	"Include completed tasks in the timeline view. When disabled, only incomplete tasks will be shown.":
+		"在时间轴视图中包含已完成的任务。禁用时，只显示未完成的任务。",
+	"Focus mode by default": "默认聚焦模式",
+	"Enable focus mode by default, which highlights today's events and dims past/future events.":
+		"默认启用聚焦模式，突出显示今天的事件并淡化过去/未来的事件。",
+	"Maximum events to show": "最大显示事件数",
+	"Maximum number of events to display in the timeline. Higher numbers may affect performance.":
+		"时间轴中显示的最大事件数。数字越高可能会影响性能。",
+	"Open Timeline": "打开时间轴",
+	"Click to open the timeline sidebar view.": "点击打开时间轴侧边栏视图。",
+	"Timeline sidebar opened": "时间轴侧边栏已打开",
+	"Go to today": "转到今天",
+	"Focus on today": "聚焦今天",
+	"No events to display": "没有事件可显示",
+	"Go to task": "转到任务",
+	"What's on your mind?": "你在想什么？",
 };
 
 export default translations;

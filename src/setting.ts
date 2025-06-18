@@ -19,6 +19,7 @@ import {
 	renderViewSettingsTab,
 	renderProjectSettingsTab,
 	renderRewardSettingsTab,
+	renderTimelineSidebarSettingsTab,
 	IcsSettingsComponent,
 } from "./components/settings";
 
@@ -101,6 +102,12 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			icon: "zap",
 			category: "workflow",
 		},
+		{
+			id: "timeline-sidebar",
+			name: t("Timeline Sidebar"),
+			icon: "clock",
+			category: "workflow",
+		},
 
 		// Gamification
 		{
@@ -142,7 +149,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const plugin = this.plugin;
 		this.applyDebounceTimer = window.setTimeout(async () => {
 			await plugin.saveSettings();
-			
+
 			// Update TaskManager parsing configuration if it exists
 			if (plugin.taskManager) {
 				plugin.taskManager.updateParsingConfiguration();
@@ -393,6 +400,11 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 		const quickCaptureSection = this.createTabSection("quick-capture");
 		this.displayQuickCaptureSettings(quickCaptureSection);
 
+		// Timeline Sidebar Tab
+		const timelineSidebarSection =
+			this.createTabSection("timeline-sidebar");
+		this.displayTimelineSidebarSettings(timelineSidebarSection);
+
 		// Workflow Tab
 		const workflowSection = this.createTabSection("workflow");
 		this.displayWorkflowSettings(workflowSection);
@@ -457,6 +469,10 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	private displayQuickCaptureSettings(containerEl: HTMLElement): void {
 		renderQuickCaptureSettingsTab(this, containerEl);
+	}
+
+	private displayTimelineSidebarSettings(containerEl: HTMLElement): void {
+		renderTimelineSidebarSettingsTab(this, containerEl);
 	}
 
 	private displayTaskHandlerSettings(containerEl: HTMLElement): void {
