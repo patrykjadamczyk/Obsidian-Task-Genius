@@ -139,7 +139,8 @@ export class TimelineSidebarView extends ItemView {
 		setIcon(refreshBtn, "refresh-cw");
 		refreshBtn.setAttribute("aria-label", t("Refresh"));
 		this.registerDomEvent(refreshBtn, "click", () => {
-			this.loadEvents().then(() => this.renderTimeline());
+			this.loadEvents();
+			this.renderTimeline();
 		});
 
 		// Focus mode toggle
@@ -235,9 +236,9 @@ export class TimelineSidebarView extends ItemView {
 		});
 	}
 
-	private async loadEvents(): Promise<void> {
+	private loadEvents(): void {
 		// Get tasks from the plugin's task manager
-		const allTasks = await this.plugin.taskManager.getAllTasks();
+		const allTasks = this.plugin.taskManager.getAllTasks();
 
 		this.events = [];
 
