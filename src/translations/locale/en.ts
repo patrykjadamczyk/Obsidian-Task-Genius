@@ -1620,6 +1620,36 @@ const translations = {
 		"Auto-move incomplete subtasks to default file",
 	"Auto-move direct incomplete subtasks to default file":
 		"Auto-move direct incomplete subtasks to default file",
+
+	// Timeline Sidebar translations
+	Timeline: "Timeline",
+	"Timeline Sidebar": "Timeline Sidebar",
+	"Open Timeline Sidebar": "Open Timeline Sidebar",
+	"Enable Timeline Sidebar": "Enable Timeline Sidebar",
+	"Toggle this to enable the timeline sidebar view for quick access to your daily events and tasks.":
+		"Toggle this to enable the timeline sidebar view for quick access to your daily events and tasks.",
+	"Auto-open on startup": "Auto-open on startup",
+	"Automatically open the timeline sidebar when Obsidian starts.":
+		"Automatically open the timeline sidebar when Obsidian starts.",
+	"Show completed tasks": "Show completed tasks",
+	"Include completed tasks in the timeline view. When disabled, only incomplete tasks will be shown.":
+		"Include completed tasks in the timeline view. When disabled, only incomplete tasks will be shown.",
+	"Focus mode by default": "Focus mode by default",
+	"Enable focus mode by default, which highlights today's events and dims past/future events.":
+		"Enable focus mode by default, which highlights today's events and dims past/future events.",
+	"Maximum events to show": "Maximum events to show",
+	"Maximum number of events to display in the timeline. Higher numbers may affect performance.":
+		"Maximum number of events to display in the timeline. Higher numbers may affect performance.",
+	"Open Timeline": "Open Timeline",
+	"Click to open the timeline sidebar view.":
+		"Click to open the timeline sidebar view.",
+	"Timeline sidebar opened": "Timeline sidebar opened",
+	"Go to today": "Go to today",
+	"Focus on today": "Focus on today",
+	"No events to display": "No events to display",
+	"Go to task": "Go to task",
+	"What's on your mind?": "What's on your mind?",
+	to: "to",
 };
 
 export default translations;
