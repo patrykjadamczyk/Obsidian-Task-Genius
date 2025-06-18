@@ -2,54 +2,54 @@ import { moment } from "obsidian";
 import type { Translation, TranslationKey, TranslationOptions } from "./types";
 
 // Import all locale files
-import ar from "./locale/ar";
-import cz from "./locale/cz";
-import da from "./locale/da";
-import de from "./locale/de";
+// import ar from "./locale/ar";
+// import cz from "./locale/cz";
+// import da from "./locale/da";
+// import de from "./locale/de";
 import en from "./locale/en";
 import enGB from "./locale/en-gb";
-import es from "./locale/es";
-import fr from "./locale/fr";
-import hi from "./locale/hi";
-import id from "./locale/id";
-import it from "./locale/it";
+// import es from "./locale/es";
+// import fr from "./locale/fr";
+// import hi from "./locale/hi";
+// import id from "./locale/id";
+// import it from "./locale/it";
 import ja from "./locale/ja";
-import ko from "./locale/ko";
-import nl from "./locale/nl";
-import no from "./locale/no";
-import pl from "./locale/pl";
-import pt from "./locale/pt";
+// import ko from "./locale/ko";
+// import nl from "./locale/nl";
+// import no from "./locale/no";
+// import pl from "./locale/pl";
+// import pt from "./locale/pt";
 import ptBR from "./locale/pt-br";
-import ro from "./locale/ro";
+// import ro from "./locale/ro";
 import ru from "./locale/ru";
 import uk from "./locale/uk";
-import tr from "./locale/tr";
+// import tr from "./locale/tr";
 import zhCN from "./locale/zh-cn";
 import zhTW from "./locale/zh-tw";
 
 // Define supported locales map
 const SUPPORTED_LOCALES = {
-	ar,
-	cs: cz,
-	da,
-	de,
+	// ar,
+	// cs: cz,
+	// da,
+	// de,
 	en,
 	"en-gb": enGB,
-	es,
-	fr,
-	hi,
-	id,
-	it,
+	// es,
+	// fr,
+	// hi,
+	// id,
+	// it,
 	ja,
-	ko,
-	nl,
-	nn: no,
-	pl,
-	pt,
+	// ko,
+	// // nl,
+	// // nn: no,
+	// // pl,
+	// // pt,
 	"pt-br": ptBR,
-	ro,
+	// ro,
 	ru,
-	tr,
+	// tr,
 	uk,
 	"zh-cn": zhCN,
 	"zh-tw": zhTW,
