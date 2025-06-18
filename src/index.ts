@@ -1084,12 +1084,26 @@ export default class TaskProgressBarPlugin extends Plugin {
 	}
 
 	async triggerViewUpdate() {
-		const leaves = this.app.workspace.getLeavesOfType(TASK_VIEW_TYPE);
-		if (leaves.length > 0) {
-			for (const leaf of leaves) {
+		// Update Task Views
+		const taskViewLeaves =
+			this.app.workspace.getLeavesOfType(TASK_VIEW_TYPE);
+		if (taskViewLeaves.length > 0) {
+			for (const leaf of taskViewLeaves) {
 				if (leaf.view instanceof TaskView) {
 					leaf.view.tasks = this.preloadedTasks;
 					leaf.view.triggerViewUpdate();
+				}
+			}
+		}
+
+		// Update Timeline Sidebar Views
+		const timelineViewLeaves = this.app.workspace.getLeavesOfType(
+			TIMELINE_SIDEBAR_VIEW_TYPE
+		);
+		if (timelineViewLeaves.length > 0) {
+			for (const leaf of timelineViewLeaves) {
+				if (leaf.view instanceof TimelineSidebarView) {
+					await leaf.view.triggerViewUpdate();
 				}
 			}
 		}

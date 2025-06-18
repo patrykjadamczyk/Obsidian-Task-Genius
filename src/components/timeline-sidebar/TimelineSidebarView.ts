@@ -19,6 +19,8 @@ import {
 } from "../../editor-ext/markdownEditor";
 import { saveCapture } from "../../utils/fileUtils";
 import "../../styles/timeline-sidebar.css";
+import { createTaskCheckbox } from "../task-view/details";
+import { MarkdownRendererComponent } from "../MarkdownRenderer";
 
 export const TIMELINE_SIDEBAR_VIEW_TYPE = "timeline-sidebar-view";
 
@@ -173,7 +175,7 @@ export class TimelineSidebarView extends ItemView {
 				this.app,
 				editorContainer,
 				{
-					placeholder: t("What's on your mind?"),
+					placeholder: t("What do you want to do today?"),
 					onEnter: (editor, mod, shift) => {
 						if (mod) {
 							// Submit on Cmd/Ctrl+Enter
@@ -226,8 +228,15 @@ export class TimelineSidebarView extends ItemView {
 
 		this.events = [];
 
+		// Filter tasks based on showCompletedTasks setting
+		const shouldShowCompletedTasks =
+			this.plugin.settings.timelineSidebar.showCompletedTasks;
+		const filteredTasks = shouldShowCompletedTasks
+			? allTasks
+			: allTasks.filter((task) => !task.completed);
+
 		// Convert tasks to timeline events
-		allTasks.forEach((task) => {
+		filteredTasks.forEach((task) => {
 			const dates = this.extractDatesFromTask(task);
 			dates.forEach(({ date, type }) => {
 				const event: TimelineEvent = {
@@ -371,37 +380,62 @@ export class TimelineSidebarView extends ItemView {
 		// Task checkbox if it's a task
 		if (event.task) {
 			const checkboxEl = contentEl.createDiv("timeline-event-checkbox");
-			const checkbox = checkboxEl.createEl("input", {
-				type: "checkbox",
-				cls: "task-list-item-checkbox",
-			});
-			checkbox.checked = event.task.completed;
-
-			this.registerDomEvent(checkbox, "change", async () => {
-				if (event.task) {
-					await this.toggleTaskCompletion(event.task);
-					this.debouncedRender();
+			checkboxEl.createEl(
+				"span",
+				{
+					cls: "status-option-checkbox",
+				},
+				(el) => {
+					const checkbox = createTaskCheckbox(
+						event.task?.status || " ",
+						event.task!,
+						el
+					);
+					this.registerDomEvent(checkbox, "change", async () => {
+						if (event.task) {
+							await this.toggleTaskCompletion(event.task);
+							this.debouncedRender();
+						}
+					});
 				}
-			});
+			);
 		}
 
-		// Event text with icon
+		// Event text with markdown rendering
 		const textEl = contentEl.createDiv("timeline-event-text");
 
-		// Add icon based on event type
-		const iconEl = textEl.createSpan("timeline-event-icon");
-		if (event.task) {
-			if (event.task.completed) {
-				iconEl.setText("✅");
-			} else {
-				iconEl.setText("📝");
-			}
-		} else {
-			iconEl.setText("📅");
-		}
+		const contentContainer = textEl.createDiv(
+			"timeline-event-content-text"
+		);
 
-		const contentSpan = textEl.createSpan("timeline-event-content-text");
-		contentSpan.setText(event.content);
+		// Use MarkdownRendererComponent to render the task content
+		if (event.task) {
+			const markdownRenderer = new MarkdownRendererComponent(
+				this.app,
+				contentContainer,
+				event.task.filePath,
+				true // hideMarks = true to clean up task metadata
+			);
+			this.addChild(markdownRenderer);
+
+			// Set the file context if available
+			const file = this.app.vault.getAbstractFileByPath(
+				event.task.filePath
+			);
+			if (file instanceof TFile) {
+				markdownRenderer.setFile(file);
+			}
+
+			// Render the content asynchronously
+			markdownRenderer.render(event.content, true).catch((error) => {
+				console.error("Failed to render markdown in timeline:", error);
+				// Fallback to plain text if rendering fails
+				contentContainer.setText(event.content);
+			});
+		} else {
+			// Fallback for non-task events
+			contentContainer.setText(event.content);
+		}
 
 		// Event actions
 		const actionsEl = eventEl.createDiv("timeline-event-actions");
@@ -573,5 +607,11 @@ export class TimelineSidebarView extends ItemView {
 
 		targetInfoEl.setText(targetText);
 		targetInfoEl.setAttribute("title", targetText);
+	}
+
+	// Method to trigger view update (called when settings change)
+	public async triggerViewUpdate(): Promise<void> {
+		await this.loadEvents();
+		this.renderTimeline();
 	}
 }
