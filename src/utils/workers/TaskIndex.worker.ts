@@ -20,6 +20,8 @@ import {
 	FileTaskParsingResult,
 } from "./FileMetadataTaskParser";
 import { FileParsingConfiguration } from "../../common/setting-definition";
+import { CanvasParser } from "../parsing/CanvasParser";
+import { SupportedFileType } from "../fileTypeUtils";
 
 /**
  * Enhanced task parsing using configurable parser
@@ -225,11 +227,12 @@ function extractDateFromPath(
 }
 
 /**
- * Process a single file using the configurable parser
+ * Process a single file using the appropriate parser based on file type
  */
 function processFile(
 	filePath: string,
 	content: string,
+	fileExtension: string,
 	stats: FileStats,
 	settings: TaskWorkerSettings,
 	metadata?: { fileCache?: any }
@@ -242,16 +245,31 @@ function processFile(
 			fileMetadata = metadata.fileCache.frontmatter;
 		}
 
-		// Use the configurable parser
-		let tasks = parseTasksWithConfigurableParser(
-			filePath,
-			content,
-			settings,
-			fileMetadata
-		);
+		// Use the appropriate parser based on file type
+		let tasks: Task[] = [];
 
-		// Add file metadata tasks if file parsing is enabled
+		if (fileExtension === SupportedFileType.CANVAS) {
+			// Use canvas parser for .canvas files
+			const canvasParser = new CanvasParser(getConfig(settings.preferMetadataFormat));
+			tasks = canvasParser.parseCanvasFile(content, filePath);
+		} else if (fileExtension === SupportedFileType.MARKDOWN) {
+			// Use configurable parser for .md files
+			tasks = parseTasksWithConfigurableParser(
+				filePath,
+				content,
+				settings,
+				fileMetadata
+			);
+		} else {
+			// Unsupported file type
+			console.warn(`Worker: Unsupported file type: ${fileExtension} for file: ${filePath}`);
+			tasks = [];
+		}
+
+		// Add file metadata tasks if file parsing is enabled and file type supports it
+		// Only apply file metadata parsing to Markdown files, not Canvas files
 		if (
+			fileExtension === SupportedFileType.MARKDOWN &&
 			settings.fileParsingConfig &&
 			(settings.fileParsingConfig.enableFileMetadataParsing ||
 				settings.fileParsingConfig.enableTagBasedTaskParsing)
@@ -352,6 +370,7 @@ function processBatch(
 	files: {
 		path: string;
 		content: string;
+		extension: string;
 		stats: FileStats;
 		metadata?: { fileCache?: any };
 	}[],
@@ -367,6 +386,7 @@ function processBatch(
 			const parseResult = processFile(
 				file.path,
 				file.content,
+				file.extension,
 				file.stats,
 				settings,
 				file.metadata
@@ -421,6 +441,7 @@ self.onmessage = async (event) => {
 				const result = processFile(
 					message.filePath,
 					message.content,
+					message.fileExtension,
 					message.stats,
 					settings,
 					message.metadata

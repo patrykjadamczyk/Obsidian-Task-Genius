@@ -540,6 +540,7 @@ export class TaskWorkerManager extends Component {
 						type: "parseTasks",
 						filePath: file.path,
 						content: metadata.content,
+						fileExtension: file.extension,
 						stats: metadata.stats,
 						metadata: {
 							listItems: metadata.listItems || [],

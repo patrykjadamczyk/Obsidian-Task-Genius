@@ -17,6 +17,8 @@ export interface ParseTasksCommand {
 	filePath: string;
 	/** The file contents to parse */
 	content: string;
+	/** File extension to determine parser type */
+	fileExtension: string;
 	/** File stats information */
 	stats: FileStats;
 	/** Additional metadata from Obsidian cache */
@@ -51,6 +53,8 @@ export interface BatchIndexCommand {
 		path: string;
 		/** The file content */
 		content: string;
+		/** File extension to determine parser type */
+		extension: string;
 		/** File stats */
 		stats: FileStats;
 		/** Optional metadata */

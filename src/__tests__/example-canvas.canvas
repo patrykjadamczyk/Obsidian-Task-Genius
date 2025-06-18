@@ -1,0 +1,103 @@
+{
+  "nodes": [
+    {
+      "id": "project-planning",
+      "type": "text",
+      "text": "# Project Planning\n\n## Initial Setup\n- [ ] Define project scope\n- [ ] Set up development environment\n- [x] Create project repository\n- [ ] Configure CI/CD pipeline\n\n## Research Phase\n- [ ] Market research\n- [ ] Competitor analysis\n- [ ] Technology stack evaluation",
+      "x": 100,
+      "y": 100,
+      "width": 350,
+      "height": 280,
+      "color": "1"
+    },
+    {
+      "id": "development-tasks",
+      "type": "text", 
+      "text": "# Development Tasks\n\n## Frontend\n- [ ] Design user interface mockups\n- [ ] Implement responsive layout\n- [ ] Add user authentication\n- [ ] Create dashboard components\n\n## Backend\n- [ ] Set up database schema\n- [ ] Implement REST API\n- [ ] Add data validation\n- [ ] Configure security middleware",
+      "x": 500,
+      "y": 100,
+      "width": 350,
+      "height": 280,
+      "color": "2"
+    },
+    {
+      "id": "testing-qa",
+      "type": "text",
+      "text": "# Testing & QA\n\n## Unit Testing\n- [ ] Write component tests\n- [ ] API endpoint tests\n- [ ] Database integration tests\n\n## Integration Testing\n- [ ] End-to-end testing\n- [ ] Performance testing\n- [ ] Security testing\n\n## Quality Assurance\n- [ ] Code review process\n- [ ] Documentation review\n- [ ] User acceptance testing",
+      "x": 100,
+      "y": 420,
+      "width": 350,
+      "height": 300,
+      "color": "3"
+    },
+    {
+      "id": "deployment",
+      "type": "text",
+      "text": "# Deployment & Maintenance\n\n## Deployment\n- [ ] Set up production environment\n- [ ] Configure monitoring\n- [ ] Deploy application\n- [ ] Verify deployment\n\n## Post-Launch\n- [ ] Monitor performance\n- [ ] Gather user feedback\n- [ ] Bug fixes and improvements\n- [ ] Feature enhancements",
+      "x": 500,
+      "y": 420,
+      "width": 350,
+      "height": 300,
+      "color": "4"
+    },
+    {
+      "id": "project-notes",
+      "type": "file",
+      "file": "project-notes.md",
+      "x": 900,
+      "y": 100,
+      "width": 200,
+      "height": 150
+    },
+    {
+      "id": "meeting-notes",
+      "type": "text",
+      "text": "# Meeting Notes\n\n## Daily Standup - 2024-01-15\n- [x] Discussed project progress\n- [ ] Review sprint goals\n- [ ] Address blockers\n\n## Sprint Planning\n- [ ] Estimate story points\n- [ ] Assign tasks to team members\n- [ ] Set sprint timeline",
+      "x": 900,
+      "y": 280,
+      "width": 300,
+      "height": 250,
+      "color": "5"
+    },
+    {
+      "id": "external-link",
+      "type": "link",
+      "url": "https://github.com/project-repo",
+      "x": 900,
+      "y": 560,
+      "width": 200,
+      "height": 100
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge1",
+      "fromNode": "project-planning",
+      "toNode": "development-tasks",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge2", 
+      "fromNode": "development-tasks",
+      "toNode": "testing-qa",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge3",
+      "fromNode": "testing-qa",
+      "toNode": "deployment",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge4",
+      "fromNode": "project-planning",
+      "toNode": "project-notes",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "Reference"
+    }
+  ]
+}

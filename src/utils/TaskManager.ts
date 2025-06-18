@@ -20,6 +20,9 @@ import {
 	TaskParsingService,
 	TaskParsingServiceOptions,
 } from "./TaskParsingService";
+import { isSupportedFile, getFileType, SupportedFileType } from "./fileTypeUtils";
+import { CanvasParser } from "./parsing/CanvasParser";
+import { CanvasTaskUpdater } from "./parsing/CanvasTaskUpdater";
 import { FileMetadataTaskUpdater } from "./workers/FileMetadataTaskUpdater";
 
 /**
@@ -67,6 +70,10 @@ export class TaskManager extends Component {
 	private taskParsingService?: TaskParsingService;
 	/** File metadata task updater for handling metadata-based tasks */
 	private fileMetadataUpdater?: FileMetadataTaskUpdater;
+	/** Canvas parser for .canvas files */
+	private canvasParser: CanvasParser;
+	/** Canvas task updater for modifying tasks in .canvas files */
+	private canvasTaskUpdater: CanvasTaskUpdater;
 
 	/**
 	 * Create a new task manager
@@ -94,13 +101,21 @@ export class TaskManager extends Component {
 			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
 		);
 
+		// Initialize canvas parser
+		this.canvasParser = new CanvasParser(
+			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
+		);
+
+		// Initialize canvas task updater
+		this.canvasTaskUpdater = new CanvasTaskUpdater(this.vault, this.plugin);
+
 		// Initialize enhanced task parsing service if enhanced project is enabled
 		this.initializeTaskParsingService();
 
 		// Set up the indexer's parse callback to use our parser
 		this.indexer.setParseFileCallback(async (file: TFile) => {
 			const content = await this.vault.cachedRead(file);
-			return this.parseFileWithConfigurableParser(file.path, content);
+			return this.parseFileWithAppropriateParser(file.path, content);
 		});
 
 		// Initialize file parsing configuration
@@ -190,6 +205,11 @@ export class TaskManager extends Component {
 			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
 		);
 
+		// Update the canvas parser
+		this.canvasParser.updateParserConfig(
+			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
+		);
+
 		// Reinitialize TaskParsingService to pick up new project configuration settings
 		this.initializeTaskParsingService();
 
@@ -237,7 +257,42 @@ export class TaskManager extends Component {
 	}
 
 	/**
-	 * Parse a file using the configurable parser
+	 * Parse a file using the appropriate parser based on file type
+	 */
+	private parseFileWithAppropriateParser(
+		filePath: string,
+		content: string
+	): Task[] {
+		try {
+			const fileType = getFileType({ path: filePath, extension: filePath.split('.').pop() || '' } as TFile);
+
+			let tasks: Task[] = [];
+
+			if (fileType === SupportedFileType.CANVAS) {
+				// Use canvas parser for .canvas files
+				tasks = this.canvasParser.parseCanvasFile(content, filePath);
+			} else if (fileType === SupportedFileType.MARKDOWN) {
+				// Use markdown parser for .md files
+				tasks = this.taskParser.parseLegacy(content, filePath);
+			} else {
+				// Unsupported file type
+				return [];
+			}
+
+			// Apply heading filters if specified in settings
+			return this.applyHeadingFilters(tasks);
+		} catch (error) {
+			console.error(
+				`Error parsing file ${filePath} with appropriate parser:`,
+				error
+			);
+			// Return empty array as fallback
+			return [];
+		}
+	}
+
+	/**
+	 * Parse a file using the configurable parser (legacy method for markdown)
 	 */
 	private parseFileWithConfigurableParser(
 		filePath: string,
@@ -279,16 +334,16 @@ export class TaskManager extends Component {
 				);
 				return this.applyHeadingFilters(tasks);
 			} else {
-				// Fallback to regular parser
-				return this.parseFileWithConfigurableParser(filePath, content);
+				// Fallback to appropriate parser
+				return this.parseFileWithAppropriateParser(filePath, content);
 			}
 		} catch (error) {
 			console.error(
 				`Error parsing file ${filePath} with enhanced parser:`,
 				error
 			);
-			// Fallback to regular parser
-			return this.parseFileWithConfigurableParser(filePath, content);
+			// Fallback to appropriate parser
+			return this.parseFileWithAppropriateParser(filePath, content);
 		}
 	}
 
@@ -345,7 +400,7 @@ export class TaskManager extends Component {
 
 				this.log("File metadata changed, updating index");
 				// Trigger a full index update when all files are resolved
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.indexFile(file);
 				}
 			})
@@ -359,7 +414,7 @@ export class TaskManager extends Component {
 					return;
 				}
 
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.removeFileFromIndex(file);
 				}
 			})
@@ -373,7 +428,7 @@ export class TaskManager extends Component {
 					return;
 				}
 
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.removeFileFromIndexByOldPath(oldPath);
 					this.indexFile(file);
 				}
@@ -389,7 +444,7 @@ export class TaskManager extends Component {
 						return;
 					}
 
-					if (file instanceof TFile && file.extension === "md") {
+					if (file instanceof TFile && isSupportedFile(file)) {
 						this.indexFile(file);
 					}
 				})
@@ -516,9 +571,10 @@ export class TaskManager extends Component {
 		this.log("Initializing task manager");
 
 		try {
-			// Get all Markdown files
-			const files = this.vault.getMarkdownFiles();
-			this.log(`Found ${files.length} files to index`);
+			// Get all supported files (Markdown and Canvas)
+			const allFiles = this.vault.getFiles();
+			const files = allFiles.filter(file => isSupportedFile(file));
+			this.log(`Found ${files.length} supported files to index (${allFiles.length} total files)`);
 
 			// Try to synchronize task cache with current files and clean up non-existent file caches
 			try {
@@ -840,9 +896,9 @@ export class TaskManager extends Component {
 						);
 						cachedCount++;
 					} else {
-						// Cache doesn't exist or is outdated, use main thread processing with configurable parser
+						// Cache doesn't exist or is outdated, use main thread processing with appropriate parser
 						const content = await this.vault.cachedRead(file);
-						const tasks = this.parseFileWithConfigurableParser(
+						const tasks = this.parseFileWithAppropriateParser(
 							file.path,
 							content
 						);
@@ -866,10 +922,10 @@ export class TaskManager extends Component {
 					}
 				} catch (error) {
 					console.error(`Error processing file ${file.path}:`, error);
-					// Fall back to main thread processing with configurable parser
+					// Fall back to main thread processing with appropriate parser
 					try {
 						const content = await this.vault.cachedRead(file);
-						const tasks = this.parseFileWithConfigurableParser(
+						const tasks = this.parseFileWithAppropriateParser(
 							file.path,
 							content
 						);
@@ -960,9 +1016,9 @@ export class TaskManager extends Component {
 				await this.processFileWithWorker(file);
 			}
 		} else {
-			// Use main thread indexing with configurable parser
+			// Use main thread indexing with appropriate parser
 			const content = await this.vault.cachedRead(file);
-			const tasks = this.parseFileWithConfigurableParser(
+			const tasks = this.parseFileWithAppropriateParser(
 				file.path,
 				content
 			);
@@ -1314,6 +1370,34 @@ export class TaskManager extends Component {
 			originalTask.metadata.dueDate
 		);
 
+		// Check if this is a Canvas task and handle it with Canvas updater
+		if (CanvasTaskUpdater.isCanvasTask(originalTask)) {
+			console.log("originalTask is a Canvas task");
+			try {
+				const result = await this.canvasTaskUpdater.updateCanvasTask(
+					originalTask,
+					updatedTask
+				);
+				console.log("result", result);
+
+				if (result.success) {
+					this.log(`Updated Canvas task ${updatedTask.id} in Canvas file`);
+
+					// Re-index the file to pick up the changes
+					const file = this.vault.getFileByPath(updatedTask.filePath);
+					if (file instanceof TFile) {
+						await this.indexFile(file);
+					}
+					return;
+				} else {
+					throw new Error(result.error || "Failed to update Canvas task");
+				}
+			} catch (error) {
+				console.error(`Error updating Canvas task ${updatedTask.id}:`, error);
+				throw error;
+			}
+		}
+
 		// Check if this is a file metadata task and handle it specially
 		if (
 			this.fileMetadataUpdater &&
@@ -1326,8 +1410,6 @@ export class TaskManager extends Component {
 						updatedTask
 					);
 				if (result.success) {
-					// Update the task in the index
-					this.indexer.updateTask(updatedTask);
 					this.log(`Updated file metadata task ${updatedTask.id}`);
 
 					// Re-index the file to pick up the changes
