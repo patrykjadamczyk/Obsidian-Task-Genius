@@ -449,6 +449,15 @@ export interface FileParsingConfiguration {
 	enableWorkerProcessing: boolean;
 }
 
+/** Timeline Sidebar Settings */
+export interface TimelineSidebarSettings {
+	enableTimelineSidebar: boolean;
+	autoOpenOnStartup: boolean;
+	showCompletedTasks: boolean;
+	focusModeByDefault: boolean;
+	maxEventsToShow: number;
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -565,6 +574,9 @@ export interface TaskProgressBarSettings {
 
 	// ICS Calendar Integration Settings
 	icsIntegration: IcsManagerConfig;
+
+	// Timeline Sidebar Settings
+	timelineSidebar: TimelineSidebarSettings;
 }
 
 /** Define the default settings */
@@ -1098,6 +1110,15 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		showInCalendar: false,
 		showInTaskLists: false,
 		defaultEventColor: "#3b82f6", // Blue color
+	},
+
+	// Timeline Sidebar Defaults
+	timelineSidebar: {
+		enableTimelineSidebar: false,
+		autoOpenOnStartup: false,
+		showCompletedTasks: true,
+		focusModeByDefault: false,
+		maxEventsToShow: 100,
 	},
 };
 

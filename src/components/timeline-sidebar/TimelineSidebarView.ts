@@ -12,9 +12,11 @@ import { Task } from "../../types/task";
 import { t } from "../../translations/helper";
 import TaskProgressBarPlugin from "../../index";
 import { QuickCaptureModal } from "../QuickCaptureModal";
-import { createEmbeddableMarkdownEditor } from "../MarkdownRenderer";
-import { EmbeddableMarkdownEditor } from "../MarkdownRenderer";
-import { saveCapture } from "../../editor-ext/quickCapture";
+import {
+	createEmbeddableMarkdownEditor,
+	EmbeddableMarkdownEditor,
+} from "../../editor-ext/markdownEditor";
+import { saveCapture } from "../../utils/fileUtils";
 import "../../styles/timeline-sidebar.css";
 
 export const TIMELINE_SIDEBAR_VIEW_TYPE = "timeline-sidebar-view";
@@ -31,7 +33,7 @@ interface TimelineEvent {
 
 export class TimelineSidebarView extends ItemView {
 	private plugin: TaskProgressBarPlugin;
-	private containerEl: HTMLElement;
+	public containerEl: HTMLElement;
 	private timelineContainerEl: HTMLElement;
 	private quickInputContainerEl: HTMLElement;
 	private markdownEditor: EmbeddableMarkdownEditor | null = null;
@@ -177,7 +179,7 @@ export class TimelineSidebarView extends ItemView {
 					onEscape: () => {
 						// Clear input on Escape
 						if (this.markdownEditor) {
-							this.markdownEditor.setValue("");
+							this.markdownEditor.set("", false);
 						}
 					},
 					onChange: () => {
@@ -371,9 +373,7 @@ export class TimelineSidebarView extends ItemView {
 
 			this.registerDomEvent(checkbox, "change", async () => {
 				if (event.task) {
-					await this.plugin.taskManager.toggleTaskCompletion(
-						event.task
-					);
+					await this.toggleTaskCompletion(event.task);
 					this.debouncedRender();
 				}
 			});
@@ -433,7 +433,7 @@ export class TimelineSidebarView extends ItemView {
 			await saveCapture(this.app, content, captureOptions);
 
 			// Clear the input
-			this.markdownEditor.setValue("");
+			this.markdownEditor.set("", false);
 
 			// Refresh timeline
 			await this.loadEvents();
@@ -482,5 +482,31 @@ export class TimelineSidebarView extends ItemView {
 	private async loadMoreEvents(): Promise<void> {
 		// Implement loading more historical events
 		// This could involve loading older tasks or extending the date range
+	}
+
+	private async toggleTaskCompletion(task: Task): Promise<void> {
+		const updatedTask = { ...task, completed: !task.completed };
+
+		if (updatedTask.completed) {
+			updatedTask.metadata.completedDate = Date.now();
+			const completedMark = (
+				this.plugin.settings.taskStatuses.completed || "x"
+			).split("|")[0];
+			if (updatedTask.status !== completedMark) {
+				updatedTask.status = completedMark;
+			}
+		} else {
+			updatedTask.metadata.completedDate = undefined;
+			const notStartedMark =
+				this.plugin.settings.taskStatuses.notStarted || " ";
+			if (updatedTask.status.toLowerCase() === "x") {
+				updatedTask.status = notStartedMark;
+			}
+		}
+
+		const taskManager = this.plugin.taskManager;
+		if (!taskManager) return;
+
+		await taskManager.updateTask(updatedTask);
 	}
 }
