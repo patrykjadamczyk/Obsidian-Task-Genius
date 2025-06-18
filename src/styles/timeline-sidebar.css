@@ -456,3 +456,49 @@
 	position: relative;
 	z-index: 1;
 }
+
+.timeline-date-group.is-today .timeline-event {
+	padding-left: var(--size-2-1);
+	padding-right: var(--size-2-1);
+}
+
+/* Markdown renderer styles in timeline events */
+.timeline-event-content-text .markdown-block {
+	margin: 0;
+	padding: 0;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.timeline-event-content-text .markdown-block p {
+	margin: 0;
+	padding: 0;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.timeline-event-content-text .markdown-block strong,
+.timeline-event-content-text .markdown-block em,
+.timeline-event-content-text .markdown-block code {
+	font-size: inherit;
+}
+
+.timeline-event-content-text .markdown-block a {
+	color: var(--link-color);
+	text-decoration: none;
+}
+
+.timeline-event-content-text .markdown-block a:hover {
+	text-decoration: underline;
+}
+
+.timeline-event-content-text .markdown-block ul,
+.timeline-event-content-text .markdown-block ol {
+	margin: 0;
+	padding-left: var(--size-4-4);
+}
+
+.timeline-event-content-text .markdown-block li {
+	margin: 0;
+	padding: 0;
+}

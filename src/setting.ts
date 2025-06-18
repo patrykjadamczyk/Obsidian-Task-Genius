@@ -154,6 +154,9 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 			if (plugin.taskManager) {
 				plugin.taskManager.updateParsingConfiguration();
 			}
+
+			// Trigger view updates to reflect setting changes
+			await plugin.triggerViewUpdate();
 		}, 100);
 	}
 
