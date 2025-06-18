@@ -154,6 +154,42 @@ export interface TableSpecificConfig {
 	defaultSortOrder: "asc" | "desc"; // Default sort order
 }
 
+export interface QuadrantSpecificConfig {
+	viewType: "quadrant"; // Discriminator
+	hideEmptyQuadrants: boolean; // Hide quadrants with no tasks
+	autoUpdatePriority: boolean; // Automatically update task priority when moved between quadrants
+	autoUpdateTags: boolean; // Automatically add/remove urgent/important tags when moved
+	showTaskCount: boolean; // Show task count in each quadrant header
+	defaultSortField:
+		| "priority"
+		| "dueDate"
+		| "scheduledDate"
+		| "startDate"
+		| "createdDate";
+	defaultSortOrder: "asc" | "desc";
+	urgentTag: string; // Tag to identify urgent tasks (default: "#urgent")
+	importantTag: string; // Tag to identify important tasks (default: "#important")
+	urgentThresholdDays: number; // Days until due date to consider task urgent
+	customQuadrantColors: boolean; // Use custom colors for quadrants
+	quadrantColors: {
+		urgentImportant: string; // Red - Crisis
+		notUrgentImportant: string; // Green - Goals
+		urgentNotImportant: string; // Yellow - Interruptions
+		notUrgentNotImportant: string; // Gray - Time wasters
+	};
+}
+
+export interface QuadrantColumnConfig {
+	id: string;
+	title: string;
+	description: string;
+	priorityEmoji: string;
+	urgentTag?: string;
+	importantTag?: string;
+	color: string;
+	order: number;
+}
+
 // ADDED: Union type for specific configs
 export type SpecificViewConfig =
 	| KanbanSpecificConfig
@@ -161,7 +197,8 @@ export type SpecificViewConfig =
 	| GanttSpecificConfig
 	| TwoColumnSpecificConfig
 	| ForecastSpecificConfig
-	| TableSpecificConfig;
+	| TableSpecificConfig
+	| QuadrantSpecificConfig;
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -1012,6 +1049,35 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				defaultSortField: "",
 				defaultSortOrder: "asc",
 			} as TableSpecificConfig,
+		},
+		{
+			id: "quadrant",
+			name: t("Priority Matrix"),
+			icon: "grid-3x3",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			filterBlanks: false,
+			specificConfig: {
+				viewType: "quadrant",
+				hideEmptyQuadrants: false,
+				autoUpdatePriority: true,
+				autoUpdateTags: true,
+				showTaskCount: true,
+				defaultSortField: "priority",
+				defaultSortOrder: "desc",
+				urgentTag: "#urgent",
+				importantTag: "#important",
+				urgentThresholdDays: 3,
+				customQuadrantColors: false,
+				quadrantColors: {
+					urgentImportant: "#dc3545",
+					notUrgentImportant: "#28a745",
+					urgentNotImportant: "#ffc107",
+					notUrgentNotImportant: "#6c757d",
+				},
+			} as QuadrantSpecificConfig,
 		},
 	],
 

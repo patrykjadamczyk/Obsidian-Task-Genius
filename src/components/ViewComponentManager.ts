@@ -11,6 +11,7 @@ import { GanttComponent } from "./gantt/gantt";
 import { TaskPropertyTwoColumnView } from "./task-view/TaskPropertyTwoColumnView";
 import { ForecastComponent } from "./task-view/forecast";
 import { TableViewAdapter } from "./table/TableViewAdapter";
+import { QuadrantComponent } from "./quadrant/quadrant";
 
 // 定义视图组件的通用接口
 interface ViewComponentInterface {
@@ -131,6 +132,21 @@ class ViewComponentFactory {
 				}
 				return null;
 
+			case "quadrant":
+				return new QuadrantComponent(
+					app,
+					plugin,
+					parentEl,
+					[],
+					{
+						onTaskStatusUpdate: handlers.onTaskStatusUpdate,
+						onTaskSelected: handlers.onTaskSelected,
+						onTaskCompleted: handlers.onTaskCompleted,
+						onTaskContextMenu: handlers.onTaskContextMenu,
+					},
+					viewId
+				);
+
 			default:
 				return null;
 		}
@@ -179,7 +195,7 @@ export class ViewComponentManager extends Component {
 		if (specificViewType) {
 			viewType = specificViewType;
 		} else if (
-			["calendar", "kanban", "gantt", "forecast", "table"].includes(
+			["calendar", "kanban", "gantt", "forecast", "table", "quadrant"].includes(
 				viewId
 			)
 		) {
