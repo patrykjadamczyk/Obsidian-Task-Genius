@@ -1408,10 +1408,22 @@ export class TaskManager extends Component {
 				if (result.success) {
 					this.log(`Updated Canvas task ${updatedTask.id} in Canvas file`);
 
-					// Re-index the file to pick up the changes
+					// Re-index the file to pick up the changes - if this fails, don't fail the entire operation
 					const file = this.vault.getFileByPath(updatedTask.filePath);
 					if (file instanceof TFile) {
-						await this.indexFile(file);
+						try {
+							await this.indexFile(file);
+							this.log(
+								`Successfully re-indexed Canvas file ${updatedTask.filePath} after task update`
+							);
+						} catch (indexError) {
+							console.error(
+								`Failed to re-index Canvas file ${updatedTask.filePath} after task update:`,
+								indexError
+							);
+							// Don't throw the error - the Canvas update was successful
+							// The index will be updated on the next file change event
+						}
 					}
 					return;
 				} else {
@@ -1437,10 +1449,22 @@ export class TaskManager extends Component {
 				if (result.success) {
 					this.log(`Updated file metadata task ${updatedTask.id}`);
 
-					// Re-index the file to pick up the changes
+					// Re-index the file to pick up the changes - if this fails, don't fail the entire operation
 					const file = this.vault.getFileByPath(updatedTask.filePath);
 					if (file instanceof TFile) {
-						await this.indexFile(file);
+						try {
+							await this.indexFile(file);
+							this.log(
+								`Successfully re-indexed file ${updatedTask.filePath} after metadata task update`
+							);
+						} catch (indexError) {
+							console.error(
+								`Failed to re-index file ${updatedTask.filePath} after metadata task update:`,
+								indexError
+							);
+							// Don't throw the error - the metadata update was successful
+							// The index will be updated on the next file change event
+						}
 					}
 					return;
 				} else {
@@ -1864,12 +1888,27 @@ export class TaskManager extends Component {
 					}
 				}
 
+				// Modify the file first - this is the critical operation
 				await this.vault.modify(file, lines.join("\n"));
-				await this.indexFile(file); // Re-index the modified file
 				this.log(
-					`Updated task ${updatedTask.id} and re-indexed file ${updatedTask.filePath}`
+					`Updated task ${updatedTask.id} in file ${updatedTask.filePath}`
 				);
 				this.log(updatedTask.originalMarkdown);
+
+				// Re-index the modified file - if this fails, don't fail the entire operation
+				try {
+					await this.indexFile(file);
+					this.log(
+						`Successfully re-indexed file ${updatedTask.filePath} after task update`
+					);
+				} catch (indexError) {
+					console.error(
+						`Failed to re-index file ${updatedTask.filePath} after task update:`,
+						indexError
+					);
+					// Don't throw the error - the file modification was successful
+					// The index will be updated on the next file change event
+				}
 			} else {
 				this.log(
 					`Task ${updatedTask.id} content did not change. No file modification needed.`

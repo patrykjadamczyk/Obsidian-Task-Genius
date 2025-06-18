@@ -1227,7 +1227,8 @@ export class TaskView extends ItemView {
 			await taskManager.updateTask(updatedTask);
 		} catch (error) {
 			console.error("Failed to update task:", error);
-			// You might want to show a notice to the user here
+			// Re-throw the error so that the InlineEditor can handle it properly
+			throw error;
 		}
 	}
 
