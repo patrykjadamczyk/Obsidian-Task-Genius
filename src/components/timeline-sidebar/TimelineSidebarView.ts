@@ -248,8 +248,20 @@ export class TimelineSidebarView extends ItemView {
 			? allTasks
 			: allTasks.filter((task) => !task.completed);
 
+		// Filter out ICS badge events from timeline
+		// ICS badge events should only appear as badges in calendar views, not as individual timeline events
+		const timelineFilteredTasks = filteredTasks.filter((task) => {
+			// Check if this is an ICS task with badge showType
+			const isIcsTask = (task as any).source?.type === "ics";
+			const icsTask = isIcsTask ? (task as any) : null;
+			const showAsBadge = icsTask?.icsEvent?.source?.showType === "badge";
+
+			// Exclude ICS tasks with badge showType from timeline
+			return !(isIcsTask && showAsBadge);
+		});
+
 		// Convert tasks to timeline events
-		filteredTasks.forEach((task) => {
+		timelineFilteredTasks.forEach((task) => {
 			const dates = this.extractDatesFromTask(task);
 			dates.forEach(({ date, type }) => {
 				const event: TimelineEvent = {

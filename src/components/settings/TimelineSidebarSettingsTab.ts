@@ -25,6 +25,13 @@ export function renderTimelineSidebarSettingsTab(
 					settingTab.plugin.settings.timelineSidebar.enableTimelineSidebar =
 						value;
 					settingTab.applySettingsUpdate();
+
+					setTimeout(() => {
+						settingTab.display();
+						if (value) {
+							settingTab.plugin.activateTimelineSidebarView();
+						}
+					}, 200);
 				})
 		);
 
