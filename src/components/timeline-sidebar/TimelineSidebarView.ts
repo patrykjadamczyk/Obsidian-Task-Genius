@@ -22,7 +22,7 @@ import "../../styles/timeline-sidebar.css";
 import { createTaskCheckbox } from "../task-view/details";
 import { MarkdownRendererComponent } from "../MarkdownRenderer";
 
-export const TIMELINE_SIDEBAR_VIEW_TYPE = "timeline-sidebar-view";
+export const TIMELINE_SIDEBAR_VIEW_TYPE = "tg-timeline-sidebar-view";
 
 interface TimelineEvent {
 	id: string;
@@ -45,7 +45,10 @@ export class TimelineSidebarView extends ItemView {
 	private isAutoScrolling: boolean = false;
 
 	// Debounced methods
-	private debouncedRender = debounce(this.renderTimeline.bind(this), 300);
+	private debouncedRender = debounce(async () => {
+		await this.loadEvents();
+		this.renderTimeline();
+	}, 300);
 	private debouncedScroll = debounce(this.handleScroll.bind(this), 100);
 
 	constructor(leaf: WorkspaceLeaf, plugin: TaskProgressBarPlugin) {
@@ -88,6 +91,16 @@ export class TimelineSidebarView extends ItemView {
 			this.plugin.app.vault.on("modify", () => {
 				this.debouncedRender();
 			})
+		);
+
+		// Register for task cache updates
+		this.registerEvent(
+			this.plugin.app.workspace.on(
+				"task-genius:task-cache-updated",
+				() => {
+					this.debouncedRender();
+				}
+			)
 		);
 	}
 
@@ -365,6 +378,7 @@ export class TimelineSidebarView extends ItemView {
 
 	private renderEvent(containerEl: HTMLElement, event: TimelineEvent): void {
 		const eventEl = containerEl.createDiv("timeline-event");
+		eventEl.setAttribute("data-event-id", event.id);
 
 		if (event.task?.completed) {
 			eventEl.addClass("is-completed");
@@ -391,10 +405,11 @@ export class TimelineSidebarView extends ItemView {
 						event.task!,
 						el
 					);
-					this.registerDomEvent(checkbox, "change", async () => {
+					this.registerDomEvent(checkbox, "change", async (e) => {
+						e.stopPropagation();
+						e.preventDefault();
 						if (event.task) {
-							await this.toggleTaskCompletion(event.task);
-							this.debouncedRender();
+							await this.toggleTaskCompletion(event.task, event);
 						}
 					});
 				}
@@ -450,8 +465,18 @@ export class TimelineSidebarView extends ItemView {
 			});
 		}
 
-		// Click to focus
-		this.registerDomEvent(eventEl, "click", () => {
+		// Click to focus (but not when clicking on checkbox or actions)
+		this.registerDomEvent(eventEl, "click", (e) => {
+			// Prevent navigation if clicking on checkbox or action buttons
+			const target = e.target as HTMLElement;
+			if (
+				target.closest(".timeline-event-checkbox") ||
+				target.closest(".timeline-event-actions") ||
+				target.closest('input[type="checkbox"]')
+			) {
+				return;
+			}
+
 			if (event.task) {
 				this.goToTask(event.task);
 			}
@@ -556,7 +581,10 @@ export class TimelineSidebarView extends ItemView {
 		// This could involve loading older tasks or extending the date range
 	}
 
-	private async toggleTaskCompletion(task: Task): Promise<void> {
+	private async toggleTaskCompletion(
+		task: Task,
+		event?: TimelineEvent
+	): Promise<void> {
 		const updatedTask = { ...task, completed: !task.completed };
 
 		if (updatedTask.completed) {
@@ -579,7 +607,38 @@ export class TimelineSidebarView extends ItemView {
 		const taskManager = this.plugin.taskManager;
 		if (!taskManager) return;
 
-		await taskManager.updateTask(updatedTask);
+		try {
+			await taskManager.updateTask(updatedTask);
+
+			// Update the local event data immediately for responsive UI
+			if (event) {
+				event.task = updatedTask;
+				event.status = updatedTask.status;
+
+				// Update the event element's visual state immediately
+				const eventEl = this.timelineContainerEl.querySelector(
+					`[data-event-id="${event.id}"]`
+				) as HTMLElement;
+				if (eventEl) {
+					if (updatedTask.completed) {
+						eventEl.addClass("is-completed");
+					} else {
+						eventEl.removeClass("is-completed");
+					}
+				}
+			}
+
+			// Reload events to ensure consistency
+			await this.loadEvents();
+			this.renderTimeline();
+		} catch (error) {
+			console.error("Failed to toggle task completion:", error);
+			// Revert local changes if the update failed
+			if (event) {
+				event.task = task;
+				event.status = task.status;
+			}
+		}
 	}
 
 	private updateTargetInfo(targetInfoEl: HTMLElement): void {
@@ -611,6 +670,12 @@ export class TimelineSidebarView extends ItemView {
 
 	// Method to trigger view update (called when settings change)
 	public async triggerViewUpdate(): Promise<void> {
+		await this.loadEvents();
+		this.renderTimeline();
+	}
+
+	// Method to refresh timeline data
+	public async refreshTimeline(): Promise<void> {
 		await this.loadEvents();
 		this.renderTimeline();
 	}
