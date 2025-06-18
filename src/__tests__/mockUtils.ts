@@ -117,9 +117,6 @@ export const createMockText = (content: string): Text => {
 					length: 0,
 				};
 			}
-			throw new Error(
-				`Could not find line at pos ${pos} in content: "${content}"`
-			);
 		}),
 		sliceString: jest.fn((from: number, to: number) =>
 			content.slice(from, to)
