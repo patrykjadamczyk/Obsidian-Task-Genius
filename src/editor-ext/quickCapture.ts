@@ -9,6 +9,7 @@ import {
 	prepareFuzzySearch,
 	getFrontMatterInfo,
 	editorInfoField,
+	moment,
 } from "obsidian";
 import { StateField, StateEffect, Facet } from "@codemirror/state";
 import { EditorView, showPanel, ViewUpdate, Panel } from "@codemirror/view";
@@ -17,9 +18,24 @@ import {
 	EmbeddableMarkdownEditor,
 } from "./markdownEditor";
 import TaskProgressBarPlugin from "../index";
-import { saveCapture } from "../utils/fileUtils";
+import { saveCapture, processDateTemplates } from "../utils/fileUtils";
 import { t } from "../translations/helper";
 import "../styles/quick-capture.css";
+
+/**
+ * Sanitize filename by replacing unsafe characters with safe alternatives
+ * @param filename - The filename to sanitize
+ * @returns The sanitized filename
+ */
+function sanitizeFilename(filename: string): string {
+	// Replace unsafe characters with safe alternatives
+	return filename
+		.replace(/[<>:"|*?\\]/g, "-") // Replace unsafe chars with dash
+		.replace(/\//g, "-") // Replace forward slash with dash
+		.replace(/\s+/g, " ") // Normalize whitespace
+		.trim(); // Remove leading/trailing whitespace
+}
+
 // Effect to toggle the quick capture panel
 export const toggleQuickCapture = StateEffect.define<boolean>();
 
@@ -47,6 +63,14 @@ export interface QuickCaptureOptions {
 	targetFile?: string;
 	placeholder?: string;
 	appendToFile?: "append" | "prepend" | "replace";
+	// New options for enhanced quick capture
+	targetType?: "fixed" | "daily-note";
+	targetHeading?: string;
+	dailyNoteSettings?: {
+		format: string;
+		folder: string;
+		template: string;
+	};
 }
 /**
  * A class that provides file suggestions for the quick capture target field
@@ -157,7 +181,7 @@ const handleSubmit = async (
 	}
 
 	try {
-		// Use the selected target path
+		// Use the processed target path or determine based on target type
 		const modifiedOptions = {
 			...options,
 			targetFile: selectedTargetPath,
@@ -172,7 +196,18 @@ const handleSubmit = async (
 			effects: toggleQuickCapture.of(false),
 		});
 
-		new Notice(`${t("Captured successfully to")} ${selectedTargetPath}`);
+		// Show success message with appropriate file path
+		let displayPath = selectedTargetPath;
+		if (options.targetType === "daily-note" && options.dailyNoteSettings) {
+			const dateStr = moment().format(options.dailyNoteSettings.format);
+			const sanitizedDateStr = sanitizeFilename(dateStr);
+			const fileName = `${sanitizedDateStr}.md`;
+			displayPath = options.dailyNoteSettings.folder
+				? `${options.dailyNoteSettings.folder}/${fileName}`
+				: fileName;
+		}
+
+		new Notice(`${t("Captured successfully to")} ${displayPath}`);
 	} catch (error) {
 		new Notice(`${t("Failed to save:")} ${error}`);
 	}
@@ -194,6 +229,15 @@ export const quickCaptureOptions = Facet.define<
 			appendToFile:
 				values.find((v) => v.appendToFile !== undefined)
 					?.appendToFile ?? "append",
+			targetType: values.find((v) => v.targetType)?.targetType ?? "fixed",
+			targetHeading:
+				values.find((v) => v.targetHeading)?.targetHeading ?? "",
+			dailyNoteSettings: values.find((v) => v.dailyNoteSettings)
+				?.dailyNoteSettings ?? {
+				format: "YYYY-MM-DD",
+				folder: "",
+				template: "",
+			},
 		};
 	},
 });
@@ -207,8 +251,18 @@ function createQuickCapturePanel(view: EditorView): Panel {
 	const app = view.state.facet(appFacet);
 	const options = view.state.facet(quickCaptureOptions);
 
-	// Selected target file path
-	let selectedTargetPath = options.targetFile || "Quick Capture.md";
+	// Determine target file path based on target type
+	let selectedTargetPath: string;
+	if (options.targetType === "daily-note" && options.dailyNoteSettings) {
+		const dateStr = moment().format(options.dailyNoteSettings.format);
+		const sanitizedDateStr = sanitizeFilename(dateStr);
+		const fileName = `${sanitizedDateStr}.md`;
+		selectedTargetPath = options.dailyNoteSettings.folder
+			? `${options.dailyNoteSettings.folder}/${fileName}`
+			: fileName;
+	} else {
+		selectedTargetPath = options.targetFile || "Quick Capture.md";
+	}
 
 	// Create header with title and target selection
 	const headerContainer = dom.createEl("div", {
@@ -225,18 +279,18 @@ function createQuickCapturePanel(view: EditorView): Panel {
 	const targetFileEl = headerContainer.createEl("div", {
 		cls: "quick-capture-target",
 		attr: {
-			contenteditable: "true",
+			contenteditable: options.targetType === "fixed" ? "true" : "false",
 			spellcheck: "false",
 		},
 		text: selectedTargetPath,
 	});
 
-	// Handle manual edits to the target element
-	targetFileEl.addEventListener("blur", () => {
-		selectedTargetPath = targetFileEl.textContent || selectedTargetPath;
-	});
-
-	// Initialize the file suggestor with callback
+	// Handle manual edits to the target element (only for fixed files)
+	if (options.targetType === "fixed") {
+		targetFileEl.addEventListener("blur", () => {
+			selectedTargetPath = targetFileEl.textContent || selectedTargetPath;
+		});
+	}
 
 	const editorDiv = dom.createEl("div", {
 		cls: "quick-capture-editor",
@@ -301,14 +355,16 @@ function createQuickCapturePanel(view: EditorView): Panel {
 			}
 			return true;
 		});
-		markdownEditor.scope.register(["Alt"], "x", (e: KeyboardEvent) => {
-			e.preventDefault();
-			targetFileEl.focus();
-			return true;
-		});
-	}, 10); // Small delay to ensure the DOM is ready
 
-	// Function to handle submission of the captured text
+		// Only register Alt+X for fixed file type
+		if (options.targetType === "fixed") {
+			markdownEditor.scope.register(["Alt"], "x", (e: KeyboardEvent) => {
+				e.preventDefault();
+				targetFileEl.focus();
+				return true;
+			});
+		}
+	}, 10); // Small delay to ensure the DOM is ready
 
 	// Button container for actions
 	const buttonContainer = dom.createEl("div", {
@@ -333,12 +389,15 @@ function createQuickCapturePanel(view: EditorView): Panel {
 		});
 	});
 
-	new FileSuggest(app, targetFileEl, options, (file: TFile) => {
-		targetFileEl.textContent = file.path;
-		selectedTargetPath = file.path;
-		// Focus current editor
-		markdownEditor?.editor?.focus();
-	});
+	// Only add file suggest for fixed file type
+	if (options.targetType === "fixed") {
+		new FileSuggest(app, targetFileEl, options, (file: TFile) => {
+			targetFileEl.textContent = file.path;
+			selectedTargetPath = file.path;
+			// Focus current editor
+			markdownEditor?.editor?.focus();
+		});
+	}
 
 	return {
 		dom,
@@ -379,6 +438,14 @@ export function quickCaptureExtension(app: App, plugin: TaskProgressBarPlugin) {
 				t("Capture thoughts, tasks, or ideas..."),
 			appendToFile:
 				plugin.settings.quickCapture?.appendToFile ?? "append",
+			targetType: plugin.settings.quickCapture?.targetType ?? "fixed",
+			targetHeading: plugin.settings.quickCapture?.targetHeading ?? "",
+			dailyNoteSettings: plugin.settings.quickCapture
+				?.dailyNoteSettings ?? {
+				format: "YYYY-MM-DD",
+				folder: "",
+				template: "",
+			},
 		}),
 		appFacet.of(app),
 		pluginFacet.of(plugin),

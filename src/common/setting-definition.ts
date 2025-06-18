@@ -2,6 +2,7 @@ import { t } from "../translations/helper";
 import type TaskProgressBarPlugin from "../index"; // Type-only import
 import { BaseHabitData } from "../types/habit-card";
 import type { RootFilterState } from "../components/task-filter/ViewTaskFilter";
+import { IcsManagerConfig } from "../types/ics";
 
 // Interface for individual project review settings (If still needed, otherwise remove)
 // Keep it for now, in case it's used elsewhere, but it's not part of TaskProgressBarSettings anymore
@@ -112,6 +113,7 @@ export interface KanbanColumnConfig {
 export interface CalendarSpecificConfig {
 	viewType: "calendar"; // Discriminator
 	firstDayOfWeek?: number; // 0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default
+	hideWeekends?: boolean; // Whether to hide weekend columns/cells in calendar views
 }
 
 export interface GanttSpecificConfig {
@@ -123,6 +125,7 @@ export interface GanttSpecificConfig {
 export interface ForecastSpecificConfig {
 	viewType: "forecast"; // Discriminator
 	firstDayOfWeek?: number; // 0=Sun, 1=Mon, ..., 6=Sat; undefined=locale default
+	hideWeekends?: boolean; // Whether to hide weekend columns/cells in forecast calendar
 }
 
 export interface TwoColumnSpecificConfig {
@@ -209,6 +212,11 @@ export interface CompletedTaskMoverSettings {
 	treatAbandonedAsCompleted: boolean;
 	completeAllMovedTasks: boolean;
 	withCurrentFileLink: boolean;
+	// Default file and location settings for auto-move
+	enableAutoMove: boolean;
+	defaultTargetFile: string;
+	defaultInsertionMode: "beginning" | "end" | "after-heading";
+	defaultHeadingName: string; // Used when defaultInsertionMode is "after-heading"
 	// Settings for incomplete task mover
 	enableIncompletedTaskMover: boolean;
 	incompletedTaskMarkerType: "version" | "date" | "custom";
@@ -216,6 +224,11 @@ export interface CompletedTaskMoverSettings {
 	incompletedDateMarker: string;
 	incompletedCustomMarker: string;
 	withCurrentFileLinkForIncompleted: boolean;
+	// Default settings for incomplete task auto-move
+	enableIncompletedAutoMove: boolean;
+	incompletedDefaultTargetFile: string;
+	incompletedDefaultInsertionMode: "beginning" | "end" | "after-heading";
+	incompletedDefaultHeadingName: string;
 }
 
 /** Define the structure for quick capture settings */
@@ -224,6 +237,15 @@ export interface QuickCaptureSettings {
 	targetFile: string;
 	placeholder: string;
 	appendToFile: "append" | "prepend" | "replace";
+	// New settings for enhanced quick capture
+	targetType: "fixed" | "daily-note"; // Target type: fixed file or daily note
+	targetHeading?: string; // Optional heading to append under
+	// Daily note settings
+	dailyNoteSettings: {
+		format: string; // Date format for daily notes (e.g., "YYYY-MM-DD")
+		folder: string; // Folder path for daily notes
+		template: string; // Template file path for daily notes
+	};
 }
 
 /** Define the structure for task gutter settings */
@@ -339,6 +361,103 @@ export interface BetaTestSettings {
 	enableBaseView: boolean;
 }
 
+/** Project path mapping configuration */
+export interface ProjectPathMapping {
+	/** Path pattern (supports glob patterns) */
+	pathPattern: string;
+	/** Project name for this path */
+	projectName: string;
+	/** Whether this mapping is enabled */
+	enabled: boolean;
+}
+
+/** Project metadata configuration */
+export interface ProjectMetadataConfig {
+	/** Metadata key to use for project name */
+	metadataKey: string;
+	/** Whether to inherit from file frontmatter */
+	inheritFromFrontmatter: boolean;
+	/** Whether subtasks should inherit metadata from file frontmatter */
+	inheritFromFrontmatterForSubtasks: boolean;
+	/** Whether this config is enabled */
+	enabled: boolean;
+}
+
+/** Project configuration file settings */
+export interface ProjectConfigFile {
+	/** Name of the project configuration file */
+	fileName: string;
+	/** Whether to search recursively up the directory tree */
+	searchRecursively: boolean;
+	/** Whether this feature is enabled */
+	enabled: boolean;
+}
+
+/** Metadata mapping configuration */
+export interface MetadataMapping {
+	/** Source metadata key */
+	sourceKey: string;
+	/** Target metadata key */
+	targetKey: string;
+	/** Whether this mapping is enabled */
+	enabled: boolean;
+}
+
+/** Default project naming strategy */
+export interface ProjectNamingStrategy {
+	/** Naming strategy type */
+	strategy: "filename" | "foldername" | "metadata";
+	/** Metadata key for metadata strategy */
+	metadataKey?: string;
+	/** Whether to strip file extension for filename strategy */
+	stripExtension?: boolean;
+	/** Whether this strategy is enabled */
+	enabled: boolean;
+}
+
+/** Enhanced project configuration */
+export interface ProjectConfiguration {
+	/** Path-based project mappings */
+	pathMappings: ProjectPathMapping[];
+	/** Metadata-based project configuration */
+	metadataConfig: ProjectMetadataConfig;
+	/** Project configuration file settings */
+	configFile: ProjectConfigFile;
+	/** Whether to enable enhanced project features */
+	enableEnhancedProject: boolean;
+	/** Metadata key mappings */
+	metadataMappings: MetadataMapping[];
+	/** Default project naming strategy */
+	defaultProjectNaming: ProjectNamingStrategy;
+}
+
+/** File parsing configuration for extracting tasks from file metadata and tags */
+export interface FileParsingConfiguration {
+	/** Enable parsing tasks from file metadata */
+	enableFileMetadataParsing: boolean;
+	/** Metadata fields that should be treated as tasks (e.g., "dueDate", "todo", "complete") */
+	metadataFieldsToParseAsTasks: string[];
+	/** Enable parsing tasks from file tags */
+	enableTagBasedTaskParsing: boolean;
+	/** Tags that should be treated as tasks (e.g., "#todo", "#task", "#action") */
+	tagsToParseAsTasks: string[];
+	/** Which metadata field to use as task content (default: "title" or filename) */
+	taskContentFromMetadata: string;
+	/** Default status for tasks created from metadata (default: " " for incomplete) */
+	defaultTaskStatus: string;
+	/** Whether to use worker for file parsing performance */
+	enableWorkerProcessing: boolean;
+}
+
+/** Timeline Sidebar Settings */
+export interface TimelineSidebarSettings {
+	enableTimelineSidebar: boolean;
+	autoOpenOnStartup: boolean;
+	showCompletedTasks: boolean;
+	focusModeByDefault: boolean;
+	maxEventsToShow: number;
+}
+
 /** Define the main settings structure */
 export interface TaskProgressBarSettings {
 	// General Settings (Example)
@@ -376,6 +495,8 @@ export interface TaskProgressBarSettings {
 	taskStatusMarks: TaskStatusCycle;
 	excludeMarksFromCycle: string[];
 
+	enableTaskGeniusIcons: boolean;
+
 	// Priority & Date Settings
 	enablePriorityPicker: boolean;
 	enablePriorityKeyboardShortcuts: boolean;
@@ -403,6 +524,17 @@ export interface TaskProgressBarSettings {
 	useAsDateType: "due" | "start" | "scheduled";
 	dailyNotePath: string;
 	preferMetadataFormat: "dataview" | "tasks";
+
+	// Task Parser Configuration
+	projectTagPrefix: Record<"dataview" | "tasks", string>; // Configurable project tag prefix (default: "project")
+	contextTagPrefix: Record<"dataview" | "tasks", string>; // Configurable context tag prefix (default: "context")
+	areaTagPrefix: Record<"dataview" | "tasks", string>; // Configurable area tag prefix (default: "area")
+
+	// Enhanced Project Configuration
+	projectConfig: ProjectConfiguration;
+
+	// File Parsing Configuration
+	fileParsingConfig: FileParsingConfiguration;
 
 	// Date Settings
 	useRelativeTimeForDate: boolean;
@@ -439,17 +571,23 @@ export interface TaskProgressBarSettings {
 
 	// Beta Test Settings
 	betaTest?: BetaTestSettings;
+
+	// ICS Calendar Integration Settings
+	icsIntegration: IcsManagerConfig;
+
+	// Timeline Sidebar Settings
+	timelineSidebar: TimelineSidebarSettings;
 }
 
 /** Define the default settings */
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// General Defaults
 	progressBarDisplayMode: "both",
-	supportHoverToShowProgressInfo: true,
+	supportHoverToShowProgressInfo: false,
 	addProgressBarToNonTaskBullet: false,
-	addTaskProgressBarToHeading: true,
-	enableProgressbarInReadingMode: true,
-	countSubLevel: true,
+	addTaskProgressBarToHeading: false,
+	enableProgressbarInReadingMode: false,
+	countSubLevel: false,
 	displayMode: "bracketFraction",
 	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",
 	showPercentage: false,
@@ -501,6 +639,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		Planned: "?",
 	},
 	excludeMarksFromCycle: [],
+	enableTaskGeniusIcons: false,
 
 	// Priority & Date Defaults
 	enablePriorityPicker: false,
@@ -510,7 +649,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Task Filter Defaults
 	taskFilter: {
-		enableTaskFilter: true,
+		enableTaskFilter: false,
 		presetTaskFilters: [], // Start empty, maybe add defaults later or via a reset button
 	},
 
@@ -521,7 +660,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Completed Task Mover Defaults
 	completedTaskMover: {
-		enableCompletedTaskMover: true,
+		enableCompletedTaskMover: false,
 		taskMarkerType: "date",
 		versionMarker: "version 1.0",
 		dateMarker: t("archived on") + " {{date}}",
@@ -529,6 +668,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		treatAbandonedAsCompleted: false,
 		completeAllMovedTasks: true,
 		withCurrentFileLink: true,
+		// Auto-move defaults for completed tasks
+		enableAutoMove: false,
+		defaultTargetFile: "Archive.md",
+		defaultInsertionMode: "end",
+		defaultHeadingName: "Completed Tasks",
 		// Incomplete Task Mover Defaults
 		enableIncompletedTaskMover: true,
 		incompletedTaskMarkerType: "date",
@@ -536,14 +680,26 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		incompletedDateMarker: t("moved on") + " {{date}}",
 		incompletedCustomMarker: t("moved") + " {{DATE:YYYY-MM-DD HH:mm}}",
 		withCurrentFileLinkForIncompleted: true,
+		// Auto-move defaults for incomplete tasks
+		enableIncompletedAutoMove: false,
+		incompletedDefaultTargetFile: "Backlog.md",
+		incompletedDefaultInsertionMode: "end",
+		incompletedDefaultHeadingName: "Incomplete Tasks",
 	},
 
 	// Quick Capture Defaults
 	quickCapture: {
-		enableQuickCapture: true,
+		enableQuickCapture: false,
 		targetFile: "QuickCapture.md",
 		placeholder: t("Capture your thoughts..."),
 		appendToFile: "append",
+		targetType: "fixed",
+		targetHeading: "",
+		dailyNoteSettings: {
+			format: "YYYY-MM-DD",
+			folder: "",
+			template: "",
+		},
 	},
 
 	// Workflow Defaults
@@ -620,6 +776,54 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	dailyNotePath: "",
 	preferMetadataFormat: "tasks",
 
+	// Task Parser Configuration
+	projectTagPrefix: {
+		tasks: "project",
+		dataview: "project",
+	},
+	contextTagPrefix: {
+		tasks: "@",
+		dataview: "context",
+	},
+	areaTagPrefix: {
+		tasks: "area",
+		dataview: "area",
+	},
+
+	// Enhanced Project Configuration
+	projectConfig: {
+		enableEnhancedProject: false,
+		pathMappings: [],
+		metadataConfig: {
+			metadataKey: "project",
+			inheritFromFrontmatter: false,
+			inheritFromFrontmatterForSubtasks: false,
+			enabled: false,
+		},
+		configFile: {
+			fileName: "project.md",
+			searchRecursively: false,
+			enabled: false,
+		},
+		metadataMappings: [],
+		defaultProjectNaming: {
+			strategy: "filename" as const,
+			stripExtension: false,
+			enabled: false,
+		},
+	},
+
+	// File Parsing Configuration
+	fileParsingConfig: {
+		enableFileMetadataParsing: false,
+		metadataFieldsToParseAsTasks: ["dueDate", "todo", "complete", "task"],
+		enableTagBasedTaskParsing: false,
+		tagsToParseAsTasks: ["#todo", "#task", "#action", "#due"],
+		taskContentFromMetadata: "title",
+		defaultTaskStatus: " ",
+		enableWorkerProcessing: true,
+	},
+
 	// Date Settings
 	useRelativeTimeForDate: false,
 
@@ -652,6 +856,11 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			hideCompletedAndAbandonedTasks: true,
 			filterRules: {},
 			filterBlanks: false,
+			specificConfig: {
+				viewType: "forecast",
+				firstDayOfWeek: undefined, // Use locale default initially
+				hideWeekends: false, // Show weekends by default
+			} as ForecastSpecificConfig,
 		},
 		{
 			id: "projects",
@@ -705,6 +914,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			specificConfig: {
 				viewType: "calendar",
 				firstDayOfWeek: undefined, // Use locale default initially
+				hideWeekends: false, // Show weekends by default
 			} as CalendarSpecificConfig,
 		},
 		{
@@ -887,6 +1097,28 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// Beta Test Defaults
 	betaTest: {
 		enableBaseView: false,
+	},
+
+	// ICS Calendar Integration Defaults
+	icsIntegration: {
+		sources: [],
+		globalRefreshInterval: 60, // 1 hour
+		maxCacheAge: 24, // 24 hours
+		enableBackgroundRefresh: false,
+		networkTimeout: 30, // 30 seconds
+		maxEventsPerSource: 1000,
+		showInCalendar: false,
+		showInTaskLists: false,
+		defaultEventColor: "#3b82f6", // Blue color
+	},
+
+	// Timeline Sidebar Defaults
+	timelineSidebar: {
+		enableTimelineSidebar: false,
+		autoOpenOnStartup: false,
+		showCompletedTasks: true,
+		focusModeByDefault: false,
+		maxEventsToShow: 100,
 	},
 };
 

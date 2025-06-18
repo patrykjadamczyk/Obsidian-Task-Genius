@@ -9,6 +9,7 @@ import {
 import { MappingHabitProps } from "../../../types/habit-card";
 import { HabitCard } from "./habitcard";
 import TaskProgressBarPlugin from "../../../index";
+import { getTodayLocalDateString } from "../../../utils/dateUtil";
 
 export class MappingHabitCard extends HabitCard {
 	constructor(
@@ -68,7 +69,7 @@ export class MappingHabitCard extends HabitCard {
 		);
 
 		const controlsDiv = contentWrapper.createDiv({ cls: "habit-controls" });
-		const today = new Date().toISOString().split("T")[0];
+		const today = getTodayLocalDateString();
 		const defaultValue = Object.keys(this.habit.mapping || {})
 			.map(Number)
 			.includes(3)

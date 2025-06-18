@@ -9,10 +9,7 @@ import {
 	addIcon,
 	requireApiVersion,
 } from "obsidian";
-import {
-	taskProgressBarExtension,
-	formatProgressText,
-} from "./editor-ext/progressBarWidget";
+import { taskProgressBarExtension } from "./editor-ext/progressBarWidget";
 import { updateProgressBarInElement } from "./components/readModeProgressbarWidget";
 import { applyTaskTextMarks } from "./components/readModeTextMark";
 import {
@@ -28,6 +25,8 @@ import {
 	workflowExtension,
 	updateWorkflowContextMenu,
 } from "./editor-ext/workflow";
+import { workflowDecoratorExtension } from "./editor-ext/workflowDecorator";
+import { workflowRootEnterHandlerExtension } from "./editor-ext/workflowRootEnterHandler";
 import {
 	priorityPickerExtension,
 	TASK_PRIORITIES,
@@ -42,7 +41,16 @@ import { moveTaskCommand } from "./commands/taskMover";
 import {
 	moveCompletedTasksCommand,
 	moveIncompletedTasksCommand,
+	autoMoveCompletedTasksCommand,
 } from "./commands/completedTaskMover";
+import {
+	createQuickWorkflowCommand,
+	convertTaskToWorkflowCommand,
+	startWorkflowHereCommand,
+	convertToWorkflowRootCommand,
+	duplicateWorkflowCommand,
+	showWorkflowQuickActionsCommand,
+} from "./commands/workflowCommands";
 import { datePickerExtension } from "./editor-ext/datePicker";
 import {
 	quickCaptureExtension,
@@ -69,7 +77,11 @@ import "./styles/view-config.css";
 import "./styles/task-status.css";
 import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
-import { getTaskGeniusIcon } from "./icon";
+import {
+	TimelineSidebarView,
+	TIMELINE_SIDEBAR_VIEW_TYPE,
+} from "./components/timeline-sidebar/TimelineSidebarView";
+import { getStatusIcon, getTaskGeniusIcon } from "./icon";
 import { RewardManager } from "./utils/RewardManager";
 import { HabitManager } from "./utils/HabitManager";
 import { monitorTaskCompletedExtension } from "./editor-ext/monitorTaskCompleted";
@@ -77,6 +89,7 @@ import { sortTasksInDocument } from "./commands/sortTaskCommands";
 import { taskGutterExtension } from "./editor-ext/TaskGutterHandler";
 import { autoDateManagerExtension } from "./editor-ext/autoDateManager";
 import { ViewManager } from "./pages/ViewManager";
+import { IcsManager } from "./utils/ics/IcsManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -163,6 +176,9 @@ export default class TaskProgressBarPlugin extends Plugin {
 
 	habitManager: HabitManager;
 
+	// ICS manager instance
+	icsManager: IcsManager;
+
 	// Preloaded tasks:
 	preloadedTasks: Task[] = [];
 
@@ -185,6 +201,11 @@ export default class TaskProgressBarPlugin extends Plugin {
 			this.loadViews();
 
 			addIcon("task-genius", getTaskGeniusIcon());
+			addIcon("completed", getStatusIcon("completed"));
+			addIcon("inProgress", getStatusIcon("inProgress"));
+			addIcon("planned", getStatusIcon("planned"));
+			addIcon("abandoned", getStatusIcon("abandoned"));
+			addIcon("notStarted", getStatusIcon("notStarted"));
 
 			this.taskManager = new TaskManager(
 				this.app,
@@ -338,6 +359,12 @@ export default class TaskProgressBarPlugin extends Plugin {
 					(leaf) => new TaskSpecificView(leaf, this)
 				);
 
+				// Register the Timeline Sidebar View
+				this.registerView(
+					TIMELINE_SIDEBAR_VIEW_TYPE,
+					(leaf) => new TimelineSidebarView(leaf, this)
+				);
+
 				// Add a ribbon icon for opening the TaskView
 				this.addRibbonIcon(
 					"task-genius",
@@ -354,11 +381,50 @@ export default class TaskProgressBarPlugin extends Plugin {
 						this.activateTaskView();
 					},
 				});
+
+				// Add a command to open the Timeline Sidebar View
+				this.addCommand({
+					id: "open-timeline-sidebar-view",
+					name: t("Open Timeline Sidebar"),
+					callback: () => {
+						this.activateTimelineSidebarView();
+					},
+				});
 			}
 
 			if (this.settings.habit.enableHabits) {
 				this.habitManager = new HabitManager(this);
 				this.addChild(this.habitManager);
+			}
+
+			// Initialize ICS manager if sources are configured
+			if (this.settings.icsIntegration.sources.length > 0) {
+				this.icsManager = new IcsManager(
+					this.settings.icsIntegration,
+					this.settings
+				);
+				this.addChild(this.icsManager);
+
+				// Initialize ICS manager
+				this.icsManager.initialize().catch((error) => {
+					console.error("Failed to initialize ICS manager:", error);
+				});
+			}
+
+			// Auto-open timeline sidebar if enabled
+			if (
+				this.settings.timelineSidebar.enableTimelineSidebar &&
+				this.settings.timelineSidebar.autoOpenOnStartup
+			) {
+				// Delay opening to ensure workspace is ready
+				setTimeout(() => {
+					this.activateTimelineSidebarView().catch((error) => {
+						console.error(
+							"Failed to auto-open timeline sidebar:",
+							error
+						);
+					});
+				}, 1000);
 			}
 		});
 
@@ -658,6 +724,53 @@ export default class TaskProgressBarPlugin extends Plugin {
 					);
 				},
 			});
+
+			// Auto-move commands (using default settings)
+			if (this.settings.completedTaskMover.enableAutoMove) {
+				this.addCommand({
+					id: "auto-move-completed-subtasks",
+					name: t("Auto-move completed subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"allCompleted"
+						);
+					},
+				});
+
+				this.addCommand({
+					id: "auto-move-direct-completed-subtasks",
+					name: t(
+						"Auto-move direct completed subtasks to default file"
+					),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"directChildren"
+						);
+					},
+				});
+
+				this.addCommand({
+					id: "auto-move-all-subtasks",
+					name: t("Auto-move all subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"all"
+						);
+					},
+				});
+			}
 		}
 
 		// Add commands for moving incomplete tasks
@@ -691,6 +804,39 @@ export default class TaskProgressBarPlugin extends Plugin {
 					);
 				},
 			});
+
+			// Auto-move commands for incomplete tasks (using default settings)
+			if (this.settings.completedTaskMover.enableIncompletedAutoMove) {
+				this.addCommand({
+					id: "auto-move-incomplete-subtasks",
+					name: t("Auto-move incomplete subtasks to default file"),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"allIncompleted"
+						);
+					},
+				});
+
+				this.addCommand({
+					id: "auto-move-direct-incomplete-subtasks",
+					name: t(
+						"Auto-move direct incomplete subtasks to default file"
+					),
+					editorCheckCallback: (checking, editor, ctx) => {
+						return autoMoveCompletedTasksCommand(
+							checking,
+							editor,
+							ctx,
+							this,
+							"directIncompletedChildren"
+						);
+					},
+				});
+			}
 		}
 
 		// Add command for toggling quick capture panel in editor
@@ -717,6 +863,87 @@ export default class TaskProgressBarPlugin extends Plugin {
 				}
 			},
 		});
+
+		// Workflow commands
+		if (this.settings.workflow.enableWorkflow) {
+			this.addCommand({
+				id: "create-quick-workflow",
+				name: t("Create quick workflow"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return createQuickWorkflowCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "convert-task-to-workflow",
+				name: t("Convert task to workflow template"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return convertTaskToWorkflowCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "start-workflow-here",
+				name: t("Start workflow here"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return startWorkflowHereCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "convert-to-workflow-root",
+				name: t("Convert current task to workflow root"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return convertToWorkflowRootCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "duplicate-workflow",
+				name: t("Duplicate workflow"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return duplicateWorkflowCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+
+			this.addCommand({
+				id: "workflow-quick-actions",
+				name: t("Workflow quick actions"),
+				editorCheckCallback: (checking, editor, ctx) => {
+					return showWorkflowQuickActionsCommand(
+						checking,
+						editor,
+						ctx,
+						this
+					);
+				},
+			});
+		}
 	}
 
 	registerEditorExt() {
@@ -746,6 +973,12 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add workflow extension
 		if (this.settings.workflow.enableWorkflow) {
 			this.registerEditorExtension([workflowExtension(this.app, this)]);
+			this.registerEditorExtension([
+				workflowDecoratorExtension(this.app, this),
+			]);
+			this.registerEditorExtension([
+				workflowRootEnterHandlerExtension(this.app, this),
+			]);
 		}
 
 		// Add quick capture extension
@@ -828,16 +1061,59 @@ export default class TaskProgressBarPlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
+	async activateTimelineSidebarView() {
+		const { workspace } = this.app;
+
+		// Check if view is already open
+		const existingLeaf = workspace.getLeavesOfType(
+			TIMELINE_SIDEBAR_VIEW_TYPE
+		)[0];
+
+		if (existingLeaf) {
+			// If view is already open, just reveal it
+			workspace.revealLeaf(existingLeaf);
+			return;
+		}
+
+		// Open in the right sidebar
+		const leaf = workspace.getRightLeaf(false);
+		if (leaf) {
+			await leaf.setViewState({ type: TIMELINE_SIDEBAR_VIEW_TYPE });
+			workspace.revealLeaf(leaf);
+		}
+	}
+
 	async triggerViewUpdate() {
-		const leaves = this.app.workspace.getLeavesOfType(TASK_VIEW_TYPE);
-		if (leaves.length > 0) {
-			for (const leaf of leaves) {
+		// Update Task Views
+		const taskViewLeaves =
+			this.app.workspace.getLeavesOfType(TASK_VIEW_TYPE);
+		if (taskViewLeaves.length > 0) {
+			for (const leaf of taskViewLeaves) {
 				if (leaf.view instanceof TaskView) {
 					leaf.view.tasks = this.preloadedTasks;
 					leaf.view.triggerViewUpdate();
 				}
 			}
 		}
+
+		// Update Timeline Sidebar Views
+		const timelineViewLeaves = this.app.workspace.getLeavesOfType(
+			TIMELINE_SIDEBAR_VIEW_TYPE
+		);
+		if (timelineViewLeaves.length > 0) {
+			for (const leaf of timelineViewLeaves) {
+				if (leaf.view instanceof TimelineSidebarView) {
+					await leaf.view.triggerViewUpdate();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Get the ICS manager instance
+	 */
+	getIcsManager(): IcsManager | undefined {
+		return this.icsManager;
 	}
 }
 

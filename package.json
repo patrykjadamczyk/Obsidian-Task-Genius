@@ -1,6 +1,6 @@
 {
-	"name": "obsidian-task-progress-bar",
-	"version": "8.10.1",
+	"name": "task-genius",
+	"version": "9.0.0-beta.11",
 	"description": "Comprehensive task management plugin for Obsidian with progress bars, task status cycling, and advanced task tracking features.",
 	"main": "main.js",
 	"scripts": {
@@ -25,7 +25,6 @@
 		"task marks"
 	],
 	"author": "Boninall",
-	"license": "MIT",
 	"devDependencies": {
 		"@codemirror/language": "https://github.com/lishid/cm-language",
 		"@codemirror/search": "^6.0.0",

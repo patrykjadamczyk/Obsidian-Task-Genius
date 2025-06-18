@@ -37,6 +37,7 @@ export class YearView extends CalendarViewComponent {
 		const year = this.currentDate.year();
 		this.containerEl.empty();
 		this.containerEl.addClass("view-year");
+
 		console.log(
 			`YearView: Rendering year ${year}. Total events received: ${this.events.length}`
 		); // Log total events
@@ -68,6 +69,14 @@ export class YearView extends CalendarViewComponent {
 		const firstDayOfWeekSetting = (
 			viewConfig.specificConfig as CalendarSpecificConfig
 		).firstDayOfWeek;
+		const hideWeekends = (viewConfig.specificConfig as CalendarSpecificConfig)?.hideWeekends ?? false;
+
+		// Add hide-weekends class if weekend hiding is enabled
+		if (hideWeekends) {
+			this.containerEl.addClass("hide-weekends");
+		} else {
+			this.containerEl.removeClass("hide-weekends");
+		}
 		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
@@ -111,7 +120,8 @@ export class YearView extends CalendarViewComponent {
 				monthBody,
 				monthMoment,
 				daysWithEvents,
-				effectiveFirstDay
+				effectiveFirstDay,
+				hideWeekends
 			);
 		}
 
@@ -143,8 +153,8 @@ export class YearView extends CalendarViewComponent {
 				| undefined
 			)[] = [
 				event.start,
-				event.scheduledDate, // Assuming 'scheduled' exists on CalendarEvent
-				event.dueDate, // Assuming 'due' exists on CalendarEvent
+				event.metadata.scheduledDate, // Assuming 'scheduled' exists on CalendarEvent
+				event.metadata.dueDate, // Assuming 'due' exists on CalendarEvent
 			];
 
 			datesToCheck.forEach((dateInput) => {
@@ -169,7 +179,8 @@ export class YearView extends CalendarViewComponent {
 		container: HTMLElement,
 		monthMoment: moment.Moment,
 		daysWithEvents: Set<number>,
-		effectiveFirstDay: number // Pass the effective first day
+		effectiveFirstDay: number, // Pass the effective first day
+		hideWeekends: boolean // Pass the weekend hiding setting
 	) {
 		container.empty(); // Clear placeholder
 		container.addClass("mini-month-grid");
@@ -181,25 +192,67 @@ export class YearView extends CalendarViewComponent {
 			...weekdays.slice(effectiveFirstDay),
 			...weekdays.slice(0, effectiveFirstDay),
 		];
-		rotatedWeekdays.forEach((day) => {
+
+		// Filter out weekends if hideWeekends is enabled
+		const filteredWeekdays = hideWeekends
+			? rotatedWeekdays.filter((_, index) => {
+				// Calculate the actual day of week for this header position
+				const dayOfWeek = (effectiveFirstDay + index) % 7;
+				return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+			})
+			: rotatedWeekdays;
+
+		filteredWeekdays.forEach((day) => {
 			headerRow.createDiv("mini-weekday").textContent = day;
 		});
 
 		// Calculate grid boundaries using effective first day
 		const monthStart = monthMoment.clone().startOf("month");
-		const daysToSubtractStart =
-			(monthStart.weekday() - effectiveFirstDay + 7) % 7;
-		const gridStart = monthStart
-			.clone()
-			.subtract(daysToSubtractStart, "days");
-
 		const monthEnd = monthMoment.clone().endOf("month");
-		const daysToAddEnd =
-			(effectiveFirstDay + 6 - monthEnd.weekday() + 7) % 7;
-		const gridEnd = monthEnd.clone().add(daysToAddEnd, "days");
+
+		let gridStart: moment.Moment;
+		let gridEnd: moment.Moment;
+
+		if (hideWeekends) {
+			// When weekends are hidden, adjust grid to start and end on work days
+			// Find the first work day of the week containing the start of month
+			gridStart = monthStart.clone();
+			const daysToSubtractStart = (monthStart.weekday() - effectiveFirstDay + 7) % 7;
+			gridStart.subtract(daysToSubtractStart, "days");
+
+			// Ensure gridStart is not a weekend
+			while (gridStart.day() === 0 || gridStart.day() === 6) {
+				gridStart.add(1, "day");
+			}
+
+			// Find the last work day of the week containing the end of month
+			gridEnd = monthEnd.clone();
+			const daysToAddEnd = (effectiveFirstDay + 4 - monthEnd.weekday() + 7) % 7; // 4 = Friday in work week
+			gridEnd.add(daysToAddEnd, "days");
+
+			// Ensure gridEnd is not a weekend
+			while (gridEnd.day() === 0 || gridEnd.day() === 6) {
+				gridEnd.subtract(1, "day");
+			}
+		} else {
+			// Original logic for when weekends are shown
+			const daysToSubtractStart = (monthStart.weekday() - effectiveFirstDay + 7) % 7;
+			gridStart = monthStart.clone().subtract(daysToSubtractStart, "days");
+
+			const daysToAddEnd = (effectiveFirstDay + 6 - monthEnd.weekday() + 7) % 7;
+			gridEnd = monthEnd.clone().add(daysToAddEnd, "days");
+		}
 
 		let currentDayIter = gridStart.clone();
 		while (currentDayIter.isSameOrBefore(gridEnd, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue;
+			}
+
 			const cell = container.createEl("div", {
 				cls: "mini-day-cell",
 				attr: {

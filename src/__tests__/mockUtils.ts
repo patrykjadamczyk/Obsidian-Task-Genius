@@ -117,9 +117,6 @@ export const createMockText = (content: string): Text => {
 					length: 0,
 				};
 			}
-			throw new Error(
-				`Could not find line at pos ${pos} in content: "${content}"`
-			);
 		}),
 		sliceString: jest.fn((from: number, to: number) =>
 			content.slice(from, to)
@@ -330,6 +327,16 @@ const createMockPlugin = (
 			autoAddNextTask: false,
 			calculateFullSpentTime: false,
 		},
+		// Add sorting defaults
+		sortTasks: true,
+		sortCriteria: [
+			{ field: "completed", order: "asc" },
+			{ field: "status", order: "asc" },
+			{ field: "priority", order: "asc" },
+			{ field: "dueDate", order: "asc" },
+		],
+		// Add metadata format default
+		preferMetadataFormat: "tasks",
 	};
 
 	// Deep merge provided settings with defaults
@@ -343,6 +350,7 @@ const createMockPlugin = (
 			...settings.taskStatusMarks,
 		},
 		workflow: { ...defaults.workflow, ...settings.workflow },
+		sortCriteria: settings.sortCriteria || defaults.sortCriteria,
 	};
 
 	// Return the plugin with app property

@@ -219,11 +219,11 @@ export class TaskView extends ItemView {
 		this.currentViewId = initialViewId;
 		this.sidebarComponent.setViewMode(this.currentViewId);
 
-		// 5. 先使用预加载的数据快速显示
-		this.switchView(this.currentViewId);
+		// 5. 异步加载最新数据（包含 ICS 同步）
+		await this.loadTasks(true, true); // 跳过视图更新，避免双重渲染
 
-		// 6. 异步加载最新数据（不阻塞初始显示）
-		this.loadTasks().catch(console.error);
+		// 6. 使用加载的数据显示视图
+		this.switchView(this.currentViewId);
 
 		this.toggleDetailsVisibility(false);
 
@@ -364,6 +364,14 @@ export class TaskView extends ItemView {
 				},
 				onTaskCompleted: (task: Task) => {
 					this.toggleTaskCompletion(task);
+				},
+				onTaskUpdate: async (originalTask: Task, updatedTask: Task) => {
+					console.log(
+						"TaskView onTaskUpdate",
+						originalTask.content,
+						updatedTask.content
+					);
+					await this.handleTaskUpdate(originalTask, updatedTask);
 				},
 				onTaskContextMenu: (event: MouseEvent, task: Task) => {
 					this.handleTaskContextMenu(event, task);
@@ -518,6 +526,7 @@ export class TaskView extends ItemView {
 				onTaskStatusUpdate:
 					this.handleKanbanTaskStatusUpdate.bind(this),
 				onEventContextMenu: this.handleTaskContextMenu.bind(this),
+				onTaskUpdate: this.handleTaskUpdate.bind(this),
 			}
 		);
 
@@ -928,6 +937,8 @@ export class TaskView extends ItemView {
 					filterOptions.advancedFilter = this.currentFilterState;
 				}
 
+				console.log("tasks", this.tasks);
+
 				targetComponent.setTasks(
 					filterTasks(this.tasks, viewId, this.plugin, filterOptions),
 					this.tasks
@@ -1064,9 +1075,9 @@ export class TaskView extends ItemView {
 						item.onClick(() => {
 							console.log("status", status, mark);
 							if (!task.completed && mark.toLowerCase() === "x") {
-								task.completedDate = Date.now();
+								task.metadata.completedDate = Date.now();
 							} else {
-								task.completedDate = undefined;
+								task.metadata.completedDate = undefined;
 							}
 							this.updateTask(task, {
 								...task,
@@ -1122,17 +1133,25 @@ export class TaskView extends ItemView {
 		}
 	}
 
-	private async loadTasks() {
+	private async loadTasks(
+		forceSync: boolean = false,
+		skipViewUpdate: boolean = false
+	) {
 		const taskManager = this.plugin.taskManager;
 		if (!taskManager) return;
 
-		this.tasks = taskManager.getAllTasks();
-		console.log(
-			"tasks",
-			this.tasks.find((i) => i.content.startsWith("Launch"))?.content
-		);
+		if (forceSync) {
+			// Use sync method for initial load to ensure ICS data is available
+			this.tasks = await taskManager.getAllTasksWithSync();
+		} else {
+			// Use regular method for subsequent updates
+			this.tasks = taskManager.getAllTasks();
+		}
 		console.log(`TaskView loaded ${this.tasks.length} tasks`);
-		await this.triggerViewUpdate();
+
+		if (!skipViewUpdate) {
+			await this.triggerViewUpdate();
+		}
 	}
 
 	public async triggerViewUpdate() {
@@ -1168,7 +1187,7 @@ export class TaskView extends ItemView {
 		const updatedTask = { ...task, completed: !task.completed };
 
 		if (updatedTask.completed) {
-			updatedTask.completedDate = Date.now();
+			updatedTask.metadata.completedDate = Date.now();
 			const completedMark = (
 				this.plugin.settings.taskStatuses.completed || "x"
 			).split("|")[0];
@@ -1176,7 +1195,7 @@ export class TaskView extends ItemView {
 				updatedTask.status = completedMark;
 			}
 		} else {
-			updatedTask.completedDate = undefined;
+			updatedTask.metadata.completedDate = undefined;
 			const notStartedMark =
 				this.plugin.settings.taskStatuses.notStarted || " ";
 			if (updatedTask.status.toLowerCase() === "x") {
@@ -1208,7 +1227,8 @@ export class TaskView extends ItemView {
 			await taskManager.updateTask(updatedTask);
 		} catch (error) {
 			console.error("Failed to update task:", error);
-			// You might want to show a notice to the user here
+			// Re-throw the error so that the InlineEditor can handle it properly
+			throw error;
 		}
 	}
 
@@ -1316,7 +1336,10 @@ export class TaskView extends ItemView {
 						...taskToUpdate,
 						status: newStatusMark,
 						completed: isCompleted,
-						completedDate: completedDate,
+						metadata: {
+							...taskToUpdate.metadata,
+							completedDate: completedDate,
+						},
 					});
 					console.log(
 						`Task ${taskId} status update processed by TaskView.`

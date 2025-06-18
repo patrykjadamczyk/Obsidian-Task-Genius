@@ -5,6 +5,7 @@
 import { CachedMetadata, FileStats, ListItemCache } from "obsidian";
 import { Task } from "../../types/task";
 import { MetadataFormat } from "../taskUtil";
+import { FileParsingConfiguration } from "../../common/setting-definition";
 
 /**
  * Command to parse tasks from a file
@@ -16,6 +17,8 @@ export interface ParseTasksCommand {
 	filePath: string;
 	/** The file contents to parse */
 	content: string;
+	/** File extension to determine parser type */
+	fileExtension: string;
 	/** File stats information */
 	stats: FileStats;
 	/** Additional metadata from Obsidian cache */
@@ -34,6 +37,7 @@ export interface ParseTasksCommand {
 		dailyNotePath: string;
 		ignoreHeading: string;
 		focusHeading: string;
+		fileParsingConfig?: FileParsingConfiguration;
 	};
 }
 
@@ -49,6 +53,8 @@ export interface BatchIndexCommand {
 		path: string;
 		/** The file content */
 		content: string;
+		/** File extension to determine parser type */
+		extension: string;
 		/** File stats */
 		stats: FileStats;
 		/** Optional metadata */
@@ -66,6 +72,7 @@ export interface BatchIndexCommand {
 		dailyNotePath: string;
 		ignoreHeading: string;
 		focusHeading: string;
+		fileParsingConfig?: FileParsingConfiguration;
 	};
 }
 
@@ -140,6 +147,25 @@ export type IndexerResult = TaskParseResult | BatchIndexResult | ErrorResult;
  * Custom settings for the task worker
  */
 
+/**
+ * Enhanced project data computed by TaskParsingService
+ */
+export interface EnhancedProjectData {
+	/** File path to project mapping */
+	fileProjectMap: Record<
+		string,
+		{
+			project: string;
+			source: string;
+			readonly: boolean;
+		}
+	>;
+	/** File path to enhanced metadata mapping */
+	fileMetadataMap: Record<string, Record<string, any>>;
+	/** Computed project configuration data */
+	projectConfigMap: Record<string, Record<string, any>>;
+}
+
 export type TaskWorkerSettings = {
 	preferMetadataFormat: MetadataFormat;
 	useDailyNotePathAsDate: boolean;
@@ -148,4 +174,31 @@ export type TaskWorkerSettings = {
 	dailyNotePath: string;
 	ignoreHeading: string;
 	focusHeading: string;
+
+	// Enhanced project configuration (basic config for fallback)
+	projectConfig?: {
+		enableEnhancedProject: boolean;
+		pathMappings: Array<{
+			pathPattern: string;
+			projectName: string;
+			enabled: boolean;
+		}>;
+		metadataConfig: {
+			metadataKey: string;
+			inheritFromFrontmatter: boolean;
+			inheritFromFrontmatterForSubtasks: boolean;
+			enabled: boolean;
+		};
+		configFile: {
+			fileName: string;
+			searchRecursively: boolean;
+			enabled: boolean;
+		};
+	};
+
+	// Pre-computed enhanced project data from TaskParsingService
+	enhancedProjectData?: EnhancedProjectData;
+
+	// File parsing configuration for metadata and tag-based task extraction
+	fileParsingConfig?: FileParsingConfiguration;
 };

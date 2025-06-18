@@ -6,22 +6,17 @@
 import { EditorView } from "@codemirror/view";
 import { gutter, GutterMarker } from "./patchedGutter";
 import { Extension } from "@codemirror/state";
-import {
-	App,
-	Modal,
-	Menu,
-	Platform,
-	MenuItem,
-	ExtraButtonComponent,
-} from "obsidian";
+import { App, Platform, ExtraButtonComponent } from "obsidian";
 import { Task } from "../types/task";
 import TaskProgressBarPlugin from "../index";
 import { TaskDetailsModal } from "../components/task-edit/TaskDetailsModal";
 import { TaskDetailsPopover } from "../components/task-edit/TaskDetailsPopover";
-import { TaskParser } from "../utils/import/TaskParser";
+import { MarkdownTaskParser } from "../utils/workers/ConfigurableTaskParser";
 // @ts-ignore - This import is necessary but TypeScript can't find it
 import { syntaxTree, tokenClassNodeProp } from "@codemirror/language";
 import "../styles/task-gutter.css";
+import { getConfig } from "../common/task-parser-config";
+import { TaskParserConfig } from "../types/TaskParserConfig";
 
 const taskRegex = /^(([\s>]*)?(-|\d+\.|\*|\+)\s\[(.)\])\s+(.*)$/m;
 
@@ -136,7 +131,7 @@ const showTaskDetails = (
 };
 
 // Task parser instance
-let taskParser: TaskParser | null = null;
+let taskParser: MarkdownTaskParser | null = null;
 
 /**
  * Parses a task from the line content.
@@ -147,12 +142,26 @@ const getTaskFromLine = (
 	line: string,
 	lineNum: number
 ): Task | null => {
-	// Lazily load the task parser
-	if (!taskParser) {
-		taskParser = new TaskParser();
-	}
-
 	try {
+		// Try to use TaskParsingService from TaskManager if available and enhanced project is enabled
+		if (plugin.taskManager && plugin.settings.projectConfig?.enableEnhancedProject) {
+			// Use TaskManager's parsing capability which includes TaskParsingService support
+			const tasks = plugin.taskManager['parseFileWithConfigurableParser'](filePath, line);
+			if (tasks.length > 0) {
+				const task = tasks[0];
+				// Override line number to match the expected behavior
+				task.line = lineNum;
+				return task;
+			}
+		}
+
+		// Fallback to direct parser
+		if (!taskParser) {
+			taskParser = new MarkdownTaskParser(
+				getConfig(plugin.settings.preferMetadataFormat, plugin) as TaskParserConfig
+			);
+		}
+
 		return taskParser.parseTask(line, filePath, lineNum);
 	} catch (error) {
 		console.error("Error parsing task:", error);

@@ -88,6 +88,14 @@
 	color: var(--text-accent);
 }
 
+/* Adjust grid layout when weekends are hidden in mini calendar */
+.task-genius-view .mini-calendar-container.hide-weekends .calendar-grid {
+	grid-template-columns: repeat(5, 1fr); /* 5 columns instead of 7 when weekends hidden */
+}
+
+/* Note: Weekend elements are not created when hideWeekends is enabled,
+   so no hiding rules are needed. The grid layout adjustments above are sufficient. */
+
 .task-genius-view .mini-calendar-container .calendar-day {
 	aspect-ratio: 1;
 	border-radius: 4px;

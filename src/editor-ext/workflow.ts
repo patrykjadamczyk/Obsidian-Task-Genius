@@ -117,7 +117,7 @@ export function extractWorkflowInfo(lineText: string): {
  * @param lineNum The current line number
  * @returns The workflow type or null if not found
  */
-function findParentWorkflow(doc: Text, lineNum: number): string | null {
+export function findParentWorkflow(doc: Text, lineNum: number): string | null {
 	// Ensure lineNum is in bounds (0-indexed for doc.line)
 	const safeLineNum = Math.min(lineNum, doc.lines);
 
@@ -142,11 +142,22 @@ function findParentWorkflow(doc: Text, lineNum: number): string | null {
 		const indentMatch = lineText.match(/^([\s|\t]*)/);
 		const indent = indentMatch ? indentMatch[1].length : 0;
 
-		// If this line has less indentation than our current line
-		// and contains a workflow tag, it's a potential parent
-		if (indent < currentIndent) {
-			const workflowMatch = lineText.match(/#workflow\/([^\/\s]+)/);
-			if (workflowMatch) {
+		// Check for workflow tag in this line
+		const workflowMatch = lineText.match(/#workflow\/([^\/\s]+)/);
+		if (workflowMatch) {
+			console.log(
+				"Found workflow tag:",
+				workflowMatch[0],
+				"extracted ID:",
+				workflowMatch[1]
+			);
+			// If this line has less indentation than our current line, it's a parent
+			// OR if both lines have the same indentation level (including 0),
+			// and this line is above the current line, it could be a project definition
+			if (
+				indent < currentIndent ||
+				(indent === currentIndent && i < currentLineIndex)
+			) {
 				return workflowMatch[1];
 			}
 		}
@@ -321,9 +332,58 @@ export function handleWorkflowTransaction(
 				});
 			}
 
-			// Skip if this is a terminal stage
+			// Handle terminal stage completion
 			if (currentStage.type === "terminal") {
-				continue;
+				// For terminal stages, we need to complete the root workflow task
+				// Find and complete the root workflow task
+				const currentIndentMatch = line.text.match(/^([\s|\t]*)/);
+				const currentIndent = currentIndentMatch
+					? currentIndentMatch[1].length
+					: 0;
+				const taskRegex = /^([\s|\t]*)([-*+]|\d+\.)\s+\[(.)]/;
+
+				// Look upward to find the root workflow task (with less indentation and workflow tag)
+				for (let i = update.line - 1; i >= 1; i--) {
+					const checkLine = tr.newDoc.line(i);
+					const checkIndentMatch =
+						checkLine.text.match(/^([\s|\t]*)/);
+					const checkIndent = checkIndentMatch
+						? checkIndentMatch[1].length
+						: 0;
+
+					console.log("currentIndent", currentIndent);
+
+					// If this line has less indentation and contains a workflow tag, it's likely the root task
+					if (
+						checkIndent < currentIndent &&
+						checkLine.text.includes(`#workflow/${workflowType}`)
+					) {
+						console.log("checkLine", checkLine.text);
+						const rootTaskMatch = checkLine.text.match(taskRegex);
+						if (rootTaskMatch) {
+							// Check if the root task is not already completed
+							const rootTaskStatus = rootTaskMatch[3]; // Status character is in group 3
+							const completedStatuses =
+								plugin.settings.taskStatuses.completed.split(
+									"|"
+								);
+
+							if (!completedStatuses.includes(rootTaskStatus)) {
+								// Complete the root task
+								const rootTaskStart =
+									checkLine.from +
+									rootTaskMatch[0].indexOf("[");
+								newChanges.push({
+									from: rootTaskStart + 1,
+									to: rootTaskStart + 2,
+									insert: "x",
+								});
+							}
+							break; // Found and handled the root task, stop looking
+						}
+					}
+				}
+				continue; // Skip creating next stage task for terminal stages
 			}
 
 			// Determine the next stage using our helper function
@@ -641,6 +701,64 @@ export function updateWorkflowContextMenu(
 					});
 				});
 			});
+
+			// Add quick workflow actions
+			submenu.addSeparator();
+
+			// Convert task to workflow template
+			submenu.addItem((convertItem: any) => {
+				convertItem.setTitle(t("Convert to workflow template"));
+				convertItem.setIcon("convert");
+				convertItem.onClick(() => {
+					// Import the conversion function
+					import("../commands/workflowCommands").then(
+						({ convertTaskToWorkflowCommand }) => {
+							convertTaskToWorkflowCommand(
+								false,
+								editor,
+								null as any,
+								plugin
+							);
+						}
+					);
+				});
+			});
+
+			// Start workflow here
+			submenu.addItem((startItem: any) => {
+				startItem.setTitle(t("Start workflow here"));
+				startItem.setIcon("play");
+				startItem.onClick(() => {
+					import("../commands/workflowCommands").then(
+						({ startWorkflowHereCommand }) => {
+							startWorkflowHereCommand(
+								false,
+								editor,
+								null as any,
+								plugin
+							);
+						}
+					);
+				});
+			});
+
+			// Quick workflow creation
+			submenu.addItem((quickItem: any) => {
+				quickItem.setTitle(t("Create quick workflow"));
+				quickItem.setIcon("zap");
+				quickItem.onClick(() => {
+					import("../commands/workflowCommands").then(
+						({ createQuickWorkflowCommand }) => {
+							createQuickWorkflowCommand(
+								false,
+								editor,
+								null as any,
+								plugin
+							);
+						}
+					);
+				});
+			});
 		});
 		return;
 	}
@@ -890,9 +1008,17 @@ export function isLastWorkflowStageOrNotWorkflow(
 	doc: Text,
 	plugin: TaskProgressBarPlugin
 ): boolean {
-	const workflowInfo = extractWorkflowInfo(lineText);
+	console.log("=== isLastWorkflowStageOrNotWorkflow called ===");
+	console.log(
+		"Available workflow definitions:",
+		plugin.settings.workflow.definitions.map((wf) => ({
+			id: wf.id,
+			name: wf.name,
+		}))
+	);
 
-	// If not a workflow task, treat as "final" for parent completion purposes
+	// Extract basic workflow info
+	const workflowInfo = extractWorkflowInfo(lineText);
 	if (!workflowInfo) {
 		console.log("not a workflow task");
 		return true;
@@ -904,24 +1030,46 @@ export function isLastWorkflowStageOrNotWorkflow(
 
 	// Resolve workflow type if it's derived from parent
 	if (workflowType === "fromParent") {
+		console.log(
+			"Looking for parent workflow, lineNumber:",
+			lineNumber,
+			"doc.lines:",
+			doc.lines
+		);
 		// Use safe line number for findParentWorkflow
 		const safeLineNumber = Math.min(lineNumber, doc.lines);
 		const parentWorkflow = findParentWorkflow(doc, safeLineNumber);
 
+		console.log("Found parent workflow:", parentWorkflow);
+
 		if (!parentWorkflow) {
+			console.log("No parent workflow found");
 			return true;
 		}
 		workflowType = parentWorkflow;
 	}
 
+	console.log("Final workflow type:", workflowType);
+
 	// Find the workflow definition
 	const workflow = plugin.settings.workflow.definitions.find(
 		(wf: WorkflowDefinition) => wf.id === workflowType
 	);
+
+	console.log(
+		"Available workflow definitions:",
+		plugin.settings.workflow.definitions.map((wf) => ({
+			id: wf.id,
+			name: wf.name,
+		}))
+	);
+
 	if (!workflow) {
-		console.warn(`Workflow definition not found: ${workflowType}`);
+		console.log("No workflow definition found for:", workflowType);
 		return true; // Definition missing, treat as non-workflow
 	}
+
+	console.log("Found workflow definition:", workflow.name);
 
 	// Handle root tasks - they are never the "last stage" in the sense of triggering parent completion
 	// A root task completion should trigger the first stage, not parent completion.
@@ -1043,20 +1191,36 @@ export function determineNextStage(
 			// Move to the next substage within this cycle
 			nextStageId = currentStage.id;
 			nextSubStageId = currentSubStage.next;
-		} else if (
-			currentStage.canProceedTo &&
-			currentStage.canProceedTo.length > 0
-		) {
-			// If no next substage, try to move to the next main stage
-			nextStageId = currentStage.canProceedTo[0];
-			nextSubStageId = undefined;
 		} else {
-			// If no canProceedTo, cycle back to the first substage
-			nextStageId = currentStage.id;
-			nextSubStageId =
-				currentStage.subStages && currentStage.subStages.length > 0
-					? currentStage.subStages[0].id
-					: undefined;
+			// For cycle stages, if there's no explicit next substage, we need to determine behavior:
+			// 1. If there's only one substage, keep cycling the same substage
+			// 2. If there are multiple substages, cycle back to the first one
+			// 3. Only move to next main stage if explicitly configured via canProceedTo
+
+			const subStageCount = currentStage.subStages
+				? currentStage.subStages.length
+				: 0;
+
+			if (subStageCount === 1) {
+				// Only one substage - keep cycling the same substage
+				nextStageId = currentStage.id;
+				nextSubStageId = currentSubStage.id;
+			} else if (subStageCount > 1) {
+				// Multiple substages - cycle back to the first one
+				nextStageId = currentStage.id;
+				nextSubStageId = currentStage.subStages![0].id;
+			} else if (
+				currentStage.canProceedTo &&
+				currentStage.canProceedTo.length > 0
+			) {
+				// No substages but has canProceedTo - move to next main stage
+				nextStageId = currentStage.canProceedTo[0];
+				nextSubStageId = undefined;
+			} else {
+				// Fallback - stay in the same stage
+				nextStageId = currentStage.id;
+				nextSubStageId = undefined;
+			}
 		}
 	} else if (currentStage.type === "linear") {
 		// For linear stages, find the next stage
@@ -1104,7 +1268,7 @@ export function determineNextStage(
 }
 
 // Helper function to create workflow stage transition
-function createWorkflowStageTransition(
+export function createWorkflowStageTransition(
 	plugin: TaskProgressBarPlugin,
 	editor: Editor,
 	line: string,
@@ -1128,7 +1292,7 @@ function createWorkflowStageTransition(
 		? indentMatch[1] + (isRootTask ? defaultIndentation : "")
 		: "";
 
-	const timestamp = plugin.settings.workflow.autoAddTimestamp
+	plugin.settings.workflow.autoAddTimestamp
 		? ` 🛫 ${moment().format(
 				plugin.settings.workflow.timestampFormat ||
 					"YYYY-MM-DD HH:mm:ss"
@@ -1254,11 +1418,23 @@ export function resolveWorkflowInfo(
 	workflow: WorkflowDefinition;
 	isRootTask: boolean;
 } | null {
+	console.log("=== resolveWorkflowInfo called ===");
+	console.log(
+		"Available workflow definitions:",
+		plugin.settings.workflow.definitions.map((wf) => ({
+			id: wf.id,
+			name: wf.name,
+		}))
+	);
+
 	// Extract basic workflow info
 	const workflowInfo = extractWorkflowInfo(lineText);
 	if (!workflowInfo) {
+		console.log("No workflow info extracted from line:", lineText);
 		return null;
 	}
+
+	console.log("Extracted workflow info:", workflowInfo);
 
 	let workflowType = workflowInfo.workflowType;
 	let stageId = workflowInfo.currentStage;
@@ -1266,29 +1442,45 @@ export function resolveWorkflowInfo(
 
 	// Resolve workflow type if derived from parent
 	if (workflowType === "fromParent") {
+		console.log(
+			"Looking for parent workflow, lineNumber:",
+			lineNumber,
+			"doc.lines:",
+			doc.lines
+		);
 		// Use safe line number for findParentWorkflow
 		const safeLineNumber = Math.min(lineNumber, doc.lines);
 		const parentWorkflow = findParentWorkflow(doc, safeLineNumber);
 
+		console.log("Found parent workflow:", parentWorkflow);
+
 		if (!parentWorkflow) {
+			console.log("No parent workflow found");
 			return null;
 		}
 		workflowType = parentWorkflow;
 	}
+
+	console.log("Final workflow type:", workflowType);
 
 	// Find the workflow definition
 	const workflow = plugin.settings.workflow.definitions.find(
 		(wf: WorkflowDefinition) => wf.id === workflowType
 	);
 	if (!workflow) {
+		console.log("No workflow definition found for:", workflowType);
 		return null;
 	}
+
+	console.log("Found workflow definition:", workflow.name);
 
 	// Determine if this is a root task
 	const isRootTask =
 		stageId === "root" ||
 		(lineText.includes(`#workflow/${workflowType}`) &&
 			!lineText.includes("[stage::"));
+
+	console.log("Is root task:", isRootTask, "stageId:", stageId);
 
 	// Find the current stage
 	let currentStage: WorkflowStage;
@@ -1306,10 +1498,18 @@ export function resolveWorkflowInfo(
 		// Find the stage in the workflow
 		const foundStage = workflow.stages.find((s) => s.id === stageId);
 		if (!foundStage) {
+			console.log(
+				"Stage not found in workflow:",
+				stageId,
+				"Available stages:",
+				workflow.stages.map((s) => s.id)
+			);
 			return null;
 		}
 		currentStage = foundStage;
 	}
+
+	console.log("Current stage:", currentStage);
 
 	// Find current substage if exists
 	let currentSubStage:
@@ -1320,6 +1520,8 @@ export function resolveWorkflowInfo(
 			(ss) => ss.id === subStageId
 		);
 	}
+
+	console.log("Current substage:", currentSubStage);
 
 	return {
 		workflowType,

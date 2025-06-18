@@ -10,6 +10,7 @@ import { HabitCard } from "./habitcard";
 import TaskProgressBarPlugin from "../../../index";
 import { t } from "../../../translations/helper";
 import { EventDetailModal } from "../habit";
+import { getTodayLocalDateString } from "../../../utils/dateUtil";
 
 function renderPieDotSVG(completed: number, total: number): string {
 	if (total <= 0) return "";
@@ -112,7 +113,7 @@ export class ScheduledHabitCard extends HabitCard {
 		);
 
 		const controlsDiv = contentWrapper.createDiv({ cls: "habit-controls" });
-		const today = new Date().toISOString().split("T")[0];
+		const today = getTodayLocalDateString();
 		// Ensure completions for today exists and is an object
 		const todaysCompletions: Record<string, string> =
 			typeof this.habit.completions[today] === "object" &&

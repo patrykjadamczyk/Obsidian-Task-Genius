@@ -10,6 +10,18 @@ import { CalendarViewComponent, CalendarViewOptions } from "./base-view"; // Imp
 import Sortable from "sortablejs";
 
 /**
+ * Utility function to parse date string (YYYY-MM-DD) to Date object
+ * Optimized for performance to replace moment.js usage
+ */
+function parseDateString(dateStr: string): Date {
+	const dateParts = dateStr.split("-");
+	const year = parseInt(dateParts[0], 10);
+	const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed in Date
+	const day = parseInt(dateParts[2], 10);
+	return new Date(year, month, day);
+}
+
+/**
  * Renders the month view grid as a component.
  */
 export class MonthView extends CalendarViewComponent {
@@ -34,11 +46,12 @@ export class MonthView extends CalendarViewComponent {
 	}
 
 	render(): void {
-		// Get view settings, including the first day of the week override
+		// Get view settings, including the first day of the week override and weekend hiding
 		const viewConfig = this.plugin.settings.viewConfiguration.find(
 			(v) => v.id === this.currentViewId
 		)?.specificConfig as CalendarSpecificConfig; // Assuming 'calendar' view for settings lookup, adjust if needed
 		const firstDayOfWeekSetting = viewConfig?.firstDayOfWeek;
+		const hideWeekends = viewConfig?.hideWeekends ?? false;
 		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
@@ -51,16 +64,49 @@ export class MonthView extends CalendarViewComponent {
 		// Calculate grid end based on the week containing the end of the month, adjusted for the effective first day
 		let gridEnd = endOfMonth.clone().weekday(effectiveFirstDay + 6); // moment handles wrapping correctly
 
-		// Ensure grid covers at least 6 weeks (42 days) for consistent layout
-		// This logic should still work fine with custom start/end days
-		if (gridEnd.diff(gridStart, "days") + 1 < 42) {
-			// Add full weeks until at least 42 days are covered
-			const daysToAdd = 42 - (gridEnd.diff(gridStart, "days") + 1);
-			gridEnd.add(daysToAdd, "days");
+		// Adjust grid coverage based on whether weekends are hidden
+		if (hideWeekends) {
+			// When weekends are hidden, we need fewer days to fill the grid
+			// Calculate how many work days we need (approximately 6 weeks * 5 work days = 30 days)
+			let workDaysCount = 0;
+			let tempIter = gridStart.clone();
+
+			// Count existing work days in the current range
+			while (tempIter.isSameOrBefore(gridEnd, "day")) {
+				const isWeekend = tempIter.day() === 0 || tempIter.day() === 6;
+				if (!isWeekend) {
+					workDaysCount++;
+				}
+				tempIter.add(1, "day");
+			}
+
+			// Ensure we have at least 30 work days (6 weeks * 5 days) for consistent layout
+			while (workDaysCount < 30) {
+				gridEnd.add(1, "day");
+				const isWeekend = gridEnd.day() === 0 || gridEnd.day() === 6;
+				if (!isWeekend) {
+					workDaysCount++;
+				}
+			}
+		} else {
+			// Original logic for when weekends are shown
+			// Ensure grid covers at least 6 weeks (42 days) for consistent layout
+			if (gridEnd.diff(gridStart, "days") + 1 < 42) {
+				// Add full weeks until at least 42 days are covered
+				const daysToAdd = 42 - (gridEnd.diff(gridStart, "days") + 1);
+				gridEnd.add(daysToAdd, "days");
+			}
 		}
 
 		this.containerEl.empty();
 		this.containerEl.addClass("view-month"); // Add class for styling
+
+		// Add hide-weekends class if weekend hiding is enabled
+		if (hideWeekends) {
+			this.containerEl.addClass("hide-weekends");
+		} else {
+			this.containerEl.removeClass("hide-weekends");
+		}
 
 		// 2. Add weekday headers, rotated according to effective first day
 		const headerRow = this.containerEl.createDiv("calendar-weekday-header");
@@ -69,7 +115,17 @@ export class MonthView extends CalendarViewComponent {
 			...weekdays.slice(effectiveFirstDay),
 			...weekdays.slice(0, effectiveFirstDay),
 		];
-		rotatedWeekdays.forEach((day) => {
+
+		// Filter out weekends if hideWeekends is enabled
+		const filteredWeekdays = hideWeekends
+			? rotatedWeekdays.filter((_, index) => {
+				// Calculate the actual day of week for this header position
+				const dayOfWeek = (effectiveFirstDay + index) % 7;
+				return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+			})
+			: rotatedWeekdays;
+
+		filteredWeekdays.forEach((day) => {
 			const weekdayEl = headerRow.createDiv("calendar-weekday");
 			weekdayEl.textContent = day;
 		});
@@ -80,6 +136,14 @@ export class MonthView extends CalendarViewComponent {
 		let currentDayIter = gridStart.clone();
 
 		while (currentDayIter.isSameOrBefore(gridEnd, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue;
+			}
+
 			const cell = gridContainer.createEl("div", {
 				cls: "calendar-day-cell",
 				attr: {
@@ -89,8 +153,9 @@ export class MonthView extends CalendarViewComponent {
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			dayCells[dateStr] = cell;
 
+			const headerEl = cell.createDiv("calendar-day-header");
 			// Add day number
-			const dayNumberEl = cell.createDiv("calendar-day-number");
+			const dayNumberEl = headerEl.createDiv("calendar-day-number");
 			dayNumberEl.textContent = currentDayIter.format("D");
 
 			// Add styling classes
@@ -100,9 +165,9 @@ export class MonthView extends CalendarViewComponent {
 			if (currentDayIter.isSame(moment(), "day")) {
 				cell.addClass("is-today");
 			}
-			// Weekend check might need adjustment depending on visual definition of weekend with custom start day
-			if (currentDayIter.day() === 0 || currentDayIter.day() === 6) {
-				// Sunday or Saturday
+			// Note: We don't add is-weekend class when hideWeekends is enabled
+			// because weekend cells are not created at all
+			if (!hideWeekends && isWeekend) {
 				cell.addClass("is-weekend");
 			}
 
@@ -158,6 +223,40 @@ export class MonthView extends CalendarViewComponent {
 			// --- End of simplified logic ---
 		});
 
+		// 5. Render badges for ICS events with badge showType
+		Object.keys(dayCells).forEach((dateStr) => {
+			const cell = dayCells[dateStr];
+			// Use optimized date parsing for better performance
+			const date = parseDateString(dateStr);
+
+			const badgeEvents =
+				this.options.getBadgeEventsForDate?.(date) || [];
+
+			if (badgeEvents.length > 0) {
+				const headerEl = cell.querySelector(
+					".calendar-day-header"
+				) as HTMLElement;
+				const badgesContainer = headerEl.createDiv(
+					"calendar-badges-container"
+				);
+				if (badgesContainer) {
+					badgeEvents.forEach((badgeEvent) => {
+						const badgeEl = badgesContainer.createEl("div", {
+							cls: "calendar-badge",
+						});
+
+						// Add color styling if available
+						if (badgeEvent.color) {
+							badgeEl.style.backgroundColor = badgeEvent.color;
+						}
+
+						// Add count text
+						badgeEl.textContent = badgeEvent.content;
+					});
+				}
+			}
+		});
+
 		console.log(
 			`Rendered Month View component from ${gridStart.format(
 				"YYYY-MM-DD"
@@ -172,9 +271,11 @@ export class MonthView extends CalendarViewComponent {
 				const dateStr = target
 					.closest(".calendar-day-cell")
 					?.getAttribute("data-date");
-				if (this.options.onDayClick) {
+				if (this.options.onDayClick && dateStr) {
 					console.log("Day number clicked:", dateStr);
-					this.options.onDayClick(ev, moment(dateStr).valueOf(), {
+					// Use optimized date parsing for better performance
+					const date = parseDateString(dateStr);
+					this.options.onDayClick(ev, date.getTime(), {
 						behavior: "open-task-view",
 					});
 				}
@@ -185,8 +286,10 @@ export class MonthView extends CalendarViewComponent {
 				const dateStr = target
 					.closest(".calendar-day-cell")
 					?.getAttribute("data-date");
-				if (this.options.onDayClick) {
-					this.options.onDayClick(ev, moment(dateStr).valueOf(), {
+				if (this.options.onDayClick && dateStr) {
+					// Use optimized date parsing for better performance
+					const date = parseDateString(dateStr);
+					this.options.onDayClick(ev, date.getTime(), {
 						behavior: "open-quick-capture",
 					});
 				}
@@ -218,8 +321,10 @@ export class MonthView extends CalendarViewComponent {
 			const dateStr = target
 				.closest(".calendar-day-cell")
 				?.getAttribute("data-date");
-			if (this.options.onDayHover) {
-				this.options.onDayHover(ev, moment(dateStr).valueOf());
+			if (this.options.onDayHover && dateStr) {
+				// Use optimized date parsing for better performance
+				const date = parseDateString(dateStr);
+				this.options.onDayHover(ev, date.getTime());
 			}
 		}
 	}, 200);
@@ -227,23 +332,27 @@ export class MonthView extends CalendarViewComponent {
 	/**
 	 * Initialize drag and drop functionality for calendar events
 	 */
-	private initializeDragAndDrop(dayCells: { [key: string]: HTMLElement }): void {
+	private initializeDragAndDrop(dayCells: {
+		[key: string]: HTMLElement;
+	}): void {
 		// Clean up existing sortable instances
-		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.sortableInstances = [];
 
 		// Initialize sortable for each day's events container
 		Object.entries(dayCells).forEach(([dateStr, dayCell]) => {
-			const eventsContainer = dayCell.querySelector('.calendar-events-container') as HTMLElement;
+			const eventsContainer = dayCell.querySelector(
+				".calendar-events-container"
+			) as HTMLElement;
 			if (eventsContainer) {
 				const sortableInstance = Sortable.create(eventsContainer, {
-					group: 'calendar-events',
+					group: "calendar-events",
 					animation: 150,
-					ghostClass: 'calendar-event-ghost',
-					dragClass: 'calendar-event-dragging',
+					ghostClass: "calendar-event-ghost",
+					dragClass: "calendar-event-dragging",
 					onEnd: (event) => {
 						this.handleDragEnd(event, dateStr);
-					}
+					},
 				});
 				this.sortableInstances.push(sortableInstance);
 			}
@@ -253,25 +362,30 @@ export class MonthView extends CalendarViewComponent {
 	/**
 	 * Handle drag end event to update task dates
 	 */
-	private async handleDragEnd(event: Sortable.SortableEvent, originalDateStr: string): Promise<void> {
+	private async handleDragEnd(
+		event: Sortable.SortableEvent,
+		originalDateStr: string
+	): Promise<void> {
 		const eventEl = event.item;
 		const eventId = eventEl.dataset.eventId;
 		const targetContainer = event.to;
-		const targetDateCell = targetContainer.closest('.calendar-day-cell');
+		const targetDateCell = targetContainer.closest(".calendar-day-cell");
 
 		if (!eventId || !targetDateCell) {
-			console.warn('Could not determine event ID or target date for drag operation');
+			console.warn(
+				"Could not determine event ID or target date for drag operation"
+			);
 			return;
 		}
 
-		const targetDateStr = targetDateCell.getAttribute('data-date');
+		const targetDateStr = targetDateCell.getAttribute("data-date");
 		if (!targetDateStr || targetDateStr === originalDateStr) {
 			// No date change, nothing to do
 			return;
 		}
 
 		// Find the calendar event
-		const calendarEvent = this.events.find(e => e.id === eventId);
+		const calendarEvent = this.events.find((e) => e.id === eventId);
 		if (!calendarEvent) {
 			console.warn(`Calendar event with ID ${eventId} not found`);
 			return;
@@ -279,9 +393,11 @@ export class MonthView extends CalendarViewComponent {
 
 		try {
 			await this.updateTaskDate(calendarEvent, targetDateStr);
-			console.log(`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`);
+			console.log(
+				`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`
+			);
 		} catch (error) {
-			console.error('Failed to update task date:', error);
+			console.error("Failed to update task date:", error);
 			// Revert the visual change by re-rendering
 			this.render();
 		}
@@ -290,27 +406,32 @@ export class MonthView extends CalendarViewComponent {
 	/**
 	 * Update task date based on the target date
 	 */
-	private async updateTaskDate(calendarEvent: CalendarEvent, targetDateStr: string): Promise<void> {
-		const targetDate = moment(targetDateStr).valueOf();
+	private async updateTaskDate(
+		calendarEvent: CalendarEvent,
+		targetDateStr: string
+	): Promise<void> {
+		// Use optimized date parsing for better performance
+		const targetDate = parseDateString(targetDateStr).getTime();
+
 		const taskManager = this.plugin.taskManager;
 
 		if (!taskManager) {
-			throw new Error('Task manager not available');
+			throw new Error("Task manager not available");
 		}
 
 		// Create updated task with new date
 		const updatedTask = { ...calendarEvent };
 
 		// Determine which date field to update based on what the task currently has
-		if (calendarEvent.dueDate) {
-			updatedTask.dueDate = targetDate;
-		} else if (calendarEvent.scheduledDate) {
-			updatedTask.scheduledDate = targetDate;
-		} else if (calendarEvent.startDate) {
-			updatedTask.startDate = targetDate;
+		if (calendarEvent.metadata.dueDate) {
+			updatedTask.metadata.dueDate = targetDate;
+		} else if (calendarEvent.metadata.scheduledDate) {
+			updatedTask.metadata.scheduledDate = targetDate;
+		} else if (calendarEvent.metadata.startDate) {
+			updatedTask.metadata.startDate = targetDate;
 		} else {
 			// Default to due date if no date is set
-			updatedTask.dueDate = targetDate;
+			updatedTask.metadata.dueDate = targetDate;
 		}
 
 		// Update the task
@@ -321,7 +442,7 @@ export class MonthView extends CalendarViewComponent {
 	 * Clean up sortable instances when component is destroyed
 	 */
 	onunload(): void {
-		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.sortableInstances = [];
 		super.onunload();
 	}

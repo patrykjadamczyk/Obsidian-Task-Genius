@@ -1,0 +1,20 @@
+.tg-status-icon {
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+	margin-right: var(--size-2-3);
+	margin-top: calc(-1 * var(--size-2-1));
+}
+
+.tg-icons-container {
+	display: flex;
+	gap: var(--size-2-2);
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+}
+
+.tg-icons-container .tg-status-icon {
+	margin-right: 0;
+	margin-top: 0;
+}

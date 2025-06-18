@@ -5,6 +5,7 @@ import {
 	MappingHabitProps,
 } from "../../../types/habit-card";
 import TaskProgressBarPlugin from "../../../index";
+import { getTodayLocalDateString, getLocalDateString } from "../../../utils/dateUtil";
 
 function getDatesInRange(startDate: string, endDate: string): string[] {
 	const dates = [];
@@ -102,8 +103,8 @@ export class HabitCard extends Component {
 			endDate.getTime() - (countsMap[size] - 1) * 24 * 60 * 60 * 1000
 		);
 		const dates = getDatesInRange(
-			startDate.toISOString().split("T")[0],
-			endDate.toISOString().split("T")[0]
+			getLocalDateString(startDate),
+			getLocalDateString(endDate)
 		);
 
 		// Render dates in reverse chronological order (most recent first)
@@ -177,7 +178,7 @@ export class HabitCard extends Component {
 		const habitToUpdate = JSON.parse(
 			JSON.stringify(currentHabits[habitIndex])
 		);
-		const today = new Date().toISOString().split("T")[0];
+		const today = getTodayLocalDateString();
 
 		// 2. Calculate new completion state based on habit type
 		let newCompletionValue: any;

@@ -202,14 +202,40 @@ export class TaskListItemComponent extends Component {
 		this.renderMetadata();
 
 		// Priority indicator if available
-		if (this.task.priority) {
+		if (this.task.metadata.priority) {
+			console.log("priority", this.task.metadata.priority);
+			
+			// Convert priority to numeric value
+			let numericPriority: number;
+			if (typeof this.task.metadata.priority === 'string') {
+				switch ((this.task.metadata.priority as string).toLowerCase()) {
+					case 'low':
+						numericPriority = 1;
+						break;
+					case 'medium':
+						numericPriority = 2;
+						break;
+					case 'high':
+						numericPriority = 3;
+						break;
+					default:
+						numericPriority = parseInt(this.task.metadata.priority) || 1;
+						break;
+				}
+			} else {
+				numericPriority = this.task.metadata.priority;
+			}
+			
 			const priorityEl = createDiv({
-				cls: ["task-priority", `priority-${this.task.priority}`],
+				cls: [
+					"task-priority",
+					`priority-${numericPriority}`,
+				],
 			});
 
 			// Priority icon based on level
 			let icon = "•";
-			icon = "!".repeat(this.task.priority);
+			icon = "!".repeat(numericPriority);
 
 			priorityEl.textContent = icon;
 			this.element.appendChild(priorityEl);
@@ -231,43 +257,55 @@ export class TaskListItemComponent extends Component {
 			// For incomplete tasks, show due, scheduled, and start dates
 
 			// Due date if available
-			if (this.task.dueDate) {
-				this.renderDateMetadata("due", this.task.dueDate);
+			if (this.task.metadata.dueDate) {
+				this.renderDateMetadata("due", this.task.metadata.dueDate);
 			}
 
 			// Scheduled date if available
-			if (this.task.scheduledDate) {
-				this.renderDateMetadata("scheduled", this.task.scheduledDate);
+			if (this.task.metadata.scheduledDate) {
+				this.renderDateMetadata(
+					"scheduled",
+					this.task.metadata.scheduledDate
+				);
 			}
 
 			// Start date if available
-			if (this.task.startDate) {
-				this.renderDateMetadata("start", this.task.startDate);
+			if (this.task.metadata.startDate) {
+				this.renderDateMetadata("start", this.task.metadata.startDate);
 			}
 
 			// Recurrence if available
-			if (this.task.recurrence) {
+			if (this.task.metadata.recurrence) {
 				this.renderRecurrenceMetadata();
 			}
 		} else {
 			// For completed tasks, show completion date
-			if (this.task.completedDate) {
-				this.renderDateMetadata("completed", this.task.completedDate);
+			if (this.task.metadata.completedDate) {
+				this.renderDateMetadata(
+					"completed",
+					this.task.metadata.completedDate
+				);
 			}
 
 			// Created date if available
-			if (this.task.createdDate) {
-				this.renderDateMetadata("created", this.task.createdDate);
+			if (this.task.metadata.createdDate) {
+				this.renderDateMetadata(
+					"created",
+					this.task.metadata.createdDate
+				);
 			}
 		}
 
 		// Project badge if available and not in project view
-		if (this.task.project && this.viewMode !== "projects") {
+		if (
+			(this.task.metadata.project || this.task.metadata.tgProject) &&
+			this.viewMode !== "projects"
+		) {
 			this.renderProjectMetadata();
 		}
 
 		// Tags if available
-		if (this.task.tags && this.task.tags.length > 0) {
+		if (this.task.metadata.tags && this.task.metadata.tags.length > 0) {
 			this.renderTagsMetadata();
 		}
 
@@ -364,21 +402,44 @@ export class TaskListItemComponent extends Component {
 	}
 
 	private renderProjectMetadata() {
+		// Determine which project to display: original project or tgProject
+		let projectName: string | undefined;
+		let isReadonly = false;
+
+		if (this.task.metadata.project) {
+			// Use original project if available
+			projectName = this.task.metadata.project;
+		} else if (this.task.metadata.tgProject) {
+			// Use tgProject as fallback
+			projectName = this.task.metadata.tgProject.name;
+			isReadonly = this.task.metadata.tgProject.readonly || false;
+		}
+
+		if (!projectName) return;
+
 		const projectEl = this.metadataEl.createEl("div", {
 			cls: "task-project",
 		});
-		projectEl.textContent =
-			this.task.project?.split("/").pop() || this.task.project || "";
 
-		// Make project clickable for editing only if inline editor is enabled
-		if (this.plugin.settings.enableInlineEditor) {
+		// Add a visual indicator for tgProject
+		if (!this.task.metadata.project && this.task.metadata.tgProject) {
+			projectEl.addClass("task-project-tg");
+			projectEl.title = `Project from ${
+				this.task.metadata.tgProject.type
+			}: ${this.task.metadata.tgProject.source || ""}`;
+		}
+
+		projectEl.textContent = projectName.split("/").pop() || projectName;
+
+		// Make project clickable for editing only if inline editor is enabled and not readonly
+		if (this.plugin.settings.enableInlineEditor && !isReadonly) {
 			this.registerDomEvent(projectEl, "click", (e) => {
 				e.stopPropagation();
 				if (!this.isCurrentlyEditing()) {
 					this.getInlineEditor().showMetadataEditor(
 						projectEl,
 						"project",
-						this.task.project || ""
+						this.task.metadata.project || ""
 					);
 				}
 			});
@@ -390,7 +451,7 @@ export class TaskListItemComponent extends Component {
 			cls: "task-tags-container",
 		});
 
-		this.task.tags
+		this.task.metadata.tags
 			.filter((tag) => !tag.startsWith("#project"))
 			.forEach((tag) => {
 				const tagEl = tagsContainer.createEl("span", {
@@ -403,7 +464,8 @@ export class TaskListItemComponent extends Component {
 					this.registerDomEvent(tagEl, "click", (e) => {
 						e.stopPropagation();
 						if (!this.isCurrentlyEditing()) {
-							const tagsString = this.task.tags?.join(", ") || "";
+							const tagsString =
+								this.task.metadata.tags?.join(", ") || "";
 							this.getInlineEditor().showMetadataEditor(
 								tagsContainer,
 								"tags",
@@ -419,7 +481,7 @@ export class TaskListItemComponent extends Component {
 		const recurrenceEl = this.metadataEl.createEl("div", {
 			cls: "task-date task-recurrence",
 		});
-		recurrenceEl.textContent = this.task.recurrence || "";
+		recurrenceEl.textContent = this.task.metadata.recurrence || "";
 
 		// Make recurrence clickable for editing only if inline editor is enabled
 		if (this.plugin.settings.enableInlineEditor) {
@@ -429,7 +491,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						recurrenceEl,
 						"recurrence",
-						this.task.recurrence || ""
+						this.task.metadata.recurrence || ""
 					);
 				}
 			});
@@ -481,21 +543,24 @@ export class TaskListItemComponent extends Component {
 		const fieldsToShow = availableFields.filter((field) => {
 			switch (field.key) {
 				case "project":
-					return !this.task.project;
+					return !this.task.metadata.project;
 				case "tags":
-					return !this.task.tags || this.task.tags.length === 0;
+					return (
+						!this.task.metadata.tags ||
+						this.task.metadata.tags.length === 0
+					);
 				case "context":
-					return !this.task.context;
+					return !this.task.metadata.context;
 				case "dueDate":
-					return !this.task.dueDate;
+					return !this.task.metadata.dueDate;
 				case "startDate":
-					return !this.task.startDate;
+					return !this.task.metadata.startDate;
 				case "scheduledDate":
-					return !this.task.scheduledDate;
+					return !this.task.metadata.scheduledDate;
 				case "priority":
-					return !this.task.priority;
+					return !this.task.metadata.priority;
 				case "recurrence":
-					return !this.task.recurrence;
+					return !this.task.metadata.recurrence;
 				default:
 					return true;
 			}

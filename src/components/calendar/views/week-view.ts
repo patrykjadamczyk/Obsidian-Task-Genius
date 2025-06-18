@@ -38,7 +38,7 @@ export class WeekView extends CalendarViewComponent {
 	}
 
 	render(): void {
-		// Get view settings, including the first day of the week override
+		// Get view settings, including the first day of the week override and weekend hiding
 		const viewConfig = getViewSettingOrDefault(
 			this.plugin,
 			this.currentViewId
@@ -47,6 +47,7 @@ export class WeekView extends CalendarViewComponent {
 		const firstDayOfWeekSetting = (
 			viewConfig.specificConfig as CalendarSpecificConfig
 		).firstDayOfWeek;
+		const hideWeekends = (viewConfig.specificConfig as CalendarSpecificConfig)?.hideWeekends ?? false;
 		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
@@ -57,6 +58,13 @@ export class WeekView extends CalendarViewComponent {
 
 		this.containerEl.empty();
 		this.containerEl.addClass("view-week");
+
+		// Add hide-weekends class if weekend hiding is enabled
+		if (hideWeekends) {
+			this.containerEl.addClass("hide-weekends");
+		} else {
+			this.containerEl.removeClass("hide-weekends");
+		}
 
 		// 1. Render Header Row (Days of the week + Dates)
 		const headerRow = this.containerEl.createDiv("calendar-week-header");
@@ -69,14 +77,32 @@ export class WeekView extends CalendarViewComponent {
 			...weekdays.slice(effectiveFirstDay),
 			...weekdays.slice(0, effectiveFirstDay),
 		];
+
+		// Filter out weekends if hideWeekends is enabled
+		const filteredWeekdays = hideWeekends
+			? rotatedWeekdays.filter((_, index) => {
+				// Calculate the actual day of week for this header position
+				const dayOfWeek = (effectiveFirstDay + index) % 7;
+				return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+			})
+			: rotatedWeekdays;
+
 		let dayIndex = 0;
 
 		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue; // Don't increment dayIndex for skipped days
+			}
+
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			const headerCell = headerRow.createDiv("calendar-header-cell");
 			dayHeaderCells[dateStr] = headerCell; // Store header cell if needed
 			const weekdayEl = headerCell.createDiv("calendar-weekday");
-			weekdayEl.textContent = rotatedWeekdays[dayIndex % 7]; // Use rotated weekday name
+			weekdayEl.textContent = filteredWeekdays[dayIndex]; // Use filtered weekday names
 			const dayNumEl = headerCell.createDiv("calendar-day-number");
 			dayNumEl.textContent = currentDayIter.format("D"); // Date number
 
@@ -96,6 +122,14 @@ export class WeekView extends CalendarViewComponent {
 		currentDayIter = startOfWeek.clone();
 
 		while (currentDayIter.isSameOrBefore(endOfWeek, "day")) {
+			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+
+			// Skip weekend days if hideWeekends is enabled
+			if (hideWeekends && isWeekend) {
+				currentDayIter.add(1, "day");
+				continue;
+			}
+
 			const dateStr = currentDayIter.format("YYYY-MM-DD");
 			const dayCell = weekGrid.createEl("div", {
 				cls: "calendar-day-column",
@@ -110,7 +144,7 @@ export class WeekView extends CalendarViewComponent {
 			if (currentDayIter.isSame(moment(), "day")) {
 				dayCell.addClass("is-today"); // Apply to the main day cell
 			}
-			if (currentDayIter.day() === 0 || currentDayIter.day() === 6) {
+			if (isWeekend) {
 				// This weekend check is based on Sun/Sat, might need adjustment if start day changes weekend definition visually
 				dayCell.addClass("is-weekend"); // Apply to the main day cell
 			}
@@ -230,50 +264,61 @@ export class WeekView extends CalendarViewComponent {
 	/**
 	 * Initialize drag and drop functionality for calendar events
 	 */
-	private initializeDragAndDrop(dayEventContainers: { [key: string]: HTMLElement }): void {
+	private initializeDragAndDrop(dayEventContainers: {
+		[key: string]: HTMLElement;
+	}): void {
 		// Clean up existing sortable instances
-		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.sortableInstances = [];
 
 		// Initialize sortable for each day's events container
-		Object.entries(dayEventContainers).forEach(([dateStr, eventsContainer]) => {
-			if (eventsContainer) {
-				const sortableInstance = Sortable.create(eventsContainer, {
-					group: 'calendar-events',
-					animation: 150,
-					ghostClass: 'calendar-event-ghost',
-					dragClass: 'calendar-event-dragging',
-					onEnd: (event) => {
-						this.handleDragEnd(event, dateStr);
-					}
-				});
-				this.sortableInstances.push(sortableInstance);
+		Object.entries(dayEventContainers).forEach(
+			([dateStr, eventsContainer]) => {
+				if (eventsContainer) {
+					const sortableInstance = Sortable.create(eventsContainer, {
+						group: "calendar-events",
+						animation: 150,
+						ghostClass: "calendar-event-ghost",
+						dragClass: "calendar-event-dragging",
+						onEnd: (event) => {
+							this.handleDragEnd(event, dateStr);
+						},
+					});
+					this.sortableInstances.push(sortableInstance);
+				}
 			}
-		});
+		);
 	}
 
 	/**
 	 * Handle drag end event to update task dates
 	 */
-	private async handleDragEnd(event: Sortable.SortableEvent, originalDateStr: string): Promise<void> {
+	private async handleDragEnd(
+		event: Sortable.SortableEvent,
+		originalDateStr: string
+	): Promise<void> {
 		const eventEl = event.item;
 		const eventId = eventEl.dataset.eventId;
 		const targetContainer = event.to;
-		const targetDateColumn = targetContainer.closest('.calendar-day-column');
+		const targetDateColumn = targetContainer.closest(
+			".calendar-day-column"
+		);
 
 		if (!eventId || !targetDateColumn) {
-			console.warn('Could not determine event ID or target date for drag operation');
+			console.warn(
+				"Could not determine event ID or target date for drag operation"
+			);
 			return;
 		}
 
-		const targetDateStr = targetDateColumn.getAttribute('data-date');
+		const targetDateStr = targetDateColumn.getAttribute("data-date");
 		if (!targetDateStr || targetDateStr === originalDateStr) {
 			// No date change, nothing to do
 			return;
 		}
 
 		// Find the calendar event
-		const calendarEvent = this.events.find(e => e.id === eventId);
+		const calendarEvent = this.events.find((e) => e.id === eventId);
 		if (!calendarEvent) {
 			console.warn(`Calendar event with ID ${eventId} not found`);
 			return;
@@ -281,9 +326,11 @@ export class WeekView extends CalendarViewComponent {
 
 		try {
 			await this.updateTaskDate(calendarEvent, targetDateStr);
-			console.log(`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`);
+			console.log(
+				`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`
+			);
 		} catch (error) {
-			console.error('Failed to update task date:', error);
+			console.error("Failed to update task date:", error);
 			// Revert the visual change by re-rendering
 			this.render();
 		}
@@ -292,27 +339,30 @@ export class WeekView extends CalendarViewComponent {
 	/**
 	 * Update task date based on the target date
 	 */
-	private async updateTaskDate(calendarEvent: CalendarEvent, targetDateStr: string): Promise<void> {
+	private async updateTaskDate(
+		calendarEvent: CalendarEvent,
+		targetDateStr: string
+	): Promise<void> {
 		const targetDate = moment(targetDateStr).valueOf();
 		const taskManager = this.plugin.taskManager;
 
 		if (!taskManager) {
-			throw new Error('Task manager not available');
+			throw new Error("Task manager not available");
 		}
 
 		// Create updated task with new date
 		const updatedTask = { ...calendarEvent };
 
 		// Determine which date field to update based on what the task currently has
-		if (calendarEvent.dueDate) {
-			updatedTask.dueDate = targetDate;
-		} else if (calendarEvent.scheduledDate) {
-			updatedTask.scheduledDate = targetDate;
-		} else if (calendarEvent.startDate) {
-			updatedTask.startDate = targetDate;
+		if (calendarEvent.metadata.dueDate) {
+			updatedTask.metadata.dueDate = targetDate;
+		} else if (calendarEvent.metadata.scheduledDate) {
+			updatedTask.metadata.scheduledDate = targetDate;
+		} else if (calendarEvent.metadata.startDate) {
+			updatedTask.metadata.startDate = targetDate;
 		} else {
 			// Default to due date if no date is set
-			updatedTask.dueDate = targetDate;
+			updatedTask.metadata.dueDate = targetDate;
 		}
 
 		// Update the task
@@ -323,7 +373,7 @@ export class WeekView extends CalendarViewComponent {
 	 * Clean up sortable instances when component is destroyed
 	 */
 	onunload(): void {
-		this.sortableInstances.forEach(instance => instance.destroy());
+		this.sortableInstances.forEach((instance) => instance.destroy());
 		this.sortableInstances = [];
 		super.onunload();
 	}

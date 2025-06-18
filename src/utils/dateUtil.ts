@@ -75,6 +75,34 @@ export function parseLocalDate(dateString: string): number | undefined {
 }
 
 /**
+ * Get today's date in local timezone as YYYY-MM-DD format
+ * This fixes the issue where using toISOString() can return yesterday's date
+ * for users in timezones ahead of UTC
+ * @returns Today's date in YYYY-MM-DD format in local timezone
+ */
+export function getTodayLocalDateString(): string {
+	const today = new Date();
+	const year = today.getFullYear();
+	const month = String(today.getMonth() + 1).padStart(2, '0');
+	const day = String(today.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+/**
+ * Convert a Date object to YYYY-MM-DD format in local timezone
+ * This fixes the issue where using toISOString() can return wrong date
+ * for users in timezones ahead of UTC
+ * @param date The date to format
+ * @returns Date in YYYY-MM-DD format in local timezone
+ */
+export function getLocalDateString(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+/**
  * Convert a date to a relative time string, such as
  * "yesterday", "today", "tomorrow", etc.
  * using Intl.RelativeTimeFormat

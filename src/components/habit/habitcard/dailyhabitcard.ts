@@ -3,6 +3,7 @@ import { DailyHabitProps } from "../../../types/habit-card";
 import { HabitCard } from "./habitcard";
 import { t } from "../../../translations/helper";
 import TaskProgressBarPlugin from "../../../index";
+import { getTodayLocalDateString } from "../../../utils/dateUtil";
 
 export class DailyHabitCard extends HabitCard {
 	constructor(
@@ -49,7 +50,7 @@ export class DailyHabitCard extends HabitCard {
 			type: "checkbox",
 			cls: "habit-checkbox",
 		});
-		const today = new Date().toISOString().split("T")[0];
+		const today = getTodayLocalDateString();
 
 		// Check if completed based on completion text or any value
 		let isCompletedToday = false;

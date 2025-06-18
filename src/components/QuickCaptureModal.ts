@@ -6,13 +6,14 @@ import {
 	Notice,
 	Platform,
 	MarkdownRenderer,
+	moment,
 } from "obsidian";
 import {
 	createEmbeddableMarkdownEditor,
 	EmbeddableMarkdownEditor,
 } from "../editor-ext/markdownEditor";
 import TaskProgressBarPlugin from "../index";
-import { saveCapture } from "../utils/fileUtils";
+import { saveCapture, processDateTemplates } from "../utils/fileUtils";
 import { FileSuggest } from "../editor-ext/quickCapture";
 import { t } from "../translations/helper";
 import { MarkdownRendererComponent } from "./MarkdownRenderer";
@@ -29,6 +30,20 @@ interface TaskMetadata {
 	context?: string;
 	recurrence?: string;
 	status?: string;
+}
+
+/**
+ * Sanitize filename by replacing unsafe characters with safe alternatives
+ * @param filename - The filename to sanitize
+ * @returns The sanitized filename
+ */
+function sanitizeFilename(filename: string): string {
+	// Replace unsafe characters with safe alternatives
+	return filename
+		.replace(/[<>:"|*?\\]/g, "-") // Replace unsafe chars with dash
+		.replace(/\//g, "-") // Replace forward slash with dash
+		.replace(/\s+/g, " ") // Normalize whitespace
+		.trim(); // Remove leading/trailing whitespace
 }
 
 export class QuickCaptureModal extends Modal {
@@ -53,7 +68,23 @@ export class QuickCaptureModal extends Modal {
 	) {
 		super(app);
 		this.plugin = plugin;
-		this.tempTargetFilePath = this.plugin.settings.quickCapture.targetFile;
+
+		// Initialize target file path based on target type
+		if (this.plugin.settings.quickCapture.targetType === "daily-note") {
+			const dateStr = moment().format(
+				this.plugin.settings.quickCapture.dailyNoteSettings.format
+			);
+			const sanitizedDateStr = sanitizeFilename(dateStr);
+			const fileName = `${sanitizedDateStr}.md`;
+			this.tempTargetFilePath = this.plugin.settings.quickCapture
+				.dailyNoteSettings.folder
+				? `${this.plugin.settings.quickCapture.dailyNoteSettings.folder}/${fileName}`
+				: fileName;
+		} else {
+			this.tempTargetFilePath =
+				this.plugin.settings.quickCapture.targetFile;
+		}
+
 		this.preferMetadataFormat = this.plugin.settings.preferMetadataFormat;
 
 		if (metadata) {
@@ -83,7 +114,10 @@ export class QuickCaptureModal extends Modal {
 		const targetFileEl = this.titleEl.createEl("div", {
 			cls: "quick-capture-target",
 			attr: {
-				contenteditable: "true",
+				contenteditable:
+					this.plugin.settings.quickCapture.targetType === "fixed"
+						? "true"
+						: "false",
 				spellcheck: "false",
 			},
 			text: this.tempTargetFilePath,
@@ -113,17 +147,20 @@ export class QuickCaptureModal extends Modal {
 		});
 		cancelButton.addEventListener("click", () => this.close());
 
-		new FileSuggest(
-			this.app,
-			targetFileEl,
-			this.plugin.settings.quickCapture,
-			(file: TFile) => {
-				targetFileEl.textContent = file.path;
-				this.tempTargetFilePath = file.path;
-				// Focus current editor
-				this.markdownEditor?.editor?.focus();
-			}
-		);
+		// Only add file suggest for fixed file type
+		if (this.plugin.settings.quickCapture.targetType === "fixed") {
+			new FileSuggest(
+				this.app,
+				targetFileEl,
+				this.plugin.settings.quickCapture,
+				(file: TFile) => {
+					targetFileEl.textContent = file.path;
+					this.tempTargetFilePath = file.path;
+					// Focus current editor
+					this.markdownEditor?.editor?.focus();
+				}
+			);
+		}
 	}
 
 	createFullFeaturedModal(contentEl: HTMLElement) {
@@ -155,22 +192,28 @@ export class QuickCaptureModal extends Modal {
 		const targetFileEl = targetFileContainer.createEl("div", {
 			cls: "quick-capture-target",
 			attr: {
-				contenteditable: "true",
+				contenteditable:
+					this.plugin.settings.quickCapture.targetType === "fixed"
+						? "true"
+						: "false",
 				spellcheck: "false",
 			},
 			text: this.tempTargetFilePath,
 		});
 
-		new FileSuggest(
-			this.app,
-			targetFileEl,
-			this.plugin.settings.quickCapture,
-			(file: TFile) => {
-				targetFileEl.textContent = file.path;
-				this.tempTargetFilePath = file.path;
-				this.markdownEditor?.editor?.focus();
-			}
-		);
+		// Only add file suggest for fixed file type
+		if (this.plugin.settings.quickCapture.targetType === "fixed") {
+			new FileSuggest(
+				this.app,
+				targetFileEl,
+				this.plugin.settings.quickCapture,
+				(file: TFile) => {
+					targetFileEl.textContent = file.path;
+					this.tempTargetFilePath = file.path;
+					this.markdownEditor?.editor?.focus();
+				}
+			);
+		}
 
 		// Task metadata configuration
 		configPanel.createDiv({
@@ -416,7 +459,13 @@ export class QuickCaptureModal extends Modal {
 					"x",
 					(e: KeyboardEvent) => {
 						e.preventDefault();
-						targetFileEl.focus();
+						// Only allow focus on target file if it's editable (fixed file type)
+						if (
+							this.plugin.settings.quickCapture.targetType ===
+							"fixed"
+						) {
+							targetFileEl.focus();
+						}
 						return true;
 					}
 				);
@@ -440,10 +489,14 @@ export class QuickCaptureModal extends Modal {
 
 		try {
 			const processedContent = this.processContentWithMetadata(content);
-			await saveCapture(this.app, processedContent, {
+
+			// Create options with current settings
+			const captureOptions = {
 				...this.plugin.settings.quickCapture,
 				targetFile: this.tempTargetFilePath,
-			});
+			};
+
+			await saveCapture(this.app, processedContent, captureOptions);
 			new Notice(t("Captured successfully"));
 			this.close();
 		} catch (error) {
@@ -607,18 +660,38 @@ export class QuickCaptureModal extends Modal {
 		// Add project if set
 		if (this.taskMetadata.project) {
 			if (useDataviewFormat) {
-				metadata.push(`[project:: ${this.taskMetadata.project}]`);
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
+				metadata.push(
+					`[${projectPrefix}:: ${this.taskMetadata.project}]`
+				);
 			} else {
-				metadata.push(`#project/${this.taskMetadata.project}`);
+				const projectPrefix =
+					this.plugin.settings.projectTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "project";
+				metadata.push(`#${projectPrefix}/${this.taskMetadata.project}`);
 			}
 		}
 
 		// Add context if set
 		if (this.taskMetadata.context) {
 			if (useDataviewFormat) {
-				metadata.push(`[context:: ${this.taskMetadata.context}]`);
+				const contextPrefix =
+					this.plugin.settings.contextTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "context";
+				metadata.push(
+					`[${contextPrefix}:: ${this.taskMetadata.context}]`
+				);
 			} else {
-				metadata.push(`@${this.taskMetadata.context}`);
+				const contextPrefix =
+					this.plugin.settings.contextTagPrefix[
+						this.plugin.settings.preferMetadataFormat
+					] || "@";
+				metadata.push(`${contextPrefix}${this.taskMetadata.context}`);
 			}
 		}
 

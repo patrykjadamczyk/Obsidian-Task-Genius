@@ -6,7 +6,7 @@ import {
 	setIcon,
 } from "obsidian";
 import { Task } from "../../types/task";
-import { CalendarComponent } from "./calendar";
+import { CalendarComponent, CalendarOptions } from "./calendar";
 import { TaskListItemComponent } from "./listItem";
 import { t } from "../../translations/helper";
 import "../../styles/forecast.css";
@@ -66,6 +66,10 @@ export class ForecastComponent extends Component {
 		private params: {
 			onTaskSelected?: (task: Task | null) => void;
 			onTaskCompleted?: (task: Task) => void;
+			onTaskUpdate?: (
+				originalTask: Task,
+				updatedTask: Task
+			) => Promise<void>;
 			onTaskContextMenu?: (event: MouseEvent, task: Task) => void;
 		} = {}
 	) {
@@ -269,11 +273,20 @@ export class ForecastComponent extends Component {
 		});
 
 		// Create and initialize calendar component
+		const forecastConfig = this.plugin.settings.viewConfiguration.find(
+			(view) => view.id === "forecast"
+		)?.specificConfig as ForecastSpecificConfig;
+
+		// Convert ForecastSpecificConfig to CalendarOptions
+		const calendarOptions: Partial<CalendarOptions> = {
+			firstDayOfWeek: forecastConfig?.firstDayOfWeek ?? 0,
+			showWeekends: !(forecastConfig?.hideWeekends ?? false), // Invert hideWeekends to showWeekends
+			showTaskCounts: true,
+		};
+
 		this.calendarComponent = new CalendarComponent(
 			this.calendarContainerEl,
-			this.plugin.settings.viewConfiguration.find(
-				(view) => view.id === "forecast"
-			)?.specificConfig as ForecastSpecificConfig
+			calendarOptions
 		);
 		this.addChild(this.calendarComponent);
 		this.calendarComponent.load();
@@ -398,8 +411,8 @@ export class ForecastComponent extends Component {
 		// Count actions (tasks) and unique projects
 		const projectSet = new Set<string>();
 		this.allTasks.forEach((task) => {
-			if (task.project) {
-				projectSet.add(task.project);
+			if (task.metadata.project) {
+				projectSet.add(task.metadata.project);
 			}
 		});
 
@@ -483,8 +496,8 @@ export class ForecastComponent extends Component {
 	private sortTasksByPriorityAndRelevantDate(tasks: Task[]): Task[] {
 		return tasks.sort((a, b) => {
 			// First by priority (high to low)
-			const priorityA = a.priority || 0;
-			const priorityB = b.priority || 0;
+			const priorityA = a.metadata.priority || 0;
+			const priorityB = b.metadata.priority || 0;
 			if (priorityA !== priorityB) {
 				return priorityB - priorityA;
 			}
@@ -811,6 +824,19 @@ export class ForecastComponent extends Component {
 			this.params.onTaskContextMenu &&
 				(section.renderer.onTaskContextMenu =
 					this.params.onTaskContextMenu);
+
+			// Set up task update callback - use params callback if available, otherwise use internal updateTask
+			section.renderer.onTaskUpdate = async (
+				originalTask: Task,
+				updatedTask: Task
+			) => {
+				if (this.params.onTaskUpdate) {
+					await this.params.onTaskUpdate(originalTask, updatedTask);
+				} else {
+					// Fallback to internal updateTask method
+					this.updateTask(updatedTask);
+				}
+			};
 
 			// Render tasks using the section's renderer
 			section.renderer.renderTasks(
@@ -1156,7 +1182,7 @@ export class ForecastComponent extends Component {
 
 	private getRelevantDate(task: Task): number | undefined {
 		// Prioritize scheduledDate, fallback to dueDate
-		const dateToUse = task.scheduledDate || task.dueDate;
+		const dateToUse = task.metadata.scheduledDate || task.metadata.dueDate;
 		if (!dateToUse) return undefined;
 
 		// Return timestamp (or Date object if needed elsewhere, but timestamp is good for comparisons)
