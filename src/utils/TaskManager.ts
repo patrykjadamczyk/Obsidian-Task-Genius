@@ -390,7 +390,7 @@ export class TaskManager extends Component {
 	 * Register event handlers for file changes
 	 */
 	private registerEventHandlers(): void {
-		// Watch for file modifications
+		// Watch for markdown file metadata changes (for frontmatter, links, etc.)
 		this.registerEvent(
 			this.metadataCache.on("changed", (file, content, cache) => {
 				// Skip processing during initialization to avoid excessive file processing
@@ -399,14 +399,39 @@ export class TaskManager extends Component {
 				}
 
 				this.log("File metadata changed, updating index");
-				// Trigger a full index update when all files are resolved
-				if (file instanceof TFile && isSupportedFile(file)) {
+				// Only process markdown files through metadata cache
+				// Canvas files will be handled by vault.on("modify") below
+				if (file instanceof TFile && file.extension === 'md' && isSupportedFile(file)) {
 					this.indexFile(file);
 				}
 			})
 		);
 
-		// Watch for individual file changes
+		// Watch for direct file modifications (important for Canvas files)
+		this.registerEvent(
+			this.vault.on("modify", (file) => {
+				// Skip processing during initialization to avoid excessive file processing
+				if (this.isInitializing) {
+					return;
+				}
+
+				this.log(`File modified: ${file.path}`);
+				// Process all supported files, but prioritize Canvas files
+				// since they don't trigger metadata cache events
+				if (file instanceof TFile && isSupportedFile(file)) {
+					// For Canvas files, always process through vault modify event
+					// For markdown files, we'll get duplicate events but that's okay
+					// since indexFile is idempotent
+					if (file.extension === 'canvas') {
+						this.log(`Canvas file modified: ${file.path}, re-indexing`);
+						this.indexFile(file);
+					}
+					
+				}
+			})
+		);
+
+		// Watch for individual file deletions
 		this.registerEvent(
 			this.metadataCache.on("deleted", (file) => {
 				// Skip processing during initialization
@@ -420,7 +445,7 @@ export class TaskManager extends Component {
 			})
 		);
 
-		// Watch for file deletions
+		// Watch for file renames
 		this.registerEvent(
 			this.vault.on("rename", (file, oldPath) => {
 				// Skip processing during initialization
