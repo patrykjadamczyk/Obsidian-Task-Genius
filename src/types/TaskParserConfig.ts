@@ -37,6 +37,7 @@ export interface TaskParserConfig {
 		metadataConfig: {
 			metadataKey: string;
 			inheritFromFrontmatter: boolean;
+			inheritFromFrontmatterForSubtasks: boolean;
 			enabled: boolean;
 		};
 		configFile: {

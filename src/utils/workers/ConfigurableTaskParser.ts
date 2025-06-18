@@ -120,7 +120,12 @@ export class MarkdownTaskParser {
 					this.extractMetadataAndTags(taskContent);
 
 				// Inherit metadata from file frontmatter
-				const inheritedMetadata = this.inheritFileMetadata(metadata);
+				// A task is a subtask if it has a parent
+				const isSubtask = parentId !== undefined;
+				const inheritedMetadata = this.inheritFileMetadata(
+					metadata,
+					isSubtask
+				);
 
 				// Use provided tgProject or determine from config
 				const taskTgProject =
@@ -167,7 +172,10 @@ export class MarkdownTaskParser {
 						inheritedMetadata,
 						"startDate"
 					),
-					dueDate: this.extractLegacyDate(inheritedMetadata, "dueDate"),
+					dueDate: this.extractLegacyDate(
+						inheritedMetadata,
+						"dueDate"
+					),
 					scheduledDate: this.extractLegacyDate(
 						inheritedMetadata,
 						"scheduledDate"
@@ -449,11 +457,11 @@ export class MarkdownTaskParser {
 
 		// Map dataview keys to standard field names for consistency
 		const dataviewKeyMapping: Record<string, string> = {
-			"due": "dueDate",
-			"start": "startDate",
-			"scheduled": "scheduledDate",
-			"completion": "completedDate",
-			"created": "createdDate"
+			due: "dueDate",
+			start: "startDate",
+			scheduled: "scheduledDate",
+			completion: "completedDate",
+			created: "createdDate",
 		};
 
 		// Apply key mapping if it exists
@@ -854,13 +862,13 @@ export class MarkdownTaskParser {
 			medium: 3,
 			low: 2,
 			lowest: 1,
-			urgent: 5,    // Alias for highest
-			critical: 5,  // Alias for highest
+			urgent: 5, // Alias for highest
+			critical: 5, // Alias for highest
 			important: 4, // Alias for high
-			normal: 3,    // Alias for medium
-			moderate: 3,  // Alias for medium
-			minor: 2,     // Alias for low
-			trivial: 1,   // Alias for lowest
+			normal: 3, // Alias for medium
+			moderate: 3, // Alias for medium
+			minor: 2, // Alias for low
+			trivial: 1, // Alias for lowest
 		};
 
 		// First try to parse as number
@@ -889,16 +897,19 @@ export class MarkdownTaskParser {
 
 		// Parse date and cache the result
 		const date = parseLocalDate(dateStr);
-		
+
 		// Implement cache size limit to prevent memory issues
-		if (MarkdownTaskParser.dateCache.size >= MarkdownTaskParser.MAX_CACHE_SIZE) {
+		if (
+			MarkdownTaskParser.dateCache.size >=
+			MarkdownTaskParser.MAX_CACHE_SIZE
+		) {
 			// Remove oldest entries (simple FIFO eviction)
 			const firstKey = MarkdownTaskParser.dateCache.keys().next().value;
 			if (firstKey) {
 				MarkdownTaskParser.dateCache.delete(firstKey);
 			}
 		}
-		
+
 		MarkdownTaskParser.dateCache.set(dateStr, date);
 		return date;
 	}
@@ -916,13 +927,22 @@ export class MarkdownTaskParser {
 			metadata: {
 				tags: enhancedTask.tags || enhancedTask.metadata.tags,
 				children: enhancedTask.children,
-				priority: enhancedTask.priority || enhancedTask.metadata.priority,
-				startDate: enhancedTask.startDate || enhancedTask.metadata.startDate,
+				priority:
+					enhancedTask.priority || enhancedTask.metadata.priority,
+				startDate:
+					enhancedTask.startDate || enhancedTask.metadata.startDate,
 				dueDate: enhancedTask.dueDate || enhancedTask.metadata.dueDate,
-				scheduledDate: enhancedTask.scheduledDate || enhancedTask.metadata.scheduledDate,
-				completedDate: enhancedTask.completedDate || enhancedTask.metadata.completedDate,
-				createdDate: enhancedTask.createdDate || enhancedTask.metadata.createdDate,
-				recurrence: enhancedTask.recurrence || enhancedTask.metadata.recurrence,
+				scheduledDate:
+					enhancedTask.scheduledDate ||
+					enhancedTask.metadata.scheduledDate,
+				completedDate:
+					enhancedTask.completedDate ||
+					enhancedTask.metadata.completedDate,
+				createdDate:
+					enhancedTask.createdDate ||
+					enhancedTask.metadata.createdDate,
+				recurrence:
+					enhancedTask.recurrence || enhancedTask.metadata.recurrence,
 				project: enhancedTask.project || enhancedTask.metadata.project,
 				context: enhancedTask.context || enhancedTask.metadata.context,
 				area: enhancedTask.metadata.area,
@@ -1024,7 +1044,7 @@ export class MarkdownTaskParser {
 	public static getDateCacheStats(): { size: number; maxSize: number } {
 		return {
 			size: MarkdownTaskParser.dateCache.size,
-			maxSize: MarkdownTaskParser.MAX_CACHE_SIZE
+			maxSize: MarkdownTaskParser.MAX_CACHE_SIZE,
 		};
 	}
 
@@ -1032,7 +1052,8 @@ export class MarkdownTaskParser {
 	 * Inherit metadata from file frontmatter and project configuration
 	 */
 	private inheritFileMetadata(
-		taskMetadata: Record<string, string>
+		taskMetadata: Record<string, string>,
+		isSubtask: boolean = false
 	): Record<string, string> {
 		// Helper function to convert priority values to numbers
 		const convertPriorityValue = (value: any): string => {
@@ -1041,7 +1062,7 @@ export class MarkdownTaskParser {
 			}
 
 			// If it's already a number, convert to string and return
-			if (typeof value === 'number') {
+			if (typeof value === "number") {
 				return String(value);
 			}
 
@@ -1085,34 +1106,50 @@ export class MarkdownTaskParser {
 			inherited.priority = convertPriorityValue(inherited.priority);
 		}
 
+		// Early return if enhanced project features are disabled
+		// Without enhanced project, metadata inheritance should not work
+		if (!this.config.projectConfig?.enableEnhancedProject) {
+			return inherited;
+		}
+
+		// Check if frontmatter inheritance is enabled
 		if (
 			!this.config.projectConfig?.metadataConfig?.inheritFromFrontmatter
 		) {
 			return inherited;
 		}
 
+		// Check if subtask inheritance is allowed
+		if (
+			isSubtask &&
+			!this.config.projectConfig?.metadataConfig
+				?.inheritFromFrontmatterForSubtasks
+		) {
+			return inherited;
+		}
+
 		// List of fields that should NOT be inherited (task-specific only)
 		const nonInheritableFields = new Set([
-			'id',
-			'content', 
-			'status',
-			'rawStatus',
-			'completed',
-			'line',
-			'lineNumber',
-			'originalMarkdown',
-			'filePath',
-			'heading',
-			'headingLevel',
-			'parent',
-			'parentId',
-			'children',
-			'childrenIds',
-			'tags', // Tags are task-specific
-			'comment', // Comments are task-specific
-			'indentLevel',
-			'actualIndent',
-			'listMarker'
+			"id",
+			"content",
+			"status",
+			"rawStatus",
+			"completed",
+			"line",
+			"lineNumber",
+			"originalMarkdown",
+			"filePath",
+			"heading",
+			"headingLevel",
+			"parent",
+			"parentId",
+			"children",
+			"childrenIds",
+			"tags", // Tags are task-specific
+			"comment", // Comments are task-specific
+			"indentLevel",
+			"actualIndent",
+			"listMarker",
 		]);
 
 		// Inherit from file metadata (frontmatter) if available
@@ -1122,12 +1159,14 @@ export class MarkdownTaskParser {
 				// 1. The field is not in the non-inheritable list
 				// 2. The task doesn't already have this field
 				// 3. The value is not undefined/null
-				if (!nonInheritableFields.has(key) && 
-					!inherited[key] && 
-					value !== undefined && 
-					value !== null) {
+				if (
+					!nonInheritableFields.has(key) &&
+					!inherited[key] &&
+					value !== undefined &&
+					value !== null
+				) {
 					// Convert priority values to numbers before inheritance
-					if (key === 'priority') {
+					if (key === "priority") {
 						inherited[key] = convertPriorityValue(value);
 					} else {
 						inherited[key] = String(value);
@@ -1138,19 +1177,26 @@ export class MarkdownTaskParser {
 
 		// Inherit from project configuration data if available
 		if (this.projectConfigCache) {
-			for (const [key, value] of Object.entries(this.projectConfigCache)) {
+			for (const [key, value] of Object.entries(
+				this.projectConfigCache
+			)) {
 				// Only inherit if:
 				// 1. The field is not in the non-inheritable list
 				// 2. The task doesn't already have this field (task metadata takes precedence)
 				// 3. File metadata doesn't have this field (file metadata takes precedence over project config)
 				// 4. The value is not undefined/null
-				if (!nonInheritableFields.has(key) && 
-					!inherited[key] && 
-					!(this.fileMetadata && this.fileMetadata[key] !== undefined) &&
-					value !== undefined && 
-					value !== null) {
+				if (
+					!nonInheritableFields.has(key) &&
+					!inherited[key] &&
+					!(
+						this.fileMetadata &&
+						this.fileMetadata[key] !== undefined
+					) &&
+					value !== undefined &&
+					value !== null
+				) {
 					// Convert priority values to numbers before inheritance
-					if (key === 'priority') {
+					if (key === "priority") {
 						inherited[key] = convertPriorityValue(value);
 					} else {
 						inherited[key] = String(value);

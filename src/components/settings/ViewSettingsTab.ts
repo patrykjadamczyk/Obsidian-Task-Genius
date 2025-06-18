@@ -225,6 +225,192 @@ export function renderViewSettingsTab(
 	// Store the update function for later use
 	(containerEl as any).updateFormatExamples = updateFormatExamples;
 
+	// File Parsing Configuration Section
+	new Setting(containerEl)
+		.setName(t("File Parsing Configuration"))
+		.setDesc(
+			t("Configure how to extract tasks from file metadata and tags.")
+		)
+		.setHeading();
+
+	new Setting(containerEl)
+		.setName(t("Enable file metadata parsing"))
+		.setDesc(
+			t(
+				"Parse tasks from file frontmatter metadata fields. When enabled, files with specific metadata fields will be treated as tasks."
+			)
+		)
+		.addToggle((toggle) => {
+			toggle.setValue(
+				settingTab.plugin.settings.fileParsingConfig
+					.enableFileMetadataParsing
+			);
+			toggle.onChange(async (value) => {
+				const previousValue =
+					settingTab.plugin.settings.fileParsingConfig
+						.enableFileMetadataParsing;
+				settingTab.plugin.settings.fileParsingConfig.enableFileMetadataParsing =
+					value;
+				settingTab.applySettingsUpdate();
+
+				// If file metadata parsing was just enabled, trigger a full reindex
+				if (!previousValue && value && settingTab.plugin.taskManager) {
+					try {
+						new Notice(
+							t(
+								"File metadata parsing enabled. Rebuilding task index..."
+							)
+						);
+						await settingTab.plugin.taskManager.forceReindex();
+						new Notice(t("Task index rebuilt successfully"));
+					} catch (error) {
+						console.error(
+							"Failed to reindex after enabling file metadata parsing:",
+							error
+						);
+						new Notice(t("Failed to rebuild task index"));
+					}
+				}
+
+				settingTab.display(); // Refresh to show/hide related settings
+			});
+		});
+
+	if (
+		settingTab.plugin.settings.fileParsingConfig.enableFileMetadataParsing
+	) {
+		new Setting(containerEl)
+			.setName(t("Metadata fields to parse as tasks"))
+			.setDesc(
+				t(
+					"Comma-separated list of metadata fields that should be treated as tasks (e.g., dueDate, todo, complete, task)"
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder("dueDate, todo, complete, task")
+					.setValue(
+						settingTab.plugin.settings.fileParsingConfig.metadataFieldsToParseAsTasks.join(
+							", "
+						)
+					)
+					.onChange((value) => {
+						settingTab.plugin.settings.fileParsingConfig.metadataFieldsToParseAsTasks =
+							value
+								.split(",")
+								.map((field) => field.trim())
+								.filter((field) => field.length > 0);
+						settingTab.applySettingsUpdate();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t("Task content from metadata"))
+			.setDesc(
+				t(
+					"Which metadata field to use as task content. If not found, will use filename."
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder("title")
+					.setValue(
+						settingTab.plugin.settings.fileParsingConfig
+							.taskContentFromMetadata
+					)
+					.onChange((value) => {
+						settingTab.plugin.settings.fileParsingConfig.taskContentFromMetadata =
+							value || "title";
+						settingTab.applySettingsUpdate();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName(t("Default task status"))
+			.setDesc(
+				t(
+					"Default status for tasks created from metadata (space for incomplete, x for complete)"
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder(" ")
+					.setValue(
+						settingTab.plugin.settings.fileParsingConfig
+							.defaultTaskStatus
+					)
+					.onChange((value) => {
+						settingTab.plugin.settings.fileParsingConfig.defaultTaskStatus =
+							value || " ";
+						settingTab.applySettingsUpdate();
+					});
+			});
+	}
+
+	new Setting(containerEl)
+		.setName(t("Enable tag-based task parsing"))
+		.setDesc(
+			t(
+				"Parse tasks from file tags. When enabled, files with specific tags will be treated as tasks."
+			)
+		)
+		.addToggle((toggle) => {
+			toggle.setValue(
+				settingTab.plugin.settings.fileParsingConfig
+					.enableTagBasedTaskParsing
+			);
+			toggle.onChange((value) => {
+				settingTab.plugin.settings.fileParsingConfig.enableTagBasedTaskParsing =
+					value;
+				settingTab.applySettingsUpdate();
+				settingTab.display(); // Refresh to show/hide related settings
+			});
+		});
+
+	if (
+		settingTab.plugin.settings.fileParsingConfig.enableTagBasedTaskParsing
+	) {
+		new Setting(containerEl)
+			.setName(t("Tags to parse as tasks"))
+			.setDesc(
+				t(
+					"Comma-separated list of tags that should be treated as tasks (e.g., #todo, #task, #action, #due)"
+				)
+			)
+			.addText((text) => {
+				text.setPlaceholder("#todo, #task, #action, #due")
+					.setValue(
+						settingTab.plugin.settings.fileParsingConfig.tagsToParseAsTasks.join(
+							", "
+						)
+					)
+					.onChange((value) => {
+						settingTab.plugin.settings.fileParsingConfig.tagsToParseAsTasks =
+							value
+								.split(",")
+								.map((tag) => tag.trim())
+								.filter((tag) => tag.length > 0);
+						settingTab.applySettingsUpdate();
+					});
+			});
+	}
+
+	new Setting(containerEl)
+		.setName(t("Enable worker processing"))
+		.setDesc(
+			t(
+				"Use background worker for file parsing to improve performance. Recommended for large vaults."
+			)
+		)
+		.addToggle((toggle) => {
+			toggle.setValue(
+				settingTab.plugin.settings.fileParsingConfig
+					.enableWorkerProcessing
+			);
+			toggle.onChange((value) => {
+				settingTab.plugin.settings.fileParsingConfig.enableWorkerProcessing =
+					value;
+				settingTab.applySettingsUpdate();
+			});
+		});
+
 	new Setting(containerEl)
 		.setName(t("Use daily note path as date"))
 		.setDesc(

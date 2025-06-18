@@ -19,17 +19,25 @@ interface MockFile {
 
 interface MockVault {
 	files: Map<string, MockFile>;
-	addFile: (path: string, content: string, metadata?: Record<string, any>) => void;
+	addFile: (
+		path: string,
+		content: string,
+		metadata?: Record<string, any>
+	) => void;
 	getFile: (path: string) => MockFile | undefined;
 	fileExists: (path: string) => boolean;
 }
 
 const createMockVault = (): MockVault => {
 	const files = new Map<string, MockFile>();
-	
+
 	return {
 		files,
-		addFile: (path: string, content: string, metadata?: Record<string, any>) => {
+		addFile: (
+			path: string,
+			content: string,
+			metadata?: Record<string, any>
+		) => {
 			files.set(path, { path, content, metadata });
 		},
 		getFile: (path: string) => files.get(path),
@@ -44,7 +52,7 @@ describe("ConfigurableTaskParser", () => {
 
 	beforeEach(() => {
 		mockVault = createMockVault();
-		
+
 		mockPlugin = createMockPlugin({
 			preferMetadataFormat: "tasks",
 			projectTagPrefix: {
@@ -77,6 +85,7 @@ describe("ConfigurableTaskParser", () => {
 					metadataKey: "project",
 					inheritFromFrontmatter: true,
 					enabled: true,
+					inheritFromFrontmatterForSubtasks: true,
 				},
 				configFile: {
 					fileName: "project.md",
@@ -209,13 +218,13 @@ describe("ConfigurableTaskParser", () => {
 
 		test("should detect project from config file (project.md)", () => {
 			const content = "- [ ] Task without explicit project";
-			
+
 			// Mock project config data as if it was read from project.md
 			const projectConfigData = {
 				project: "Config Project",
 				description: "A project defined in project.md",
 			};
-			
+
 			const tasks = parser.parseLegacy(
 				content,
 				"Projects/MyProject/tasks.md",
@@ -290,16 +299,22 @@ priority: high
 
 This is a research project with specific configuration.
 `;
-			
-			mockVault.addFile("Projects/Research/project.md", projectMdContent, {
-				project: "Research Project",
-				description: "A research project",
-				priority: "high",
-			});
+
+			mockVault.addFile(
+				"Projects/Research/project.md",
+				projectMdContent,
+				{
+					project: "Research Project",
+					description: "A research project",
+					priority: "high",
+				}
+			);
 
 			const content = "- [ ] Research task";
-			const projectConfigData = mockVault.getFile("Projects/Research/project.md")?.metadata;
-			
+			const projectConfigData = mockVault.getFile(
+				"Projects/Research/project.md"
+			)?.metadata;
+
 			const tasks = parser.parseLegacy(
 				content,
 				"Projects/Research/tasks.md",
@@ -323,14 +338,14 @@ area: coding
 
 This project involves software development tasks.
 `;
-			
+
 			// Simulate parsing the content to extract inline configuration
 			const projectConfigData = {
 				project: "Development Work",
 				context: "development",
 				area: "coding",
 			};
-			
+
 			mockVault.addFile("Projects/Dev/project.md", projectMdContent);
 
 			const content = "- [ ] Implement feature";
@@ -353,7 +368,7 @@ This project involves software development tasks.
 				project: "Parent Project",
 				description: "Project configuration from parent directory",
 			};
-			
+
 			mockVault.addFile("Projects/project.md", "project: Parent Project");
 
 			const content = "- [ ] Nested task";
@@ -372,12 +387,9 @@ This project involves software development tasks.
 
 		test("should handle missing project.md gracefully", () => {
 			const content = "- [ ] Task without project config";
-			
+
 			// No project.md file exists, no project config data provided
-			const tasks = parser.parseLegacy(
-				content,
-				"SomeFolder/task.md"
-			);
+			const tasks = parser.parseLegacy(content, "SomeFolder/task.md");
 
 			expect(tasks).toHaveLength(1);
 			// Should not have tgProject since no config file was found
@@ -389,7 +401,7 @@ This project involves software development tasks.
 			const projectConfigData = {
 				project: "Config Project",
 			};
-			
+
 			// Even though project.md exists, path mapping should take priority
 			const tasks = parser.parseLegacy(
 				content,
@@ -408,7 +420,7 @@ This project involves software development tasks.
 			const content = "- [ ] Task with file metadata";
 			const fileMetadata = { project: "File Metadata Project" };
 			const projectConfigData = { project: "Config Project" };
-			
+
 			const tasks = parser.parseLegacy(
 				content,
 				"SomeFolder/task.md",
@@ -419,7 +431,9 @@ This project involves software development tasks.
 			expect(tasks).toHaveLength(1);
 			expect(tasks[0].metadata.tgProject).toBeDefined();
 			expect(tasks[0].metadata.tgProject?.type).toBe("metadata");
-			expect(tasks[0].metadata.tgProject?.name).toBe("File Metadata Project");
+			expect(tasks[0].metadata.tgProject?.name).toBe(
+				"File Metadata Project"
+			);
 		});
 	});
 
@@ -480,7 +494,7 @@ This project involves software development tasks.
 			const tasks = parser.parseLegacy(content, "test.md");
 
 			expect(tasks).toHaveLength(1);
-			// Scheduled date should be parsed as timestamp  
+			// Scheduled date should be parsed as timestamp
 			expect(tasks[0].metadata.scheduledDate).toBe(1718380800000);
 			expect(tasks[0].content).toBe("Task with scheduled date");
 		});

@@ -154,6 +154,42 @@ export interface TableSpecificConfig {
 	defaultSortOrder: "asc" | "desc"; // Default sort order
 }
 
+export interface QuadrantSpecificConfig {
+	viewType: "quadrant"; // Discriminator
+	hideEmptyQuadrants: boolean; // Hide quadrants with no tasks
+	autoUpdatePriority: boolean; // Automatically update task priority when moved between quadrants
+	autoUpdateTags: boolean; // Automatically add/remove urgent/important tags when moved
+	showTaskCount: boolean; // Show task count in each quadrant header
+	defaultSortField:
+		| "priority"
+		| "dueDate"
+		| "scheduledDate"
+		| "startDate"
+		| "createdDate";
+	defaultSortOrder: "asc" | "desc";
+	urgentTag: string; // Tag to identify urgent tasks (default: "#urgent")
+	importantTag: string; // Tag to identify important tasks (default: "#important")
+	urgentThresholdDays: number; // Days until due date to consider task urgent
+	customQuadrantColors: boolean; // Use custom colors for quadrants
+	quadrantColors: {
+		urgentImportant: string; // Red - Crisis
+		notUrgentImportant: string; // Green - Goals
+		urgentNotImportant: string; // Yellow - Interruptions
+		notUrgentNotImportant: string; // Gray - Time wasters
+	};
+}
+
+export interface QuadrantColumnConfig {
+	id: string;
+	title: string;
+	description: string;
+	priorityEmoji: string;
+	urgentTag?: string;
+	importantTag?: string;
+	color: string;
+	order: number;
+}
+
 // ADDED: Union type for specific configs
 export type SpecificViewConfig =
 	| KanbanSpecificConfig
@@ -161,7 +197,8 @@ export type SpecificViewConfig =
 	| GanttSpecificConfig
 	| TwoColumnSpecificConfig
 	| ForecastSpecificConfig
-	| TableSpecificConfig;
+	| TableSpecificConfig
+	| QuadrantSpecificConfig;
 
 /** Define the structure for task statuses */
 export interface TaskStatusConfig extends Record<string, string> {
@@ -377,6 +414,8 @@ export interface ProjectMetadataConfig {
 	metadataKey: string;
 	/** Whether to inherit from file frontmatter */
 	inheritFromFrontmatter: boolean;
+	/** Whether subtasks should inherit metadata from file frontmatter */
+	inheritFromFrontmatterForSubtasks: boolean;
 	/** Whether this config is enabled */
 	enabled: boolean;
 }
@@ -427,6 +466,33 @@ export interface ProjectConfiguration {
 	metadataMappings: MetadataMapping[];
 	/** Default project naming strategy */
 	defaultProjectNaming: ProjectNamingStrategy;
+}
+
+/** File parsing configuration for extracting tasks from file metadata and tags */
+export interface FileParsingConfiguration {
+	/** Enable parsing tasks from file metadata */
+	enableFileMetadataParsing: boolean;
+	/** Metadata fields that should be treated as tasks (e.g., "dueDate", "todo", "complete") */
+	metadataFieldsToParseAsTasks: string[];
+	/** Enable parsing tasks from file tags */
+	enableTagBasedTaskParsing: boolean;
+	/** Tags that should be treated as tasks (e.g., "#todo", "#task", "#action") */
+	tagsToParseAsTasks: string[];
+	/** Which metadata field to use as task content (default: "title" or filename) */
+	taskContentFromMetadata: string;
+	/** Default status for tasks created from metadata (default: " " for incomplete) */
+	defaultTaskStatus: string;
+	/** Whether to use worker for file parsing performance */
+	enableWorkerProcessing: boolean;
+}
+
+/** Timeline Sidebar Settings */
+export interface TimelineSidebarSettings {
+	enableTimelineSidebar: boolean;
+	autoOpenOnStartup: boolean;
+	showCompletedTasks: boolean;
+	focusModeByDefault: boolean;
+	maxEventsToShow: number;
 }
 
 /** Define the main settings structure */
@@ -504,6 +570,9 @@ export interface TaskProgressBarSettings {
 	// Enhanced Project Configuration
 	projectConfig: ProjectConfiguration;
 
+	// File Parsing Configuration
+	fileParsingConfig: FileParsingConfiguration;
+
 	// Date Settings
 	useRelativeTimeForDate: boolean;
 
@@ -542,17 +611,20 @@ export interface TaskProgressBarSettings {
 
 	// ICS Calendar Integration Settings
 	icsIntegration: IcsManagerConfig;
+
+	// Timeline Sidebar Settings
+	timelineSidebar: TimelineSidebarSettings;
 }
 
 /** Define the default settings */
 export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	// General Defaults
 	progressBarDisplayMode: "both",
-	supportHoverToShowProgressInfo: true,
+	supportHoverToShowProgressInfo: false,
 	addProgressBarToNonTaskBullet: false,
-	addTaskProgressBarToHeading: true,
-	enableProgressbarInReadingMode: true,
-	countSubLevel: true,
+	addTaskProgressBarToHeading: false,
+	enableProgressbarInReadingMode: false,
+	countSubLevel: false,
 	displayMode: "bracketFraction",
 	customFormat: "[{{COMPLETED}}/{{TOTAL}}]",
 	showPercentage: false,
@@ -614,7 +686,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Task Filter Defaults
 	taskFilter: {
-		enableTaskFilter: true,
+		enableTaskFilter: false,
 		presetTaskFilters: [], // Start empty, maybe add defaults later or via a reset button
 	},
 
@@ -625,7 +697,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Completed Task Mover Defaults
 	completedTaskMover: {
-		enableCompletedTaskMover: true,
+		enableCompletedTaskMover: false,
 		taskMarkerType: "date",
 		versionMarker: "version 1.0",
 		dateMarker: t("archived on") + " {{date}}",
@@ -654,7 +726,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Quick Capture Defaults
 	quickCapture: {
-		enableQuickCapture: true,
+		enableQuickCapture: false,
 		targetFile: "QuickCapture.md",
 		placeholder: t("Capture your thoughts..."),
 		appendToFile: "append",
@@ -761,20 +833,32 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		pathMappings: [],
 		metadataConfig: {
 			metadataKey: "project",
-			inheritFromFrontmatter: true,
+			inheritFromFrontmatter: false,
+			inheritFromFrontmatterForSubtasks: false,
 			enabled: false,
 		},
 		configFile: {
 			fileName: "project.md",
-			searchRecursively: true,
+			searchRecursively: false,
 			enabled: false,
 		},
 		metadataMappings: [],
 		defaultProjectNaming: {
 			strategy: "filename" as const,
-			stripExtension: true,
+			stripExtension: false,
 			enabled: false,
 		},
+	},
+
+	// File Parsing Configuration
+	fileParsingConfig: {
+		enableFileMetadataParsing: false,
+		metadataFieldsToParseAsTasks: ["dueDate", "todo", "complete", "task"],
+		enableTagBasedTaskParsing: false,
+		tagsToParseAsTasks: ["#todo", "#task", "#action", "#due"],
+		taskContentFromMetadata: "title",
+		defaultTaskStatus: " ",
+		enableWorkerProcessing: true,
 	},
 
 	// Date Settings
@@ -966,6 +1050,35 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				defaultSortOrder: "asc",
 			} as TableSpecificConfig,
 		},
+		{
+			id: "quadrant",
+			name: t("Priority Matrix"),
+			icon: "grid-3x3",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: false,
+			filterRules: {},
+			filterBlanks: false,
+			specificConfig: {
+				viewType: "quadrant",
+				hideEmptyQuadrants: false,
+				autoUpdatePriority: true,
+				autoUpdateTags: true,
+				showTaskCount: true,
+				defaultSortField: "priority",
+				defaultSortOrder: "desc",
+				urgentTag: "#urgent",
+				importantTag: "#important",
+				urgentThresholdDays: 3,
+				customQuadrantColors: false,
+				quadrantColors: {
+					urgentImportant: "#dc3545",
+					notUrgentImportant: "#28a745",
+					urgentNotImportant: "#ffc107",
+					notUrgentNotImportant: "#6c757d",
+				},
+			} as QuadrantSpecificConfig,
+		},
 	],
 
 	// Review Settings
@@ -1057,12 +1170,21 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		sources: [],
 		globalRefreshInterval: 60, // 1 hour
 		maxCacheAge: 24, // 24 hours
-		enableBackgroundRefresh: true,
+		enableBackgroundRefresh: false,
 		networkTimeout: 30, // 30 seconds
 		maxEventsPerSource: 1000,
-		showInCalendar: true,
+		showInCalendar: false,
 		showInTaskLists: false,
 		defaultEventColor: "#3b82f6", // Blue color
+	},
+
+	// Timeline Sidebar Defaults
+	timelineSidebar: {
+		enableTimelineSidebar: false,
+		autoOpenOnStartup: false,
+		showCompletedTasks: true,
+		focusModeByDefault: false,
+		maxEventsToShow: 100,
 	},
 };
 

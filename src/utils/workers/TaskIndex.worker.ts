@@ -15,6 +15,13 @@ import {
 import { parse } from "date-fns/parse";
 import { MarkdownTaskParser } from "./ConfigurableTaskParser";
 import { getConfig } from "../../common/task-parser-config";
+import {
+	FileMetadataTaskParser,
+	FileTaskParsingResult,
+} from "./FileMetadataTaskParser";
+import { FileParsingConfiguration } from "../../common/setting-definition";
+import { CanvasParser } from "../parsing/CanvasParser";
+import { SupportedFileType } from "../fileTypeUtils";
 
 /**
  * Enhanced task parsing using configurable parser
@@ -42,31 +49,48 @@ function parseTasksWithConfigurableParser(
 
 		if (settings.enhancedProjectData) {
 			// Use pre-computed enhanced metadata if available (this already contains MetadataMapping transforms)
-			const precomputedMetadata = settings.enhancedProjectData.fileMetadataMap[filePath];
+			const precomputedMetadata =
+				settings.enhancedProjectData.fileMetadataMap[filePath];
 			if (precomputedMetadata) {
 				// Use the pre-computed metadata directly since it already includes the original metadata + mappings
 				enhancedFileMetadata = precomputedMetadata;
 			}
 
 			// Use pre-computed project config data
-			const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-			projectConfigData = settings.enhancedProjectData.projectConfigMap[dirPath];
+			const dirPath = filePath.substring(0, filePath.lastIndexOf("/"));
+			projectConfigData =
+				settings.enhancedProjectData.projectConfigMap[dirPath];
 
 			// Use pre-computed tgProject
-			const projectInfo = settings.enhancedProjectData.fileProjectMap[filePath];
+			const projectInfo =
+				settings.enhancedProjectData.fileProjectMap[filePath];
 			if (projectInfo) {
 				tgProject = {
-					type: projectInfo.source as "metadata" | "path" | "config" | "default",
+					type: projectInfo.source as
+						| "metadata"
+						| "path"
+						| "config"
+						| "default",
 					name: projectInfo.project,
-					source: projectInfo.source === 'path' ? 'path-mapping' : 
-						   projectInfo.source === 'metadata' ? 'frontmatter' : 'config-file',
+					source:
+						projectInfo.source === "path"
+							? "path-mapping"
+							: projectInfo.source === "metadata"
+							? "frontmatter"
+							: "config-file",
 					readonly: projectInfo.readonly,
 				};
 			}
 		}
 
 		// Use the parseLegacy method with enhanced data
-		const tasks = parser.parseLegacy(content, filePath, enhancedFileMetadata, projectConfigData, tgProject);
+		const tasks = parser.parseLegacy(
+			content,
+			filePath,
+			enhancedFileMetadata,
+			projectConfigData,
+			tgProject
+		);
 
 		// Apply heading filters if specified
 		return tasks.filter((task) => {
@@ -203,11 +227,12 @@ function extractDateFromPath(
 }
 
 /**
- * Process a single file using the configurable parser
+ * Process a single file using the appropriate parser based on file type
  */
 function processFile(
 	filePath: string,
 	content: string,
+	fileExtension: string,
 	stats: FileStats,
 	settings: TaskWorkerSettings,
 	metadata?: { fileCache?: any }
@@ -220,13 +245,64 @@ function processFile(
 			fileMetadata = metadata.fileCache.frontmatter;
 		}
 
-		// Use the configurable parser
-		const tasks = parseTasksWithConfigurableParser(
-			filePath,
-			content,
-			settings,
-			fileMetadata
-		);
+		// Use the appropriate parser based on file type
+		let tasks: Task[] = [];
+
+		if (fileExtension === SupportedFileType.CANVAS) {
+			// Use canvas parser for .canvas files
+			const canvasParser = new CanvasParser(getConfig(settings.preferMetadataFormat));
+			tasks = canvasParser.parseCanvasFile(content, filePath);
+		} else if (fileExtension === SupportedFileType.MARKDOWN) {
+			// Use configurable parser for .md files
+			tasks = parseTasksWithConfigurableParser(
+				filePath,
+				content,
+				settings,
+				fileMetadata
+			);
+		} else {
+			// Unsupported file type
+			console.warn(`Worker: Unsupported file type: ${fileExtension} for file: ${filePath}`);
+			tasks = [];
+		}
+
+		// Add file metadata tasks if file parsing is enabled and file type supports it
+		// Only apply file metadata parsing to Markdown files, not Canvas files
+		if (
+			fileExtension === SupportedFileType.MARKDOWN &&
+			settings.fileParsingConfig &&
+			(settings.fileParsingConfig.enableFileMetadataParsing ||
+				settings.fileParsingConfig.enableTagBasedTaskParsing)
+		) {
+			try {
+				const fileMetadataParser = new FileMetadataTaskParser(
+					settings.fileParsingConfig
+				);
+
+				const fileMetadataResult = fileMetadataParser.parseFileForTasks(
+					filePath,
+					content,
+					metadata?.fileCache
+				);
+
+				// Add file metadata tasks to the result
+				tasks.push(...fileMetadataResult.tasks);
+
+				// Log any errors from file metadata parsing
+				if (fileMetadataResult.errors.length > 0) {
+					console.warn(
+						`Worker: File metadata parsing errors for ${filePath}:`,
+						fileMetadataResult.errors
+					);
+				}
+			} catch (error) {
+				console.error(
+					`Worker: Error in file metadata parsing for ${filePath}:`,
+					error
+				);
+			}
+		}
+
 		const completedTasks = tasks.filter((t) => t.completed).length;
 
 		// Apply daily note date extraction if configured
@@ -294,6 +370,7 @@ function processBatch(
 	files: {
 		path: string;
 		content: string;
+		extension: string;
 		stats: FileStats;
 		metadata?: { fileCache?: any };
 	}[],
@@ -309,6 +386,7 @@ function processBatch(
 			const parseResult = processFile(
 				file.path,
 				file.content,
+				file.extension,
 				file.stats,
 				settings,
 				file.metadata
@@ -355,6 +433,7 @@ self.onmessage = async (event) => {
 			ignoreHeading: "",
 			focusHeading: "",
 			projectConfig: undefined,
+			fileParsingConfig: undefined,
 		};
 
 		if (message.type === "parseTasks") {
@@ -362,8 +441,10 @@ self.onmessage = async (event) => {
 				const result = processFile(
 					message.filePath,
 					message.content,
+					message.fileExtension,
 					message.stats,
-					settings
+					settings,
+					message.metadata
 				);
 				self.postMessage(result);
 			} catch (error) {

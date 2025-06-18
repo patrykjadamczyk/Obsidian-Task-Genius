@@ -16,7 +16,14 @@ import { MarkdownTaskParser } from "./workers/ConfigurableTaskParser";
 import { getConfig } from "../common/task-parser-config";
 import { getEffectiveProject, isProjectReadonly } from "./taskUtil";
 import { HolidayDetector } from "./ics/HolidayDetector";
-import { TaskParsingService, TaskParsingServiceOptions } from "./TaskParsingService";
+import {
+	TaskParsingService,
+	TaskParsingServiceOptions,
+} from "./TaskParsingService";
+import { isSupportedFile, getFileType, SupportedFileType } from "./fileTypeUtils";
+import { CanvasParser } from "./parsing/CanvasParser";
+import { CanvasTaskUpdater } from "./parsing/CanvasTaskUpdater";
+import { FileMetadataTaskUpdater } from "./workers/FileMetadataTaskUpdater";
 
 /**
  * TaskManager options
@@ -61,6 +68,12 @@ export class TaskManager extends Component {
 	private taskParser: MarkdownTaskParser;
 	/** Enhanced task parsing service with project support */
 	private taskParsingService?: TaskParsingService;
+	/** File metadata task updater for handling metadata-based tasks */
+	private fileMetadataUpdater?: FileMetadataTaskUpdater;
+	/** Canvas parser for .canvas files */
+	private canvasParser: CanvasParser;
+	/** Canvas task updater for modifying tasks in .canvas files */
+	private canvasTaskUpdater: CanvasTaskUpdater;
 
 	/**
 	 * Create a new task manager
@@ -88,14 +101,25 @@ export class TaskManager extends Component {
 			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
 		);
 
+		// Initialize canvas parser
+		this.canvasParser = new CanvasParser(
+			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
+		);
+
+		// Initialize canvas task updater
+		this.canvasTaskUpdater = new CanvasTaskUpdater(this.vault, this.plugin);
+
 		// Initialize enhanced task parsing service if enhanced project is enabled
 		this.initializeTaskParsingService();
 
 		// Set up the indexer's parse callback to use our parser
 		this.indexer.setParseFileCallback(async (file: TFile) => {
 			const content = await this.vault.cachedRead(file);
-			return this.parseFileWithConfigurableParser(file.path, content);
+			return this.parseFileWithAppropriateParser(file.path, content);
 		});
+
+		// Initialize file parsing configuration
+		this.updateFileParsingConfiguration();
 
 		// Preload tasks from persister to improve initialization speed
 		this.preloadTasksFromCache();
@@ -136,14 +160,26 @@ export class TaskManager extends Component {
 			const serviceOptions: TaskParsingServiceOptions = {
 				vault: this.vault,
 				metadataCache: this.metadataCache,
-				parserConfig: getConfig(this.plugin.settings.preferMetadataFormat, this.plugin),
+				parserConfig: getConfig(
+					this.plugin.settings.preferMetadataFormat,
+					this.plugin
+				),
 				projectConfigOptions: {
-					configFileName: this.plugin.settings.projectConfig.configFile.fileName,
-					searchRecursively: this.plugin.settings.projectConfig.configFile.searchRecursively,
-					metadataKey: this.plugin.settings.projectConfig.metadataConfig.metadataKey,
-					pathMappings: this.plugin.settings.projectConfig.pathMappings,
-					metadataMappings: this.plugin.settings.projectConfig.metadataMappings || [],
-					defaultProjectNaming: this.plugin.settings.projectConfig.defaultProjectNaming || {
+					configFileName:
+						this.plugin.settings.projectConfig.configFile.fileName,
+					searchRecursively:
+						this.plugin.settings.projectConfig.configFile
+							.searchRecursively,
+					metadataKey:
+						this.plugin.settings.projectConfig.metadataConfig
+							.metadataKey,
+					pathMappings:
+						this.plugin.settings.projectConfig.pathMappings,
+					metadataMappings:
+						this.plugin.settings.projectConfig.metadataMappings ||
+						[],
+					defaultProjectNaming: this.plugin.settings.projectConfig
+						.defaultProjectNaming || {
 						strategy: "filename",
 						stripExtension: true,
 						enabled: false,
@@ -152,7 +188,9 @@ export class TaskManager extends Component {
 			};
 
 			this.taskParsingService = new TaskParsingService(serviceOptions);
-			this.log("Enhanced task parsing service initialized with project support");
+			this.log(
+				"Enhanced task parsing service initialized with project support"
+			);
 		} else {
 			this.taskParsingService = undefined;
 		}
@@ -164,6 +202,11 @@ export class TaskManager extends Component {
 	public updateParsingConfiguration(): void {
 		// Update the regular parser
 		this.taskParser = new MarkdownTaskParser(
+			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
+		);
+
+		// Update the canvas parser
+		this.canvasParser.updateParserConfig(
 			getConfig(this.plugin.settings.preferMetadataFormat, this.plugin)
 		);
 
@@ -181,11 +224,75 @@ export class TaskManager extends Component {
 			// since it references this.plugin.settings directly
 		}
 
+		// Update file parsing configuration
+		this.updateFileParsingConfiguration();
+
 		this.log("Parsing configuration updated");
 	}
 
 	/**
-	 * Parse a file using the configurable parser
+	 * Update file parsing configuration when settings change
+	 */
+	public updateFileParsingConfiguration(): void {
+		if (this.workerManager) {
+			this.workerManager.setFileParsingConfig(
+				this.plugin.settings.fileParsingConfig
+			);
+		}
+
+		// Initialize or update file metadata updater
+		if (
+			this.plugin.settings.fileParsingConfig.enableFileMetadataParsing ||
+			this.plugin.settings.fileParsingConfig.enableTagBasedTaskParsing
+		) {
+			this.fileMetadataUpdater = new FileMetadataTaskUpdater(
+				this.app,
+				this.plugin.settings.fileParsingConfig
+			);
+		} else {
+			this.fileMetadataUpdater = undefined;
+		}
+
+		this.log("File parsing configuration updated");
+	}
+
+	/**
+	 * Parse a file using the appropriate parser based on file type
+	 */
+	private parseFileWithAppropriateParser(
+		filePath: string,
+		content: string
+	): Task[] {
+		try {
+			const fileType = getFileType({ path: filePath, extension: filePath.split('.').pop() || '' } as TFile);
+
+			let tasks: Task[] = [];
+
+			if (fileType === SupportedFileType.CANVAS) {
+				// Use canvas parser for .canvas files
+				tasks = this.canvasParser.parseCanvasFile(content, filePath);
+			} else if (fileType === SupportedFileType.MARKDOWN) {
+				// Use markdown parser for .md files
+				tasks = this.taskParser.parseLegacy(content, filePath);
+			} else {
+				// Unsupported file type
+				return [];
+			}
+
+			// Apply heading filters if specified in settings
+			return this.applyHeadingFilters(tasks);
+		} catch (error) {
+			console.error(
+				`Error parsing file ${filePath} with appropriate parser:`,
+				error
+			);
+			// Return empty array as fallback
+			return [];
+		}
+	}
+
+	/**
+	 * Parse a file using the configurable parser (legacy method for markdown)
 	 */
 	private parseFileWithConfigurableParser(
 		filePath: string,
@@ -217,20 +324,26 @@ export class TaskManager extends Component {
 		try {
 			if (this.taskParsingService) {
 				// Use enhanced parsing service with project support
-				const tasks = await this.taskParsingService.parseTasksFromContentLegacy(content, filePath);
-				this.log(`Parsed ${tasks.length} tasks using enhanced parsing service for ${filePath}`);
+				const tasks =
+					await this.taskParsingService.parseTasksFromContentLegacy(
+						content,
+						filePath
+					);
+				this.log(
+					`Parsed ${tasks.length} tasks using enhanced parsing service for ${filePath}`
+				);
 				return this.applyHeadingFilters(tasks);
 			} else {
-				// Fallback to regular parser
-				return this.parseFileWithConfigurableParser(filePath, content);
+				// Fallback to appropriate parser
+				return this.parseFileWithAppropriateParser(filePath, content);
 			}
 		} catch (error) {
 			console.error(
 				`Error parsing file ${filePath} with enhanced parser:`,
 				error
 			);
-			// Fallback to regular parser
-			return this.parseFileWithConfigurableParser(filePath, content);
+			// Fallback to appropriate parser
+			return this.parseFileWithAppropriateParser(filePath, content);
 		}
 	}
 
@@ -240,10 +353,7 @@ export class TaskManager extends Component {
 	private applyHeadingFilters(tasks: Task[]): Task[] {
 		return tasks.filter((task) => {
 			// Filter by ignore heading
-			if (
-				this.plugin.settings.ignoreHeading &&
-				task.metadata.heading
-			) {
+			if (this.plugin.settings.ignoreHeading && task.metadata.heading) {
 				const headings = Array.isArray(task.metadata.heading)
 					? task.metadata.heading
 					: [task.metadata.heading];
@@ -258,10 +368,7 @@ export class TaskManager extends Component {
 			}
 
 			// Filter by focus heading
-			if (
-				this.plugin.settings.focusHeading &&
-				task.metadata.heading
-			) {
+			if (this.plugin.settings.focusHeading && task.metadata.heading) {
 				const headings = Array.isArray(task.metadata.heading)
 					? task.metadata.heading
 					: [task.metadata.heading];
@@ -283,7 +390,7 @@ export class TaskManager extends Component {
 	 * Register event handlers for file changes
 	 */
 	private registerEventHandlers(): void {
-		// Watch for file modifications
+		// Watch for markdown file metadata changes (for frontmatter, links, etc.)
 		this.registerEvent(
 			this.metadataCache.on("changed", (file, content, cache) => {
 				// Skip processing during initialization to avoid excessive file processing
@@ -292,14 +399,39 @@ export class TaskManager extends Component {
 				}
 
 				this.log("File metadata changed, updating index");
-				// Trigger a full index update when all files are resolved
-				if (file instanceof TFile && file.extension === "md") {
+				// Only process markdown files through metadata cache
+				// Canvas files will be handled by vault.on("modify") below
+				if (file instanceof TFile && file.extension === 'md' && isSupportedFile(file)) {
 					this.indexFile(file);
 				}
 			})
 		);
 
-		// Watch for individual file changes
+		// Watch for direct file modifications (important for Canvas files)
+		this.registerEvent(
+			this.vault.on("modify", (file) => {
+				// Skip processing during initialization to avoid excessive file processing
+				if (this.isInitializing) {
+					return;
+				}
+
+				this.log(`File modified: ${file.path}`);
+				// Process all supported files, but prioritize Canvas files
+				// since they don't trigger metadata cache events
+				if (file instanceof TFile && isSupportedFile(file)) {
+					// For Canvas files, always process through vault modify event
+					// For markdown files, we'll get duplicate events but that's okay
+					// since indexFile is idempotent
+					if (file.extension === 'canvas') {
+						this.log(`Canvas file modified: ${file.path}, re-indexing`);
+						this.indexFile(file);
+					}
+					
+				}
+			})
+		);
+
+		// Watch for individual file deletions
 		this.registerEvent(
 			this.metadataCache.on("deleted", (file) => {
 				// Skip processing during initialization
@@ -307,13 +439,13 @@ export class TaskManager extends Component {
 					return;
 				}
 
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.removeFileFromIndex(file);
 				}
 			})
 		);
 
-		// Watch for file deletions
+		// Watch for file renames
 		this.registerEvent(
 			this.vault.on("rename", (file, oldPath) => {
 				// Skip processing during initialization
@@ -321,7 +453,7 @@ export class TaskManager extends Component {
 					return;
 				}
 
-				if (file instanceof TFile && file.extension === "md") {
+				if (file instanceof TFile && isSupportedFile(file)) {
 					this.removeFileFromIndexByOldPath(oldPath);
 					this.indexFile(file);
 				}
@@ -337,7 +469,7 @@ export class TaskManager extends Component {
 						return;
 					}
 
-					if (file instanceof TFile && file.extension === "md") {
+					if (file instanceof TFile && isSupportedFile(file)) {
 						this.indexFile(file);
 					}
 				})
@@ -464,9 +596,10 @@ export class TaskManager extends Component {
 		this.log("Initializing task manager");
 
 		try {
-			// Get all Markdown files
-			const files = this.vault.getMarkdownFiles();
-			this.log(`Found ${files.length} files to index`);
+			// Get all supported files (Markdown and Canvas)
+			const allFiles = this.vault.getFiles();
+			const files = allFiles.filter(file => isSupportedFile(file));
+			this.log(`Found ${files.length} supported files to index (${allFiles.length} total files)`);
 
 			// Try to synchronize task cache with current files and clean up non-existent file caches
 			try {
@@ -503,17 +636,37 @@ export class TaskManager extends Component {
 			if (this.workerManager && filesToProcess.length > 0) {
 				try {
 					// Pre-compute enhanced project data if TaskParsingService is available
-					let enhancedProjectData: import("./workers/TaskIndexWorkerMessage").EnhancedProjectData | undefined;
+					let enhancedProjectData:
+						| import("./workers/TaskIndexWorkerMessage").EnhancedProjectData
+						| undefined;
 					if (this.taskParsingService) {
-						this.log("Pre-computing enhanced project data for worker processing...");
-						const allFilePaths = filesToProcess.map(file => file.path);
-						enhancedProjectData = await this.taskParsingService.computeEnhancedProjectData(allFilePaths);
-						this.log(`Pre-computed project data for ${Object.keys(enhancedProjectData.fileProjectMap).length} files with projects`);
-						this.log(`Pre-computed project data: ${JSON.stringify(enhancedProjectData)}`);
-						
+						this.log(
+							"Pre-computing enhanced project data for worker processing..."
+						);
+						const allFilePaths = filesToProcess.map(
+							(file) => file.path
+						);
+						enhancedProjectData =
+							await this.taskParsingService.computeEnhancedProjectData(
+								allFilePaths
+							);
+						this.log(
+							`Pre-computed project data for ${
+								Object.keys(enhancedProjectData.fileProjectMap)
+									.length
+							} files with projects`
+						);
+						this.log(
+							`Pre-computed project data: ${JSON.stringify(
+								enhancedProjectData
+							)}`
+						);
+
 						// Update worker manager settings with enhanced data
 						if (this.workerManager) {
-							this.workerManager.setEnhancedProjectData(enhancedProjectData);
+							this.workerManager.setEnhancedProjectData(
+								enhancedProjectData
+							);
 						}
 					}
 
@@ -552,7 +705,10 @@ export class TaskManager extends Component {
 								} else {
 									// Cache doesn't exist or is outdated, process with worker
 									// Don't trigger events - we'll trigger once when initialization is complete
-									await this.processFileWithoutEvents(file, enhancedProjectData);
+									await this.processFileWithoutEvents(
+										file,
+										enhancedProjectData
+									);
 									importedCount++;
 								}
 							} catch (error) {
@@ -616,7 +772,7 @@ export class TaskManager extends Component {
 	 * Process a file using worker without triggering events - used during initialization
 	 */
 	private async processFileWithoutEvents(
-		file: TFile, 
+		file: TFile,
 		enhancedProjectData?: import("./workers/TaskIndexWorkerMessage").EnhancedProjectData
 	): Promise<void> {
 		if (!this.workerManager) {
@@ -765,9 +921,9 @@ export class TaskManager extends Component {
 						);
 						cachedCount++;
 					} else {
-						// Cache doesn't exist or is outdated, use main thread processing with configurable parser
+						// Cache doesn't exist or is outdated, use main thread processing with appropriate parser
 						const content = await this.vault.cachedRead(file);
-						const tasks = this.parseFileWithConfigurableParser(
+						const tasks = this.parseFileWithAppropriateParser(
 							file.path,
 							content
 						);
@@ -791,10 +947,10 @@ export class TaskManager extends Component {
 					}
 				} catch (error) {
 					console.error(`Error processing file ${file.path}:`, error);
-					// Fall back to main thread processing with configurable parser
+					// Fall back to main thread processing with appropriate parser
 					try {
 						const content = await this.vault.cachedRead(file);
-						const tasks = this.parseFileWithConfigurableParser(
+						const tasks = this.parseFileWithAppropriateParser(
 							file.path,
 							content
 						);
@@ -885,9 +1041,9 @@ export class TaskManager extends Component {
 				await this.processFileWithWorker(file);
 			}
 		} else {
-			// Use main thread indexing with configurable parser
+			// Use main thread indexing with appropriate parser
 			const content = await this.vault.cachedRead(file);
-			const tasks = this.parseFileWithConfigurableParser(
+			const tasks = this.parseFileWithAppropriateParser(
 				file.path,
 				content
 			);
@@ -1239,6 +1395,92 @@ export class TaskManager extends Component {
 			originalTask.metadata.dueDate
 		);
 
+		// Check if this is a Canvas task and handle it with Canvas updater
+		if (CanvasTaskUpdater.isCanvasTask(originalTask)) {
+			console.log("originalTask is a Canvas task");
+			try {
+				const result = await this.canvasTaskUpdater.updateCanvasTask(
+					originalTask,
+					updatedTask
+				);
+				console.log("result", result);
+
+				if (result.success) {
+					this.log(`Updated Canvas task ${updatedTask.id} in Canvas file`);
+
+					// Re-index the file to pick up the changes - if this fails, don't fail the entire operation
+					const file = this.vault.getFileByPath(updatedTask.filePath);
+					if (file instanceof TFile) {
+						try {
+							await this.indexFile(file);
+							this.log(
+								`Successfully re-indexed Canvas file ${updatedTask.filePath} after task update`
+							);
+						} catch (indexError) {
+							console.error(
+								`Failed to re-index Canvas file ${updatedTask.filePath} after task update:`,
+								indexError
+							);
+							// Don't throw the error - the Canvas update was successful
+							// The index will be updated on the next file change event
+						}
+					}
+					return;
+				} else {
+					throw new Error(result.error || "Failed to update Canvas task");
+				}
+			} catch (error) {
+				console.error(`Error updating Canvas task ${updatedTask.id}:`, error);
+				throw error;
+			}
+		}
+
+		// Check if this is a file metadata task and handle it specially
+		if (
+			this.fileMetadataUpdater &&
+			this.fileMetadataUpdater.isFileMetadataTask(originalTask)
+		) {
+			try {
+				const result =
+					await this.fileMetadataUpdater.updateFileMetadataTask(
+						originalTask,
+						updatedTask
+					);
+				if (result.success) {
+					this.log(`Updated file metadata task ${updatedTask.id}`);
+
+					// Re-index the file to pick up the changes - if this fails, don't fail the entire operation
+					const file = this.vault.getFileByPath(updatedTask.filePath);
+					if (file instanceof TFile) {
+						try {
+							await this.indexFile(file);
+							this.log(
+								`Successfully re-indexed file ${updatedTask.filePath} after metadata task update`
+							);
+						} catch (indexError) {
+							console.error(
+								`Failed to re-index file ${updatedTask.filePath} after metadata task update:`,
+								indexError
+							);
+							// Don't throw the error - the metadata update was successful
+							// The index will be updated on the next file change event
+						}
+					}
+					return;
+				} else {
+					throw new Error(
+						result.error || "Failed to update file metadata task"
+					);
+				}
+			} catch (error) {
+				console.error(
+					`Error updating file metadata task ${updatedTask.id}:`,
+					error
+				);
+				throw error;
+			}
+		}
+
 		// Check if this is a completion of a recurring task
 		const isCompletingRecurringTask =
 			!originalTask.completed &&
@@ -1432,8 +1674,10 @@ export class TaskManager extends Component {
 
 			// 2. Project - Only write project if it's not a read-only tgProject
 			// Check if the project should be written to the file
-			const shouldWriteProject = updatedTask.metadata.project && !isProjectReadonly(originalTask);
-			
+			const shouldWriteProject =
+				updatedTask.metadata.project &&
+				!isProjectReadonly(originalTask);
+
 			if (shouldWriteProject) {
 				if (useDataviewFormat) {
 					const projectPrefix =
@@ -1644,12 +1888,27 @@ export class TaskManager extends Component {
 					}
 				}
 
+				// Modify the file first - this is the critical operation
 				await this.vault.modify(file, lines.join("\n"));
-				await this.indexFile(file); // Re-index the modified file
 				this.log(
-					`Updated task ${updatedTask.id} and re-indexed file ${updatedTask.filePath}`
+					`Updated task ${updatedTask.id} in file ${updatedTask.filePath}`
 				);
 				this.log(updatedTask.originalMarkdown);
+
+				// Re-index the modified file - if this fails, don't fail the entire operation
+				try {
+					await this.indexFile(file);
+					this.log(
+						`Successfully re-indexed file ${updatedTask.filePath} after task update`
+					);
+				} catch (indexError) {
+					console.error(
+						`Failed to re-index file ${updatedTask.filePath} after task update:`,
+						indexError
+					);
+					// Don't throw the error - the file modification was successful
+					// The index will be updated on the next file change event
+				}
 			} else {
 				this.log(
 					`Task ${updatedTask.id} content did not change. No file modification needed.`
@@ -1833,8 +2092,9 @@ export class TaskManager extends Component {
 		}
 
 		// 2. Project - Only write project if it's not a read-only tgProject
-		const shouldWriteProject = completedTask.metadata.project && !isProjectReadonly(completedTask);
-		
+		const shouldWriteProject =
+			completedTask.metadata.project && !isProjectReadonly(completedTask);
+
 		if (shouldWriteProject) {
 			if (useDataviewFormat) {
 				const projectPrefix =

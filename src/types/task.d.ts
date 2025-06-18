@@ -68,6 +68,39 @@ export interface StandardTaskMetadata {
 	tgProject?: TgProject;
 }
 
+export interface StandardFileTaskMetadata extends StandardTaskMetadata {
+	/** Task source */
+	source: "file-metadata" | "file-tag";
+
+	/** Source field */
+	sourceField?: string;
+
+	/** Source value */
+	sourceValue?: string;
+
+	/** Source tag */
+	sourceTag?: string;
+}
+
+export interface CanvasTaskMetadata extends StandardTaskMetadata {
+	/** Canvas node ID */
+	canvasNodeId?: string;
+
+	/** Canvas node position */
+	canvasPosition?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	};
+
+	/** Canvas node color */
+	canvasColor?: string;
+
+	/** Source type to distinguish canvas tasks */
+	sourceType?: 'canvas' | 'markdown';
+}
+
 /** Task Genius Project interface */
 export interface TgProject {
 	/** Type of project source */
