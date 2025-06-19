@@ -116,6 +116,7 @@ export class SidebarComponent extends Component {
 		});
 
 		const iconEl = navItem.createSpan({ cls: "nav-item-icon" });
+		console.log("icon", icon);
 		setIcon(iconEl, icon);
 
 		navItem.createSpan({ cls: "nav-item-label", text: label });

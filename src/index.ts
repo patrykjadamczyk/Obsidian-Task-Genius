@@ -75,6 +75,7 @@ import "./styles/setting.css";
 import "./styles/view.css";
 import "./styles/view-config.css";
 import "./styles/task-status.css";
+import "./styles/quadrant/quadrant.css";
 import { TaskSpecificView } from "./pages/TaskSpecificView";
 import { TASK_SPECIFIC_VIEW_TYPE } from "./pages/TaskSpecificView";
 import {

@@ -36,7 +36,6 @@ export class FileMetadataTaskParser {
 				this.config.enableFileMetadataParsing &&
 				fileCache?.frontmatter
 			) {
-				console.log("fileCache.frontmatter", fileCache.frontmatter);
 				const metadataTasks = this.parseMetadataTasks(
 					filePath,
 					fileCache.frontmatter,
@@ -76,9 +75,6 @@ export class FileMetadataTaskParser {
 		const errors: string[] = [];
 
 		for (const fieldName of this.config.metadataFieldsToParseAsTasks) {
-			console.log("fieldName", fieldName);
-			console.log("frontmatter", frontmatter);
-			console.log("frontmatter[fieldName]", frontmatter[fieldName]);
 			if (frontmatter[fieldName] !== undefined) {
 				try {
 					const task = this.createTaskFromMetadata(
