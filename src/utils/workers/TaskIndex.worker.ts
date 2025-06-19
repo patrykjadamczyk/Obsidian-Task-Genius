@@ -310,6 +310,13 @@ function processFile(
 			}
 		}
 
+		tasks = tasks.filter((task) => {
+			if (!settings.globalFilter.split(",").some((currentFilter) => task.originalMarkdown.includes(currentFilter))) {
+				return false;
+			}
+			return true;
+		});
+
 		const completedTasks = tasks.filter((t) => t.completed).length;
 
 		// Apply daily note date extraction if configured
