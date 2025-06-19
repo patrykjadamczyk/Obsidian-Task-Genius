@@ -141,46 +141,6 @@ export class QuadrantCardComponent extends Component {
 
 		// Priority indicator (use the logic from listItem.ts for numeric priority)
 		// See @file_context_0 for reference
-		if (this.task.metadata.priority) {
-			// 将优先级转换为数字
-			let numericPriority: number;
-			if (typeof this.task.metadata.priority === "string") {
-				switch ((this.task.metadata.priority as string).toLowerCase()) {
-					case "lowest":
-						numericPriority = 1;
-						break;
-					case "low":
-						numericPriority = 2;
-						break;
-					case "medium":
-						numericPriority = 3;
-						break;
-					case "high":
-						numericPriority = 4;
-						break;
-					case "highest":
-						numericPriority = 5;
-						break;
-					default:
-						numericPriority =
-							parseInt(this.task.metadata.priority) || 1;
-						break;
-				}
-			} else {
-				numericPriority = this.task.metadata.priority;
-			}
-
-			const priorityEl = this.contentEl.createDiv({
-				cls: [
-					"tg-quadrant-card-priority",
-					`priority-${numericPriority}`,
-				],
-			});
-
-			// 根据优先级数字显示不同数量的感叹号
-			let icon = "!".repeat(numericPriority);
-			priorityEl.textContent = icon;
-		}
 
 		// Tags
 		const tags = this.extractTags();
@@ -211,10 +171,6 @@ export class QuadrantCardComponent extends Component {
 			const dueDateEl = this.metadataEl.createDiv(
 				"tg-quadrant-card-due-date"
 			);
-			const dueDateIcon = dueDateEl.createSpan(
-				"tg-quadrant-card-due-date-icon"
-			);
-			setIcon(dueDateIcon, "calendar");
 
 			const dueDateText = dueDateEl.createSpan(
 				"tg-quadrant-card-due-date-text"
@@ -230,16 +186,58 @@ export class QuadrantCardComponent extends Component {
 		}
 
 		// File info
-		const fileInfoEl = this.metadataEl.createDiv(
-			"tg-quadrant-card-file-info"
-		);
+		this.metadataEl.createDiv("tg-quadrant-card-file-info", (el) => {
+			if (this.task.metadata.priority) {
+				// 将优先级转换为数字
+				let numericPriority: number;
+				if (typeof this.task.metadata.priority === "string") {
+					switch (
+						(this.task.metadata.priority as string).toLowerCase()
+					) {
+						case "lowest":
+							numericPriority = 1;
+							break;
+						case "low":
+							numericPriority = 2;
+							break;
+						case "medium":
+							numericPriority = 3;
+							break;
+						case "high":
+							numericPriority = 4;
+							break;
+						case "highest":
+							numericPriority = 5;
+							break;
+						default:
+							numericPriority =
+								parseInt(this.task.metadata.priority) || 1;
+							break;
+					}
+				} else {
+					numericPriority = this.task.metadata.priority;
+				}
 
-		const fileName = fileInfoEl.createSpan("tg-quadrant-card-file-name");
-		fileName.textContent = this.getFileName();
+				const priorityEl = el.createDiv({
+					cls: [
+						"tg-quadrant-card-priority",
+						`priority-${numericPriority}`,
+					],
+				});
 
-		// Line number
-		const lineEl = this.metadataEl.createSpan("tg-quadrant-card-line");
-		lineEl.textContent = `L${this.task.line}`;
+				// 根据优先级数字显示不同数量的感叹号
+				let icon = "!".repeat(numericPriority);
+				priorityEl.textContent = icon;
+			}
+
+			// File name
+			const fileName = el.createSpan("tg-quadrant-card-file-name");
+			fileName.textContent = this.getFileName();
+
+			// Line number
+			const lineEl = el.createSpan("tg-quadrant-card-line");
+			lineEl.textContent = `L${this.task.line}`;
+		});
 	}
 
 	private addEventListeners() {
@@ -478,13 +476,14 @@ export class QuadrantCardComponent extends Component {
 		const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
 		if (days < 0) {
-			return t("Overdue by {days} days", { days: Math.abs(days) });
+			const overdueDays = Math.abs(days);
+			return t("Overdue by") + " " + overdueDays + " " + t("days");
 		} else if (days === 0) {
 			return t("Due today");
 		} else if (days === 1) {
 			return t("Due tomorrow");
 		} else if (days <= 7) {
-			return t("Due in {days} days", { days });
+			return t("Due in") + " " + days + " " + t("days");
 		} else {
 			return date.toLocaleDateString();
 		}

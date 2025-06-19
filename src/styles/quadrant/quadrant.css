@@ -380,19 +380,18 @@
 }
 
 .tg-quadrant-card-due-date--urgent {
-	background: var(--background-modifier-warning);
 	color: var(--text-warning);
 }
 
 .tg-quadrant-card-due-date--overdue {
-	background: var(--background-modifier-error);
 	color: var(--text-error);
 }
 
 .tg-quadrant-card-file-info {
 	display: flex;
 	align-items: center;
-	gap: var(--size-2-1);
+	justify-content: space-between;
+	gap: var(--size-4-2);
 	opacity: 0.7;
 	transition: opacity 0.2s ease;
 }
