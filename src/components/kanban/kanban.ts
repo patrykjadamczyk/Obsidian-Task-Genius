@@ -578,8 +578,9 @@ export class KanbanComponent extends Component {
 				// Get unique tags from all tasks
 				const allTags = new Set<string>();
 				this.tasks.forEach((task) => {
-					if (task.metadata.tags) {
-						task.metadata.tags.forEach((tag) => {
+					const metadata = task.metadata || {};
+					if (metadata.tags) {
+						metadata.tags.forEach((tag) => {
 							// Skip non-string tags
 							if (typeof tag === "string") {
 								allTags.add(tag);
@@ -624,8 +625,9 @@ export class KanbanComponent extends Component {
 				// Get unique contexts from all tasks
 				const allContexts = new Set<string>();
 				this.tasks.forEach((task) => {
-					if (task.metadata.context) {
-						allContexts.add(task.metadata.context);
+					const metadata = task.metadata || {};
+					if (metadata.context) {
+						allContexts.add(metadata.context);
 					}
 				});
 				const contextColumns = Array.from(allContexts).map(
@@ -723,34 +725,38 @@ export class KanbanComponent extends Component {
 		const { field, order } = sortOption;
 		let comparison = 0;
 
+		// Ensure both tasks have metadata property
+		const metadataA = a.metadata || {};
+		const metadataB = b.metadata || {};
+
 		switch (field) {
 			case "priority":
-				const priorityA = a.metadata.priority ?? 0;
-				const priorityB = b.metadata.priority ?? 0;
+				const priorityA = metadataA.priority ?? 0;
+				const priorityB = metadataB.priority ?? 0;
 				comparison = priorityA - priorityB;
 				break;
 			case "dueDate":
-				const dueDateA = a.metadata.dueDate ?? Number.MAX_SAFE_INTEGER;
-				const dueDateB = b.metadata.dueDate ?? Number.MAX_SAFE_INTEGER;
+				const dueDateA = metadataA.dueDate ?? Number.MAX_SAFE_INTEGER;
+				const dueDateB = metadataB.dueDate ?? Number.MAX_SAFE_INTEGER;
 				comparison = dueDateA - dueDateB;
 				break;
 			case "scheduledDate":
 				const scheduledA =
-					a.metadata.scheduledDate ?? Number.MAX_SAFE_INTEGER;
+					metadataA.scheduledDate ?? Number.MAX_SAFE_INTEGER;
 				const scheduledB =
-					b.metadata.scheduledDate ?? Number.MAX_SAFE_INTEGER;
+					metadataB.scheduledDate ?? Number.MAX_SAFE_INTEGER;
 				comparison = scheduledA - scheduledB;
 				break;
 			case "startDate":
-				const startA = a.metadata.startDate ?? Number.MAX_SAFE_INTEGER;
-				const startB = b.metadata.startDate ?? Number.MAX_SAFE_INTEGER;
+				const startA = metadataA.startDate ?? Number.MAX_SAFE_INTEGER;
+				const startB = metadataB.startDate ?? Number.MAX_SAFE_INTEGER;
 				comparison = startA - startB;
 				break;
 			case "createdDate":
 				const createdA =
-					a.metadata.createdDate ?? Number.MAX_SAFE_INTEGER;
+					metadataA.createdDate ?? Number.MAX_SAFE_INTEGER;
 				const createdB =
-					b.metadata.createdDate ?? Number.MAX_SAFE_INTEGER;
+					metadataB.createdDate ?? Number.MAX_SAFE_INTEGER;
 				comparison = createdA - createdB;
 				break;
 		}
@@ -936,6 +942,8 @@ export class KanbanComponent extends Component {
 			return;
 		}
 
+		taskToUpdate.metadata = taskToUpdate.metadata || {};
+
 		// Create updated task object
 		const updatedTask = { ...taskToUpdate };
 
@@ -1013,7 +1021,9 @@ export class KanbanComponent extends Component {
 				// Only update project if it's not a read-only tgProject
 				if (!isProjectReadonly(taskToUpdate)) {
 					updatedTask.metadata.project =
-						newValue === null || newValue === "" ? undefined : newValue;
+						newValue === null || newValue === ""
+							? undefined
+							: newValue;
 				}
 				break;
 			case "context":
@@ -1060,22 +1070,20 @@ export class KanbanComponent extends Component {
 	private getTasksForProperty(groupBy: string, value: any): Task[] {
 		// Filter tasks based on the groupBy property and value
 		const tasksForProperty = this.tasks.filter((task) => {
+			const metadata = task.metadata || {};
 			switch (groupBy) {
 				case "priority":
 					if (value === null || value === "") {
-						return !task.metadata.priority;
+						return !metadata.priority;
 					}
-					return task.metadata.priority === value;
+					return metadata.priority === value;
 				case "tags":
 					if (value === null || value === "") {
-						return (
-							!task.metadata.tags ||
-							task.metadata.tags.length === 0
-						);
+						return !metadata.tags || metadata.tags.length === 0;
 					}
 					return (
-						task.metadata.tags &&
-						task.metadata.tags.some(
+						metadata.tags &&
+						metadata.tags.some(
 							(tag) => typeof tag === "string" && tag === value
 						)
 					);
@@ -1086,9 +1094,9 @@ export class KanbanComponent extends Component {
 					return getEffectiveProject(task) === value;
 				case "context":
 					if (value === null || value === "") {
-						return !task.metadata.context;
+						return !metadata.context;
 					}
-					return task.metadata.context === value;
+					return metadata.context === value;
 				case "dueDate":
 				case "scheduledDate":
 				case "startDate":
@@ -1125,16 +1133,17 @@ export class KanbanComponent extends Component {
 			today.getTime() + 14 * 24 * 60 * 60 * 1000
 		);
 
+		const metadata = task.metadata || {};
 		let taskDate: number | undefined;
 		switch (dateField) {
 			case "dueDate":
-				taskDate = task.metadata.dueDate;
+				taskDate = metadata.dueDate;
 				break;
 			case "scheduledDate":
-				taskDate = task.metadata.scheduledDate;
+				taskDate = metadata.scheduledDate;
 				break;
 			case "startDate":
-				taskDate = task.metadata.startDate;
+				taskDate = metadata.startDate;
 				break;
 		}
 
@@ -1270,6 +1279,7 @@ export class KanbanComponent extends Component {
 
 	private getTaskOriginalColumnValue(task: Task, groupBy: string): any {
 		// Determine which column the task currently belongs to based on its properties
+		const metadata = task.metadata || {};
 		switch (groupBy) {
 			case "tags":
 				// For tags, find which tag column this task would be in
@@ -1287,17 +1297,14 @@ export class KanbanComponent extends Component {
 					for (const column of kanbanConfig.customColumns) {
 						if (column.value === "" || column.value === null) {
 							// "No Tags" column
-							if (
-								!task.metadata.tags ||
-								task.metadata.tags.length === 0
-							) {
+							if (!metadata.tags || metadata.tags.length === 0) {
 								return "";
 							}
 						} else {
 							// Specific tag column
 							if (
-								task.metadata.tags &&
-								task.metadata.tags.some(
+								metadata.tags &&
+								metadata.tags.some(
 									(tag) =>
 										typeof tag === "string" &&
 										tag === column.value
@@ -1309,14 +1316,11 @@ export class KanbanComponent extends Component {
 					}
 				} else {
 					// Use default columns - find the first tag that matches existing columns
-					if (
-						!task.metadata.tags ||
-						task.metadata.tags.length === 0
-					) {
+					if (!metadata.tags || metadata.tags.length === 0) {
 						return "";
 					}
 					// Return the first string tag (for simplicity, as we need to determine which column it came from)
-					const firstStringTag = task.metadata.tags.find(
+					const firstStringTag = metadata.tags.find(
 						(tag) => typeof tag === "string"
 					);
 					return firstStringTag || "";
@@ -1325,15 +1329,15 @@ export class KanbanComponent extends Component {
 			case "project":
 				return getEffectiveProject(task) || "";
 			case "context":
-				return task.metadata.context || "";
+				return metadata.context || "";
 			case "priority":
-				return task.metadata.priority || null;
+				return metadata.priority || null;
 			case "dueDate":
-				return this.getDateCategory(task.metadata.dueDate);
+				return this.getDateCategory(metadata.dueDate);
 			case "scheduledDate":
-				return this.getDateCategory(task.metadata.scheduledDate);
+				return this.getDateCategory(metadata.scheduledDate);
 			case "startDate":
-				return this.getDateCategory(task.metadata.startDate);
+				return this.getDateCategory(metadata.startDate);
 			case "filePath":
 				return task.filePath;
 			default:

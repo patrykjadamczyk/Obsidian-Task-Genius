@@ -530,20 +530,26 @@ export class TableView extends Component {
 					displayValue = task.content;
 					break;
 				case "priority":
-					value = task.metadata.priority;
-					displayValue = this.formatPriority(task.metadata.priority);
+					const metadata = task.metadata || {};
+					value = metadata.priority;
+					displayValue = this.formatPriority(metadata.priority);
 					break;
 				case "dueDate":
-					value = task.metadata.dueDate;
-					displayValue = this.formatDate(task.metadata.dueDate);
+					const metadataDue = task.metadata || {};
+					value = metadataDue.dueDate;
+					displayValue = this.formatDate(metadataDue.dueDate);
 					break;
 				case "startDate":
-					value = task.metadata.startDate;
-					displayValue = this.formatDate(task.metadata.startDate);
+					const metadataStart = task.metadata || {};
+					value = metadataStart.startDate;
+					displayValue = this.formatDate(metadataStart.startDate);
 					break;
 				case "scheduledDate":
-					value = task.metadata.scheduledDate;
-					displayValue = this.formatDate(task.metadata.scheduledDate);
+					const metadataScheduled = task.metadata || {};
+					value = metadataScheduled.scheduledDate;
+					displayValue = this.formatDate(
+						metadataScheduled.scheduledDate
+					);
 					break;
 				case "createdDate":
 					value = task.metadata.createdDate;

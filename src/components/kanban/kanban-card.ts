@@ -47,10 +47,9 @@ export class KanbanCardComponent extends Component {
 		if (this.task.completed) {
 			this.element.classList.add("task-completed");
 		}
-		if (this.task.metadata.priority) {
-			this.element.classList.add(
-				`priority-${this.task.metadata.priority}`
-			);
+		const metadata = this.task.metadata || {};
+		if (metadata.priority) {
+			this.element.classList.add(`priority-${metadata.priority}`);
 		}
 
 		// --- Card Content ---
@@ -135,12 +134,13 @@ export class KanbanCardComponent extends Component {
 	private renderMetadata() {
 		this.metadataEl.empty();
 
+		const metadata = this.task.metadata || {};
 		// Display dates (similar to TaskListItemComponent)
 		if (!this.task.completed) {
-			if (this.task.metadata.dueDate) this.renderDueDate();
+			if (metadata.dueDate) this.renderDueDate();
 			// Add scheduled, start dates if needed
 		} else {
-			if (this.task.metadata.completedDate) this.renderCompletionDate();
+			if (metadata.completedDate) this.renderCompletionDate();
 			// Add created date if needed
 		}
 
@@ -148,18 +148,18 @@ export class KanbanCardComponent extends Component {
 		if (getEffectiveProject(this.task)) this.renderProject();
 
 		// Tags
-		if (this.task.metadata.tags && this.task.metadata.tags.length > 0)
-			this.renderTags();
+		if (metadata.tags && metadata.tags.length > 0) this.renderTags();
 
 		// Priority
-		if (this.task.metadata.priority) this.renderPriority();
+		if (metadata.priority) this.renderPriority();
 	}
 
 	private renderDueDate() {
 		const dueEl = this.metadataEl.createEl("div", {
 			cls: ["task-date", "task-due-date"],
 		});
-		const dueDate = new Date(this.task.metadata.dueDate || "");
+		const metadata = this.task.metadata || {};
+		const dueDate = new Date(metadata.dueDate || "");
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const tomorrow = new Date(today);
@@ -191,7 +191,8 @@ export class KanbanCardComponent extends Component {
 		const completedEl = this.metadataEl.createEl("div", {
 			cls: ["task-date", "task-done-date"],
 		});
-		const completedDate = new Date(this.task.metadata.completedDate || "");
+		const metadata = this.task.metadata || {};
+		const completedDate = new Date(metadata.completedDate || "");
 		completedEl.textContent = `Done: ${completedDate.toLocaleDateString(
 			undefined,
 			{ month: "short", day: "numeric" }
@@ -211,11 +212,12 @@ export class KanbanCardComponent extends Component {
 		});
 
 		// Add visual indicator for tgProject
-		if (!this.task.metadata.project && this.task.metadata.tgProject) {
+		const metadata = this.task.metadata || {};
+		if (!metadata.project && metadata.tgProject) {
 			projectEl.addClass("task-project-tg");
-			projectEl.title = `Project from ${
-				this.task.metadata.tgProject.type
-			}: ${this.task.metadata.tgProject.source || ""}`;
+			projectEl.title = `Project from ${metadata.tgProject.type}: ${
+				metadata.tgProject.source || ""
+			}`;
 		}
 
 		projectEl.textContent = effectiveProject;
@@ -234,7 +236,8 @@ export class KanbanCardComponent extends Component {
 		const tagsContainer = this.metadataEl.createEl("div", {
 			cls: "task-tags-container",
 		});
-		this.task.metadata.tags.forEach((tag) => {
+		const metadata = this.task.metadata || {};
+		(metadata.tags || []).forEach((tag) => {
 			// Skip non-string tags
 			if (typeof tag !== "string") {
 				return;
@@ -263,29 +266,23 @@ export class KanbanCardComponent extends Component {
 	}
 
 	private renderPriority() {
+		const metadata = this.task.metadata || {};
 		const priorityEl = this.metadataEl.createDiv({
 			cls: [
 				"task-priority",
-				`priority-${this.task.metadata.priority}`,
+				`priority-${metadata.priority}`,
 				"clickable-metadata",
 			],
 		});
-		priorityEl.textContent = `${"!".repeat(
-			this.task.metadata.priority || 0
-		)}`;
-		priorityEl.setAttribute(
-			"aria-label",
-			`Priority ${this.task.metadata.priority}`
-		);
+		priorityEl.textContent = `${"!".repeat(metadata.priority || 0)}`;
+		priorityEl.setAttribute("aria-label", `Priority ${metadata.priority}`);
 
 		// Make priority clickable for filtering
 		this.registerDomEvent(priorityEl, "click", (ev) => {
 			ev.stopPropagation();
-			if (this.params.onFilterApply && this.task.metadata.priority) {
+			if (this.params.onFilterApply && metadata.priority) {
 				// Convert numeric priority to icon representation for filter compatibility
-				const priorityIcon = this.getPriorityIcon(
-					this.task.metadata.priority
-				);
+				const priorityIcon = this.getPriorityIcon(metadata.priority);
 				this.params.onFilterApply("priority", priorityIcon);
 			}
 		});
@@ -336,19 +333,20 @@ export class KanbanCardComponent extends Component {
 		const oldTask = this.task;
 		this.task = newTask;
 
+		const oldMetadata = oldTask.metadata || {};
+		const newMetadata = newTask.metadata || {};
+
 		// Update classes
 		if (oldTask.completed !== newTask.completed) {
 			this.element.classList.toggle("task-completed", newTask.completed);
 		}
-		if (oldTask.metadata.priority !== newTask.metadata.priority) {
-			if (oldTask.metadata.priority)
+		if (oldMetadata.priority !== newMetadata.priority) {
+			if (oldMetadata.priority)
 				this.element.classList.remove(
-					`priority-${oldTask.metadata.priority}`
+					`priority-${oldMetadata.priority}`
 				);
-			if (newTask.metadata.priority)
-				this.element.classList.add(
-					`priority-${newTask.metadata.priority}`
-				);
+			if (newMetadata.priority)
+				this.element.classList.add(`priority-${newMetadata.priority}`);
 		}
 
 		// Re-render content and metadata if needed
@@ -361,12 +359,11 @@ export class KanbanCardComponent extends Component {
 		}
 		// Check if metadata-relevant fields changed
 		if (
-			oldTask.metadata.dueDate !== newTask.metadata.dueDate ||
-			oldTask.metadata.completedDate !== newTask.metadata.completedDate ||
-			oldTask.metadata.tags?.join(",") !==
-				newTask.metadata.tags?.join(",") || // Simple comparison
-			oldTask.metadata.priority !== newTask.metadata.priority ||
-			oldTask.metadata.project !== newTask.metadata.project
+			oldMetadata.dueDate !== newMetadata.dueDate ||
+			oldMetadata.completedDate !== newMetadata.completedDate ||
+			oldMetadata.tags?.join(",") !== newMetadata.tags?.join(",") || // Simple comparison
+			oldMetadata.priority !== newMetadata.priority ||
+			oldMetadata.project !== newMetadata.project
 		) {
 			this.renderMetadata();
 		}
