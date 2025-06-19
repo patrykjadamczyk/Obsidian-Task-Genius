@@ -91,6 +91,8 @@ import { taskGutterExtension } from "./editor-ext/TaskGutterHandler";
 import { autoDateManagerExtension } from "./editor-ext/autoDateManager";
 import { ViewManager } from "./pages/ViewManager";
 import { IcsManager } from "./utils/ics/IcsManager";
+import { VersionManager } from "./utils/VersionManager";
+import { RebuildProgressManager } from "./utils/RebuildProgressManager";
 
 class TaskProgressBarPopover extends HoverPopover {
 	plugin: TaskProgressBarPlugin;
@@ -180,6 +182,12 @@ export default class TaskProgressBarPlugin extends Plugin {
 	// ICS manager instance
 	icsManager: IcsManager;
 
+	// Version manager instance
+	versionManager: VersionManager;
+
+	// Rebuild progress manager instance
+	rebuildProgressManager: RebuildProgressManager;
+
 	// Preloaded tasks:
 	preloadedTasks: Task[] = [];
 
@@ -196,6 +204,17 @@ export default class TaskProgressBarPlugin extends Plugin {
 			const viewManager = new ViewManager(this.app, this);
 			this.addChild(viewManager);
 		}
+
+		// Initialize version manager first
+		this.versionManager = new VersionManager(this.app, this);
+		this.addChild(this.versionManager);
+
+		// Initialize rebuild progress manager
+		this.rebuildProgressManager = new RebuildProgressManager(
+			this.app,
+			this
+		);
+		this.addChild(this.rebuildProgressManager);
 
 		// Initialize task manager
 		if (this.settings.enableView) {
@@ -344,9 +363,12 @@ export default class TaskProgressBarPlugin extends Plugin {
 			});
 
 			if (this.settings.enableView) {
-				// Initialize task manager after the layout is ready
-				this.taskManager.initialize().catch((error) => {
-					console.error("Failed to initialize task manager:", error);
+				// Check for version changes and handle rebuild if needed
+				this.initializeTaskManagerWithVersionCheck().catch((error) => {
+					console.error(
+						"Failed to initialize task manager with version check:",
+						error
+					);
 				});
 
 				// Register the TaskView
@@ -1115,6 +1137,170 @@ export default class TaskProgressBarPlugin extends Plugin {
 	 */
 	getIcsManager(): IcsManager | undefined {
 		return this.icsManager;
+	}
+
+	/**
+	 * Initialize task manager with version checking and rebuild handling
+	 */
+	private async initializeTaskManagerWithVersionCheck(): Promise<void> {
+		let retryCount = 0;
+		const maxRetries = 3;
+
+		while (retryCount < maxRetries) {
+			try {
+				// Validate version storage integrity first
+				const diagnosticInfo =
+					await this.versionManager.getDiagnosticInfo();
+
+				if (!diagnosticInfo.canWrite) {
+					throw new Error(
+						"Cannot write to version storage - storage may be corrupted"
+					);
+				}
+
+				if (
+					!diagnosticInfo.versionValid &&
+					diagnosticInfo.previousVersion
+				) {
+					console.warn(
+						"Invalid version data detected, attempting recovery"
+					);
+					await this.versionManager.recoverFromCorruptedVersion();
+				}
+
+				// Check for version changes
+				const versionResult =
+					await this.versionManager.checkVersionChange();
+
+				if (versionResult.requiresRebuild) {
+					console.log(`Task Genius: ${versionResult.rebuildReason}`);
+
+					// Get all supported files for progress tracking
+					const allFiles = this.app.vault
+						.getFiles()
+						.filter(
+							(file) =>
+								file.extension === "md" ||
+								file.extension === "canvas"
+						);
+
+					// Start rebuild progress tracking
+					this.rebuildProgressManager.startRebuild(
+						allFiles.length,
+						versionResult.rebuildReason
+					);
+
+					// Force clear all caches before rebuild
+					if (this.taskManager.persister) {
+						try {
+							await this.taskManager.persister.clear();
+						} catch (clearError) {
+							console.warn(
+								"Error clearing cache, attempting to recreate storage:",
+								clearError
+							);
+							await this.taskManager.persister.recreate();
+						}
+					}
+
+					// Add progress callback to track rebuild
+					this.rebuildProgressManager.addCallback((progress) => {
+						console.log(
+							`Rebuild progress: ${progress.processedFiles}/${progress.totalFiles} files processed`
+						);
+					});
+
+					// Initialize task manager (this will trigger the rebuild)
+					await this.taskManager.initialize();
+
+					// Mark rebuild as complete
+					const finalTaskCount =
+						this.taskManager.getAllTasks().length;
+					this.rebuildProgressManager.completeRebuild(finalTaskCount);
+
+					// Mark version as processed
+					await this.versionManager.markVersionProcessed();
+				} else {
+					// No rebuild needed, normal initialization
+					await this.taskManager.initialize();
+				}
+
+				// If we get here, initialization was successful
+				return;
+			} catch (error) {
+				retryCount++;
+				console.error(
+					`Error during task manager initialization (attempt ${retryCount}/${maxRetries}):`,
+					error
+				);
+
+				if (retryCount >= maxRetries) {
+					// Final attempt failed, trigger emergency rebuild
+					console.error(
+						"All initialization attempts failed, triggering emergency rebuild"
+					);
+
+					try {
+						const emergencyResult =
+							await this.versionManager.handleEmergencyRebuild(
+								`Initialization failed after ${maxRetries} attempts: ${error.message}`
+							);
+
+						// Get all supported files for progress tracking
+						const allFiles = this.app.vault
+							.getFiles()
+							.filter(
+								(file) =>
+									file.extension === "md" ||
+									file.extension === "canvas"
+							);
+
+						// Start emergency rebuild
+						this.rebuildProgressManager.startRebuild(
+							allFiles.length,
+							emergencyResult.rebuildReason
+						);
+
+						// Force recreate storage
+						if (this.taskManager.persister) {
+							await this.taskManager.persister.recreate();
+						}
+
+						// Initialize with minimal error handling
+						await this.taskManager.initialize();
+
+						// Mark emergency rebuild as complete
+						const finalTaskCount =
+							this.taskManager.getAllTasks().length;
+						this.rebuildProgressManager.completeRebuild(
+							finalTaskCount
+						);
+
+						// Store current version
+						await this.versionManager.markVersionProcessed();
+
+						console.log("Emergency rebuild completed successfully");
+						return;
+					} catch (emergencyError) {
+						console.error(
+							"Emergency rebuild also failed:",
+							emergencyError
+						);
+						this.rebuildProgressManager.failRebuild(
+							`Emergency rebuild failed: ${emergencyError.message}`
+						);
+						throw new Error(
+							`Task manager initialization failed completely: ${emergencyError.message}`
+						);
+					}
+				} else {
+					// Wait before retry
+					await new Promise((resolve) =>
+						setTimeout(resolve, 1000 * retryCount)
+					);
+				}
+			}
+		}
 	}
 }
 

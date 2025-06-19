@@ -504,32 +504,44 @@ export class TaskManager extends Component {
 				);
 
 			if (consolidatedCache) {
-				// We have a valid consolidated cache - use it directly
-				this.log(
-					`Loading consolidated task cache from version ${consolidatedCache.version}`
-				);
+				// Check if the cache is compatible with current version
+				if (this.persister.isVersionCompatible(consolidatedCache)) {
+					// We have a valid consolidated cache - use it directly
+					this.log(
+						`Loading consolidated task cache from version ${consolidatedCache.version}`
+					);
 
-				// Replace the indexer's cache with the cached version
-				this.indexer.setCache(consolidatedCache.data);
+					// Replace the indexer's cache with the cached version
+					this.indexer.setCache(consolidatedCache.data);
 
-				// Trigger a task cache updated event
-				this.app.workspace.trigger(
-					"task-genius:task-cache-updated",
-					this.indexer.getCache()
-				);
+					// Trigger a task cache updated event
+					this.app.workspace.trigger(
+						"task-genius:task-cache-updated",
+						this.indexer.getCache()
+					);
 
-				this.plugin.preloadedTasks = Array.from(
-					this.indexer.getCache().tasks.values()
-				);
+					this.plugin.preloadedTasks = Array.from(
+						this.indexer.getCache().tasks.values()
+					);
 
-				this.plugin.triggerViewUpdate();
+					this.plugin.triggerViewUpdate();
 
-				this.log(
-					`Preloaded ${
-						this.indexer.getCache().tasks.size
-					} tasks from consolidated cache`
-				);
-				return;
+					this.log(
+						`Preloaded ${
+							this.indexer.getCache().tasks.size
+						} tasks from consolidated cache`
+					);
+					return;
+				} else {
+					// Cache is incompatible, clear it and force rebuild
+					this.log(
+						`Consolidated cache version ${
+							consolidatedCache.version
+						} is incompatible with current version ${this.persister.getVersion()}, clearing cache`
+					);
+					await this.persister.clearIncompatibleCache();
+					// Continue to rebuild below
+				}
 			}
 
 			// Fall back to loading individual file caches
@@ -538,26 +550,38 @@ export class TaskManager extends Component {
 			);
 			const cachedTasks = await this.persister.getAll<Task[]>();
 			if (cachedTasks && Object.keys(cachedTasks).length > 0) {
-				this.log(
-					`Preloading ${
-						Object.keys(cachedTasks).length
-					} files from cache`
-				);
+				let compatibleCacheCount = 0;
+				let incompatibleCacheCount = 0;
 
-				// Update the indexer with all cached tasks
+				// Update the indexer with all cached tasks, checking version compatibility
 				for (const [filePath, cacheItem] of Object.entries(
 					cachedTasks
 				)) {
 					if (cacheItem && cacheItem.data) {
-						this.indexer.updateIndexWithTasks(
-							filePath,
-							cacheItem.data
-						);
-						this.log(
-							`Preloaded ${cacheItem.data.length} tasks from cache for ${filePath}`
-						);
+						// Check version compatibility
+						if (this.persister.isVersionCompatible(cacheItem)) {
+							this.indexer.updateIndexWithTasks(
+								filePath,
+								cacheItem.data
+							);
+							this.log(
+								`Preloaded ${cacheItem.data.length} tasks from cache for ${filePath}`
+							);
+							compatibleCacheCount++;
+						} else {
+							// Remove incompatible cache entry
+							await this.persister.removeFile(filePath);
+							incompatibleCacheCount++;
+							this.log(
+								`Removed incompatible cache for ${filePath} (version ${cacheItem.version})`
+							);
+						}
 					}
 				}
+
+				this.log(
+					`Preloading complete: ${compatibleCacheCount} compatible files, ${incompatibleCacheCount} incompatible files removed`
+				);
 
 				// Store the consolidated cache for next time
 				await this.storeConsolidatedCache();
@@ -709,7 +733,11 @@ export class TaskManager extends Component {
 								const cached = await this.persister.loadFile<
 									Task[]
 								>(file.path);
-								if (cached && cached.time >= file.stat.mtime) {
+								if (
+									cached &&
+									cached.time >= file.stat.mtime &&
+									this.persister.isVersionCompatible(cached)
+								) {
 									// Update index with cached data
 									this.indexer.updateIndexWithTasks(
 										file.path,
@@ -720,7 +748,20 @@ export class TaskManager extends Component {
 									);
 									cachedCount++;
 								} else {
-									// Cache doesn't exist or is outdated, process with worker
+									// Cache doesn't exist, is outdated, or version incompatible - process with worker
+									if (
+										cached &&
+										!this.persister.isVersionCompatible(
+											cached
+										)
+									) {
+										this.log(
+											`Cache for ${file.path} is version incompatible (${cached.version}), rebuilding`
+										);
+										await this.persister.removeFile(
+											file.path
+										);
+									}
 									// Don't trigger events - we'll trigger once when initialization is complete
 									await this.processFileWithoutEvents(
 										file,
@@ -927,7 +968,11 @@ export class TaskManager extends Component {
 					const cached = await this.persister.loadFile<Task[]>(
 						file.path
 					);
-					if (cached && cached.time >= file.stat.mtime) {
+					if (
+						cached &&
+						cached.time >= file.stat.mtime &&
+						this.persister.isVersionCompatible(cached)
+					) {
 						// Update index with cached data
 						this.indexer.updateIndexWithTasks(
 							file.path,
@@ -938,6 +983,16 @@ export class TaskManager extends Component {
 						);
 						cachedCount++;
 					} else {
+						// Remove incompatible cache if it exists
+						if (
+							cached &&
+							!this.persister.isVersionCompatible(cached)
+						) {
+							this.log(
+								`Cache for ${file.path} is version incompatible (${cached.version}), rebuilding`
+							);
+							await this.persister.removeFile(file.path);
+						}
 						// Cache doesn't exist or is outdated, use main thread processing with appropriate parser
 						const content = await this.vault.cachedRead(file);
 						const tasks = this.parseFileWithAppropriateParser(

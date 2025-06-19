@@ -125,7 +125,6 @@ export class QuadrantCardComponent extends Component {
 
 		// Task title/content - use markdown renderer
 		const titleEl = this.contentEl.createDiv("tg-quadrant-card-title");
-		const taskContent = this.getCleanTaskContent();
 
 		// Create a new markdown renderer for this specific content
 		const contentRenderer = new MarkdownRendererComponent(
@@ -137,7 +136,7 @@ export class QuadrantCardComponent extends Component {
 		this.addChild(contentRenderer);
 
 		// Render the task content
-		contentRenderer.render(taskContent, true);
+		contentRenderer.render(this.task.content, true);
 
 		// Priority indicator (use the logic from listItem.ts for numeric priority)
 		// See @file_context_0 for reference
@@ -419,27 +418,6 @@ export class QuadrantCardComponent extends Component {
 				error
 			);
 		}
-	}
-
-	private getCleanTaskContent(): string {
-		// Remove checkbox, priority emojis, and metadata from display
-		let content = this.task.content;
-
-		// Remove priority emojis
-		content = content.replace(/[🔺⏫🔼🔽⏬]/g, "").trim();
-
-		// Remove dates in 📅 format
-		content = content.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "").trim();
-
-		// Remove extra whitespace
-		content = content.replace(/\s+/g, " ").trim();
-
-		return content;
-	}
-
-	private extractPriorityEmoji(): string {
-		const match = this.task.content.match(/[🔺⏫🔼🔽⏬]/);
-		return match ? match[0] : "";
 	}
 
 	private extractTags(): string[] {
