@@ -2,424 +2,970 @@
 
 /* Main Quadrant Container */
 .tg-quadrant-component-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: var(--background-primary);
+	width: 100%;
 }
 
 /* Header Section */
 .tg-quadrant-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--size-4-3) var(--size-4-4);
+	background: var(--background-primary);
+	flex-shrink: 0;
 }
 
 .tg-quadrant-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	margin: 0;
 }
 
 .tg-quadrant-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-3);
 }
 
 .tg-quadrant-sort-select {
-  padding: 4px 8px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background: var(--background-primary);
-  color: var(--text-normal);
-  font-size: 12px;
+	padding: var(--size-2-2) var(--size-2-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+	transition: border-color 0.2s ease;
+}
+
+.tg-quadrant-sort-select:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.tg-quadrant-sort-select:focus {
+	border-color: var(--color-accent);
+	outline: none;
 }
 
 .tg-quadrant-toggle-empty {
-  padding: 4px 8px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background: var(--background-primary);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
+	padding: var(--size-2-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .tg-quadrant-toggle-empty:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
 }
 
 /* Filter Section */
 .tg-quadrant-filter-container {
-  flex-shrink: 0;
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 /* Quadrant Grid */
 .tg-quadrant-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 1px;
-  flex: 1;
-  background: var(--background-modifier-border);
-  overflow: hidden;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	grid-template-rows: 1fr 1fr;
+	gap: 1px;
+	flex: 1;
+	background: var(--background-modifier-border);
+	overflow: hidden;
 }
 
 /* Individual Quadrant Columns */
 .tg-quadrant-column {
-  display: flex;
-  flex-direction: column;
-  background: var(--background-primary);
-  min-height: 0;
-  overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	background: var(--background-primary);
+	min-height: 0;
+	overflow: hidden;
+	position: relative;
 }
 
 .tg-quadrant-column--hidden {
-  display: none;
+	display: none;
 }
 
 /* Quadrant Headers */
-.tg-quadrant-header {
-  padding: 12px 16px;
-  background: var(--background-secondary);
-  border-bottom: 1px solid var(--background-modifier-border);
-  flex-shrink: 0;
+.tg-quadrant-column .tg-quadrant-header {
+	padding: var(--size-4-2) var(--size-4-3);
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+	position: relative;
+	min-height: var(--size-4-12);
 }
 
 .tg-quadrant-title-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	margin-bottom: var(--size-2-1);
 }
 
 .tg-quadrant-priority {
-  font-size: 16px;
-  line-height: 1;
+	font-size: var(--font-ui-medium);
+	line-height: 1;
+	opacity: 0.8;
 }
 
-.tg-quadrant-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-normal);
+.tg-quadrant-column .tg-quadrant-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	margin: 0;
 }
 
 .tg-quadrant-description {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin-bottom: var(--size-2-2);
+	line-height: 1.3;
 }
 
 .tg-quadrant-count {
-  font-size: 11px;
-  color: var(--text-muted);
-  background: var(--background-modifier-border);
-  padding: 2px 6px;
-  border-radius: 10px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	background: var(--background-modifier-border);
+	padding: var(--size-2-1) var(--size-2-2);
+	border-radius: var(--radius-s);
+	font-weight: var(--font-medium);
 }
 
 /* Quadrant Content Areas */
 .tg-quadrant-column-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-  min-height: 100px;
+	flex: 1;
+	overflow-y: auto;
+	padding: var(--size-2-3);
+	min-height: 100px;
+}
+
+.tg-quadrant-column-content::-webkit-scrollbar {
+	width: 8px;
+}
+
+.tg-quadrant-column-content::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.tg-quadrant-column-content::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.tg-quadrant-column-content::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
 }
 
 .tg-quadrant-column-content--drop-active {
-  background: var(--background-modifier-hover);
-  border: 2px dashed var(--interactive-accent);
+	background: var(--background-modifier-hover);
+	border: 2px dashed var(--color-accent);
+	border-radius: var(--radius-m);
 }
 
-/* Quadrant Specific Colors */
-.quadrant-urgent-important {
-  background: rgba(220, 53, 69, 0.1);
+/* Quadrant Specific Styling - Subtle accent bars */
+.quadrant-urgent-important .tg-quadrant-header::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: var(--text-error);
+	opacity: 0.6;
 }
 
-.quadrant-urgent-important .tg-quadrant-header {
-  background: rgba(220, 53, 69, 0.15);
-  border-left: 4px solid #dc3545;
+.quadrant-not-urgent-important .tg-quadrant-header::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: var(--color-accent);
+	opacity: 0.6;
 }
 
-.quadrant-not-urgent-important {
-  background: rgba(40, 167, 69, 0.1);
+.quadrant-urgent-not-important .tg-quadrant-header::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: var(--text-warning);
+	opacity: 0.6;
 }
 
-.quadrant-not-urgent-important .tg-quadrant-header {
-  background: rgba(40, 167, 69, 0.15);
-  border-left: 4px solid #28a745;
-}
-
-.quadrant-urgent-not-important {
-  background: rgba(255, 193, 7, 0.1);
-}
-
-.quadrant-urgent-not-important .tg-quadrant-header {
-  background: rgba(255, 193, 7, 0.15);
-  border-left: 4px solid #ffc107;
-}
-
-.quadrant-not-urgent-not-important {
-  background: rgba(108, 117, 125, 0.1);
-}
-
-.quadrant-not-urgent-not-important .tg-quadrant-header {
-  background: rgba(108, 117, 125, 0.15);
-  border-left: 4px solid #6c757d;
+.quadrant-not-urgent-not-important .tg-quadrant-header::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: var(--text-muted);
+	opacity: 0.4;
 }
 
 /* Task Cards */
 .tg-quadrant-card {
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  padding: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	margin-bottom: var(--size-2-3);
+	padding: var(--size-4-2);
+	cursor: pointer;
+	transition: all 0.15s ease;
+	position: relative;
 }
 
 .tg-quadrant-card:hover {
-  background: var(--background-modifier-hover);
-  border-color: var(--interactive-accent);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-s);
+}
+
+.tg-quadrant-card:active {
+	transform: translateY(0);
 }
 
 .tg-quadrant-card:last-child {
-  margin-bottom: 0;
+	margin-bottom: 0;
 }
 
 /* Card Header */
 .tg-quadrant-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: var(--size-2-2);
+	gap: var(--size-2-2);
 }
 
 .tg-quadrant-card-checkbox {
-  flex-shrink: 0;
+	flex-shrink: 0;
+	margin-top: 2px;
 }
 
 .tg-quadrant-card-actions {
-  flex-shrink: 0;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: opacity 0.2s ease;
+}
+
+.tg-quadrant-card:hover .tg-quadrant-card-actions {
+	opacity: 1;
 }
 
 .tg-quadrant-card-more-btn {
-  background: none;
-  border: none;
-  padding: 4px;
-  border-radius: 3px;
-  color: var(--text-muted);
-  cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s ease;
-}
-
-.tg-quadrant-card:hover .tg-quadrant-card-more-btn {
-  opacity: 1;
+	background: none;
+	border: none;
+	padding: var(--size-2-1);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .tg-quadrant-card-more-btn:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
 }
 
 /* Card Content */
 .tg-quadrant-card-content {
-  margin-bottom: 8px;
+	margin-bottom: var(--size-2-2);
 }
 
 .tg-quadrant-card-title {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--text-normal);
-  margin-bottom: 6px;
-  word-wrap: break-word;
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+	color: var(--text-normal);
+	margin-bottom: var(--size-2-1);
+	word-wrap: break-word;
+	font-weight: var(--font-normal);
 }
 
 .tg-quadrant-card-priority {
-  font-size: 14px;
-  margin-left: 4px;
+	font-size: var(--font-ui-small);
+	margin-left: var(--size-2-1);
+	opacity: 0.8;
 }
 
 .tg-quadrant-card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-1);
+	margin-top: var(--size-2-2);
 }
 
 .tg-quadrant-card-tag {
-  background: var(--background-modifier-border);
-  color: var(--text-muted);
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 500;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	padding: var(--size-2-1) var(--size-2-2);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	border: 1px solid transparent;
+	transition: all 0.2s ease;
+}
+
+.tg-quadrant-card-tag:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
 }
 
 .tg-quadrant-tag--urgent {
-  background: rgba(220, 53, 69, 0.2);
-  color: #dc3545;
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+	border-color: var(--text-error);
 }
 
 .tg-quadrant-tag--important {
-  background: rgba(0, 123, 255, 0.2);
-  color: #007bff;
+	background: var(--background-modifier-accent);
+	color: var(--text-accent);
+	border-color: var(--color-accent);
 }
 
 /* Card Metadata */
 .tg-quadrant-card-metadata {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	gap: var(--size-2-2);
 }
 
 .tg-quadrant-card-due-date {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	background: var(--background-modifier-border);
+	padding: var(--size-2-1) var(--size-2-2);
+	border-radius: var(--radius-s);
+	font-weight: var(--font-medium);
 }
 
 .tg-quadrant-card-due-date-icon {
-  width: 12px;
-  height: 12px;
+	width: 12px;
+	height: 12px;
+	opacity: 0.7;
 }
 
 .tg-quadrant-card-due-date--urgent {
-  color: #ffc107;
+	background: var(--background-modifier-warning);
+	color: var(--text-warning);
 }
 
 .tg-quadrant-card-due-date--overdue {
-  color: #dc3545;
+	background: var(--background-modifier-error);
+	color: var(--text-error);
 }
 
 .tg-quadrant-card-file-info {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	opacity: 0.7;
+	transition: opacity 0.2s ease;
+}
+
+.tg-quadrant-card:hover .tg-quadrant-card-file-info {
+	opacity: 1;
 }
 
 .tg-quadrant-card-file-icon {
-  width: 12px;
-  height: 12px;
+	width: 12px;
+	height: 12px;
+}
+
+.tg-quadrant-card-file-name {
+	font-size: var(--font-ui-smaller);
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .tg-quadrant-card-line {
-  color: var(--text-muted);
-  font-size: 9px;
-  opacity: 0.7;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	opacity: 0.6;
+	font-weight: var(--font-medium);
 }
 
-/* Priority Classes */
+/* Priority Classes - Subtle left border */
 .tg-quadrant-card--priority-highest {
-  border-left: 3px solid #dc3545;
+	border-left: 3px solid var(--text-error);
 }
 
 .tg-quadrant-card--priority-high {
-  border-left: 3px solid #fd7e14;
+	border-left: 3px solid var(--text-warning);
 }
 
 .tg-quadrant-card--priority-medium {
-  border-left: 3px solid #ffc107;
+	border-left: 3px solid var(--color-accent);
 }
 
 .tg-quadrant-card--priority-low {
-  border-left: 3px solid #28a745;
+	border-left: 3px solid var(--text-success);
 }
 
 .tg-quadrant-card--priority-lowest {
-  border-left: 3px solid #6c757d;
+	border-left: 3px solid var(--text-muted);
 }
 
 /* Drag and Drop States */
 .tg-quadrant-card--ghost {
-  opacity: 0.5;
-  transform: rotate(2deg);
+	opacity: 0.4;
+	background: var(--background-modifier-border);
+	border: 2px dashed var(--color-accent);
 }
 
+.tg-quadrant-card--dragging {
+	/* Style for the clone being dragged - following kanban pattern */
+	box-shadow: var(--shadow-l); /* More prominent shadow */
+}
+
+/* Remove old drag classes that are no longer used */
 .tg-quadrant-card--chosen {
-  background: var(--background-modifier-hover);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	background: var(--background-modifier-hover);
+	border-color: var(--color-accent);
+	box-shadow: var(--shadow-s);
 }
 
 .tg-quadrant-card--drag {
-  transform: rotate(3deg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  z-index: 1000;
+	box-shadow: var(--shadow-l);
+	z-index: 1000;
+	border-color: var(--color-accent);
 }
 
 /* Empty State */
 .tg-quadrant-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 120px;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 20px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 120px;
+	color: var(--text-faint);
+	text-align: center;
+	padding: var(--size-4-4);
+	opacity: 0.8;
 }
 
 .tg-quadrant-empty-icon {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 8px;
-  opacity: 0.5;
+	width: 32px;
+	height: 32px;
+	margin-bottom: var(--size-2-3);
+	opacity: 0.5;
+	color: var(--text-faint);
 }
 
 .tg-quadrant-empty-message {
-  font-size: 12px;
-  line-height: 1.4;
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+	font-weight: var(--font-medium);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .tg-quadrant-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: repeat(4, 1fr);
-  }
-  
-  .tg-quadrant-header {
-    padding: 8px 12px;
-  }
-  
-  .tg-quadrant-card {
-    padding: 8px;
-  }
-  
-  .tg-quadrant-card-title {
-    font-size: 12px;
-  }
+	.tg-quadrant-grid {
+		grid-template-columns: 1fr;
+		grid-template-rows: repeat(4, 1fr);
+	}
+
+	.tg-quadrant-header {
+		padding: var(--size-2-3) var(--size-4-2);
+	}
+
+	.tg-quadrant-column .tg-quadrant-header {
+		padding: var(--size-2-3) var(--size-4-2);
+	}
+
+	.tg-quadrant-card {
+		padding: var(--size-2-3);
+	}
+
+	.tg-quadrant-card-title {
+		font-size: var(--font-ui-smaller);
+	}
+
+	.tg-quadrant-controls {
+		gap: var(--size-2-2);
+	}
 }
 
-/* Dark Theme Adjustments */
-.theme-dark .tg-quadrant-card {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+/* Focus states for accessibility */
+.tg-quadrant-card:focus {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
 }
 
-.theme-dark .tg-quadrant-card:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+.tg-quadrant-card-more-btn:focus {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 2px;
 }
 
-/* Animation for card interactions */
-@keyframes cardPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
+/* Animation for smooth interactions */
+@keyframes cardComplete {
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.05);
+	}
+	100% {
+		transform: scale(1);
+	}
 }
 
 .tg-quadrant-card--completed {
-  animation: cardPulse 0.3s ease-in-out;
+	animation: cardComplete 0.3s ease-in-out;
+}
+
+/* Improved hover states */
+.tg-quadrant-card:hover .tg-quadrant-card-title {
+	color: var(--text-normal);
+}
+
+.tg-quadrant-card:hover .tg-quadrant-card-priority {
+	opacity: 1;
+}
+
+/* Better visual hierarchy */
+.tg-quadrant-card-content {
+	position: relative;
+}
+
+/* Lazy loading styles */
+.tg-quadrant-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem;
+	color: var(--text-muted);
+	min-height: 100px;
+}
+
+.tg-quadrant-loading-spinner {
+	margin-bottom: 1rem;
+}
+
+.tg-quadrant-spinner {
+	width: 24px;
+	height: 24px;
+	color: var(--color-accent);
+}
+
+.tg-quadrant-loading-message {
+	font-size: 0.9rem;
+	opacity: 0.7;
+}
+
+/* Enhanced drag and drop styles */
+.tg-quadrant-dragging {
+	cursor: grabbing !important;
+}
+
+.tg-quadrant-dragging * {
+	pointer-events: none;
+}
+
+.tg-quadrant-card--ghost {
+	opacity: 0.4;
+	background: var(--background-modifier-border);
+	border: 2px dashed var(--color-accent);
+}
+
+.tg-quadrant-card--chosen {
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+	transform: scale(1.02);
+	z-index: 1000;
+	background: var(--background-primary);
+	border: 2px solid var(--color-accent);
+}
+
+.tg-quadrant-card--drag {
+	opacity: 0.8;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.tg-quadrant-card--fallback {
+	opacity: 0.9;
+	background: var(--background-primary);
+	border: 2px solid var(--color-accent);
+	border-radius: var(--radius-m);
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.tg-quadrant-column--drag-target {
+	background: var(--background-modifier-hover);
+	border: 2px dashed var(--color-accent);
+	border-radius: var(--radius-m);
+}
+
+.tg-quadrant-column-content--drop-active {
+	background: var(--background-modifier-active-hover);
+	border: 2px dashed var(--color-accent);
+	border-radius: var(--radius-s);
+	min-height: 60px;
+	position: relative;
+}
+
+.tg-quadrant-column-content--drop-active::before {
+	content: "Drop task here";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	color: var(--color-accent);
+	font-size: 0.9rem;
+	font-weight: 500;
+	opacity: 0.7;
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* Feedback styles */
+.tg-quadrant-update-feedback {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	z-index: 10000;
+	opacity: 0;
+	transform: translateX(100%);
+	transition: all 0.3s ease;
+	pointer-events: none;
+}
+
+.tg-quadrant-feedback--show {
+	opacity: 1;
+	transform: translateX(0);
+}
+
+.tg-quadrant-feedback--hide {
+	opacity: 0;
+	transform: translateX(100%);
+}
+
+.tg-quadrant-feedback-content {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1rem;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	min-width: 200px;
+}
+
+.tg-quadrant-feedback--error .tg-quadrant-feedback-content {
+	background: var(--background-modifier-error);
+	border-color: var(--text-error);
+	color: var(--text-error);
+}
+
+.tg-quadrant-feedback-icon {
+	font-size: 1.2rem;
+	flex-shrink: 0;
+}
+
+.tg-quadrant-feedback-text {
+	font-size: 0.9rem;
+	font-weight: 500;
+}
+
+/* Enhanced card interactions */
+.tg-quadrant-card {
+	transition: all 0.2s ease;
+	cursor: grab;
+}
+
+.tg-quadrant-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.tg-quadrant-card:active {
+	cursor: grabbing;
+}
+
+/* Improved empty state */
+.tg-quadrant-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem 1rem;
+	text-align: center;
+	color: var(--text-muted);
+	min-height: 120px;
+	border: 2px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	margin: 0.5rem 0;
+}
+
+.tg-quadrant-empty-icon {
+	margin-bottom: 0.75rem;
+	opacity: 0.5;
+}
+
+.tg-quadrant-empty-message {
+	font-size: 0.9rem;
+	line-height: 1.4;
+	max-width: 200px;
+}
+
+/* Loading animation */
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+.tg-quadrant-spinner circle {
+	animation: spin 2s linear infinite;
+	transform-origin: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.tg-quadrant-update-feedback {
+		top: 10px;
+		right: 10px;
+		left: 10px;
+		transform: translateY(-100%);
+	}
+
+	.tg-quadrant-feedback--show {
+		transform: translateY(0);
+	}
+
+	.tg-quadrant-feedback--hide {
+		transform: translateY(-100%);
+	}
+
+	.tg-quadrant-feedback-content {
+		min-width: auto;
+		width: 100%;
+	}
+}
+
+/* Dark mode adjustments */
+.theme-dark .tg-quadrant-card--chosen {
+	background: var(--background-primary-alt);
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .tg-quadrant-card--fallback {
+	background: var(--background-primary-alt);
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .tg-quadrant-feedback-content {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+	.tg-quadrant-card,
+	.tg-quadrant-update-feedback,
+	.tg-quadrant-card--chosen,
+	.tg-quadrant-card--drag {
+		transition: none;
+		animation: none;
+	}
+
+	.tg-quadrant-spinner circle {
+		animation: none;
+	}
+}
+
+/* Scroll container styles */
+.tg-quadrant-scroll-container {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	max-height: 70vh;
+	scrollbar-width: thin;
+	scrollbar-color: var(--background-modifier-border) transparent;
+}
+
+.tg-quadrant-scroll-container::-webkit-scrollbar {
+	width: 6px;
+}
+
+.tg-quadrant-scroll-container::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.tg-quadrant-scroll-container::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 3px;
+}
+
+.tg-quadrant-scroll-container::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
+}
+
+/* Load more indicator styles */
+.tg-quadrant-load-more {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+	color: var(--text-muted);
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 0.5rem;
+}
+
+.tg-quadrant-load-more-spinner {
+	margin-bottom: 0.5rem;
+}
+
+.tg-quadrant-load-more-message {
+	font-size: 0.8rem;
+	opacity: 0.7;
+}
+
+/* Column layout adjustments for scrolling */
+.tg-quadrant-column {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 400px;
+	max-height: 80vh;
+}
+
+.tg-quadrant-column-content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 0.5rem;
+}
+
+/* Smooth scrolling */
+.tg-quadrant-scroll-container {
+	scroll-behavior: smooth;
+}
+
+/* Loading states during scroll */
+.tg-quadrant-column.loading-more .tg-quadrant-load-more {
+	opacity: 1;
+	pointer-events: none;
+}
+
+/* Intersection observer target styling */
+.tg-quadrant-load-more {
+	min-height: 40px;
+	transition: opacity 0.2s ease;
+}
+
+/* Enhanced empty state for scrollable content */
+.tg-quadrant-column-content:empty::before {
+	content: "";
+	display: block;
+	min-height: 100px;
+}
+
+/* Grid layout adjustments */
+.tg-quadrant-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	height: calc(100vh - 200px);
+	min-height: 400px;
+}
+
+/* Responsive scroll container heights */
+@media (max-width: 1200px) {
+	.tg-quadrant-scroll-container {
+		max-height: 60vh;
+	}
+
+	.tg-quadrant-column {
+		max-height: 70vh;
+	}
+}
+
+@media (max-width: 768px) {
+	.tg-quadrant-scroll-container {
+		max-height: 50vh;
+	}
+
+	.tg-quadrant-column {
+		max-height: 60vh;
+		min-height: 300px;
+	}
+
+	.tg-quadrant-grid {
+		grid-template-columns: 1fr;
+		height: auto;
+	}
+}
+
+/* Performance optimizations */
+.tg-quadrant-column-content {
+	contain: layout style;
+	will-change: contents;
+}
+
+.tg-quadrant-card {
+	contain: layout style paint;
+}
+
+/* Scroll indicators */
+.tg-quadrant-scroll-container.has-scroll::before {
+	content: "";
+	position: sticky;
+	top: 0;
+	height: 1px;
+	background: linear-gradient(
+		to bottom,
+		var(--background-primary),
+		transparent
+	);
+	z-index: 1;
+}
+
+.tg-quadrant-scroll-container.has-scroll::after {
+	content: "";
+	position: sticky;
+	bottom: 0;
+	height: 1px;
+	background: linear-gradient(to top, var(--background-primary), transparent);
+	z-index: 1;
 }

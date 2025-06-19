@@ -19,6 +19,7 @@ import {
 	ViewFilterRule,
 	ViewMode,
 	ForecastSpecificConfig,
+	QuadrantSpecificConfig,
 	DateExistType,
 	PropertyExistType,
 	DEFAULT_SETTINGS,
@@ -279,6 +280,12 @@ export class ViewConfigModal extends Modal {
 			(this.isCopyMode && this.sourceViewId === "forecast") ||
 			this.viewConfig.specificConfig?.viewType === "forecast";
 
+		// 检查是否为四象限视图（原始ID或拷贝的四象限视图）
+		const isQuadrantView =
+			this.viewConfig.id === "quadrant" ||
+			(this.isCopyMode && this.sourceViewId === "quadrant") ||
+			this.viewConfig.specificConfig?.viewType === "quadrant";
+
 		if (isCalendarView) {
 			new Setting(contentEl)
 				.setName(t("First day of week"))
@@ -327,14 +334,23 @@ export class ViewConfigModal extends Modal {
 			// Add weekend hiding toggle for calendar view
 			new Setting(contentEl)
 				.setName(t("Hide weekends"))
-				.setDesc(t("Hide weekend columns (Saturday and Sunday) in calendar views."))
+				.setDesc(
+					t(
+						"Hide weekend columns (Saturday and Sunday) in calendar views."
+					)
+				)
 				.addToggle((toggle) => {
-					const currentValue = (this.viewConfig.specificConfig as CalendarSpecificConfig)?.hideWeekends ?? false;
+					const currentValue =
+						(
+							this.viewConfig
+								.specificConfig as CalendarSpecificConfig
+						)?.hideWeekends ?? false;
 					toggle.setValue(currentValue);
 					toggle.onChange((value) => {
 						if (
 							!this.viewConfig.specificConfig ||
-							this.viewConfig.specificConfig.viewType !== "calendar"
+							this.viewConfig.specificConfig.viewType !==
+								"calendar"
 						) {
 							this.viewConfig.specificConfig = {
 								viewType: "calendar",
@@ -342,7 +358,10 @@ export class ViewConfigModal extends Modal {
 								hideWeekends: value,
 							};
 						} else {
-							(this.viewConfig.specificConfig as CalendarSpecificConfig).hideWeekends = value;
+							(
+								this.viewConfig
+									.specificConfig as CalendarSpecificConfig
+							).hideWeekends = value;
 						}
 						this.checkForChanges();
 					});
@@ -789,14 +808,23 @@ export class ViewConfigModal extends Modal {
 			// Add weekend hiding toggle for forecast view
 			new Setting(contentEl)
 				.setName(t("Hide weekends"))
-				.setDesc(t("Hide weekend columns (Saturday and Sunday) in forecast calendar."))
+				.setDesc(
+					t(
+						"Hide weekend columns (Saturday and Sunday) in forecast calendar."
+					)
+				)
 				.addToggle((toggle) => {
-					const currentValue = (this.viewConfig.specificConfig as ForecastSpecificConfig)?.hideWeekends ?? false;
+					const currentValue =
+						(
+							this.viewConfig
+								.specificConfig as ForecastSpecificConfig
+						)?.hideWeekends ?? false;
 					toggle.setValue(currentValue);
 					toggle.onChange((value) => {
 						if (
 							!this.viewConfig.specificConfig ||
-							this.viewConfig.specificConfig.viewType !== "forecast"
+							this.viewConfig.specificConfig.viewType !==
+								"forecast"
 						) {
 							this.viewConfig.specificConfig = {
 								viewType: "forecast",
@@ -804,10 +832,271 @@ export class ViewConfigModal extends Modal {
 								hideWeekends: value,
 							};
 						} else {
-							(this.viewConfig.specificConfig as ForecastSpecificConfig).hideWeekends = value;
+							(
+								this.viewConfig
+									.specificConfig as ForecastSpecificConfig
+							).hideWeekends = value;
 						}
 						this.checkForChanges();
 					});
+				});
+		} else if (isQuadrantView) {
+			new Setting(contentEl)
+				.setName(t("Quadrant Classification Method"))
+				.setDesc(t("Choose how to classify tasks into quadrants"))
+				.addToggle((toggle) => {
+					const currentValue =
+						(
+							this.viewConfig
+								.specificConfig as QuadrantSpecificConfig
+						)?.usePriorityForClassification ?? false;
+					toggle.setValue(currentValue);
+					toggle.onChange((value) => {
+						if (
+							!this.viewConfig.specificConfig ||
+							this.viewConfig.specificConfig.viewType !==
+								"quadrant"
+						) {
+							this.viewConfig.specificConfig = {
+								viewType: "quadrant",
+								hideEmptyQuadrants: false,
+								autoUpdatePriority: true,
+								autoUpdateTags: true,
+								showTaskCount: true,
+								defaultSortField: "priority",
+								defaultSortOrder: "desc",
+								urgentTag: "#urgent",
+								importantTag: "#important",
+								urgentThresholdDays: 3,
+								usePriorityForClassification: value,
+								urgentPriorityThreshold: 4,
+								importantPriorityThreshold: 3,
+								customQuadrantColors: false,
+								quadrantColors: {
+									urgentImportant: "#dc3545",
+									notUrgentImportant: "#28a745",
+									urgentNotImportant: "#ffc107",
+									notUrgentNotImportant: "#6c757d",
+								},
+							};
+						} else {
+							(
+								this.viewConfig
+									.specificConfig as QuadrantSpecificConfig
+							).usePriorityForClassification = value;
+						}
+						this.checkForChanges();
+						// Refresh the modal to show/hide relevant settings
+						this.display();
+					});
+				});
+
+			const quadrantConfig = this.viewConfig
+				.specificConfig as QuadrantSpecificConfig;
+			const usePriorityClassification =
+				quadrantConfig?.usePriorityForClassification ?? false;
+
+			if (usePriorityClassification) {
+				// Priority-based classification settings
+				new Setting(contentEl)
+					.setName(t("Urgent Priority Threshold"))
+					.setDesc(
+						t(
+							"Tasks with priority >= this value are considered urgent (1-5)"
+						)
+					)
+					.addSlider((slider) => {
+						slider
+							.setLimits(1, 5, 1)
+							.setValue(
+								quadrantConfig?.urgentPriorityThreshold ?? 4
+							)
+							.setDynamicTooltip()
+							.onChange((value) => {
+								if (
+									this.viewConfig.specificConfig?.viewType ===
+									"quadrant"
+								) {
+									(
+										this.viewConfig
+											.specificConfig as QuadrantSpecificConfig
+									).urgentPriorityThreshold = value;
+									this.checkForChanges();
+								}
+							});
+					});
+
+				new Setting(contentEl)
+					.setName(t("Important Priority Threshold"))
+					.setDesc(
+						t(
+							"Tasks with priority >= this value are considered important (1-5)"
+						)
+					)
+					.addSlider((slider) => {
+						slider
+							.setLimits(1, 5, 1)
+							.setValue(
+								quadrantConfig?.importantPriorityThreshold ?? 3
+							)
+							.setDynamicTooltip()
+							.onChange((value) => {
+								if (
+									this.viewConfig.specificConfig?.viewType ===
+									"quadrant"
+								) {
+									(
+										this.viewConfig
+											.specificConfig as QuadrantSpecificConfig
+									).importantPriorityThreshold = value;
+									this.checkForChanges();
+								}
+							});
+					});
+			} else {
+				// Tag-based classification settings
+				new Setting(contentEl)
+					.setName(t("Urgent Tag"))
+					.setDesc(
+						t("Tag to identify urgent tasks (e.g., #urgent, #fire)")
+					)
+					.addText((text) => {
+						text.setValue(quadrantConfig?.urgentTag ?? "#urgent")
+							.setPlaceholder("#urgent")
+							.onChange((value) => {
+								if (
+									this.viewConfig.specificConfig?.viewType ===
+									"quadrant"
+								) {
+									(
+										this.viewConfig
+											.specificConfig as QuadrantSpecificConfig
+									).urgentTag = value;
+									this.checkForChanges();
+								}
+							});
+					});
+
+				new Setting(contentEl)
+					.setName(t("Important Tag"))
+					.setDesc(
+						t(
+							"Tag to identify important tasks (e.g., #important, #key)"
+						)
+					)
+					.addText((text) => {
+						text.setValue(
+							quadrantConfig?.importantTag ?? "#important"
+						)
+							.setPlaceholder("#important")
+							.onChange((value) => {
+								if (
+									this.viewConfig.specificConfig?.viewType ===
+									"quadrant"
+								) {
+									(
+										this.viewConfig
+											.specificConfig as QuadrantSpecificConfig
+									).importantTag = value;
+									this.checkForChanges();
+								}
+							});
+					});
+
+				new Setting(contentEl)
+					.setName(t("Urgent Threshold Days"))
+					.setDesc(
+						t(
+							"Tasks due within this many days are considered urgent"
+						)
+					)
+					.addSlider((slider) => {
+						slider
+							.setLimits(1, 14, 1)
+							.setValue(quadrantConfig?.urgentThresholdDays ?? 3)
+							.setDynamicTooltip()
+							.onChange((value) => {
+								if (
+									this.viewConfig.specificConfig?.viewType ===
+									"quadrant"
+								) {
+									(
+										this.viewConfig
+											.specificConfig as QuadrantSpecificConfig
+									).urgentThresholdDays = value;
+									this.checkForChanges();
+								}
+							});
+					});
+			}
+
+			// Common quadrant settings
+			new Setting(contentEl)
+				.setName(t("Auto Update Priority"))
+				.setDesc(
+					t(
+						"Automatically update task priority when moved between quadrants"
+					)
+				)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(quadrantConfig?.autoUpdatePriority ?? true)
+						.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"quadrant"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as QuadrantSpecificConfig
+								).autoUpdatePriority = value;
+								this.checkForChanges();
+							}
+						});
+				});
+
+			new Setting(contentEl)
+				.setName(t("Auto Update Tags"))
+				.setDesc(
+					t(
+						"Automatically add/remove urgent/important tags when moved between quadrants"
+					)
+				)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(quadrantConfig?.autoUpdateTags ?? true)
+						.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"quadrant"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as QuadrantSpecificConfig
+								).autoUpdateTags = value;
+								this.checkForChanges();
+							}
+						});
+				});
+
+			new Setting(contentEl)
+				.setName(t("Hide Empty Quadrants"))
+				.setDesc(t("Hide quadrants that have no tasks"))
+				.addToggle((toggle) => {
+					toggle
+						.setValue(quadrantConfig?.hideEmptyQuadrants ?? false)
+						.onChange((value) => {
+							if (
+								this.viewConfig.specificConfig?.viewType ===
+								"quadrant"
+							) {
+								(
+									this.viewConfig
+										.specificConfig as QuadrantSpecificConfig
+								).hideEmptyQuadrants = value;
+								this.checkForChanges();
+							}
+						});
 				});
 		}
 

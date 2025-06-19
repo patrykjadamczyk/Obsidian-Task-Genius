@@ -45,7 +45,7 @@ export interface StandardTaskMetadata {
 	context?: string;
 	/** Area for the task (e.g. #area/work, #area/personal) */
 	area?: string;
-	/** Priority level (1-3, higher is more important) */
+	/** Priority level (1-5, higher is more important) */
 	priority?: number;
 
 	/** Parent task ID for hierarchical tasks */
@@ -98,7 +98,7 @@ export interface CanvasTaskMetadata extends StandardTaskMetadata {
 	canvasColor?: string;
 
 	/** Source type to distinguish canvas tasks */
-	sourceType?: 'canvas' | 'markdown';
+	sourceType?: "canvas" | "markdown";
 }
 
 /** Task Genius Project interface */

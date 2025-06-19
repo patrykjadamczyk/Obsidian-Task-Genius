@@ -170,6 +170,9 @@ export interface QuadrantSpecificConfig {
 	urgentTag: string; // Tag to identify urgent tasks (default: "#urgent")
 	importantTag: string; // Tag to identify important tasks (default: "#important")
 	urgentThresholdDays: number; // Days until due date to consider task urgent
+	usePriorityForClassification: boolean; // Use priority levels instead of tags for classification
+	urgentPriorityThreshold: number; // Priority level (1-5) to consider task urgent when using priority
+	importantPriorityThreshold: number; // Priority level (1-5) to consider task important when using priority
 	customQuadrantColors: boolean; // Use custom colors for quadrants
 	quadrantColors: {
 		urgentImportant: string; // Red - Crisis
@@ -1052,8 +1055,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 		},
 		{
 			id: "quadrant",
-			name: t("Priority Matrix"),
-			icon: "grid-3x3",
+			name: t("Matrix"),
+			icon: "layout-grid",
 			type: "default",
 			visible: true,
 			hideCompletedAndAbandonedTasks: false,
@@ -1070,6 +1073,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				urgentTag: "#urgent",
 				importantTag: "#important",
 				urgentThresholdDays: 3,
+				usePriorityForClassification: false,
+				urgentPriorityThreshold: 4,
+				importantPriorityThreshold: 3,
 				customQuadrantColors: false,
 				quadrantColors: {
 					urgentImportant: "#dc3545",

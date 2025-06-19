@@ -143,6 +143,11 @@ class ViewComponentFactory {
 						onTaskSelected: handlers.onTaskSelected,
 						onTaskCompleted: handlers.onTaskCompleted,
 						onTaskContextMenu: handlers.onTaskContextMenu,
+						onTaskUpdated: async (task: Task) => {
+							if (plugin.taskManager) {
+								await plugin.taskManager.updateTask(task);
+							}
+						},
 					},
 					viewId
 				);
@@ -195,9 +200,14 @@ export class ViewComponentManager extends Component {
 		if (specificViewType) {
 			viewType = specificViewType;
 		} else if (
-			["calendar", "kanban", "gantt", "forecast", "table", "quadrant"].includes(
-				viewId
-			)
+			[
+				"calendar",
+				"kanban",
+				"gantt",
+				"forecast",
+				"table",
+				"quadrant",
+			].includes(viewId)
 		) {
 			viewType = viewId;
 		}

@@ -1,7 +1,8 @@
-import { App, Component, setIcon, Menu } from "obsidian";
+import { App, Component, setIcon, Menu, MarkdownView } from "obsidian";
 import TaskProgressBarPlugin from "../../index";
 import { Task } from "../../types/task";
 import { createTaskCheckbox } from "../task-view/details";
+import { MarkdownRendererComponent } from "../MarkdownRenderer";
 import { t } from "../../translations/helper";
 
 export class QuadrantCardComponent extends Component {
@@ -12,6 +13,7 @@ export class QuadrantCardComponent extends Component {
 	private checkboxEl: HTMLElement;
 	private contentEl: HTMLElement;
 	private metadataEl: HTMLElement;
+	private markdownRenderer: MarkdownRendererComponent;
 	private params: {
 		onTaskStatusUpdate?: (
 			taskId: string,
@@ -20,6 +22,7 @@ export class QuadrantCardComponent extends Component {
 		onTaskSelected?: (task: Task) => void;
 		onTaskCompleted?: (task: Task) => void;
 		onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
+		onTaskUpdated?: (task: Task) => Promise<void>;
 	};
 
 	constructor(
@@ -35,6 +38,7 @@ export class QuadrantCardComponent extends Component {
 			onTaskSelected?: (task: Task) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
+			onTaskUpdated?: (task: Task) => Promise<void>;
 		} = {}
 	) {
 		super();
@@ -43,6 +47,15 @@ export class QuadrantCardComponent extends Component {
 		this.containerEl = containerEl;
 		this.task = task;
 		this.params = params;
+
+		// Initialize markdown renderer
+		this.markdownRenderer = new MarkdownRendererComponent(
+			this.app,
+			this.containerEl,
+			this.task.filePath,
+			true // hideMarks = true
+		);
+		this.addChild(this.markdownRenderer);
 	}
 
 	override onload() {
@@ -80,21 +93,24 @@ export class QuadrantCardComponent extends Component {
 		// Task checkbox
 		this.checkboxEl = headerEl.createDiv("tg-quadrant-card-checkbox");
 		const checkbox = createTaskCheckbox(
+			this.task.status,
 			this.task,
-			(newStatus) => {
-				if (this.params.onTaskStatusUpdate) {
-					this.params.onTaskStatusUpdate(this.task.id, newStatus);
-				}
-			},
-			this.plugin
+			this.checkboxEl
 		);
-		this.checkboxEl.appendChild(checkbox);
+
+		// Add change event listener for checkbox
+		checkbox.addEventListener("change", () => {
+			const newStatus = checkbox.checked ? "x" : " ";
+			if (this.params.onTaskStatusUpdate) {
+				this.params.onTaskStatusUpdate(this.task.id, newStatus);
+			}
+		});
 
 		// Actions menu
 		const actionsEl = headerEl.createDiv("tg-quadrant-card-actions");
 		const moreBtn = actionsEl.createEl("button", {
 			cls: "tg-quadrant-card-more-btn",
-			attr: { "aria-label": t("More actions") }
+			attr: { "aria-label": t("More actions") },
 		});
 		setIcon(moreBtn, "more-horizontal");
 
@@ -106,26 +122,74 @@ export class QuadrantCardComponent extends Component {
 
 	private createContent() {
 		this.contentEl = this.containerEl.createDiv("tg-quadrant-card-content");
-		
-		// Task title/content
-		const titleEl = this.contentEl.createDiv("tg-quadrant-card-title");
-		titleEl.textContent = this.getCleanTaskContent();
 
-		// Priority indicator
-		const priorityEmoji = this.extractPriorityEmoji();
-		if (priorityEmoji) {
-			const priorityEl = this.contentEl.createSpan("tg-quadrant-card-priority");
-			priorityEl.textContent = priorityEmoji;
+		// Task title/content - use markdown renderer
+		const titleEl = this.contentEl.createDiv("tg-quadrant-card-title");
+		const taskContent = this.getCleanTaskContent();
+
+		// Create a new markdown renderer for this specific content
+		const contentRenderer = new MarkdownRendererComponent(
+			this.app,
+			titleEl,
+			this.task.filePath,
+			true // hideMarks = true
+		);
+		this.addChild(contentRenderer);
+
+		// Render the task content
+		contentRenderer.render(taskContent, true);
+
+		// Priority indicator (use the logic from listItem.ts for numeric priority)
+		// See @file_context_0 for reference
+		if (this.task.metadata.priority) {
+			// 将优先级转换为数字
+			let numericPriority: number;
+			if (typeof this.task.metadata.priority === "string") {
+				switch ((this.task.metadata.priority as string).toLowerCase()) {
+					case "lowest":
+						numericPriority = 1;
+						break;
+					case "low":
+						numericPriority = 2;
+						break;
+					case "medium":
+						numericPriority = 3;
+						break;
+					case "high":
+						numericPriority = 4;
+						break;
+					case "highest":
+						numericPriority = 5;
+						break;
+					default:
+						numericPriority =
+							parseInt(this.task.metadata.priority) || 1;
+						break;
+				}
+			} else {
+				numericPriority = this.task.metadata.priority;
+			}
+
+			const priorityEl = this.contentEl.createDiv({
+				cls: [
+					"tg-quadrant-card-priority",
+					`priority-${numericPriority}`,
+				],
+			});
+
+			// 根据优先级数字显示不同数量的感叹号
+			let icon = "!".repeat(numericPriority);
+			priorityEl.textContent = icon;
 		}
 
 		// Tags
 		const tags = this.extractTags();
 		if (tags.length > 0) {
 			const tagsEl = this.contentEl.createDiv("tg-quadrant-card-tags");
-			tags.forEach(tag => {
+			tags.forEach((tag) => {
 				const tagEl = tagsEl.createSpan("tg-quadrant-card-tag");
 				tagEl.textContent = tag;
-				
+
 				// Add special styling for urgent/important tags
 				if (tag === "#urgent") {
 					tagEl.addClass("tg-quadrant-tag--urgent");
@@ -137,18 +201,26 @@ export class QuadrantCardComponent extends Component {
 	}
 
 	private createMetadata() {
-		this.metadataEl = this.containerEl.createDiv("tg-quadrant-card-metadata");
+		this.metadataEl = this.containerEl.createDiv(
+			"tg-quadrant-card-metadata"
+		);
 
 		// Due date
 		const dueDate = this.getTaskDueDate();
 		if (dueDate) {
-			const dueDateEl = this.metadataEl.createDiv("tg-quadrant-card-due-date");
-			const dueDateIcon = dueDateEl.createSpan("tg-quadrant-card-due-date-icon");
+			const dueDateEl = this.metadataEl.createDiv(
+				"tg-quadrant-card-due-date"
+			);
+			const dueDateIcon = dueDateEl.createSpan(
+				"tg-quadrant-card-due-date-icon"
+			);
 			setIcon(dueDateIcon, "calendar");
-			
-			const dueDateText = dueDateEl.createSpan("tg-quadrant-card-due-date-text");
+
+			const dueDateText = dueDateEl.createSpan(
+				"tg-quadrant-card-due-date-text"
+			);
 			dueDateText.textContent = this.formatDueDate(dueDate);
-			
+
 			// Add urgency styling
 			if (this.isDueSoon(dueDate)) {
 				dueDateEl.addClass("tg-quadrant-card-due-date--urgent");
@@ -158,10 +230,10 @@ export class QuadrantCardComponent extends Component {
 		}
 
 		// File info
-		const fileInfoEl = this.metadataEl.createDiv("tg-quadrant-card-file-info");
-		const fileIcon = fileInfoEl.createSpan("tg-quadrant-card-file-icon");
-		setIcon(fileIcon, "file-text");
-		
+		const fileInfoEl = this.metadataEl.createDiv(
+			"tg-quadrant-card-file-info"
+		);
+
 		const fileName = fileInfoEl.createSpan("tg-quadrant-card-file-name");
 		fileName.textContent = this.getFileName();
 
@@ -173,10 +245,13 @@ export class QuadrantCardComponent extends Component {
 	private addEventListeners() {
 		// Card click to select task
 		this.containerEl.addEventListener("click", (e) => {
-			if (e.target === this.checkboxEl || this.checkboxEl.contains(e.target as Node)) {
+			if (
+				e.target === this.checkboxEl ||
+				this.checkboxEl.contains(e.target as Node)
+			) {
 				return; // Don't select when clicking checkbox
 			}
-			
+
 			if (this.params.onTaskSelected) {
 				this.params.onTaskSelected(this.task);
 			}
@@ -186,7 +261,7 @@ export class QuadrantCardComponent extends Component {
 		this.containerEl.addEventListener("contextmenu", (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			
+
 			if (this.params.onTaskContextMenu) {
 				this.params.onTaskContextMenu(e, this.task);
 			} else {
@@ -222,21 +297,49 @@ export class QuadrantCardComponent extends Component {
 
 		menu.addSeparator();
 
-		menu.addItem((item) => {
-			item.setTitle(t("Mark as urgent"))
-				.setIcon("zap")
-				.onClick(() => {
-					this.addTagToTask("#urgent");
-				});
-		});
+		// Check if task already has urgent or important tags (check both content and metadata)
+		const hasUrgentTag =
+			this.task.content.includes("#urgent") ||
+			this.task.metadata.tags?.includes("#urgent");
+		const hasImportantTag =
+			this.task.content.includes("#important") ||
+			this.task.metadata.tags?.includes("#important");
 
-		menu.addItem((item) => {
-			item.setTitle(t("Mark as important"))
-				.setIcon("star")
-				.onClick(() => {
-					this.addTagToTask("#important");
-				});
-		});
+		if (!hasUrgentTag) {
+			menu.addItem((item) => {
+				item.setTitle(t("Mark as urgent"))
+					.setIcon("zap")
+					.onClick(() => {
+						this.addTagToTask("#urgent");
+					});
+			});
+		} else {
+			menu.addItem((item) => {
+				item.setTitle(t("Remove urgent tag"))
+					.setIcon("zap-off")
+					.onClick(() => {
+						this.removeTagFromTask("#urgent");
+					});
+			});
+		}
+
+		if (!hasImportantTag) {
+			menu.addItem((item) => {
+				item.setTitle(t("Mark as important"))
+					.setIcon("star")
+					.onClick(() => {
+						this.addTagToTask("#important");
+					});
+			});
+		} else {
+			menu.addItem((item) => {
+				item.setTitle(t("Remove important tag"))
+					.setIcon("star-off")
+					.onClick(() => {
+						this.removeTagFromTask("#important");
+					});
+			});
+		}
 
 		menu.showAtMouseEvent(e);
 	}
@@ -246,35 +349,93 @@ export class QuadrantCardComponent extends Component {
 		if (file) {
 			const leaf = this.app.workspace.getLeaf(false);
 			await leaf.openFile(file as any);
-			
+
 			// Navigate to the specific line
 			const view = leaf.view;
-			if (view && 'editor' in view && view.editor) {
-				view.editor.setCursor(this.task.line - 1, 0);
-				view.editor.scrollIntoView({ line: this.task.line - 1, ch: 0 }, true);
+			if (view && view instanceof MarkdownView && view.editor) {
+				const lineNumber = this.task.line - 1;
+				view.editor.setCursor(lineNumber, 0);
+				view.editor.scrollIntoView(
+					{
+						from: { line: lineNumber, ch: 0 },
+						to: { line: lineNumber, ch: 0 },
+					},
+					true
+				);
 			}
 		}
 	}
 
 	private async addTagToTask(tag: string) {
-		// This would need to be implemented to actually modify the file
-		console.log(`Would add tag ${tag} to task ${this.task.id}`);
-		// Implementation would go here to update the actual file content
+		try {
+			// Create a copy of the task with the new tag
+			const updatedTask = { ...this.task };
+
+			// Initialize tags array if it doesn't exist
+			if (!updatedTask.metadata.tags) {
+				updatedTask.metadata.tags = [];
+			}
+
+			// Add the tag if it doesn't already exist
+			if (!updatedTask.metadata.tags.includes(tag)) {
+				updatedTask.metadata.tags = [...updatedTask.metadata.tags, tag];
+			}
+
+			// Update the local task reference and re-render
+			this.task = updatedTask;
+			this.render();
+
+			// Notify parent component about task update
+			if (this.params.onTaskUpdated) {
+				await this.params.onTaskUpdated(updatedTask);
+			}
+		} catch (error) {
+			console.error(
+				`Failed to add tag ${tag} to task ${this.task.id}:`,
+				error
+			);
+		}
+	}
+
+	private async removeTagFromTask(tag: string) {
+		try {
+			// Create a copy of the task without the tag
+			const updatedTask = { ...this.task };
+
+			// Remove the tag from the tags array
+			updatedTask.metadata.tags = updatedTask.metadata.tags.filter(
+				(t) => t !== tag
+			);
+
+			// Update the local task reference and re-render
+			this.task = updatedTask;
+			this.render();
+
+			// Notify parent component about task update
+			if (this.params.onTaskUpdated) {
+				await this.params.onTaskUpdated(updatedTask);
+			}
+		} catch (error) {
+			console.error(
+				`Failed to remove tag ${tag} from task ${this.task.id}:`,
+				error
+			);
+		}
 	}
 
 	private getCleanTaskContent(): string {
 		// Remove checkbox, priority emojis, and metadata from display
 		let content = this.task.content;
-		
+
 		// Remove priority emojis
 		content = content.replace(/[🔺⏫🔼🔽⏬]/g, "").trim();
-		
+
 		// Remove dates in 📅 format
 		content = content.replace(/📅\s*\d{4}-\d{2}-\d{2}/g, "").trim();
-		
+
 		// Remove extra whitespace
 		content = content.replace(/\s+/g, " ").trim();
-		
+
 		return content;
 	}
 
@@ -289,11 +450,16 @@ export class QuadrantCardComponent extends Component {
 	}
 
 	private getPriorityClass(): string {
-		if (this.task.content.includes("🔺")) return "tg-quadrant-card--priority-highest";
-		if (this.task.content.includes("⏫")) return "tg-quadrant-card--priority-high";
-		if (this.task.content.includes("🔼")) return "tg-quadrant-card--priority-medium";
-		if (this.task.content.includes("🔽")) return "tg-quadrant-card--priority-low";
-		if (this.task.content.includes("⏬")) return "tg-quadrant-card--priority-lowest";
+		if (this.task.content.includes("🔺"))
+			return "tg-quadrant-card--priority-highest";
+		if (this.task.content.includes("⏫"))
+			return "tg-quadrant-card--priority-high";
+		if (this.task.content.includes("🔼"))
+			return "tg-quadrant-card--priority-medium";
+		if (this.task.content.includes("🔽"))
+			return "tg-quadrant-card--priority-low";
+		if (this.task.content.includes("⏬"))
+			return "tg-quadrant-card--priority-lowest";
 		return "";
 	}
 
