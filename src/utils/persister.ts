@@ -18,13 +18,16 @@ export class LocalStorageCache {
 	private readonly cachePrefix = "taskgenius/cache/";
 	/** Whether initialization is complete */
 	private initialized = false;
+	/** Current plugin version for cache invalidation */
+	private currentVersion: string = "unknown";
 
 	/**
 	 * Create a new local storage cache
 	 * @param appId The application ID for the cache namespace
 	 * @param version Current plugin version for cache invalidation
 	 */
-	constructor(public readonly appId: string) {
+	constructor(public readonly appId: string, version?: string) {
+		this.currentVersion = version || "unknown";
 		this.persister = localforage.createInstance({
 			name: this.cachePrefix + this.appId,
 			driver: [localforage.INDEXEDDB],
@@ -109,6 +112,8 @@ export class LocalStorageCache {
 		try {
 			const key = this.fileKey(path);
 			await this.persister.setItem(key, {
+				version: this.currentVersion,
+				time: Date.now(),
 				data,
 			} as Cached<T>);
 		} catch (error) {
@@ -261,6 +266,8 @@ export class LocalStorageCache {
 		try {
 			const cacheKey = `${this.appId}:consolidated:${key}`;
 			await this.persister.setItem(cacheKey, {
+				version: this.currentVersion,
+				time: Date.now(),
 				data,
 			} as Cached<T>);
 		} catch (error) {
@@ -313,5 +320,73 @@ export class LocalStorageCache {
 			console.error("Error getting all cached files:", error);
 			return {};
 		}
+	}
+
+	/**
+	 * Update the current version for cache invalidation
+	 * @param version New version string
+	 */
+	public setVersion(version: string): void {
+		this.currentVersion = version;
+	}
+
+	/**
+	 * Get the current version being used for caching
+	 */
+	public getVersion(): string {
+		return this.currentVersion;
+	}
+
+	/**
+	 * Check if cached data is compatible with current version
+	 * @param cached Cached data to check
+	 * @param strictVersionCheck Whether to require exact version match
+	 */
+	public isVersionCompatible<T>(
+		cached: Cached<T>,
+		strictVersionCheck: boolean = false
+	): boolean {
+		if (!cached.version) {
+			// Old cache format without version - consider incompatible
+			return false;
+		}
+
+		if (strictVersionCheck) {
+			return cached.version === this.currentVersion;
+		}
+
+		// For non-strict checking, we could implement more sophisticated logic
+		// For now, treat any version mismatch as incompatible to be safe
+		return cached.version === this.currentVersion;
+	}
+
+	/**
+	 * Clear all cache entries that are incompatible with current version
+	 */
+	public async clearIncompatibleCache(): Promise<number> {
+		if (!this.initialized) await this.initialize();
+
+		let clearedCount = 0;
+		try {
+			const keys = await this.allKeys();
+
+			for (const key of keys) {
+				try {
+					const data = await this.persister.getItem<Cached<any>>(key);
+					if (data && !this.isVersionCompatible(data)) {
+						await this.persister.removeItem(key);
+						clearedCount++;
+					}
+				} catch (error) {
+					// If we can't read the data, remove it
+					await this.persister.removeItem(key);
+					clearedCount++;
+				}
+			}
+		} catch (error) {
+			console.error("Error clearing incompatible cache:", error);
+		}
+
+		return clearedCount;
 	}
 }

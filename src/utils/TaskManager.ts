@@ -20,7 +20,11 @@ import {
 	TaskParsingService,
 	TaskParsingServiceOptions,
 } from "./TaskParsingService";
-import { isSupportedFile, getFileType, SupportedFileType } from "./fileTypeUtils";
+import {
+	isSupportedFile,
+	getFileType,
+	SupportedFileType,
+} from "./fileTypeUtils";
 import { CanvasParser } from "./parsing/CanvasParser";
 import { CanvasTaskUpdater } from "./parsing/CanvasTaskUpdater";
 import { FileMetadataTaskUpdater } from "./workers/FileMetadataTaskUpdater";
@@ -94,7 +98,10 @@ export class TaskManager extends Component {
 			this.vault,
 			this.metadataCache
 		);
-		this.persister = new LocalStorageCache(this.app.appId);
+		this.persister = new LocalStorageCache(
+			this.app.appId,
+			this.plugin.manifest?.version
+		);
 
 		// Initialize configurable task parser for main thread fallback
 		this.taskParser = new MarkdownTaskParser(
@@ -264,7 +271,10 @@ export class TaskManager extends Component {
 		content: string
 	): Task[] {
 		try {
-			const fileType = getFileType({ path: filePath, extension: filePath.split('.').pop() || '' } as TFile);
+			const fileType = getFileType({
+				path: filePath,
+				extension: filePath.split(".").pop() || "",
+			} as TFile);
 
 			let tasks: Task[] = [];
 
@@ -401,7 +411,11 @@ export class TaskManager extends Component {
 				this.log("File metadata changed, updating index");
 				// Only process markdown files through metadata cache
 				// Canvas files will be handled by vault.on("modify") below
-				if (file instanceof TFile && file.extension === 'md' && isSupportedFile(file)) {
+				if (
+					file instanceof TFile &&
+					file.extension === "md" &&
+					isSupportedFile(file)
+				) {
 					this.indexFile(file);
 				}
 			})
@@ -422,11 +436,12 @@ export class TaskManager extends Component {
 					// For Canvas files, always process through vault modify event
 					// For markdown files, we'll get duplicate events but that's okay
 					// since indexFile is idempotent
-					if (file.extension === 'canvas') {
-						this.log(`Canvas file modified: ${file.path}, re-indexing`);
+					if (file.extension === "canvas") {
+						this.log(
+							`Canvas file modified: ${file.path}, re-indexing`
+						);
 						this.indexFile(file);
 					}
-					
 				}
 			})
 		);
@@ -598,8 +613,10 @@ export class TaskManager extends Component {
 		try {
 			// Get all supported files (Markdown and Canvas)
 			const allFiles = this.vault.getFiles();
-			const files = allFiles.filter(file => isSupportedFile(file));
-			this.log(`Found ${files.length} supported files to index (${allFiles.length} total files)`);
+			const files = allFiles.filter((file) => isSupportedFile(file));
+			this.log(
+				`Found ${files.length} supported files to index (${allFiles.length} total files)`
+			);
 
 			// Try to synchronize task cache with current files and clean up non-existent file caches
 			try {
@@ -1406,7 +1423,9 @@ export class TaskManager extends Component {
 				console.log("result", result);
 
 				if (result.success) {
-					this.log(`Updated Canvas task ${updatedTask.id} in Canvas file`);
+					this.log(
+						`Updated Canvas task ${updatedTask.id} in Canvas file`
+					);
 
 					// Re-index the file to pick up the changes - if this fails, don't fail the entire operation
 					const file = this.vault.getFileByPath(updatedTask.filePath);
@@ -1427,10 +1446,15 @@ export class TaskManager extends Component {
 					}
 					return;
 				} else {
-					throw new Error(result.error || "Failed to update Canvas task");
+					throw new Error(
+						result.error || "Failed to update Canvas task"
+					);
 				}
 			} catch (error) {
-				console.error(`Error updating Canvas task ${updatedTask.id}:`, error);
+				console.error(
+					`Error updating Canvas task ${updatedTask.id}:`,
+					error
+				);
 				throw error;
 			}
 		}

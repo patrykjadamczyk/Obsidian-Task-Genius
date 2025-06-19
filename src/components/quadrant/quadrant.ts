@@ -491,20 +491,23 @@ export class QuadrantComponent extends Component {
 			// Update tags in metadata
 			updatedTask.metadata.tags = filteredTags;
 
-			// Update priority based on quadrant
-			switch (quadrant.id) {
-				case "urgent-important":
-					updatedTask.metadata.priority = 5; // Highest
-					break;
-				case "not-urgent-important":
-					updatedTask.metadata.priority = 4; // High
-					break;
-				case "urgent-not-important":
-					updatedTask.metadata.priority = 3; // Medium
-					break;
-				case "not-urgent-not-important":
-					updatedTask.metadata.priority = 2; // Low
-					break;
+			// Only update priority if using priority-based classification
+			if (this.quadrantConfig.usePriorityForClassification) {
+				// Update priority based on quadrant
+				switch (quadrant.id) {
+					case "urgent-important":
+						updatedTask.metadata.priority = 5; // Highest
+						break;
+					case "not-urgent-important":
+						updatedTask.metadata.priority = 4; // High
+						break;
+					case "urgent-not-important":
+						updatedTask.metadata.priority = 3; // Medium
+						break;
+					case "not-urgent-not-important":
+						updatedTask.metadata.priority = 2; // Low
+						break;
+				}
 			}
 
 			// Store quadrant information in metadata using custom fields
