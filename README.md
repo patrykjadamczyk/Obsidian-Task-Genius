@@ -3,7 +3,7 @@
 
   **The Ultimate Task Management Plugin for Obsidian**
 
-  [![Version](https://img.shields.io/badge/version-9.0.0--beta.7-blue.svg)](https://github.com/Quorafind/Obsidian-Task-Genius)
+  [![Version](https://img.shields.io/badge/version-9.0.0-blue.svg)](https://github.com/Quorafind/Obsidian-Task-Genius)
   [![Discord](https://img.shields.io/discord/1382008288706695229?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/ARR2rHHX6b)
 
   Transform your Obsidian vault into a powerful task management system with advanced features, beautiful visualizations, and seamless workflow integration.
