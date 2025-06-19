@@ -41,6 +41,11 @@ export class ViewTaskFilterPopover
 		// Create content container
 		const contentEl = createDiv({ cls: "task-popover-content" });
 
+		// Prevent clicks inside the popover from bubbling up
+		this.registerDomEvent(contentEl, "click", (e) => {
+			e.stopPropagation();
+		});
+
 		// Create metadata editor, use compact mode
 		this.taskFilterComponent = new TaskFilterComponent(
 			contentEl,
@@ -125,6 +130,11 @@ export class ViewTaskFilterPopover
 
 	private clickOutside = (e: MouseEvent) => {
 		if (this.popoverRef && !this.popoverRef.contains(e.target as Node)) {
+			console.log("clickOutside - closing popover", {
+				target: e.target,
+				popoverRef: this.popoverRef,
+				contains: this.popoverRef.contains(e.target as Node),
+			});
 			this.close();
 		}
 	};
