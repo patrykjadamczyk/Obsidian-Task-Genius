@@ -559,6 +559,7 @@ export class TaskWorkerManager extends Component {
 							dailyNotePath: "",
 							ignoreHeading: "",
 							focusHeading: "",
+							globalFilter: "",
 							fileParsingConfig: undefined,
 						},
 					};
