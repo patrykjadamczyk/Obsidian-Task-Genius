@@ -390,14 +390,21 @@ export class QuadrantComponent extends Component {
 			// Get source quadrant information
 			const sourceQuadrantId =
 				sourceColumnContent.getAttribute("data-quadrant-id");
+			const actualSourceQuadrant = QUADRANT_DEFINITIONS.find(
+				(q) => q.id === sourceQuadrantId
+			);
 
-			if (targetQuadrant && sourceQuadrantId) {
+			if (targetQuadrant && actualSourceQuadrant) {
 				// Handle cross-quadrant moves
 				if (targetQuadrantId !== sourceQuadrantId) {
 					console.log(
 						`Moving task ${taskId} from ${sourceQuadrantId} to ${targetQuadrantId}`
 					);
-					await this.updateTaskQuadrant(taskId, targetQuadrant);
+					await this.updateTaskQuadrant(
+						taskId,
+						targetQuadrant,
+						actualSourceQuadrant
+					);
 				} else if (event.oldIndex !== event.newIndex) {
 					// Handle reordering within the same quadrant
 					console.log(
@@ -409,22 +416,10 @@ export class QuadrantComponent extends Component {
 		}
 	}
 
-	private handleTaskMove(evt: any, targetQuadrant: QuadrantDefinition) {
-		const taskEl = evt.item;
-		const taskId = taskEl.getAttribute("data-task-id");
-
-		if (!taskId) return;
-
-		const task = this.tasks.find((t) => t.id === taskId);
-		if (!task) return;
-
-		// Update task priority and tags based on quadrant
-		this.updateTaskQuadrant(taskId, targetQuadrant);
-	}
-
 	private async updateTaskQuadrant(
 		taskId: string,
-		quadrant: QuadrantDefinition
+		quadrant: QuadrantDefinition,
+		sourceQuadrant?: QuadrantDefinition
 	) {
 		const task = this.tasks.find((t) => t.id === taskId);
 		if (!task) return;
@@ -444,31 +439,40 @@ export class QuadrantComponent extends Component {
 			// Update tags in metadata
 			const updatedTags = [...(updatedTask.metadata.tags || [])];
 
-			// Remove existing urgent/important tags
-			const urgentTag = this.quadrantConfig.urgentTag || "#urgent";
-			const importantTag =
-				this.quadrantConfig.importantTag || "#important";
+			// Get tag names to remove (from source quadrant if provided, otherwise from config)
+			const tagsToRemove: string[] = [];
 
-			// Remove # prefix for comparison
-			const urgentTagName = urgentTag.replace("#", "");
-			const importantTagName = importantTag.replace("#", "");
+			if (sourceQuadrant) {
+				// Remove tags from source quadrant (keep # prefix since metadata.tags includes #)
+				if (sourceQuadrant.urgentTag) {
+					tagsToRemove.push(sourceQuadrant.urgentTag);
+				}
+				if (sourceQuadrant.importantTag) {
+					tagsToRemove.push(sourceQuadrant.importantTag);
+				}
+			} else {
+				// Fallback: remove all urgent/important tags from config
+				const urgentTag = this.quadrantConfig.urgentTag || "#urgent";
+				const importantTag =
+					this.quadrantConfig.importantTag || "#important";
+				tagsToRemove.push(urgentTag);
+				tagsToRemove.push(importantTag);
+			}
 
 			// Remove existing urgent/important tags
 			const filteredTags = updatedTags.filter(
-				(tag) => tag !== urgentTagName && tag !== importantTagName
+				(tag) => !tagsToRemove.includes(tag)
 			);
 
-			// Add new tags based on quadrant
+			// Add new tags based on target quadrant (keep # prefix since metadata.tags includes #)
 			if (quadrant.urgentTag) {
-				const urgentTagName = quadrant.urgentTag.replace("#", "");
-				if (!filteredTags.includes(urgentTagName)) {
-					filteredTags.push(urgentTagName);
+				if (!filteredTags.includes(quadrant.urgentTag)) {
+					filteredTags.push(quadrant.urgentTag);
 				}
 			}
 			if (quadrant.importantTag) {
-				const importantTagName = quadrant.importantTag.replace("#", "");
-				if (!filteredTags.includes(importantTagName)) {
-					filteredTags.push(importantTagName);
+				if (!filteredTags.includes(quadrant.importantTag)) {
+					filteredTags.push(quadrant.importantTag);
 				}
 			}
 
