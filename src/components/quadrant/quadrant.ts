@@ -254,11 +254,23 @@ export class QuadrantComponent extends Component {
 		// 监听下拉选择变化
 		sortDropdown.onChange((value: string) => {
 			const [field, order] = value.split("-");
-			this.sortOption =
+			const newSortOption =
 				sortOptions.find(
 					(opt) => opt.field === field && opt.order === order
 				) || this.sortOption;
-			this.refresh();
+
+			// Only update if the sort option actually changed
+			if (
+				newSortOption.field !== this.sortOption.field ||
+				newSortOption.order !== this.sortOption.order
+			) {
+				console.log(
+					`Sort option changed from ${this.sortOption.field}-${this.sortOption.order} to ${newSortOption.field}-${newSortOption.order}`
+				);
+				this.sortOption = newSortOption;
+				// Force refresh all columns since sorting affects all quadrants
+				this.forceRefreshAll();
+			}
 		});
 	}
 
@@ -795,6 +807,13 @@ export class QuadrantComponent extends Component {
 			}
 		}
 
+		// Check if task order has changed (important for sorting)
+		for (let i = 0; i < currentTasks.length; i++) {
+			if (currentTasks[i].id !== newTasks[i].id) {
+				return true; // Order changed
+			}
+		}
+
 		// Check if task content has changed (more detailed comparison)
 		const currentTaskMap = new Map(
 			currentTasks.map((task) => [task.id, task])
@@ -965,6 +984,10 @@ export class QuadrantComponent extends Component {
 	private sortTasks(tasks: Task[]): Task[] {
 		const sortedTasks = [...tasks];
 
+		console.log(
+			`Sorting ${tasks.length} tasks by ${this.sortOption.field} (${this.sortOption.order})`
+		);
+
 		sortedTasks.sort((a, b) => {
 			let aValue: any, bValue: any;
 
@@ -999,6 +1022,20 @@ export class QuadrantComponent extends Component {
 				return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
 			}
 		});
+
+		// Log first few tasks for debugging
+		if (sortedTasks.length > 0) {
+			console.log(
+				`First 3 sorted tasks:`,
+				sortedTasks.slice(0, 3).map((t) => ({
+					id: t.id,
+					content: t.content.substring(0, 50),
+					priority: this.getTaskPriorityValue(t),
+					dueDate: t.metadata?.dueDate,
+					scheduledDate: t.metadata?.scheduledDate,
+				}))
+			);
+		}
 
 		return sortedTasks;
 	}
