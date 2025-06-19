@@ -552,6 +552,21 @@ export function renderViewSettingsTab(
 			});
 		});
 
+	new Setting(containerEl)
+		.setName(t("Ignore all tasks not containing text"))
+		.setDesc(
+			t(
+				"Enter the text that task need to have to not be ignored, e.g. '#todo', separated by comma"
+			)
+		)
+		.addText((text) => {
+			text.setValue(settingTab.plugin.settings.globalFilter);
+			text.onChange((value) => {
+				settingTab.plugin.settings.globalFilter = value;
+				settingTab.applySettingsUpdate();
+			});
+		});
+
 	if (!settingTab.plugin.settings.enableView) return;
 
 	// --- New View Management Section ---

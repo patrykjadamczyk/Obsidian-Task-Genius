@@ -94,6 +94,13 @@ function parseTasksWithConfigurableParser(
 
 		// Apply heading filters if specified
 		return tasks.filter((task) => {
+			// Global filter
+			if (settings.globalFilter) {
+				if (!settings.globalFilter.split(",").some((currentFilter) => task.originalMarkdown.includes(currentFilter))) {
+					return false;
+				}
+			}
+
 			// Filter by ignore heading
 			if (settings.ignoreHeading && task.metadata.heading) {
 				const headings = Array.isArray(task.metadata.heading)
@@ -431,6 +438,7 @@ self.onmessage = async (event) => {
 			useAsDateType: "due",
 			dailyNotePath: "",
 			ignoreHeading: "",
+			globalFilter: "",
 			focusHeading: "",
 			projectConfig: undefined,
 			fileParsingConfig: undefined,

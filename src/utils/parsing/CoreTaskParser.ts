@@ -5,7 +5,7 @@
  * It provides both line-level and file-level parsing capabilities.
  */
 
-import { Task } from "../../types/task";
+import { StandardTaskMetadata, Task } from "../../types/task";
 import { TASK_REGEX } from "../../common/regex-define";
 import { parseLocalDate } from "../dateUtil";
 import {
@@ -49,6 +49,8 @@ export interface CoreParsingOptions {
 	ignoreHeading?: string;
 	/** Focus only on specific heading */
 	focusHeading?: string;
+	/** Global filter */
+	globalFilter?: string;
 	/** Whether to parse hierarchy based on indentation */
 	parseHierarchy: boolean;
 }
@@ -151,6 +153,9 @@ export class CoreTaskParser {
 		const focusHeadings = this.options.focusHeading
 			? this.options.focusHeading.split(",").map((h) => h.trim())
 			: [];
+		const globalFilter = this.options.globalFilter
+			? this.options.globalFilter.split(",")
+			: [];
 
 		// Check if current heading should be filtered
 		const shouldFilterHeading = () => {
@@ -219,6 +224,9 @@ export class CoreTaskParser {
 			// Parse task
 			const task = this.parseTaskLine(filePath, line, i, [...headings]);
 			if (task) {
+				if (!globalFilter.some((currentFilter) => task.originalMarkdown.includes(currentFilter))) {
+					continue;
+				}
 				tasks.push(task);
 			}
 		}

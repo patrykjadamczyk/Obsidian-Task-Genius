@@ -36,6 +36,7 @@ export interface ParseTasksCommand {
 		useAsDateType: "due" | "start" | "scheduled";
 		dailyNotePath: string;
 		ignoreHeading: string;
+		globalFilter: string;
 		focusHeading: string;
 		fileParsingConfig?: FileParsingConfiguration;
 	};
@@ -71,6 +72,7 @@ export interface BatchIndexCommand {
 		useAsDateType: "due" | "start" | "scheduled";
 		dailyNotePath: string;
 		ignoreHeading: string;
+		globalFilter: string;
 		focusHeading: string;
 		fileParsingConfig?: FileParsingConfiguration;
 	};
@@ -173,6 +175,7 @@ export type TaskWorkerSettings = {
 	useAsDateType: "due" | "start" | "scheduled";
 	dailyNotePath: string;
 	ignoreHeading: string;
+	globalFilter: string;
 	focusHeading: string;
 
 	// Enhanced project configuration (basic config for fallback)

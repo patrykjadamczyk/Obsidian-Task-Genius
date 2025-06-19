@@ -585,6 +585,9 @@ export interface TaskProgressBarSettings {
 	// Focus all tasks behind heading
 	focusHeading: string;
 
+	// Global filter
+	globalFilter: string;
+
 	// View Settings (Updated Structure)
 	enableView: boolean;
 	enableInlineEditor: boolean; // Enable inline editing in task views
@@ -872,6 +875,9 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 
 	// Focus all tasks behind heading
 	focusHeading: "",
+
+	// Global filter
+	globalFilter: "",
 
 	// View Defaults (Updated Structure)
 	enableView: true,

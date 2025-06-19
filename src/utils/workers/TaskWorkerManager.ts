@@ -46,6 +46,7 @@ export interface WorkerPoolOptions {
 		useAsDateType: "due" | "start" | "scheduled";
 		dailyNotePath: string;
 		ignoreHeading: string;
+		globalFilter: string;
 		focusHeading: string;
 		fileParsingConfig?: FileParsingConfiguration;
 	};
@@ -65,6 +66,7 @@ export const DEFAULT_WORKER_OPTIONS: WorkerPoolOptions = {
 		useAsDateType: "due",
 		dailyNotePath: "",
 		ignoreHeading: "",
+		globalFilter: "",
 		focusHeading: "",
 	},
 };
@@ -192,6 +194,7 @@ export class TaskWorkerManager extends Component {
 				useAsDateType: "due",
 				dailyNotePath: "",
 				ignoreHeading: "",
+				globalFilter: "",
 				focusHeading: "",
 				fileParsingConfig: config,
 			};

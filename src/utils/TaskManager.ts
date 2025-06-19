@@ -352,6 +352,13 @@ export class TaskManager extends Component {
 	 */
 	private applyHeadingFilters(tasks: Task[]): Task[] {
 		return tasks.filter((task) => {
+			// Global Filter
+			if (this.plugin.settings.globalFilter) {
+				if (!this.plugin.settings.globalFilter.split(",").some((currentFilter) => task.originalMarkdown.includes(currentFilter))) {
+					return false;
+				}
+			}
+
 			// Filter by ignore heading
 			if (this.plugin.settings.ignoreHeading && task.metadata.heading) {
 				const headings = Array.isArray(task.metadata.heading)
